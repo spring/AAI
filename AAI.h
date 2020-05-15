@@ -111,9 +111,14 @@ private:
 
 	Profiler* profiler;
 	FILE *file;
-	bool initialized;
 
-	// if there is more than one instance of AAI, make sure to allocate/free memory only once
+	//! true if AAI has been sucessfully initialized and ready to run
+	bool m_initialized;
+
+	//! true if game/mod and general config have been loaded successfully
+	bool m_configLoaded; 
+
+	//! if there is more than one instance of AAI, make sure to allocate/free memory only once
 	static int aai_instance;
 
 };

@@ -171,7 +171,6 @@ AAIConfig::AAIConfig(void)
 	LAND_WATER_MAP_RATIO = 0.3f;
 
 	GAME_PERIODS = 4;
-	initialized = false;
 }
 
 AAIConfig::~AAIConfig(void)
@@ -197,40 +196,33 @@ std::string AAIConfig::GetFileName(AAI* ai, const std::string& filename, const s
 	return name;
 }
 
-void AAIConfig::LoadConfig(AAI *ai)
+bool AAIConfig::loadGameConfig(AAI *ai)
 {
 	MAX_UNITS = ai->Getcb()->GetMaxUnits();
 
-
-	std::list<string> paths;
-	paths.push_back(GetFileName(ai, ai->Getcb()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	paths.push_back(GetFileName(ai, ai->Getcb()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	paths.push_back(GetFileName(ai, ai->Getcb()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	std::list<string> possible_config_filenames;
+	possible_config_filenames.push_back(GetFileName(ai, ai->Getcb()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai, ai->Getcb()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai, ai->Getcb()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
 	FILE* file = NULL;
 	std::string configfile;
-	for(const std::string& path: paths) {
-		file = fopen(path.c_str(), "r");
-		if (file == NULL) {
-			ai->Log("Couldn't open config file %s\n", path.c_str());
-		} else {
-			configfile = path;
+	for(const std::string& filename: possible_config_filenames) {
+		file = fopen(filename.c_str(), "r");
+		if (file != NULL) 
+		{
+			configfile = filename;
 			break;
 		}
 	}
 
 	if (file == NULL) {
-		ai->Log("Give up trying to find mod config file (required).\n");
-		initialized = false;
-		return;
-	}
+		ai->Log("Unable to find mod config file (required).\n");
+		return false;
+   	}
 
 	char keyword[50];
 
-	bool error = false;
-//	bool loaded = false;
-
-	if(file == NULL)
-		return;
+	bool errorOccurred = false;
 
 	while(EOF != fscanf(file, "%s", keyword))
 	{
@@ -242,7 +234,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 			for(int i = 0; i < SIDES; i++) {
 				START_UNITS[i] = GetString(ai, file);
 				if(!GetUnitDef(ai, START_UNITS[i].c_str())) {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -259,7 +251,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef)) {
 					SCOUTS.push_back(GetUnitDef(ai, unitdef)->id);
 				} else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -272,7 +264,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef))
 					ATTACKERS.push_back(GetUnitDef(ai, unitdef)->id);
 				else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -285,7 +277,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef))
 					TRANSPORTERS.push_back(GetUnitDef(ai, unitdef)->id);
 				else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -297,7 +289,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef))
 					METAL_MAKERS.push_back(GetUnitDef(ai, unitdef)->id);
 				else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -309,7 +301,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef))
 					DONT_BUILD.push_back(GetUnitDef(ai, unitdef)->id);
 				else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -326,7 +318,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 
 				cost_multipliers.push_back(temp);
 			} else {
-				error = true;
+				errorOccurred = true;
 				break;
 			}
 		} else if(!strcmp(keyword,"SECTOR_SIZE")) {
@@ -449,56 +441,64 @@ void AAIConfig::LoadConfig(AAI *ai)
 		} else if(!strcmp(keyword, "MAX_ATTACKS")) {
 			MAX_ATTACKS = GetInt(ai, file);
 		} else {
-			error = true;
+			errorOccurred = true;
 			break;
 		}
 	}
 
-	if(error) {
+	if(errorOccurred) {
 		ai->Log("Mod config file %s contains erroneous keyword: %s\n", configfile.c_str(), keyword);
-		initialized = false;
-		return;
+		return false;
 	}
 
 	fclose(file);
 	ai->Log("Mod config file %s loaded\n", configfile.c_str());
+	return true;
+}
 
+bool AAIConfig::loadGeneralConfig(AAI& ai)
+{
 	// load general settings
-	const std::string generalcfg = GetFileName(ai, GENERAL_CFG_FILE, CFG_PATH);
-	file = fopen(generalcfg.c_str(), "r");
+	const std::string filename = GetFileName(&ai, GENERAL_CFG_FILE, CFG_PATH);
+
+	FILE* file = fopen(filename.c_str(), "r");
+
 	if(file == NULL) {
-		ai->Log("Couldn't load general config file %s\n", generalcfg.c_str());
-		return;
+		ai.Log("Couldn't load general config file %s\n", filename.c_str());
+		return false;
 	}
+
+	char keyword[50];
+	bool errorOccurred = false;
 
 	while(EOF != fscanf(file, "%s", keyword))
 	{
 		if(!strcmp(keyword, "LEARN_RATE")) {
-			LEARN_RATE = GetInt(ai, file);
+			LEARN_RATE = GetInt(&ai, file);
 		} else if(!strcmp(keyword, "LEARN_SPEED")) {
-			LEARN_SPEED = GetFloat(ai, file);
+			LEARN_SPEED = GetFloat(&ai, file);
 		} else if(!strcmp(keyword, "WATER_MAP_RATIO")) {
-			WATER_MAP_RATIO = GetFloat(ai, file);
+			WATER_MAP_RATIO = GetFloat(&ai, file);
 		} else if(!strcmp(keyword, "LAND_WATER_MAP_RATIO")) {
-			LAND_WATER_MAP_RATIO = GetFloat(ai, file);
+			LAND_WATER_MAP_RATIO = GetFloat(&ai, file);
 		} else if(!strcmp(keyword, "SCOUT_UPDATE_FREQUENCY")) {
-			SCOUT_UPDATE_FREQUENCY = GetInt(ai, file);;
+			SCOUT_UPDATE_FREQUENCY = GetInt(&ai, file);;
 		} else if(!strcmp(keyword, "SCOUTING_MEMORY_FACTOR")) {
-			SCOUTING_MEMORY_FACTOR = GetFloat(ai, file);
+			SCOUTING_MEMORY_FACTOR = GetFloat(&ai, file);
 		} else {
-			error = true;
+			errorOccurred = true;
 			break;
 		}
 	}
 
 	fclose(file);
 
-	if(error) {
-		ai->Log("General config file contains erroneous keyword %s\n", keyword);
-		return;
+	if(errorOccurred) {
+		ai.Log("General config file contains erroneous keyword %s\n", keyword);
+		return false;
 	}
-	ai->Log("General config file loaded\n");
-	initialized = true;
+	ai.Log("General config file loaded\n");
+	return true;
 }
 
 const UnitDef* AAIConfig::GetUnitDef(AAI* ai, const std::string& name)

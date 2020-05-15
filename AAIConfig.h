@@ -41,7 +41,11 @@ class AAIConfig
 public:
 	AAIConfig(void);
 
-	void LoadConfig(AAI *ai);
+	// @brief Load configuration for specific game/mod from config file
+	bool loadGameConfig(AAI *ai);
+
+	// @brief Load general AAI config
+	bool loadGeneralConfig(AAI& ai);
 
 	bool initialized;
 

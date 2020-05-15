@@ -53,7 +53,8 @@ AAI::AAI() :
 	am(NULL),
 	profiler(NULL),
 	file(NULL),
-	initialized(false)
+	m_initialized(false),
+	m_configLoaded(false)
 {
 	// initialize random numbers generator
 	srand (time(NULL));
@@ -62,7 +63,7 @@ AAI::AAI() :
 AAI::~AAI()
 {
 	aai_instance--;
-	if (!initialized)
+	if (m_initialized == false)
 		return;
 
 	// save several AI data
@@ -140,7 +141,7 @@ AAI::~AAI()
 	spring::SafeDelete(bt);
 	spring::SafeDelete(profiler);
 
-	initialized = false;
+	m_initialized = false;
 	fclose(file);
 	file = NULL;
 }
@@ -172,9 +173,12 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	Log("AAI %s running game %s\n \n", AAI_VERSION, cb->GetModHumanName());
 
 	// load config file first
-	cfg->LoadConfig(this);
+	bool gameConfigLoaded    = cfg->loadGameConfig(this);
+	bool generalConfigLoaded = cfg->loadGeneralConfig(*this);
 
-	if (!cfg->initialized)
+	m_configLoaded = gameConfigLoaded && generalConfigLoaded;
+
+	if (m_configLoaded == false)
 	{
 		std::string errorMsg =
 				std::string("Error: Could not load game and/or general config file."
@@ -304,7 +308,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 void AAI::UnitCreated(int unit, int /*builder*/)
 {
 	AAI_SCOPED_TIMER("UnitCreated")
-	if (!cfg->initialized)
+	if (m_configLoaded == false)
 		return;
 
 	// get unit's id
@@ -320,7 +324,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	ut->AddUnit(unit, def->id);
 
 	// get commander a startup
-	if (!initialized && ut->IsDefCommander(def->id))
+	if ( (m_initialized == false) && ut->IsDefCommander(def->id))
 	{
 		// UnitFinished() will decrease it later -> prevents AAI from having -1 future commanders
 		ut->requestedUnits[COMMANDER] += 1;
@@ -332,7 +336,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 
 		execute->InitAI(unit, def);
 
-		initialized = true;
+		m_initialized = true;
 		return;
 	}
 
@@ -381,7 +385,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 void AAI::UnitFinished(int unit)
 {
 	AAI_SCOPED_TIMER("UnitFinished")
-	if (!initialized)
+	if (m_initialized == false)
 		return;
 
 	// get unit's id
@@ -796,7 +800,7 @@ void AAI::Update()
 		return;
 	}
 
-	if (!initialized)
+	if (m_initialized == false)
 	{
 		if (!(tick % 450))
 		{
