@@ -88,8 +88,8 @@ AAIBuildTable::AAIBuildTable(AAI* ai)
 	assault_categories.push_back(SEA_ASSAULT);
 	assault_categories.push_back(SUBMARINE_ASSAULT);
 
-	// only set up static things if first aai intsance is iniatialized
-	if(ai->GetInstances() == 1)
+	// only set up static things if first aai instance is initialized
+	if(ai->getAAIInstance() == 1)
 	{
 		avg_cost.resize(MOBILE_CONSTRUCTOR+1);
 		avg_buildtime.resize(MOBILE_CONSTRUCTOR+1);
@@ -171,8 +171,8 @@ AAIBuildTable::AAIBuildTable(AAI* ai)
 
 AAIBuildTable::~AAIBuildTable(void)
 {
-	// delete common data only if last aai instance has gone
-	if(ai->GetInstances() == 0)
+	// delete common data only if last AAI instance is deleted
+	if(ai->getNumberOfAAIInstances() == 0)
 	{
 		units_of_category.clear();
 
@@ -749,7 +749,7 @@ void AAIBuildTable::Init()
 
 
 	// only once
-	if(ai->GetInstances() == 1)
+	if(ai->getAAIInstance() == 1)
 	{
 		// apply possible cost multipliers
 		if(cfg->cost_multipliers.size() > 0)

@@ -62,8 +62,12 @@ public:
 	void LogConsole(const char* format, ...);
 
 	int HandleEvent(int msg, const void *data);
-	//return count of aai instances
-	int GetInstances() { return aai_instance; }
+	
+	//! @brief Returns the number of AAI instances
+	int getNumberOfAAIInstances() const { return s_aaiInstances; }
+
+	//! @brief Returns the id of this AAI instance
+	int getAAIInstance() const { return m_aaiInstance; }
 
 	// called every frame
 	void Update();
@@ -110,17 +114,21 @@ private:
 	vector<list<AAIGroup*> > group_list;  // unit groups
 
 	Profiler* profiler;
-	FILE *file;
 
-	//! true if AAI has been sucessfully initialized and ready to run
+	//! File to which log messages are written
+	FILE *m_logFile;
+
+	//! Initialization state - true if AAI has been sucessfully initialized and ready to run
 	bool m_initialized;
 
-	//! true if game/mod and general config have been loaded successfully
+	//! True if game/mod and general config have been loaded successfully
 	bool m_configLoaded; 
 
-	//! if there is more than one instance of AAI, make sure to allocate/free memory only once
-	static int aai_instance;
+	//! Counter how many instances of AAI exist - if there is more than one instance of AAI, needed to ensure to allocate/free shared memory (e.g. unit learning data) only once
+	static int s_aaiInstances;
 
+	//! Id of this instance of AAI
+	int m_aaiInstance; 
 };
 
 #endif

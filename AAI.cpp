@@ -38,7 +38,7 @@ using namespace springLegacyAI;
 #include "CUtils/SimpleProfiler.h"
 #define AAI_SCOPED_TIMER(part) SCOPED_TIMER(part, profiler);
 
-int AAI::aai_instance = 0;
+int AAI::s_aaiInstances = 0;
 
 AAI::AAI() :
 	cb(NULL),
@@ -52,9 +52,10 @@ AAI::AAI() :
 	af(NULL),
 	am(NULL),
 	profiler(NULL),
-	file(NULL),
+	m_logFile(NULL),
 	m_initialized(false),
-	m_configLoaded(false)
+	m_configLoaded(false),
+	m_aaiInstance(0)
 {
 	// initialize random numbers generator
 	srand (time(NULL));
@@ -62,7 +63,7 @@ AAI::AAI() :
 
 AAI::~AAI()
 {
-	aai_instance--;
+	--s_aaiInstances;
 	if (m_initialized == false)
 		return;
 
@@ -142,8 +143,8 @@ AAI::~AAI()
 	spring::SafeDelete(profiler);
 
 	m_initialized = false;
-	fclose(file);
-	file = NULL;
+	fclose(m_logFile);
+	m_logFile = NULL;
 }
 
 
@@ -152,7 +153,6 @@ AAI::~AAI()
 
 void AAI::InitAI(IGlobalAICallback* callback, int team)
 {
-	aai_instance++;
 	char profilerName[16];
 	SNPRINTF(profilerName, sizeof(profilerName), "%s:%i", "AAI", team);
 	profiler = new Profiler(profilerName);
@@ -168,9 +168,13 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 
 	cb->GetValue(AIVAL_LOCATE_FILE_W, filename);
 
-	file = fopen(filename,"w");
+	m_logFile = fopen(filename,"w");
 
 	Log("AAI %s running game %s\n \n", AAI_VERSION, cb->GetModHumanName());
+
+	++s_aaiInstances;
+	m_aaiInstance = s_aaiInstances; //! @todo This might not be 100% thread safe (if multiple instances off AAI are initialized by several threads at the same time)
+	Log("AAI instance: %i\n", m_aaiInstance); 
 
 	// load config file first
 	bool gameConfigLoaded    = cfg->loadGameConfig(this);
@@ -959,7 +963,7 @@ void AAI::Update()
 	if (!(tick % 2927))
 	{
 		AAI_SCOPED_TIMER("Recalculate-Efficiency-Stats")
-		if (aai_instance == 1)
+		if (m_aaiInstance == 1) // only update statistics once (if multiple instances off AAI are running)
 		{
 			bt->UpdateMinMaxAvgEfficiency();
 		}
@@ -1012,13 +1016,16 @@ int AAI::HandleEvent(int msg, const void* data)
 
 void AAI::Log(const char* format, ...)
 {
-	va_list args;
-	va_start(args, format);
-	const int bytes = vfprintf(file, format, args);
-	if (bytes<0) { //write to stderr if write to file failed
-		vfprintf(stderr, format, args);
+	if(m_logFile != NULL)
+	{
+		va_list args;
+		va_start(args, format);
+		const int bytes = vfprintf(m_logFile, format, args);
+		if (bytes<0) { //write to stderr if write to file failed
+			vfprintf(stderr, format, args);
+		}
+		va_end(args);
 	}
-	va_end(args);
 }
 
 void AAI::LogConsole(const char* format, ...)

@@ -76,8 +76,8 @@ AAIMap::AAIMap(AAI *ai)
 
 AAIMap::~AAIMap(void)
 {
-	// delete common data only if last aai instace has gone
-	if(ai->GetInstances() == 0)
+	// delete common data only if last AAI instance is deleted
+	if(ai->getNumberOfAAIInstances() == 0)
 	{
 		Learn();
 
@@ -126,8 +126,8 @@ AAIMap::~AAIMap(void)
 
 void AAIMap::Init()
 {
-	// all static vars are only initialized by the first aai instance
-	if(ai->GetInstances() == 1)
+	// all static vars are only initialized by the first AAI instance
+	if(ai->getAAIInstance() == 1)
 	{
 		// get size
 		xMapSize = ai->Getcb()->GetMapWidth();
