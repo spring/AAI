@@ -51,12 +51,13 @@ vector< vector< vector<float> > > AAIBuildTable::min_eff;
 vector< vector< vector<float> > > AAIBuildTable::total_eff;
 vector< vector<float> > AAIBuildTable::fixed_eff;
 
+AAIBuildTree AAIBuildTable::s_buildTree;
 
-AAIBuildTable::AAIBuildTable(AAI* ai)
+
+AAIBuildTable::AAIBuildTable(AAI* ai) :
+	initialized(false)
 {
 	this->ai = ai;
-
-	initialized = false;
 
 	numOfSides = cfg->SIDES;
 	startUnits.resize(numOfSides);
@@ -238,6 +239,11 @@ void AAIBuildTable::Init()
 			assert(i == GetUnitDef(i).id);
 		}
 		#endif
+	}
+
+	if(ai->getAAIInstance() == 1)
+	{
+		s_buildTree.generate(ai->Getcb());
 	}
 
 	// Try to load buildtable; if not possible, create a new one

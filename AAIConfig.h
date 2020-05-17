@@ -47,8 +47,6 @@ public:
 	// @brief Load general AAI config
 	bool loadGeneralConfig(AAI& ai);
 
-	bool initialized;
-
 	// constants (will be loaded in aaiconfig)
 
 	// mod specific

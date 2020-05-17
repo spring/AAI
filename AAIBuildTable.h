@@ -19,6 +19,7 @@ using namespace springLegacyAI;
 
 
 #include "aidef.h"
+#include "AAIBuildTree.h"
 #include <assert.h>
 #include <list>
 #include <vector>
@@ -266,6 +267,9 @@ public:
 	// however for some purposes its necessary to have constant values (e.g. adding and subtracting stationary defences to/from the defense map)
 	static vector< vector<float> > fixed_eff;
 
+	//! The buildtree (who builds what, which unit belongs to which side, ...)
+	static AAIBuildTree s_buildTree;
+
 	//
 	//	non static variales
 	//
@@ -278,7 +282,6 @@ public:
 
 	// start units of each side (e.g. commander)
 	vector<int> startUnits;
-
 
 	vector<float> combat_eff;
 
@@ -318,8 +321,6 @@ private:
 	void DebugPrint();
 
 	AAI * ai;
-
-//	FILE *file;
 
 	// all the unit defs, FIXME: this can't be made static as spring seems to free the memory returned by GetUnitDefList()
 	std::vector<const UnitDef*> unitList;

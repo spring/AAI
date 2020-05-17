@@ -74,12 +74,14 @@ public:
 
 	IAICallback* Getcb() { return cb; }
 	IGlobalAICallback* Getaicb() { return aicb; }
+
 	int Getside()
 	{
 		assert(side>=0);
 		assert(side<=2);
 		return side;
 	}
+
 	list<AAIBuildTask*>& Getbuild_tasks() { return build_tasks; }
 	AAIBrain* Getbrain() { return brain; }
 	AAIExecute* Getexecute() { return execute; }
