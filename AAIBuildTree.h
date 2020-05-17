@@ -33,11 +33,14 @@ public:
     bool generate(IAICallback* cb);
 
     //! @brief Returns whether given the given unit type can be constructed by the given constructor unit type
-    bool canBuildUnitType(int unitDefIdBuilder, int unitDefId);
+    bool canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const;
+
+    //! @brief Return side of given unit type
+    bool getSideOfUnitType(UnitDefId unitDefId) const { return m_sideOfUnitType[unitDefId.id]; };
 
 private:
     //! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
-    void assignSideToUnitType(int side, int unitDefId);
+    void assignSideToUnitType(int side, UnitDefId unitDefId);
 
     //! Flag if build tree is initialized
     bool                            m_initialized;

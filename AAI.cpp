@@ -336,7 +336,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		bt->units_dynamic[def->id].under_construction += 1;
 
 		// set side
-		side = bt->GetSideByID(def->id);
+		side = bt->s_buildTree.getSideOfUnitType( UnitDefId(def->id)) ;
 
 		execute->InitAI(unit, def);
 

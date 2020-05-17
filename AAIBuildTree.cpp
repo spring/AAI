@@ -91,7 +91,7 @@ bool AAIBuildTree::generate(IAICallback* cb)
     for(std::list<int>::iterator id = rootUnits.begin(); id != rootUnits.end(); ++id)
     {
         ++m_numberOfSides;
-        assignSideToUnitType(m_numberOfSides, *id);
+        assignSideToUnitType(m_numberOfSides, UnitDefId(*id) );
     }
     
     //-----------------------------------------------------------------------------------------------------------------
@@ -119,31 +119,31 @@ bool AAIBuildTree::generate(IAICallback* cb)
     return true;
 }
 
-void AAIBuildTree::assignSideToUnitType(int side, int unitDefId)
+void AAIBuildTree::assignSideToUnitType(int side, UnitDefId unitDefId)
 {
     // avoid "visiting" unit types multiple times (if units can be constructed by more than one other unit)
-    if( m_sideOfUnitType[unitDefId] == 0)
+    if( m_sideOfUnitType[unitDefId.id] == 0)
     {
         // set side of given unit type
-        m_sideOfUnitType[unitDefId] = side;
+        m_sideOfUnitType[unitDefId.id] = side;
 
         // continue with unit types constructed by given unit type
-        for( std::list<int>::iterator id = m_unitTypeCanConstructLists[unitDefId].begin(); id != m_unitTypeCanConstructLists[unitDefId].end(); ++id)
+        for( std::list<int>::iterator id = m_unitTypeCanConstructLists[unitDefId.id].begin(); id != m_unitTypeCanConstructLists[unitDefId.id].end(); ++id)
         {
-            assignSideToUnitType(side, *id);
+            assignSideToUnitType(side, UnitDefId(*id) );
         }
     }
 }
 
-bool AAIBuildTree::canBuildUnitType(int unitDefIdBuilder, int unitDefId)
+bool AAIBuildTree::canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const
 {
 	// look in build options of builder for unit type
-	for(std::list<int>::iterator id = m_unitTypeCanConstructLists[unitDefIdBuilder].begin(); id != m_unitTypeCanConstructLists[unitDefIdBuilder].end(); ++id)
+	for(std::list<int>::const_iterator id = m_unitTypeCanConstructLists[unitDefIdBuilder.id].begin(); id != m_unitTypeCanConstructLists[unitDefIdBuilder.id].end(); ++id)
 	{
-		if(*id == unitDefId)
+		if(*id == unitDefId.id)
 			return true;
 	}
 
-	// unit type not found buildoptions
+	// unit type not found in build options
 	return false;
 }

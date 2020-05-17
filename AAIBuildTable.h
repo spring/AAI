@@ -68,12 +68,6 @@ public:
 	// cache for combat eff (needs side, thus initialized later)
 	void InitCombatEffCache(int side);
 
-	// returns true, if a builder can build a certain unit (use UnitDef.id)
-	bool CanBuildUnit(int id_builder, int id_unit);
-
-	// returns side of a certian unittype (use UnitDef->id)
-	int GetSideByID(int unit_id);
-
 	// return unit type (for groups)
 	UnitType GetUnitType(int def_id);
 

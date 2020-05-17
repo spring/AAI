@@ -1284,11 +1284,6 @@ int AAIBuildTable::GetSide(int unit)
 	return units_static[GetUnitDef(unit).id].side;
 }
 
-int AAIBuildTable::GetSideByID(int unit_id)
-{
-	return units_static[unit_id].side;
-}
-
 UnitType AAIBuildTable::GetUnitType(int def_id)
 {
 	if(cfg->AIR_ONLY_MOD)
@@ -2458,20 +2453,6 @@ void AAIBuildTable::UpdateMinMaxAvgEfficiency()
 			}
 		}
 	}
-}
-
-// returns true if unitdef->id can build unit with unitdef->id
-bool AAIBuildTable::CanBuildUnit(int id_builder, int id_unit)
-{
-	// look in build options of builder for unit
-	for(list<int>::iterator i = units_static[id_builder].canBuildList.begin(); i != units_static[id_builder].canBuildList.end(); ++i)
-	{
-		if(*i == id_unit)
-			return true;
-	}
-
-	// unit not found in builder�s buildoptions
-	return false;
 }
 
 // dtermines sides of units by recursion

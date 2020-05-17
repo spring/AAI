@@ -326,7 +326,8 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 			builder = units[*i].cons;
 
 			// find unit that can directly build that building
-			if(builder->task != BUILDING && ai->Getbt()->CanBuildUnit(builder->def_id, building))
+			if(    (builder->task != BUILDING) 
+				&& (ai->Getbt()->s_buildTree.canBuildUnitType(builder->def_id, building) == true) )
 			{
 				//if(ai->Getbt()->units_static[building].category == STATIONARY_JAMMER)
 				//	ai->Log("%s can build %s\n", ai->Getbt()->GetUnitDef(builder->def_id-1).humanName.c_str(), ai->Getbt()->GetUnitDef(building-1).humanName.c_str());
@@ -361,7 +362,8 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool
 			builder = units[*i].cons;
 
 			// find idle or assisting builder, who can build this building
-			if(  builder->task != BUILDING && ai->Getbt()->CanBuildUnit(builder->def_id, building))
+			if(    (builder->task != BUILDING) 
+				&& ( ai->Getbt()->s_buildTree.canBuildUnitType(builder->def_id, building) == true) )
 			{
 				builder_pos = ai->Getcb()->GetUnitPos(builder->unit_id);
 
