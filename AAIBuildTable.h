@@ -303,9 +303,6 @@ private:
 	// only precaches costs (called after possible cost multipliers have been assigned)
 	void PrecacheCosts();
 
-	// returns side of a unit
-	int GetSide(int unit);
-
 	// returns true, if unitid is in the list
 	bool MemberOf(int unit_id, list<int> unit_list);
 	// for internal use

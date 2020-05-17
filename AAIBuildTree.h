@@ -21,13 +21,13 @@ using namespace springLegacyAI;
 #include <list>
 #include <vector>
 
-//! @brief This class stores the build-tree, this includes which unit builds another, to which side each uhnit belongs
+//! @brief This class stores the build-tree, this includes which unit builds another, to which side each unit belongs
 class AAIBuildTree
 {
 public:
-	AAIBuildTree();
+    AAIBuildTree();
 
-	~AAIBuildTree(void);
+    ~AAIBuildTree(void);
 
     //! @brief Generates buildtree for current game/mod
     bool generate(IAICallback* cb);
@@ -37,6 +37,9 @@ public:
 
     //! @brief Return side of given unit type
     bool getSideOfUnitType(UnitDefId unitDefId) const { return m_sideOfUnitType[unitDefId.id]; };
+
+    //! @brief Returns the number of sides
+    int getNumberOfSides() const { return m_numberOfSides; };
 
 private:
     //! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.

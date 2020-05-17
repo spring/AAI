@@ -1279,11 +1279,6 @@ void AAIBuildTable::PrecacheCosts()
 }
 
 
-int AAIBuildTable::GetSide(int unit)
-{
-	return units_static[GetUnitDef(unit).id].side;
-}
-
 UnitType AAIBuildTable::GetUnitType(int def_id)
 {
 	if(cfg->AIR_ONLY_MOD)
