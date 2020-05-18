@@ -87,11 +87,13 @@ bool AAIBuildTree::generate(IAICallback* cb)
     // assign sides to units
     //-----------------------------------------------------------------------------------------------------------------
     m_numberOfSides = 0;
+    m_startUnitsOfSide.resize( rootUnits.size()+1, 0);  // +1 because of neutral (side = 0) units
 
     for(std::list<int>::iterator id = rootUnits.begin(); id != rootUnits.end(); ++id)
     {
         ++m_numberOfSides;
         assignSideToUnitType(m_numberOfSides, UnitDefId(*id) );
+        m_startUnitsOfSide[m_numberOfSides] = *id;
     }
 
     m_initialized = true;
@@ -105,9 +107,9 @@ bool AAIBuildTree::generate(IAICallback* cb)
         fprintf(file, "Number of unit types: %i\n", numberOfUnitTypes);
 
         fprintf(file, "Detected start units (aka commanders):\n");
-        for(std::list<int>::iterator id = rootUnits.begin(); id != rootUnits.end(); ++id)
+        for(int side = 1; side <= m_numberOfSides; ++side)
         {
-            fprintf(file, " %s\n", unitDefs[*id]->name.c_str());
+            fprintf(file, " %s\n", unitDefs[ m_startUnitsOfSide[side] ]->name.c_str());
         }
 
         fprintf(file, "\nUnit Side\n");
@@ -117,7 +119,6 @@ bool AAIBuildTree::generate(IAICallback* cb)
         }
         fclose(file);
     }
-
     
 
     return true;
@@ -141,13 +142,27 @@ void AAIBuildTree::assignSideToUnitType(int side, UnitDefId unitDefId)
 
 bool AAIBuildTree::canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const
 {
-	// look in build options of builder for unit type
-	for(std::list<int>::const_iterator id = m_unitTypeCanConstructLists[unitDefIdBuilder.id].begin(); id != m_unitTypeCanConstructLists[unitDefIdBuilder.id].end(); ++id)
-	{
-		if(*id == unitDefId.id)
-			return true;
-	}
+    // look in build options of builder for unit type
+    for(std::list<int>::const_iterator id = m_unitTypeCanConstructLists[unitDefIdBuilder.id].begin(); id != m_unitTypeCanConstructLists[unitDefIdBuilder.id].end(); ++id)
+    {
+        if(*id == unitDefId.id)
+            return true;
+    }
 
-	// unit type not found in build options
-	return false;
+    // unit type not found in build options
+    return false;
+}
+
+bool AAIBuildTree::isStartingUnit(UnitDefId unitDefId) const
+{
+    if(m_initialized == false)
+        return false;
+        
+    for(int side = 1; side <= m_numberOfSides; ++side)
+    {
+        if(m_startUnitsOfSide[side] == unitDefId.id)
+            return true;
+    }
+
+    return false;
 }

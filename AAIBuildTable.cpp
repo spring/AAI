@@ -60,7 +60,6 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 	this->ai = ai;
 
 	numOfSides = cfg->SIDES;
-	startUnits.resize(numOfSides);
 	sideNames.resize(numOfSides+1);
 	sideNames[0] = "Neutral";
 
@@ -68,17 +67,6 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 
 	for(int i = 0; i < numOfSides; ++i)
 	{
-		temp = ai->Getcb()->GetUnitDef(cfg->START_UNITS[i].c_str());
-
-		if(temp)
-			startUnits[i] = temp->id;
-		else
-		{
-			startUnits[i] = -1;
-			ai->LogConsole("Error: starting unit %s not found\n",
-					cfg->START_UNITS[i].c_str());
-		}
-
 		sideNames[i+1].assign(cfg->SIDE_NAMES[i]);
 	}
 
@@ -293,8 +281,10 @@ void AAIBuildTable::Init()
 		for(int s = 0; s < numOfSides; s++)
 		{
 			// set side of the start unit (eg commander) and continue recursively
-			units_static[startUnits[s]].side = s+1;
-			CalcBuildTree(startUnits[s]);
+			UnitDefId startUnit = s_buildTree.getStartUnit(s+1);
+
+			units_static[startUnit.id].side = s+1;
+			CalcBuildTree(startUnit.id);
 		}
 
 		// now calculate efficiency of combat units and get max range
@@ -636,7 +626,7 @@ void AAIBuildTable::Init()
 			}
 
 			// get commander
-			if(IsStartingUnit(GetUnitDef(i).id))
+			if( s_buildTree.isStartingUnit( UnitDefId(i) ) == true )
 			{
 				units_static[i].category = COMMANDER;
 				units_of_category[COMMANDER][units_static[i].side-1].push_back(GetUnitDef(i).id);
@@ -670,7 +660,7 @@ void AAIBuildTable::Init()
 			if(GetUnitDef(i).canResurrect)
 				units_static[i].unit_type |= UNIT_TYPE_RESURRECTOR;
 
-			if(IsStartingUnit(GetUnitDef(i).id))
+			if( s_buildTree.isStartingUnit( UnitDefId(i) ))
 				units_static[i].unit_type |= UNIT_TYPE_COMMANDER;
 		}
 
@@ -3775,17 +3765,6 @@ const char* AAIBuildTable::GetCategoryString2(UnitCategory category)
 		return "commander";
 
 	return "unknown";
-}
-
-bool AAIBuildTable::IsStartingUnit(int def_id)
-{
-	for(int i = 0; i < numOfSides; i++)
-	{
-		if(startUnits[i] == def_id)
-			return true;
-	}
-
-	return false;
 }
 
 bool AAIBuildTable::IsBuilder(int def_id)

@@ -41,6 +41,12 @@ public:
     //! @brief Returns the number of sides
     int getNumberOfSides() const { return m_numberOfSides; };
 
+    //! @brief Returns whether a given unit type is a starting unit for one side
+    bool isStartingUnit(UnitDefId unitDefId) const;
+
+    //! @brief Returns start units (probably not needed anymore when refactoring AAIBuildTable is finished)
+    UnitDefId getStartUnit(int side) const { return m_initialized ? UnitDefId(m_startUnitsOfSide[side]) : UnitDefId(0); };
+
 private:
     //! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
     void assignSideToUnitType(int side, UnitDefId unitDefId);
@@ -56,6 +62,9 @@ private:
 
     //! For every unit type, the side/faction it belongs to
     std::vector< int >              m_sideOfUnitType;
+
+    //! For every side, the start unit, i.e. root of the buildtree (commander for original TA like mods)
+    std::vector< int >              m_startUnitsOfSide;
 
     //! The number of sides (i.e. groups of units with disjunct buildtree)
     int                             m_numberOfSides;

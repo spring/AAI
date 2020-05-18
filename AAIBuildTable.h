@@ -181,9 +181,6 @@ public:
 	// return a units eff. against a certain category
 	float GetEfficiencyAgainst(int unit_def_id, UnitCategory category);
 
-	// returns true if unit is starting unit
-	bool IsStartingUnit(int def_id);
-
 	bool IsCommander(int def_id);
 
 	bool IsBuilder(int def_id);
@@ -273,9 +270,6 @@ public:
 
 	// side names
 	vector<string> sideNames;
-
-	// start units of each side (e.g. commander)
-	vector<int> startUnits;
 
 	vector<float> combat_eff;
 
