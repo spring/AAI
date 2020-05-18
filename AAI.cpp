@@ -96,18 +96,18 @@ AAI::~AAI()
 	Log("Requested constructors:\n");
 	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac) {
 		assert((*fac)   < bt->units_dynamic.size());
-		Log("%-24s: %i\n", cb->GetUnitDef(*fac)->humanName.c_str(), bt->units_dynamic[*fac].requested);
+		Log("%-24s: %i\n", bt->GetUnitDef(*fac).humanName.c_str(), bt->units_dynamic[*fac].requested);
 	}
 	for(list<int>::iterator fac = bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].end(); ++fac)
-		Log("%-24s: %i\n", cb->GetUnitDef(*fac)->humanName.c_str(), bt->units_dynamic[*fac].requested);
+		Log("%-24s: %i\n", bt->GetUnitDef(*fac).humanName.c_str(), bt->units_dynamic[*fac].requested);
 
 	Log("Factory ratings:\n");
 	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac)
-		Log("%-24s: %f\n", cb->GetUnitDef(*fac)->humanName.c_str(), bt->GetFactoryRating(*fac));
+		Log("%-24s: %f\n", bt->GetUnitDef(*fac).humanName.c_str(), bt->GetFactoryRating(*fac));
 
 	Log("Mobile constructor ratings:\n");
 	for(list<int>::iterator cons = bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].begin(); cons != bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].end(); ++cons)
-		Log("%-24s: %f\n", cb->GetUnitDef(*cons)->humanName.c_str(), bt->GetBuilderRating(*cons));
+		Log("%-24s: %f\n", bt->GetUnitDef(*cons).humanName.c_str(), bt->GetBuilderRating(*cons));
 
 
 	// delete buildtasks
@@ -328,7 +328,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	ut->AddUnit(unit, def->id);
 
 	// get commander a startup
-	if ( (m_initialized == false) && ut->IsDefCommander(def->id))
+	if(m_initialized == false)
 	{
 		// UnitFinished() will decrease it later -> prevents AAI from having -1 future commanders
 		ut->requestedUnits[COMMANDER] += 1;

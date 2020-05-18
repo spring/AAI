@@ -3,7 +3,9 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/../../Wrappers/**",
+                "${workspaceFolder}/../../../rts/**"
             ],
             "defines": [
                 "_DEBUG",

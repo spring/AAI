@@ -35,8 +35,8 @@ public:
     //! @brief Returns whether given the given unit type can be constructed by the given constructor unit type
     bool canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const;
 
-    //! @brief Return side of given unit type
-    bool getSideOfUnitType(UnitDefId unitDefId) const { return m_sideOfUnitType[unitDefId.id]; };
+    //! @brief Return side of given unit type (0 if not initialized)
+    int getSideOfUnitType(UnitDefId unitDefId) const { return m_initialized ? m_sideOfUnitType[unitDefId.id] : 0; };
 
     //! @brief Returns the number of sides
     int getNumberOfSides() const { return m_numberOfSides; };

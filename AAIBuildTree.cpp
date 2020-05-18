@@ -33,7 +33,7 @@ AAIBuildTree::~AAIBuildTree(void)
 bool AAIBuildTree::generate(IAICallback* cb)
 {
     // prevent buildtree from beeing initialized several times
-    if(m_initialized )
+    if(m_initialized == true)
         return false;
 
     //-----------------------------------------------------------------------------------------------------------------
@@ -59,14 +59,14 @@ bool AAIBuildTree::generate(IAICallback* cb)
     //-----------------------------------------------------------------------------------------------------------------
     for(int id = 1; id <= numberOfUnitTypes; ++id)
     {
-		// determine which unit types can be constructed by the current unit type
-		for(std::map<int, std::string>::const_iterator j = unitDefs[id]->buildOptions.begin(); j != unitDefs[id]->buildOptions.end(); ++j)
+        // determine which unit types can be constructed by the current unit type
+        for(std::map<int, std::string>::const_iterator j = unitDefs[id]->buildOptions.begin(); j != unitDefs[id]->buildOptions.end(); ++j)
         {
             int canConstructId = cb->GetUnitDef(j->second.c_str())->id;
 
-			m_unitTypeCanConstructLists[id].push_back(canConstructId);
+            m_unitTypeCanConstructLists[id].push_back(canConstructId);
             m_unitTypeCanBeConstructedtByLists[canConstructId].push_back(id);
-		}
+        }
     }
 
     //-----------------------------------------------------------------------------------------------------------------
@@ -93,6 +93,8 @@ bool AAIBuildTree::generate(IAICallback* cb)
         ++m_numberOfSides;
         assignSideToUnitType(m_numberOfSides, UnitDefId(*id) );
     }
+
+    m_initialized = true;
     
     //-----------------------------------------------------------------------------------------------------------------
     // print info to file for debug purposes
@@ -115,6 +117,8 @@ bool AAIBuildTree::generate(IAICallback* cb)
         }
         fclose(file);
     }
+
+    
 
     return true;
 }

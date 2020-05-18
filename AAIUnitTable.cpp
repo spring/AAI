@@ -478,17 +478,6 @@ bool AAIUnitTable::IsUnitCommander(int unit_id)
 		return false;
 }
 
-bool AAIUnitTable::IsDefCommander(int def_id)
-{
-	for(int s = 0; s < cfg->SIDES; ++s)
-	{
-		if(ai->Getbt()->startUnits[s] == def_id)
-			return true;
-	}
-
-	return false;
-}
-
 void AAIUnitTable::EnemyKilled(int unit)
 {
 	if(units[unit].status == BOMB_TARGET)

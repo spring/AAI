@@ -71,7 +71,6 @@ public:
 	void AssignGroupToEnemy(int unit, AAIGroup *group);
 
 	// determine whether unit with specified def/unit id is commander/constrcutor
-	bool IsDefCommander(int def_id);
 	bool IsBuilder(int unit_id);
 
 	// called when unit of specified catgeory has been created (= construction started)
