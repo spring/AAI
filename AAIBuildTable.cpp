@@ -262,8 +262,6 @@ void AAIBuildTable::Init()
 			if(units_static[i].cost < min_cost)
 				min_cost = units_static[i].cost;
 
-			units_static[i].builder_cost = 0; // will be added later when calculating the buildtree
-
 			// side has not been assigned - will be done later
 			units_static[i].side = 0;
 			units_static[i].range = 0;
@@ -2449,10 +2447,6 @@ void AAIBuildTable::CalcBuildTree(int unit)
 		// add this unit to targets builtby-list
 		units_static[*i].builtByList.push_back(unit);
 
-		// calculate builder_costs
-		if( units_static[unit].cost < units_static[*i].builder_cost || units_static[*i].builder_cost <= 0)
-			units_static[*i].builder_cost = units_static[unit].cost;
-
 		// continue with all builldoptions (if they have not been visited yet)
 		if(!units_static[*i].side && AllowedToBuild(*i))
 		{
@@ -2532,9 +2526,9 @@ bool AAIBuildTable::LoadBuildTable()
 
 			for(int i = 1; i < unitList.size(); ++i)
 			{
-				fscanf(load_file, "%i %i %u %u %f %f %f %i " _STPF_ " " _STPF_ " ",&units_static[i].def_id, &units_static[i].side,
+				fscanf(load_file, "%i %i %u %u %f %f %i " _STPF_ " " _STPF_ " ",&units_static[i].def_id, &units_static[i].side,
 									&units_static[i].unit_type, &units_static[i].movement_type,
-									&units_static[i].range, &units_static[i].cost, &units_static[i].builder_cost,
+									&units_static[i].range, &units_static[i].cost,
 									&cat, &bo, &bb);
 
 				// get memory for eff
@@ -2667,9 +2661,9 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 	{
 //		tmp = units_static[i].canBuildList.size();
 
-		fprintf(save_file, "%i %i %u %u %f %f %f %i " _STPF_ " " _STPF_ " ", units_static[i].def_id, units_static[i].side,
+		fprintf(save_file, "%i %i %u %u %f %f %i " _STPF_ " " _STPF_ " ", units_static[i].def_id, units_static[i].side,
 								units_static[i].unit_type, units_static[i].movement_type, units_static[i].range,
-								units_static[i].cost, units_static[i].builder_cost, (int) units_static[i].category,
+								units_static[i].cost, (int) units_static[i].category,
 								units_static[i].canBuildList.size(), units_static[i].builtByList.size());
 
 		// save combat eff

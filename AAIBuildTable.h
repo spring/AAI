@@ -46,7 +46,6 @@ struct UnitTypeStatic
 									// 3 -> sea assault, 4 -> submarine , 5 -> stat. defences
 	float range;              // max weapon range (0 for unarmed units)
 	float cost;
-	float builder_cost;
 	UnitCategory category;
 
 	unsigned int unit_type;
