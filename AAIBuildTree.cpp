@@ -14,6 +14,8 @@
 
 #include "LegacyCpp/UnitDef.h"
 #include "LegacyCpp/MoveData.h"
+#include "LegacyCpp/WeaponDef.h"
+
 using namespace springLegacyAI;
 
 AAIBuildTree::AAIBuildTree() :
@@ -27,30 +29,36 @@ AAIBuildTree::~AAIBuildTree(void)
     m_initialized = false;
     m_unitTypeCanBeConstructedtByLists.clear();
     m_unitTypeCanConstructLists.clear();
+    m_unitTypeProperties.clear();
     m_sideOfUnitType.clear();
+    m_startUnitsOfSide.clear();
 }
 
-bool AAIBuildTree::generate(IAICallback* cb)
+bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 {
     // prevent buildtree from beeing initialized several times
     if(m_initialized == true)
         return false;
+
+    m_initialized = true;
 
     //-----------------------------------------------------------------------------------------------------------------
     // get number of unit types and set up arrays
     //-----------------------------------------------------------------------------------------------------------------
     const int numberOfUnitTypes = cb->GetNumUnitDefs();
 
-    m_unitTypeCanBeConstructedtByLists.resize(numberOfUnitTypes);
-    m_unitTypeCanConstructLists.resize(numberOfUnitTypes);
-    m_sideOfUnitType.resize(numberOfUnitTypes, 0);
+    // unit ids start with 1 -> add one additional element to arrays to be able to directly access unit def with corresponding id
+    m_unitTypeCanBeConstructedtByLists.resize(numberOfUnitTypes+1);
+    m_unitTypeCanConstructLists.resize(numberOfUnitTypes+1);
+    m_unitTypeProperties.resize(numberOfUnitTypes+1);
+    m_sideOfUnitType.resize(numberOfUnitTypes+1, 0);
 
     //-----------------------------------------------------------------------------------------------------------------
     // get list all of unit definitions for further analysis
     //-----------------------------------------------------------------------------------------------------------------
 
     //spring first unitdef id is 1, we remap it so id = is position in array
-	std::vector<const UnitDef*> unitDefs(numberOfUnitTypes+1);
+	std::vector<const springLegacyAI::UnitDef*> unitDefs(numberOfUnitTypes+1);
 
     cb->GetUnitDefList(&unitDefs[1]);
 
@@ -96,7 +104,21 @@ bool AAIBuildTree::generate(IAICallback* cb)
         m_startUnitsOfSide[m_numberOfSides] = *id;
     }
 
-    m_initialized = true;
+    //-----------------------------------------------------------------------------------------------------------------
+    // set further unit type properties
+    //-----------------------------------------------------------------------------------------------------------------
+
+    for(int id = 1; id <= numberOfUnitTypes; ++id)
+    {
+        m_unitTypeProperties[id].totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / energyToMetalConversionFactor);
+        
+        m_unitTypeProperties[id].maxRange = 0.0f;
+        for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDefs[id]->weapons.begin(); w != unitDefs[id]->weapons.end(); ++w)
+        {
+            if((*w).def->range > m_unitTypeProperties[id].maxRange)
+                m_unitTypeProperties[id].maxRange = (*w).def->range;
+        }
+    }
     
     //-----------------------------------------------------------------------------------------------------------------
     // print info to file for debug purposes

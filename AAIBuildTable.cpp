@@ -229,10 +229,9 @@ void AAIBuildTable::Init()
 		#endif
 	}
 
-	if(ai->getAAIInstance() == 1)
-	{
-		s_buildTree.generate(ai->Getcb());
-	}
+	// generate buildtree (if not already done by other instance)
+	s_buildTree.generate(ai->Getcb());
+	
 
 	// Try to load buildtable; if not possible, create a new one
 	if(!LoadBuildTable())
@@ -292,7 +291,7 @@ void AAIBuildTable::Init()
 			if(!GetUnitDef(i).weapons.empty())
 			{
 				// get range
-				units_static[i].range = GetMaxRange(i);
+				units_static[i].range = s_buildTree.getUnitTypeProperties( UnitDefId(i) ).maxRange;
 
 				// get memory for eff
 				units_static[i].efficiency.resize(combat_categories);
@@ -448,7 +447,7 @@ void AAIBuildTable::Init()
 					}
 					else
 					{
-						if(GetMaxRange(GetUnitDef(i).id) < cfg->STATIONARY_ARTY_RANGE)
+						if( s_buildTree.getUnitTypeProperties( UnitDefId(i) ).maxRange  < cfg->STATIONARY_ARTY_RANGE)
 						{
 							units_of_category[STATIONARY_DEF][units_static[i].side-1].push_back(GetUnitDef(i).id);
 							units_static[i].category = STATIONARY_DEF;
@@ -870,7 +869,7 @@ void AAIBuildTable::PrecacheStats()
 		// precache range of arty
 		for(list<int>::iterator i = units_of_category[STATIONARY_ARTY][s].begin(); i != units_of_category[STATIONARY_ARTY][s].end(); ++i)
 		{
-			units_static[*i].efficiency[1] = GetMaxRange(*i);
+			units_static[*i].efficiency[1] = s_buildTree.getUnitTypeProperties( UnitDefId(*i) ).maxRange;;
 			units_static[*i].efficiency[0] = 1 + units_static[*i].cost/100.0;
 		}
 
@@ -1173,7 +1172,7 @@ void AAIBuildTable::PrecacheStats()
 			{
 				for(list<int>::iterator unit = units_of_category[*category][s].begin(); unit != units_of_category[*category][s].end(); ++unit)
 				{
-					range = GetMaxRange(*unit);
+					range = s_buildTree.getUnitTypeProperties( UnitDefId(*unit) ).maxRange;;
 
 					avg_value[*category][s] += range;
 
@@ -2839,19 +2838,6 @@ void AAIBuildTable::DebugPrint()
 	else
 	{
 	}
-}
-
-float AAIBuildTable::GetMaxRange(int unit_id)
-{
-	float max_range = 0;
-
-	for(vector<UnitDef::UnitDefWeapon>::const_iterator i = GetUnitDef(unit_id).weapons.begin(); i != GetUnitDef(unit_id).weapons.end(); ++i)
-	{
-		if((*i).def->range > max_range)
-			max_range = (*i).def->range;
-	}
-
-	return max_range;
 }
 
 float AAIBuildTable::GetMaxDamage(int unit_id)

@@ -149,9 +149,6 @@ public:
 	// updates max and average eff. values of the different categories
 	void UpdateMinMaxAvgEfficiency();
 
-	// returns max range of all weapons
-	float GetMaxRange(int unit_id);
-
 	// returns max damage of all weapons
 	float GetMaxDamage(int unit_id);
 
