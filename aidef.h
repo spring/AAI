@@ -94,15 +94,6 @@ enum MapType {LAND_MAP, LAND_WATER_MAP, WATER_MAP, UNKNOWN_MAP};
 class AAIGroup;
 class AAIConstructor;
 
-//! @brief An id identifying a unit type - used to prevent mixing ids referring to units and unit definitions
-struct UnitDefId
-{
-public:
-	UnitDefId(int unitDefId) : id(unitDefId) { };
-
-	int id;
-};
-
 //! @brief An id identifying a specific unit - used to prevent mixing ids referring to units and unit definitions
 struct UnitId
 {

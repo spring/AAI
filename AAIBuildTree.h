@@ -10,14 +10,23 @@
 #ifndef AAI_BUILDTREE_H
 #define AAI_BUILDTREE_H
 
-
-#include "aidef.h"
+#include "AAITypes.h"
 #include "LegacyCpp/IAICallback.h"
+
 #include <list>
 #include <vector>
 
 //! @todo Make this changeable via optinal mod config file
 const float energyToMetalConversionFactor = 60.0f;
+
+//! @brief An id identifying a unit type - used to prevent mixing ids referring to units and unit definitions
+struct UnitDefId
+{
+public:
+	UnitDefId(int unitDefId) : id(unitDefId) { };
+
+	int id;
+};
 
 //! @brief Unit Type properties needed by AAI for internal decision making (i.e. unit type selection)
 struct UnitTypeProperties
@@ -28,12 +37,12 @@ struct UnitTypeProperties
     //! max weapon range (0.f for unarmed units)
     float maxRange;
 
-    //! Movement type (land, sea, air, hover, submarine)
-    unsigned int movementType;
+    //! Movement type (land, sea, air, hover, submarine, ...)
+    AAIMovementType movementType;
 
-    UnitCategory category;
+    //UnitCategory category;
 
-    unsigned int unitType;
+    //unsigned int unitType;
 };
 
 //! @brief This class stores the build-tree, this includes which unit builds another, to which side each unit belongs
@@ -68,6 +77,9 @@ public:
 private:
     //! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
     void assignSideToUnitType(int side, UnitDefId unitDefId);
+
+    //! @brief Returns movement type of given unit definition
+    EMovementType determineMovementType(const springLegacyAI::UnitDef* unitDef) const;
 
     //! Flag if build tree is initialized
     bool                            m_initialized;

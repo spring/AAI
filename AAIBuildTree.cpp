@@ -16,6 +16,8 @@
 #include "LegacyCpp/MoveData.h"
 #include "LegacyCpp/WeaponDef.h"
 
+#include <string>
+
 using namespace springLegacyAI;
 
 AAIBuildTree::AAIBuildTree() :
@@ -118,6 +120,8 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
             if((*w).def->range > m_unitTypeProperties[id].maxRange)
                 m_unitTypeProperties[id].maxRange = (*w).def->range;
         }
+
+        m_unitTypeProperties[id].movementType.setMovementType( determineMovementType(unitDefs[id]) );
     }
     
     //-----------------------------------------------------------------------------------------------------------------
@@ -160,6 +164,57 @@ void AAIBuildTree::assignSideToUnitType(int side, UnitDefId unitDefId)
             assignSideToUnitType(side, UnitDefId(*id) );
         }
     }
+}
+
+EMovementType AAIBuildTree::determineMovementType(const springLegacyAI::UnitDef* unitDef) const
+{
+    EMovementType moveType = EMovementType::MOVEMENT_TYPE_UNKNOWN;
+
+    if(unitDef->movedata)
+    {
+        if(    (unitDef->movedata->moveFamily == MoveData::Tank) 
+            || (unitDef->movedata->moveFamily == MoveData::KBot) )
+        {
+            // check for amphibious units
+            if(unitDef->movedata->depth > 250) //! @todo Get magic number from config
+                moveType = EMovementType::MOVEMENT_TYPE_AMPHIBIOUS;
+            else
+                moveType = EMovementType::MOVEMENT_TYPE_GROUND;
+        }
+        else if(unitDef->movedata->moveFamily == MoveData::Hover) 
+        {
+            moveType = EMovementType::MOVEMENT_TYPE_HOVER;
+        }
+        // ship
+        else if(unitDef->movedata->moveFamily == MoveData::Ship)
+        {
+            if(unitDef->categoryString.find("UNDERWATER") != string::npos) {
+                moveType = EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED;
+            } else {
+                moveType = EMovementType::MOVEMENT_TYPE_SEA_FLOATER;
+            }
+        }
+    }
+    // aircraft
+    else if(unitDef->canfly)
+        moveType = EMovementType::MOVEMENT_TYPE_AIR;
+    // stationary
+    else
+    {
+        if(unitDef->minWaterDepth <= 0)
+        {
+            moveType = EMovementType::MOVEMENT_TYPE_STATIC_LAND;
+        }
+        else
+        {
+            if(unitDef->floater)
+                moveType = EMovementType::MOVEMENT_TYPE_STATIC_SEA_FLOATER;
+            else
+                moveType = EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED;
+        }
+    }
+
+    return moveType;
 }
 
 bool AAIBuildTree::canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const
