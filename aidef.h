@@ -10,8 +10,6 @@
 #ifndef AAI_DEF_H
 #define AAI_DEF_H
 
-#include <string>
-
 #include "System/float3.h"
 
 #ifdef _MSC_VER
@@ -69,7 +67,6 @@ public:
 
 #define MOVE_TYPE_UNIT (unsigned int) 31	// used to filter out unit movement type (e.g. only MOVE_TYPE_SEA for sumarines (that also have MOVE_TYPE_UNDERWATER set))
 #define MOVE_TYPE_CONTINENT_BOUND (unsigned int) 9
-
 
 // unit types (for bitfield)
 #define UNIT_TYPE_BUILDER (unsigned int) 1
