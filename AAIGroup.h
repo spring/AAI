@@ -13,6 +13,7 @@
 #include "System/type2.h"
 #include "Sim/Units/CommandAI/Command.h"
 #include "aidef.h"
+#include "AAITypes.h"
 
 enum GroupTask {GROUP_IDLE, GROUP_ATTACKING, GROUP_DEFENDING, GROUP_PATROLING, GROUP_BOMBING, GROUP_RETREATING};
 
@@ -99,7 +100,8 @@ public:
 
 	UnitType group_unit_type;
 
-	unsigned int group_movement_type;
+	//! The movement type of the units of the group
+	AAIMovementType m_moveType;
 
 	// attack the group takes part in
 	AAIAttack *attack;
@@ -107,7 +109,7 @@ public:
 	// rally point of the group, ZeroVector if none...
 	float3 rally_point;
 
-	// id of the continent the units of this group are stationed on (only matters if group_movement_type is continent bound)
+	// id of the continent the units of this group are stationed on (only matters if units of group cannot move to another continent)
 	int continent;
 
 private:

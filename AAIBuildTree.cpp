@@ -141,7 +141,12 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
         fprintf(file, "\nUnit Side\n");
         for(int id = 1; id <= numberOfUnitTypes; ++id)
         {
-            fprintf(file, "%s %s %i\n", unitDefs[id]->humanName.c_str(), unitDefs[id]->name.c_str(), m_sideOfUnitType[id]);
+            fprintf(file, "%s %s %i %f %u %i\n", unitDefs[id]->humanName.c_str(), 
+                                                 unitDefs[id]->name.c_str(), 
+                                                 m_sideOfUnitType[id], 
+                                                 m_unitTypeProperties[id].maxRange,
+                                                 static_cast<uint32_t>(m_unitTypeProperties[id].movementType.getMovementType()),
+                                                 static_cast<int>(m_unitTypeProperties[id].movementType.cannotMoveToOtherContinents()) );
         }
         fclose(file);
     }
@@ -188,7 +193,7 @@ EMovementType AAIBuildTree::determineMovementType(const springLegacyAI::UnitDef*
         // ship
         else if(unitDef->movedata->moveFamily == MoveData::Ship)
         {
-            if(unitDef->categoryString.find("UNDERWATER") != string::npos) {
+            if(unitDef->categoryString.find("UNDERWATER") != std::string::npos) {
                 moveType = EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED;
             } else {
                 moveType = EMovementType::MOVEMENT_TYPE_SEA_FLOATER;

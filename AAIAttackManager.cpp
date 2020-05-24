@@ -81,7 +81,7 @@ void AAIAttackManager::LaunchAttack()
 		{
 			if( (*group)->AvailableForAttack() )
 			{
-				if((*group)->group_movement_type & MOVE_TYPE_CONTINENT_BOUND)
+				if( (*group)->m_moveType.cannotMoveToOtherContinents() )
 				{
 					if((*group)->group_unit_type == ASSAULT_UNIT)
 					{

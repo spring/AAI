@@ -563,22 +563,37 @@ float AAISector::GetEnemyDefencePowerAgainstAssaultCategory(int assault_category
 	return enemy_stat_combat_power[assault_category];
 }
 
-float AAISector::GetEnemyThreatToMovementType(unsigned int movement_type)
+float AAISector::getEnemyThreatToMovementType(const AAIMovementType& movementType) const
 {
-	if(movement_type & MOVE_TYPE_GROUND)
-		return enemy_stat_combat_power[0] + enemy_mobile_combat_power[0];
-	else if(movement_type & MOVE_TYPE_AIR)
-		return enemy_stat_combat_power[1] + enemy_mobile_combat_power[1];
-	else if(movement_type & MOVE_TYPE_HOVER)
-		return enemy_stat_combat_power[2] + enemy_mobile_combat_power[2];
-	else if(movement_type & MOVE_TYPE_FLOATER)
-		return enemy_stat_combat_power[3] + enemy_mobile_combat_power[3];
-	else if(movement_type & MOVE_TYPE_UNDERWATER)
-		return enemy_stat_combat_power[4] + enemy_mobile_combat_power[4];
-	else if(movement_type & MOVE_TYPE_SEA)
-		return 0.5 * (enemy_stat_combat_power[4] + enemy_mobile_combat_power[4] + enemy_stat_combat_power[3] + enemy_mobile_combat_power[3]);
-	else
-		return 0;
+	EMovementType moveType = movementType.getMovementType();
+	switch( moveType )
+	{
+		case EMovementType::MOVEMENT_TYPE_AMPHIBIOUS: // fallthorugh intended
+		case EMovementType::MOVEMENT_TYPE_GROUND:
+		{
+			return enemy_stat_combat_power[0] + enemy_mobile_combat_power[0];
+		}
+		case EMovementType::MOVEMENT_TYPE_AIR:
+		{
+			return enemy_stat_combat_power[1] + enemy_mobile_combat_power[1];
+		}
+		case EMovementType::MOVEMENT_TYPE_HOVER:
+		{
+			return enemy_stat_combat_power[2] + enemy_mobile_combat_power[2];
+		}
+		case EMovementType::MOVEMENT_TYPE_SEA_FLOATER:
+		{
+			return enemy_stat_combat_power[3] + enemy_mobile_combat_power[3];
+		}
+		case EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED:
+		{
+			return enemy_stat_combat_power[4] + enemy_mobile_combat_power[4];
+		}
+		default:
+		{
+			return 0.0f;
+		}
+	}
 }
 
 float AAISector::GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance)
@@ -721,7 +736,7 @@ bool AAISector::ConnectedToOcean()
 	return false;
 }
 
-void AAISector::GetMovePos(float3 *pos)
+bool AAISector::determineMovePos(float3 *pos)
 {
 	int x,y;
 	*pos = ZeroVector;
@@ -737,7 +752,7 @@ void AAISector::GetMovePos(float3 *pos)
 		y = (int) (pos->z / SQUARE_SIZE);
 
 		if(ai->Getmap()->buildmap[x + y * ai->Getmap()->xMapSize] != 1)
-			return;
+			return true;
 	}
 
 	// search systematically
@@ -753,15 +768,16 @@ void AAISector::GetMovePos(float3 *pos)
 			y = (int) (pos->z / SQUARE_SIZE);
 
 			if(ai->Getmap()->buildmap[x + y * ai->Getmap()->xMapSize] != 1)
-				return;
+				return true;
 		}
 	}
 
 	// no free cell found (should not happen)
 	*pos = ZeroVector;
+	return false;
 }
 
-void AAISector::GetMovePosOnContinent(float3 *pos, unsigned int /*movement_type*/, int continent)
+bool AAISector::determineMovePosOnContinent(float3 *pos, int continent)
 {
 	int x,y;
 	*pos = ZeroVector;
@@ -780,7 +796,7 @@ void AAISector::GetMovePosOnContinent(float3 *pos, unsigned int /*movement_type*
 		{
 			//check continent
 			if(ai->Getmap()->GetContinentID(pos) == continent)
-				return;
+				return true;
 		}
 	}
 
@@ -799,12 +815,13 @@ void AAISector::GetMovePosOnContinent(float3 *pos, unsigned int /*movement_type*
 			if(ai->Getmap()->buildmap[x + y * ai->Getmap()->xMapSize] != 1)
 			{
 				if(ai->Getmap()->GetContinentID(pos) == continent)
-					return;
+					return true;
 			}
 		}
 	}
 
 	*pos = ZeroVector;
+	return false;
 }
 
 int AAISector::GetEdgeDistance()

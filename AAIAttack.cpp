@@ -58,31 +58,10 @@ bool AAIAttack::Failed()
 
 void AAIAttack::StopAttack()
 {
-	float3 pos;
-//	AAISector *sector;
-
 	for(set<AAIGroup*>::iterator group = combat_groups.begin(); group != combat_groups.end(); ++group)
 	{
 		// get rally point somewhere between current pos an base
-		pos = (*group)->GetGroupPos();
-//		sector = ai->Getmap()->GetSectorOfPos(&pos);
-
 		(*group)->GetNewRallyPoint();
-
-		/*if(sector)
-		{
-			int max_dist = sector->distance_to_base/2;
-			int min_dist = max_dist - 1;
-
-			if(min_dist < 1)
-				min_dist = 1;
-
-
-			pos = ai->execute->GetRallyPointCloseTo((*group)->category, (*group)->group_movement_type, ((*group)->GetGroupPos() + ai->brain->base_center) / 2.0f, min_dist, max_dist);
-
-			if(pos.x > 0)
-				(*group)->rally_point = pos;
-		}*/
 
 		(*group)->Retreat(&(*group)->rally_point);
 		(*group)->attack = 0;
@@ -91,21 +70,7 @@ void AAIAttack::StopAttack()
 	for(set<AAIGroup*>::iterator group = aa_groups.begin(); group != aa_groups.end(); ++group)
 	{
 		// get rally point somewhere between current pos an base
-		pos = (*group)->GetGroupPos();
-//		sector = ai->Getmap()->GetSectorOfPos(&pos);
-
 		(*group)->GetNewRallyPoint();
-
-		/*if(sector)
-		{
-			int max_dist = sector->distance_to_base/2;
-			int min_dist = max_dist - 1;
-
-			if(min_dist < 1)
-				min_dist = 1;
-
-			(*group)->GetNewRallyPoint();
-		}*/
 
 		(*group)->Retreat(&(*group)->rally_point);
 		(*group)->attack = 0;

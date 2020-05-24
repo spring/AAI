@@ -367,8 +367,10 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool
 			{
 				builder_pos = ai->Getcb()->GetUnitPos(builder->unit_id);
 
+				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties(builder->def_id).movementType;
+
 				// check continent if necessary
-				if(ai->Getbt()->units_static[builder->def_id].movement_type & MOVE_TYPE_CONTINENT_BOUND)
+				if( moveType.cannotMoveToOtherContinents() )
 				{
 					if(ai->Getmap()->GetContinentID(&builder_pos) == continent)
 						suitable = true;
@@ -421,8 +423,10 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 			{
 				assistant_pos = ai->Getcb()->GetUnitPos(assistant->unit_id);
 
+				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties(assistant->def_id).movementType;
+
 				// check continent if necessary
-				if(ai->Getbt()->units_static[assistant->def_id].movement_type & MOVE_TYPE_CONTINENT_BOUND)
+				if( moveType.cannotMoveToOtherContinents() )
 				{
 					if(ai->Getmap()->GetContinentID(&assistant_pos) == continent)
 						suitable = true;

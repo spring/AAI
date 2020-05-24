@@ -39,7 +39,7 @@ AAIGroup::AAIGroup(AAI *ai, const UnitDef *def, UnitType unit_type, int continen
 	group_unit_type = unit_type;
 
 	// set movement type of group (filter out add. movement info like underwater, floater, etc.)
-	group_movement_type = ai->Getbt()->units_static[def->id].movement_type & MOVE_TYPE_UNIT;
+	m_moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties( UnitDefId(def->id) ).movementType;
 
 	continent = continent_id;
 
@@ -710,9 +710,9 @@ void AAIGroup::GetNewRallyPoint()
 		--sector->rally_points;
 	}
 
-	rally_point = ai->Getexecute()->GetRallyPoint(group_movement_type, continent, 1, 1);
+	bool rallyPointFound = ai->Getexecute()->searchForRallyPoint(rally_point, m_moveType, continent, 1, 1);
 
-	if(rally_point.x > 0)
+	if(rallyPointFound == true)
 	{
 		//add new rally point to sector
 		sector = ai->Getmap()->GetSectorOfPos(&rally_point);

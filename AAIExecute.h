@@ -11,6 +11,7 @@
 #define AAI_EXECUTE_H
 
 #include "aidef.h"
+#include "AAITypes.h"
 
 namespace springLegacyAI {
 	struct UnitDef;
@@ -106,8 +107,9 @@ public:
 	// returns buildque for a certain factory
 	list<int>* GetBuildqueueOfFactory(int def_id);
 
+	//! @brief Determines rally point for given movement type on given continent - returns whether search has been successfull
+	bool searchForRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId, int minDist, int maxDist);
 
-	float3 GetRallyPoint(unsigned int unit_movement_type, int continent_id, int min_dist, int max_dist);
 	float3 GetUnitBuildsite(int builder, int unit);
 
 	int unitProductionRate;
@@ -184,7 +186,7 @@ private:
 	// returns closest (taking into account movement speed) group with units of specified unit type that may reach the location
 
 	AAIGroup* GetClosestGroupForDefence(UnitType group_type, float3 *pos, int continent, int importance);
-	float3 GetRallyPointCloseTo(UnitCategory category, unsigned int unit_movement_type, int continent_id, float3 pos, int min_dist, int max_dist);
+	
 	float3 GetBuildsite(int builder, int building, UnitCategory category);
 	void InitBuildques();
 

@@ -64,10 +64,6 @@ public:
 #define MOVE_TYPE_STATIC_LAND (unsigned int) 256
 #define MOVE_TYPE_STATIC_WATER (unsigned int) 512
 
-
-#define MOVE_TYPE_UNIT (unsigned int) 31	// used to filter out unit movement type (e.g. only MOVE_TYPE_SEA for sumarines (that also have MOVE_TYPE_UNDERWATER set))
-#define MOVE_TYPE_CONTINENT_BOUND (unsigned int) 9
-
 // unit types (for bitfield)
 #define UNIT_TYPE_BUILDER (unsigned int) 1
 #define UNIT_TYPE_FACTORY (unsigned int) 2

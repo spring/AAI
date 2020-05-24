@@ -223,8 +223,9 @@ void AAIExecute::AddUnitToGroup(int unit_id, int def_id, UnitCategory category)
 
 	// determine continent if necessary
 	int continent_id = -1;
+	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties(def_id).movementType;
 
-	if(ai->Getbt()->units_static[def_id].movement_type & MOVE_TYPE_CONTINENT_BOUND)
+	if( moveType.cannotMoveToOtherContinents() == true )
 	{
 		float3 unitPos = ai->Getcb()->GetUnitPos(unit_id);
 		continent_id = ai->Getmap()->GetContinentID(&unitPos);
@@ -545,127 +546,47 @@ void AAIExecute::InitBuildques()
 	}
 }
 
-float3 AAIExecute::GetRallyPoint(unsigned int unit_movement_type, int continent_id, int min_dist, int max_dist)
+bool AAIExecute::searchForRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId, int minSectorDist, int maxSectorDist)
 {
-	float3 pos;
-
 	// continent bound units must get a rally point on their current continent
-	if(unit_movement_type & MOVE_TYPE_CONTINENT_BOUND)
+	if( moveType.cannotMoveToOtherContinents() == true )
 	{
 		// check neighbouring sectors
-		for(int i = min_dist; i <= max_dist; ++i)
+		for(int i = minSectorDist; i <= maxSectorDist; ++i)
 		{
-			if(unit_movement_type & MOVE_TYPE_GROUND)
+			if( moveType.canMoveOnLand() == true )
 				ai->Getbrain()->sectors[i].sort(suitable_for_ground_rallypoint);
-			else if(unit_movement_type & MOVE_TYPE_SEA)
+			else if( moveType.canMoveOnSea() == true )
 				ai->Getbrain()->sectors[i].sort(suitable_for_sea_rallypoint);
 
 			for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[i].begin(); sector != ai->Getbrain()->sectors[i].end(); ++sector)
 			{
-				(*sector)->GetMovePosOnContinent(&pos, unit_movement_type, continent_id);
+				bool rallyPointFound = (*sector)->determineMovePosOnContinent(&rallyPoint, continentId);
 
-				if(pos.x > 0)
-					return pos;
+				if(rallyPointFound == true)
+					return true;
 			}
 		}
 	}
 	else // non continent bound units may get rally points at any pos (sea or ground)
 	{
 		// check neighbouring sectors
-		for(int i = min_dist; i <= max_dist; ++i)
+		for(int i = minSectorDist; i <= maxSectorDist; ++i)
 		{
 			ai->Getbrain()->sectors[i].sort(suitable_for_all_rallypoint);
 
 			for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[i].begin(); sector != ai->Getbrain()->sectors[i].end(); ++sector)
 			{
-				(*sector)->GetMovePos(&pos);
+				bool rallyPointFound = (*sector)->determineMovePos(&rallyPoint);
 
-				if(pos.x > 0)
-					return pos;
+				if(rallyPointFound == true)
+					return true;
 			}
 		}
 	}
 
-	return ZeroVector;
+	return false;
 }
-
-float3 AAIExecute::GetRallyPointCloseTo(UnitCategory /*category*/, unsigned int unit_movement_type, int continent_id, float3 /*pos*/, int min_dist, int max_dist)
-{
-	float3 move_pos;
-
-
-	if(unit_movement_type & MOVE_TYPE_CONTINENT_BOUND)
-	{
-		for(int i = min_dist; i <= max_dist; ++i)
-		{
-			if(unit_movement_type & MOVE_TYPE_GROUND)
-				ai->Getbrain()->sectors[i].sort(suitable_for_ground_rallypoint);
-			else if(unit_movement_type & MOVE_TYPE_SEA)
-				ai->Getbrain()->sectors[i].sort(suitable_for_sea_rallypoint);
-
-			for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[i].begin(); sector != ai->Getbrain()->sectors[i].end(); ++sector)
-			{
-				(*sector)->GetMovePosOnContinent(&move_pos, unit_movement_type, continent_id);
-
-				if(move_pos.x > 0)
-					return move_pos;
-			}
-		}
-	}
-	else
-	{
-		for(int i = min_dist; i <= max_dist; ++i)
-		{
-			ai->Getbrain()->sectors[i].sort(suitable_for_all_rallypoint);
-
-			for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[i].begin(); sector != ai->Getbrain()->sectors[i].end(); ++sector)
-			{
-				(*sector)->GetMovePos(&move_pos);
-
-				if(move_pos.x > 0)
-					return move_pos;
-			}
-		}
-	}
-
-
-	return ZeroVector;
-
-	/*AAISector* best_sector = 0;
-	float best_rating = 0, my_rating;
-	float3 center;
-
-	// check neighbouring sectors
-	for(int i = min_dist; i <= max_dist; i++)
-	{
-		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[i].begin(); sector != ai->Getbrain()->sectors[i].end(); sector++)
-		{
-			my_rating = 24.0f / ((*sector)->mobile_combat_power[combat_cat] + 4.0f);
-
-			if(land)
-				my_rating += 8 * pow((*sector)->flat_ratio, 2.0f);
-
-			if(water)
-				my_rating += 8 * pow((*sector)->water_ratio, 2.0f);
-
-			center = (*sector)->GetCenter();
-
-			my_rating /= sqrt( sqrt( pow( pos.x - center.x , 2.0f) + pow( pos.z - center.z , 2.0f) ) );
-
-			if(my_rating > best_rating)
-			{
-				best_rating = my_rating;
-				best_sector = *sector;
-			}
-		}
-	}
-
-	if(best_sector)
-		return best_sector->GetMovePos(unit_movement_type);
-	else
-		return ZeroVector;	*/
-}
-
 
 // ****************************************************************************************************
 // all building functions
@@ -3150,7 +3071,9 @@ float3 AAIExecute::GetSafePos(int def_id, float3 unit_pos)
 	float3 best_pos = ZeroVector;
 	float my_rating, best_rating = -10000.0f;
 
-	if(ai->Getbt()->units_static[def_id].movement_type & MOVE_TYPE_CONTINENT_BOUND)
+	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties(def_id).movementType;
+
+	if( moveType.cannotMoveToOtherContinents() )
 	{
 		// get continent id of the unit pos
 		float3 pos;
@@ -3162,7 +3085,7 @@ float3 AAIExecute::GetSafePos(int def_id, float3 unit_pos)
 
 			if(ai->Getmap()->GetContinentID(&pos) == cont_id)
 			{
-				my_rating = (*sector)->map_border_dist - (*sector)->GetEnemyThreatToMovementType(ai->Getbt()->units_static[def_id].movement_type);
+				my_rating = (*sector)->map_border_dist - (*sector)->getEnemyThreatToMovementType(moveType);
 
 				if(my_rating > best_rating)
 				{
@@ -3177,7 +3100,7 @@ float3 AAIExecute::GetSafePos(int def_id, float3 unit_pos)
 	{
 		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 		{
-			my_rating = (*sector)->map_border_dist - (*sector)->GetEnemyThreatToMovementType(ai->Getbt()->units_static[def_id].movement_type);
+			my_rating = (*sector)->map_border_dist - (*sector)->getEnemyThreatToMovementType(moveType);
 
 			if(my_rating > best_rating)
 			{

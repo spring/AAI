@@ -13,6 +13,8 @@
 
 #include "System/float3.h"
 #include "aidef.h"
+#include "AAITypes.h"
+
 #include <list>
 #include <vector>
 using namespace std;
@@ -76,8 +78,8 @@ public:
 
 	float GetMyDefencePowerAgainstAssaultCategory(int assault_category);
 
-	// returns enemy combat power of all known enemy units/stat defences in the sector
-	float GetEnemyThreatToMovementType(unsigned int movement_type);
+	//! @brief Returns enemy combat power of all known enemy units/stat defences in the sector
+	float getEnemyThreatToMovementType(const AAIMovementType& movementType) const;
 
 	// returns combat power of units in that and neighbouring sectors vs combat cat
 	float GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance);
@@ -91,11 +93,14 @@ public:
 	// returns center of the sector
 	float3 GetCenter();
 
-	// returns a free position in sector where units can be send to regardless of movement_type (ZeroVector if none found)
-	void GetMovePos(float3 *pos);
 
-	// returns a free position in sector on specified continent for the movement type (ZeroVector if none found)
-	void GetMovePosOnContinent(float3 *pos, unsigned int movement_type, int continent);
+	//! @brief Searches for a free position in sector (regardless of continent). Position stored in pos (ZeroVector if none found)
+	//!        Returns whether search has been successful.
+	bool determineMovePos(float3 *pos);
+
+	//! @brief Searches for a free position in sector on specified continent. Position stored in pos (ZeroVector if none found)
+	//!        Returns whether search has been successful.
+	bool determineMovePosOnContinent(float3 *pos, int continent);
 
 	// returns true is pos is within sector
 	bool PosInSector(float3 *pos);
@@ -175,11 +180,11 @@ public:
 	vector<short> my_buildings;
 
 	// stores combat power of all stationary defs/combat unit vs different categories
-	vector<float> my_stat_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine
+	vector<float> my_stat_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine @todo: Check if hover really makes sense or can be merged with ground
 	vector<float> my_mobile_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine, 5 building
 
 	// stores combat power of all stationary enemy defs/combat unit vs different categories
-	vector<float> enemy_stat_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine
+	vector<float> enemy_stat_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine @todo: Check if hover really makes sense or can be merged with ground
 	vector<float> enemy_mobile_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine, 5 building
 	AAI* Getai() { return ai; }
 private:
