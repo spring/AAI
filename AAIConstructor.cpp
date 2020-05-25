@@ -118,7 +118,7 @@ void AAIConstructor::Update()
 				|| ai->Getbt()->units_static[def_id].cost < ai->Getbt()->avg_cost[ai->Getbt()->units_static[def_id].category][ai->Getside()-1])
 			{
 				// check if mobile or stationary builder
-				if(ai->Getbt()->IsStatic(this->def_id))
+				if(ai->Getbt()->s_buildTree.getUnitTypeProperties(UnitDefId(this->def_id)).movementType.isStatic() == true )  
 				{
 					// give build order
 					Command c(-def_id);

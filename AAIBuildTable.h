@@ -121,8 +121,8 @@ public:
 
 	int GetStationaryArty(int side, float cost, float range, float efficiency, bool water, bool canBuild);
 
-	// returns a scout
-	int GetScout(int side, float los, float cost, unsigned int allowed_movement_types, int randomness, bool cloakable, bool canBuild);
+	//! @brief Determines a scout unit with given properties
+	UnitDefId selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable);
 
 	int GetRadar(int side, float cost, float range, bool water, bool canBuild);
 
@@ -186,10 +186,6 @@ public:
 	bool IsAir(int def_id);
 	bool IsHover(int def_id);
 	bool IsSea(int def_id);
-	bool IsStatic(int def_id);
-
-	bool CanMoveLand(int def_id);
-	bool CanMoveWater(int def_id);
 
 	bool CanPlacedLand(int def_id);
 	bool CanPlacedWater(int def_id);

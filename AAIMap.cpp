@@ -197,7 +197,7 @@ void AAIMap::Init()
 			sector[k][l].AddMetalSpot(&(*spot));
 	}
 
-	ReadMapLearnFile(true);
+	readMapLearnFile();
 
 	// for scouting
 	scout_map.resize(xLOSMapSize*yLOSMapSize, 0);
@@ -560,7 +560,7 @@ std::string AAIMap::LocateMapCacheFile() const
 	return cfg->GetFileName(ai, cfg->getUniqueName(ai, false, false, true, true), MAP_LEARN_PATH, "_mapcache.dat", true);
 }
 
-void AAIMap::ReadMapLearnFile(bool auto_set)
+void AAIMap::readMapLearnFile()
 {
 	const std::string mapLearn_filename = LocateMapLearnFile();
 
@@ -585,93 +585,70 @@ void AAIMap::ReadMapLearnFile(bool auto_set)
 	}
 
 	// load sector data from file or init with default values
-	if(load_file)
+	for(int j = 0; j < ySectors; ++j)
 	{
-		for(int j = 0; j < ySectors; ++j)
+		for(int i = 0; i < xSectors; ++i)
 		{
-			for(int i = 0; i < xSectors; ++i)
+			//---------------------------------------------------------------------------------------------------------
+			// load learned sector data from file (if available)
+			//---------------------------------------------------------------------------------------------------------
+			if(load_file != nullptr)
 			{
-				// load sector data
 				fscanf(load_file, "%f %f %f", &sector[i][j].flat_ratio, &sector[i][j].water_ratio, &sector[i][j].importance_learned);
+			
+				if(sector[i][j].importance_learned < 1.0f)
+					sector[i][j].importance_learned += (rand()%5)/20.0f;
 
-				// set movement types that may enter this sector
-				// always: MOVE_TYPE_AIR, MOVE_TYPE_AMPHIB, MOVE_TYPE_HOVER;
-				sector[i][j].allowed_movement_types = 22;
-
-				if(sector[i][j].water_ratio < 0.3)
-					sector[i][j].allowed_movement_types |= MOVE_TYPE_GROUND;
-				else if(sector[i][j].water_ratio < 0.7)
-				{
-					sector[i][j].allowed_movement_types |= MOVE_TYPE_GROUND;
-					sector[i][j].allowed_movement_types |= MOVE_TYPE_SEA;
-				}
-				else
-					sector[i][j].allowed_movement_types |= MOVE_TYPE_SEA;
-
-				if(sector[i][j].importance_learned <= 1)
-					sector[i][j].importance_learned += (rand()%5)/20.0;
-
-				// load combat data
-				for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); cat++)
+				for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
 					fscanf(load_file, "%f %f ", &sector[i][j].attacked_by_learned[cat], &sector[i][j].combats_learned[cat]);
-
-				if(auto_set)
-				{
-					sector[i][j].importance_this_game = sector[i][j].importance_learned;
-
-					for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
-					{
-						sector[i][j].attacked_by_this_game[cat] = sector[i][j].attacked_by_learned[cat];
-						sector[i][j].combats_this_game[cat] = sector[i][j].combats_learned[cat];
-					}
-				}
 			}
-		}
-	}
-	else
-	{
-		for(int j = 0; j < ySectors; ++j)
-		{
-			for(int i = 0; i < xSectors; ++i)
+			//---------------------------------------------------------------------------------------------------------
+			// no learning data available -> init with default data
+			//---------------------------------------------------------------------------------------------------------
+			else
 			{
-				sector[i][j].importance_learned = 1 + (rand()%5)/20.0;
-				sector[i][j].flat_ratio = sector[i][j].GetFlatRatio();
+				sector[i][j].importance_learned = 1.0f + (rand()%5)/20.0f;
+				sector[i][j].flat_ratio  = sector[i][j].GetFlatRatio();
 				sector[i][j].water_ratio = sector[i][j].GetWaterRatio();
 
-				// set movement types that may enter this sector
-				// always: MOVE_TYPE_AIR, MOVE_TYPE_AMPHIB, MOVE_TYPE_HOVER;
-				sector[i][j].allowed_movement_types = 22;
-
-				if(sector[i][j].water_ratio < 0.3)
-					sector[i][j].allowed_movement_types |= MOVE_TYPE_GROUND;
-				else if(sector[i][j].water_ratio < 0.7)
+				for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
 				{
-					sector[i][j].allowed_movement_types |= MOVE_TYPE_GROUND;
-					sector[i][j].allowed_movement_types |= MOVE_TYPE_SEA;
+					// init with higher values in the center of the map
+					sector[i][j].attacked_by_learned[cat] = static_cast<float>(2 * sector[i][j].GetEdgeDistance());
+					// @todo: Check initialization of sector[i][j].combats_learned
 				}
-				else
-					sector[i][j].allowed_movement_types |= MOVE_TYPE_SEA;
+			}
 
-				if(auto_set)
-				{
-					sector[i][j].importance_this_game = sector[i][j].importance_learned;
+			//---------------------------------------------------------------------------------------------------------
+			// determine movement types that are suitable to maneuvre
+			//---------------------------------------------------------------------------------------------------------
+			MapType mapType = MapType::LAND_MAP;
 
-					for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
-					{
-						// init with higher values in the center of the map
-						sector[i][j].attacked_by_learned[cat] = 2 * sector[i][j].GetEdgeDistance();
+			if(sector[i][j].water_ratio > 0.7f)
+				mapType = MapType::WATER_MAP;
+			else if(sector[i][j].water_ratio > 0.3f)
+				mapType = MapType::LAND_WATER_MAP;
 
-						sector[i][j].attacked_by_this_game[cat] = sector[i][j].attacked_by_learned[cat];
-						sector[i][j].combats_this_game[cat] = sector[i][j].combats_learned[cat];
-					}
-				}
+			sector[i][j].m_suitableMovementTypes = getSuitableMovementTypes(mapType);
+
+			//---------------------------------------------------------------------------------------------------------
+			// set learned data as initial guess for this game
+			//---------------------------------------------------------------------------------------------------------
+			sector[i][j].importance_this_game = sector[i][j].importance_learned;
+
+			for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
+			{
+				sector[i][j].attacked_by_this_game[cat] = sector[i][j].attacked_by_learned[cat];
+				sector[i][j].combats_this_game[cat] = sector[i][j].combats_learned[cat];
 			}
 		}
 	}
 
+    //-----------------------------------------------------------------------------------------------------------------
 	// determine land/water ratio of total map
-	flat_land_ratio = 0;
-	water_ratio = 0;
+	//-----------------------------------------------------------------------------------------------------------------
+	flat_land_ratio = 0.0f;
+	water_ratio     = 0.0f;
 
 	for(int j = 0; j < ySectors; ++j)
 	{
@@ -683,7 +660,7 @@ void AAIMap::ReadMapLearnFile(bool auto_set)
 	}
 
 	flat_land_ratio /= (float)(xSectors * ySectors);
-	water_ratio /= (float)(xSectors * ySectors);
+	water_ratio     /= (float)(xSectors * ySectors);
 	land_ratio = 1.0f - water_ratio;
 
 	if(load_file)
@@ -2681,10 +2658,11 @@ int AAIMap::GetContinentID(float3 *pos)
 	return continent_map[y * xContMapSize + x];
 }
 
-int AAIMap::GetSmartContinentID(float3 *pos, unsigned int unit_movement_type)
+int AAIMap::getSmartContinentID(float3 *pos, const AAIMovementType& moveType) const
 {
 	// check if non sea/amphib unit in shallow water
-	if(ai->Getcb()->GetElevation(pos->x, pos->z) < 0 && unit_movement_type & MOVE_TYPE_GROUND)
+	if(     (ai->Getcb()->GetElevation(pos->x, pos->z) < 0)
+	     && (moveType.getMovementType() == EMovementType::MOVEMENT_TYPE_GROUND) )
 	{
 		//look for closest land cell
 		for(int k = 1; k < 10; ++k)
@@ -2728,6 +2706,39 @@ int AAIMap::GetSmartContinentID(float3 *pos, unsigned int unit_movement_type)
 
 	return continent_map[y * xContMapSize + x];
 }
+
+uint32_t AAIMap::getSuitableMovementTypes(MapType mapType) const
+{
+	// always: MOVEMENT_TYPE_AIR, MOVEMENT_TYPE_AMPHIB, MOVEMENT_TYPE_HOVER;
+	uint32_t suitableMovementTypes =  static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR)
+									+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AMPHIBIOUS)
+									+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
+
+	switch(mapType)
+	{
+		case MapType::LAND_MAP:
+		{
+			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
+			break;
+		}
+		case MapType::LAND_WATER_MAP:
+		{
+			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
+			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
+			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
+			break;
+		}
+		case MapType::WATER_MAP:
+		{
+			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
+			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
+			break;
+		}
+	}
+
+	return suitableMovementTypes;
+}
+
 
 bool AAIMap::LocatedOnSmallContinent(float3 *pos)
 {

@@ -1843,38 +1843,46 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 	return best_jammer;
 }
 
-int AAIBuildTable::GetScout(int side, float los, float cost, unsigned int allowed_movement_types, int randomness, bool cloakable, bool canBuild)
+UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable)
 {
 	side -= 1;
 
-	float best_ranking = -10000, my_ranking;
-	int best_scout = 0;
+	float highestRanking = -10000.0f;
+	UnitDefId selectedScout(0);
+
+	// prevent division by zero / errors from floating point inaccuracy if min and may value are the same.
+	float losRadiusRange = (max_value[SCOUT][side] - min_value[SCOUT][side]);
+	if(losRadiusRange < 1.0f)
+		losRadiusRange = 1.0f;
+
+	float costRange = (max_cost[SCOUT][side] - min_cost[SCOUT][side]);
+	if(costRange < 1.0f)
+		costRange = 1.0f;
 
 	for(list<int>::iterator i = units_of_category[SCOUT][side].begin(); i != units_of_category[SCOUT][side].end(); ++i)
 	{
-		if(units_static[*i].movement_type & allowed_movement_types)
+		bool movementTypeAllowed     = s_buildTree.getUnitTypeProperties(*i).movementType.isIncludedIn(movementType);
+		bool factoryPrerequisitesMet = (!factoryAvailable || (factoryAvailable && units_dynamic[*i].constructorsAvailable > 0));
+
+		if( (movementTypeAllowed == true) && (factoryPrerequisitesMet == true) )
 		{
-			if(!canBuild || (canBuild && units_dynamic[*i].constructorsAvailable > 0))
+			float myRanking =     sightRange * ( (GetUnitDef(*i).losRadius - min_value[SCOUT][side]) / losRadiusRange)
+								+       cost * ( (max_cost[SCOUT][side]    - units_static[*i].cost) / costRange );
+
+			if(cloakable && GetUnitDef(*i).canCloak)
+				myRanking += 2.0f;
+
+			myRanking += (0.1f * ((float)(rand()%randomness)));
+
+			if(myRanking > highestRanking)
 			{
-				my_ranking = los * ( GetUnitDef(*i).losRadius - avg_value[SCOUT][side]) / max_value[SCOUT][side];
-				my_ranking += cost * (avg_cost[SCOUT][side] - units_static[*i].cost) / max_cost[SCOUT][side];
-
-				if(cloakable && GetUnitDef(*i).canCloak)
-					my_ranking += 8.0f;
-
-				my_ranking *= (1 + 0.05 * ((float)(rand()%randomness)));
-
-				if(my_ranking > best_ranking)
-				{
-					best_ranking = my_ranking;
-					best_scout = *i;
-				}
+				highestRanking = myRanking;
+				selectedScout.id = *i;
 			}
 		}
 	}
-
-
-	return best_scout;
+	
+	return selectedScout;
 }
 
 int AAIBuildTable::GetRandomUnit(list<int> unit_list)
@@ -3179,7 +3187,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 		units_dynamic[constructor].requested += 1;
 
 		// factory requested
-		if(IsStatic(constructor))
+		if(s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).movementType.isStatic() == true)
 		{
 			if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
 			{
@@ -3525,30 +3533,6 @@ bool AAIBuildTable::IsSea(int def_id)
 		return false;
 }
 
-bool AAIBuildTable::IsStatic(int def_id)
-{
-	if(units_static[def_id].movement_type & MOVE_TYPE_STATIC)
-		return true;
-	else
-		return false;
-}
-
-bool AAIBuildTable::CanMoveLand(int def_id)
-{
-	if( !(units_static[def_id].movement_type & MOVE_TYPE_SEA)
-		&& !(units_static[def_id].movement_type & MOVE_TYPE_STATIC))
-		return true;
-	else
-		return false;
-}
-
-bool AAIBuildTable::CanMoveWater(int def_id)
-{
-	if( !(units_static[def_id].movement_type & MOVE_TYPE_GROUND) && !(units_static[def_id].movement_type & MOVE_TYPE_STATIC))
-		return true;
-	else
-		return false;
-}
 
 bool AAIBuildTable::CanPlacedLand(int def_id)
 {

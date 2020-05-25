@@ -20,10 +20,14 @@
 const float energyToMetalConversionFactor = 60.0f;
 
 //! @brief An id identifying a unit type - used to prevent mixing ids referring to units and unit definitions
-struct UnitDefId
+class UnitDefId
 {
 public:
+    UnitDefId() : id(0) { };
+
 	UnitDefId(int unitDefId) : id(unitDefId) { };
+
+    bool isValid() const { return (id > 0) ? true : false; };
 
 	int id;
 };

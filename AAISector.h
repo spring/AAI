@@ -140,7 +140,8 @@ public:
 
 	bool interior;			// true if sector is no inner sector
 
-	unsigned int allowed_movement_types;	// movement types that may enter this sector
+	//! Bitmask storing movement types that may maneuver in this sector
+	uint32_t m_suitableMovementTypes;	
 
 	float enemy_structures;
 	float own_structures;

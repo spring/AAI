@@ -149,7 +149,7 @@ void AAIUnitTable::AddConstructor(int unit_id, int def_id)
 		++activeBuilders;
 	}
 
-	if(factory && ai->Getbt()->IsStatic(def_id))
+	if( (factory == true) && (ai->Getbt()->s_buildTree.getUnitTypeProperties(UnitDefId(def_id)).movementType.isStatic() == true) )
 	{
 		--futureFactories;
 		++activeFactories;
@@ -165,7 +165,7 @@ void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 	if(units[unit_id].cons->builder)
 		activeBuilders -= 1;
 
-	if(units[unit_id].cons->factory && ai->Getbt()->IsStatic(def_id))
+	if( (units[unit_id].cons->factory == true) && (ai->Getbt()->s_buildTree.getUnitTypeProperties(UnitDefId(def_id)).movementType.isStatic() == true) )
 		activeFactories -= 1;
 
 	// decrease number of available builders for all buildoptions of the builder

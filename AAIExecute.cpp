@@ -261,61 +261,57 @@ void AAIExecute::BuildScouts()
 	// check number of scouts and order new ones if necessary
 	if(ai->Getut()->activeUnits[SCOUT] + ai->Getut()->futureUnits[SCOUT] + ai->Getut()->requestedUnits[SCOUT] < cfg->MAX_SCOUTS)
 	{
-		int scout = 0;
-
+		bool availableFactoryNeeded = true;
 		float cost;
-		float los;
+		float sightRange;
 
 		int period = ai->Getbrain()->GetGamePeriod();
 
 		if(period == 0)
 		{
 			cost = 2.0f;
-			los = 0.5f;
+			sightRange = 0.5f;
 		}
 		else if(period == 1)
 		{
 			cost = 1.0f;
-			los = 2.0f;
+			sightRange = 1.0f;
 		}
 		else
 		{
-			cost = 0.5f;
-			los = 4.0f;
+			// sometimes prefer scouts with large los in late game
+			if(rand()%3 == 1)
+			{
+				cost = 0.5f;
+				sightRange = 4.0f;
+				availableFactoryNeeded = false;
+			}
+			else
+			{
+				cost = 1.0f;
+				sightRange = 1.0f;
+			}
 		}
 
 		// determine movement type of scout based on map
-		// always: MOVE_TYPE_AIR, MOVE_TYPE_HOVER, MOVE_TYPE_AMPHIB
-		unsigned int allowed_movement_types = 22;
-
-		if(ai->Getmap()->map_type == LAND_MAP)
-			allowed_movement_types |= MOVE_TYPE_GROUND;
-		else if(ai->Getmap()->map_type == LAND_WATER_MAP)
-		{
-			allowed_movement_types |= MOVE_TYPE_GROUND;
-			allowed_movement_types |= MOVE_TYPE_SEA;
-		}
-		else if(ai->Getmap()->map_type == WATER_MAP)
-			allowed_movement_types |= MOVE_TYPE_SEA;
-
+		uint32_t suitableMovementTypes = ai->Getmap()->getSuitableMovementTypesForMap();
 
 		// request cloakable scouts from time to time
-		if(rand()%5 == 1)
-			scout = ai->Getbt()->GetScout(ai->Getside(), los, cost, allowed_movement_types, 10, true, true);
-		else
-			scout = ai->Getbt()->GetScout(ai->Getside(), los, cost, allowed_movement_types, 10, false, true);
+		bool cloaked = (rand()%5 == 1) ? true : false;
+		
+		UnitDefId scoutId = ai->Getbt()->selectScout(ai->Getside(), sightRange, cost, suitableMovementTypes, 10, cloaked, availableFactoryNeeded);
 
-		if(scout)
+		if(scoutId.isValid() == true)
 		{
 			bool urgent = true;
 
 			if(ai->Getut()->activeUnits[SCOUT] >= 2)
 				urgent = false;
 
-			if(AddUnitToBuildqueue(scout, 1, urgent))
+			if(AddUnitToBuildqueue(scoutId.id, 1, urgent))
 			{
 				ai->Getut()->UnitRequested(SCOUT);
-				++ai->Getbt()->units_dynamic[scout].requested;
+				++ai->Getbt()->units_dynamic[scoutId.id].requested;
 			}
 		}
 	}
@@ -377,7 +373,7 @@ float3 AAIExecute::GetUnitBuildsite(int /*builder*/, int unit)
 	{
 		bool water = false;
 
-		if(ai->Getbt()->IsSea(unit))
+		if(ai->Getbt()->IsSea(unit) )
 			water = true;
 
 		pos = (*s)->GetBuildsite(unit, water);

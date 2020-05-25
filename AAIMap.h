@@ -11,6 +11,7 @@
 #define AAI_MAP_H
 
 #include "aidef.h"
+#include "AAITypes.h"
 #include "System/float3.h"
 
 #include <vector>
@@ -50,13 +51,14 @@ public:
 	// returns true if pos is located on s small continent (= pond or island)
 	bool LocatedOnSmallContinent(float3 *pos);
 
-	// returns continent id with respect to the units movement type (e.g. land, non amphib unit being in shallow water will return id of nearest land continent)
-	int GetSmartContinentID(float3 *pos, unsigned int unit_movement_type);
+	//! @brief Returns continent id with respect to the unit's movement type (e.g. ground (=non amphibious) unit being in shallow water will return id of nearest land continent)
+	int getSmartContinentID(float3 *pos, const AAIMovementType& moveType) const;
 
+	//! @brief Returns a bitmask storing which movement types are suitable for the map type
+	uint32_t getSuitableMovementTypesForMap() const { return getSuitableMovementTypes(map_type); };
 
 	// returns sector (0 if out of sector map -> e.g. aircraft flying outside of the map) of a position
 	AAISector* GetSectorOfPos(float3 *pos);
-
 
 	float GetEdgeDistance(float3 *pos);
 
@@ -154,8 +156,12 @@ private:
 	bool initialized;
 	// krogothe's metal spot finder
 	void SearchMetalSpots();
+
 	// determines type of map (land, land/water or water map)
 	void DetectMapType();
+
+	//! @brief Returns which movement types are suitable for the given map type
+	uint32_t getSuitableMovementTypes(MapType mapType) const;
 
 	void CalculateWaterRatio();
 
@@ -168,8 +174,8 @@ private:
 	// calculates learning effect
 	void Learn();
 
-	// if auto_set == true, the loaded values are assigned to the current sectordata as well
-	void ReadMapLearnFile(bool auto_set);
+	//! @brief Read the learning data for this map (or initialize with defualt data if none are available)
+	void readMapLearnFile();
 
 	// reads continent cache file (and creates new one if necessary)
 	void ReadContinentFile();

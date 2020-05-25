@@ -161,12 +161,12 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 	AAISector *scout_sector = 0, *sector;
 
 	const UnitDef *def = ai->Getcb()->GetUnitDef(scout);
-	unsigned int scout_movement_type = ai->Getbt()->units_static[def->id].movement_type;
+	const AAIMovementType& scoutMoveType = ai->Getbt()->s_buildTree.getUnitTypeProperties( UnitDefId(def->id) ).movementType;
 
 	float3 pos = ai->Getcb()->GetUnitPos(scout);
 
 	// get continent
-	int continent = ai->Getmap()->GetSmartContinentID(&pos, scout_movement_type);//ai->Getmap()->GetContinentID(&pos);
+	int continent = ai->Getmap()->getSmartContinentID(&pos, scoutMoveType);
 
 	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
 	{
@@ -174,7 +174,8 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 		{
 			sector = &ai->Getmap()->sector[x][y];
 
-			if(sector->distance_to_base > 0 && scout_movement_type & sector->allowed_movement_types)
+			if(    (sector->distance_to_base > 0) 
+			    && (scoutMoveType.isIncludedIn(sector->m_suitableMovementTypes) == true) )
 			{
 				if(enemy_pressure_estimation > 0.01f && sector->distance_to_base < 2)
 					my_rating = sector->importance_this_game * sector->last_scout * (1.0f + sector->enemy_combat_units[5]);
