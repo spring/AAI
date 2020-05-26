@@ -96,18 +96,18 @@ AAI::~AAI()
 	Log("Requested constructors:\n");
 	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac) {
 		assert((*fac)   < bt->units_dynamic.size());
-		Log("%-24s: %i\n", bt->GetUnitDef(*fac).humanName.c_str(), bt->units_dynamic[*fac].requested);
+		Log("%-24s: %i\n", bt->s_buildTree.getUnitTypeProperties(UnitDefId(*fac)).m_name.c_str(), bt->units_dynamic[*fac].requested);
 	}
 	for(list<int>::iterator fac = bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].end(); ++fac)
-		Log("%-24s: %i\n", bt->GetUnitDef(*fac).humanName.c_str(), bt->units_dynamic[*fac].requested);
+		Log("%-24s: %i\n", bt->s_buildTree.getUnitTypeProperties(UnitDefId(*fac)).m_name.c_str(), bt->units_dynamic[*fac].requested);
 
 	Log("Factory ratings:\n");
 	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac)
-		Log("%-24s: %f\n", bt->GetUnitDef(*fac).humanName.c_str(), bt->GetFactoryRating(*fac));
+		Log("%-24s: %f\n", bt->s_buildTree.getUnitTypeProperties(UnitDefId(*fac)).m_name.c_str(), bt->GetFactoryRating(*fac));
 
 	Log("Mobile constructor ratings:\n");
 	for(list<int>::iterator cons = bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].begin(); cons != bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].end(); ++cons)
-		Log("%-24s: %f\n", bt->GetUnitDef(*cons).humanName.c_str(), bt->GetBuilderRating(*cons));
+		Log("%-24s: %f\n", bt->s_buildTree.getUnitTypeProperties(UnitDefId(*cons)).m_name.c_str(), bt->GetBuilderRating(*cons));
 
 
 	// delete buildtasks
@@ -274,7 +274,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 				if (sector && !am->SufficientDefencePowerAt(sector, 1.2f))
 				{
 					const AAIMovementType& attackerMoveType = bt->s_buildTree.getMovementType(UnitDefId(att_def->id));
-					
+
 					// building has been attacked
 					if (cat <= METAL_MAKER)
 						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 115);

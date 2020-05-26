@@ -112,16 +112,19 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 
     for(int id = 1; id <= numberOfUnitTypes; ++id)
     {
-        m_unitTypeProperties[id].totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / energyToMetalConversionFactor);
+        m_unitTypeProperties[id].m_totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / energyToMetalConversionFactor);
+        m_unitTypeProperties[id].m_maxSpeed  = unitDefs[id]->speed;
+        m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
         
-        m_unitTypeProperties[id].maxRange = 0.0f;
+        m_unitTypeProperties[id].m_maxRange = 0.0f;
         for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDefs[id]->weapons.begin(); w != unitDefs[id]->weapons.end(); ++w)
         {
-            if((*w).def->range > m_unitTypeProperties[id].maxRange)
-                m_unitTypeProperties[id].maxRange = (*w).def->range;
+            if((*w).def->range > m_unitTypeProperties[id].m_maxRange)
+                m_unitTypeProperties[id].m_maxRange = (*w).def->range;
         }
 
-        m_unitTypeProperties[id].movementType.setMovementType( determineMovementType(unitDefs[id]) );
+        m_unitTypeProperties[id].m_movementType.setMovementType( determineMovementType(unitDefs[id]) );
+
     }
     
     //-----------------------------------------------------------------------------------------------------------------
@@ -141,12 +144,12 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
         fprintf(file, "\nUnit Side\n");
         for(int id = 1; id <= numberOfUnitTypes; ++id)
         {
-            fprintf(file, "%s %s %i %f %u %i\n", unitDefs[id]->humanName.c_str(), 
+            fprintf(file, "%s %s %i %f %u %i\n", m_unitTypeProperties[id].m_name.c_str(), 
                                                  unitDefs[id]->name.c_str(), 
                                                  m_sideOfUnitType[id], 
-                                                 m_unitTypeProperties[id].maxRange,
-                                                 static_cast<uint32_t>(m_unitTypeProperties[id].movementType.getMovementType()),
-                                                 static_cast<int>(m_unitTypeProperties[id].movementType.cannotMoveToOtherContinents()) );
+                                                 m_unitTypeProperties[id].m_maxRange,
+                                                 static_cast<uint32_t>(m_unitTypeProperties[id].m_movementType.getMovementType()),
+                                                 static_cast<int>(m_unitTypeProperties[id].m_movementType.cannotMoveToOtherContinents()) );
         }
         fclose(file);
     }

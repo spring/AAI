@@ -3001,7 +3001,7 @@ void AAIExecute::AddStartFactory()
 		ai->Getbt()->units_dynamic[best_factory].requested += 1;
 		urgency[STATIONARY_CONSTRUCTOR] = 3.0f;
 
-		ai->Log("%s requested\n", ai->Getbt()->GetUnitDef(best_factory).humanName.c_str());
+		ai->Log("%s requested\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(UnitDefId(best_factory)).m_name.c_str());
 
 		for(list<int>::iterator j = ai->Getbt()->units_static[best_factory].canBuildList.begin(); j != ai->Getbt()->units_static[best_factory].canBuildList.end(); ++j)
 			ai->Getbt()->units_dynamic[*j].constructorsRequested += 1;

@@ -291,7 +291,7 @@ void AAIBuildTable::Init()
 			if(!GetUnitDef(i).weapons.empty())
 			{
 				// get range
-				units_static[i].range = s_buildTree.getUnitTypeProperties( UnitDefId(i) ).maxRange;
+				units_static[i].range = s_buildTree.getUnitTypeProperties( UnitDefId(i) ).m_maxRange;
 
 				// get memory for eff
 				units_static[i].efficiency.resize(combat_categories);
@@ -337,7 +337,7 @@ void AAIBuildTable::Init()
 			else if(GetUnitDef(i).buildOptions.size() > 0 && !IsAttacker(i))
 			{
 				// stationary constructors
-				if( s_buildTree.getUnitTypeProperties(UnitDefId(i)).movementType.isStatic() == true)
+				if( s_buildTree.getMovementType(UnitDefId(i)).isStatic() == true)
 				{
 					// ground factory or sea factory
 					units_of_category[STATIONARY_CONSTRUCTOR][units_static[i].side-1].push_back(GetUnitDef(i).id);
@@ -352,7 +352,7 @@ void AAIBuildTable::Init()
 			}
 			// no builder or factory
 			// check if other building
-			else if(s_buildTree.getUnitTypeProperties(UnitDefId(i)).movementType.isStatic() == true)
+			else if(s_buildTree.getMovementType(UnitDefId(i)).isStatic() == true)
 			{
 				// check if extractor
 				if(GetUnitDef(i).extractsMetal)
@@ -391,7 +391,7 @@ void AAIBuildTable::Init()
 					}
 					else
 					{
-						if( s_buildTree.getUnitTypeProperties( UnitDefId(i) ).maxRange  < cfg->STATIONARY_ARTY_RANGE)
+						if( s_buildTree.getUnitTypeProperties( UnitDefId(i) ).m_maxRange  < cfg->STATIONARY_ARTY_RANGE)
 						{
 							units_of_category[STATIONARY_DEF][units_static[i].side-1].push_back(GetUnitDef(i).id);
 							units_static[i].category = STATIONARY_DEF;
@@ -587,14 +587,14 @@ void AAIBuildTable::Init()
 					// filter out neutral and unknown units
 					if(units_static[*unit].side > 0 && units_static[*unit].category != UNKNOWN)
 					{
-						if(s_buildTree.getUnitTypeProperties(UnitDefId(*unit)).movementType.isStatic() == true)
+						if(s_buildTree.getMovementType(UnitDefId(*unit)).isStatic() == true)
 							units_static[i].unit_type |= UNIT_TYPE_BUILDER;
 						else
 							units_static[i].unit_type |= UNIT_TYPE_FACTORY;
 					}
 				}
 
-				if(    !(s_buildTree.getUnitTypeProperties(UnitDefId(i)).movementType.isStatic() == true) 
+				if(    !(s_buildTree.getMovementType(UnitDefId(i)).isStatic() == true) 
 				    &&  (GetUnitDef(i).canAssist == true) )
 					units_static[i].unit_type |= UNIT_TYPE_ASSISTER;
 			}
@@ -814,7 +814,7 @@ void AAIBuildTable::PrecacheStats()
 		// precache range of arty
 		for(list<int>::iterator i = units_of_category[STATIONARY_ARTY][s].begin(); i != units_of_category[STATIONARY_ARTY][s].end(); ++i)
 		{
-			units_static[*i].efficiency[1] = s_buildTree.getUnitTypeProperties( UnitDefId(*i) ).maxRange;;
+			units_static[*i].efficiency[1] = s_buildTree.getUnitTypeProperties( UnitDefId(*i) ).m_maxRange;
 			units_static[*i].efficiency[0] = 1 + units_static[*i].cost/100.0;
 		}
 
@@ -1117,7 +1117,7 @@ void AAIBuildTable::PrecacheStats()
 			{
 				for(list<int>::iterator unit = units_of_category[*category][s].begin(); unit != units_of_category[*category][s].end(); ++unit)
 				{
-					range = s_buildTree.getUnitTypeProperties( UnitDefId(*unit) ).maxRange;;
+					range = s_buildTree.getUnitTypeProperties( UnitDefId(*unit) ).m_maxRange;
 
 					avg_value[*category][s] += range;
 
@@ -1809,7 +1809,7 @@ UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uin
 
 	for(list<int>::iterator i = units_of_category[SCOUT][side].begin(); i != units_of_category[SCOUT][side].end(); ++i)
 	{
-		bool movementTypeAllowed     = s_buildTree.getUnitTypeProperties(*i).movementType.isIncludedIn(movementType);
+		bool movementTypeAllowed     = s_buildTree.getMovementType(*i).isIncludedIn(movementType);
 		bool factoryPrerequisitesMet = (!factoryAvailable || (factoryAvailable && units_dynamic[*i].constructorsAvailable > 0));
 
 		if( (movementTypeAllowed == true) && (factoryPrerequisitesMet == true) )
@@ -2758,7 +2758,7 @@ void AAIBuildTable::DebugPrint()
 				fprintf(file, "\n%s %s:\n",GetCategoryString2((UnitCategory) cat), sideNames[s].c_str());
 
 				for(list<int>::iterator unit = units_of_category[cat][s-1].begin(); unit != units_of_category[cat][s-1].end(); ++unit)
-					fprintf(file, "%s    ", GetUnitDef(*unit).humanName.c_str());
+					fprintf(file, "%s    ", s_buildTree.getUnitTypeProperties(UnitDefId(*unit)).m_name.c_str());
 
 				fprintf(file, "\n");
 			}
@@ -3102,14 +3102,14 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 				my_rating += 2.0f;
 
 			// prevent AAI from requesting factories that cannot be built within the current base
-			if(s_buildTree.getUnitTypeProperties(UnitDefId(*factory)).movementType.isStaticLand() == true)
+			if(s_buildTree.getMovementType(UnitDefId(*factory)).isStaticLand() == true)
 			{
 				if(ai->Getbrain()->baseLandRatio > 0.1f)
 					my_rating *= ai->Getbrain()->baseLandRatio;
 				else
 					my_rating = -100000.0f;
 			}
-			else if(s_buildTree.getUnitTypeProperties(UnitDefId(*factory)).movementType.isStaticSea() == true)
+			else if(s_buildTree.getMovementType(UnitDefId(*factory)).isStaticSea() == true)
 			{
 				if(ai->Getbrain()->baseWaterRatio > 0.1f)
 					my_rating *= ai->Getbrain()->baseWaterRatio;
@@ -3137,16 +3137,16 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 		units_dynamic[constructor].requested += 1;
 
 		// factory requested
-		if(s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).movementType.isStatic() == true)
+		if(s_buildTree.getMovementType(UnitDefId(constructor)).isStatic() == true)
 		{
 			if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
 			{
-				ai->Log("BuildFactoryFor(%s) is requesting builder for %s\n", GetUnitDef(unit_def_id).humanName.c_str(), GetUnitDef(constructor).humanName.c_str());
+				ai->Log("BuildFactoryFor(%s) is requesting builder for %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
 				BuildBuilderFor(constructor);
 			}
 
 			// debug
-			ai->Log("BuildFactoryFor(%s) requested %s\n", GetUnitDef(unit_def_id).humanName.c_str(), GetUnitDef(constructor).humanName.c_str());
+			ai->Log("BuildFactoryFor(%s) requested %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
 		}
 		// mobile constructor requested
 		else
@@ -3159,12 +3159,12 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 
 				if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
 				{
-					ai->Log("BuildFactoryFor(%s) is requesting factory for %s\n", GetUnitDef(unit_def_id).humanName.c_str(), GetUnitDef(constructor).humanName.c_str());
+					ai->Log("BuildFactoryFor(%s) is requesting factory for %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
 					BuildFactoryFor(constructor);
 				}
 
 				// debug
-				ai->Log("BuildFactoryFor(%s) requested %s\n", GetUnitDef(unit_def_id).humanName.c_str(), GetUnitDef(constructor).humanName.c_str());
+				ai->Log("BuildFactoryFor(%s) requested %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
 			}
 			else
 			{
@@ -3231,7 +3231,7 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 		// build factory if necessary
 		if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
 		{
-			ai->Log("BuildBuilderFor(%s) is requesting factory for %s\n", GetUnitDef(building_def_id).humanName.c_str(), GetUnitDef(constructor).humanName.c_str());
+			ai->Log("BuildBuilderFor(%s) is requesting factory for %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(building_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
 
 			BuildFactoryFor(constructor);
 		}
@@ -3247,7 +3247,7 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 				units_dynamic[*j].constructorsRequested += 1;
 
 			// debug
-			ai->Log("BuildBuilderFor(%s) requested %s\n", GetUnitDef(building_def_id).humanName.c_str(), GetUnitDef(constructor).humanName.c_str());
+			ai->Log("BuildBuilderFor(%s) requested %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(building_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
 		}
 	}
 }

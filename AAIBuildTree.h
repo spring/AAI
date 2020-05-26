@@ -37,14 +37,20 @@ public:
 //! @brief Unit Type properties needed by AAI for internal decision making (i.e. unit type selection)
 struct UnitTypeProperties
 {
+    //! Name of the unit
+    std::string m_name;
+
     //! Cost of unit (metal + energy / conversion_factor)
-    float totalCost;
+    float m_totalCost;
 
     //! max weapon range (0.f for unarmed units)
-    float maxRange;
+    float m_maxRange;
 
     //! Movement type (land, sea, air, hover, submarine, ...)
-    AAIMovementType movementType;
+    AAIMovementType m_movementType;
+
+    //! Maximum movement speed
+    float m_maxSpeed;
 
     //UnitCategory category;
 
@@ -81,7 +87,7 @@ public:
     const UnitTypeProperties& getUnitTypeProperties(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id]; };
 
     //! @brief Returns movement type of given unit type
-    const AAIMovementType& getMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].movementType; };
+    const AAIMovementType& getMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].m_movementType; };
 
 private:
     //! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
