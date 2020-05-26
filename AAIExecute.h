@@ -96,10 +96,8 @@ public:
 
 	void CheckFallBack(int unit_id, int def_id);
 
-
-	// tries to call support vs air (returns true if succesful)
-	void DefendUnitVS(int unit, unsigned int enemy_movement_type, float3 *enemy_pos, int importance);
-
+	//! @brief Tries to call support against specific attacker (e.g. air)
+	void DefendUnitVS(int unit, const AAIMovementType& attackerMoveType, float3 *enemy_pos, int importance);
 
 	// adds a unit to the correct wishlist
 	bool AddUnitToBuildqueue(int def_id, int number, bool urgent);

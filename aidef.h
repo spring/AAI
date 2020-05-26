@@ -52,18 +52,6 @@ public:
 	float amount;
 };
 
-// movement types (for bitfield)
-#define MOVE_TYPE_GROUND (unsigned int) 1
-#define MOVE_TYPE_AIR (unsigned int) 2
-#define MOVE_TYPE_HOVER (unsigned int) 4
-#define MOVE_TYPE_SEA (unsigned int) 8
-#define MOVE_TYPE_AMPHIB (unsigned int) 16
-#define MOVE_TYPE_STATIC (unsigned int) 32
-#define MOVE_TYPE_FLOATER (unsigned int) 64
-#define MOVE_TYPE_UNDERWATER (unsigned int) 128
-#define MOVE_TYPE_STATIC_LAND (unsigned int) 256
-#define MOVE_TYPE_STATIC_WATER (unsigned int) 512
-
 // unit types (for bitfield)
 #define UNIT_TYPE_BUILDER (unsigned int) 1
 #define UNIT_TYPE_FACTORY (unsigned int) 2
@@ -95,6 +83,8 @@ struct UnitId
 {
 public:
 	UnitId(int unitId) : id(unitId) { };
+
+	void invalidate() { id = -1; };
 
 	int id;
 };

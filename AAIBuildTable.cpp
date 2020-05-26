@@ -314,62 +314,6 @@ void AAIBuildTable::Init()
 		}
 
 		//
-		// determine movement type
-		//
-		for(int i = 1; i <= numOfUnits; i++)
-		{
-			units_static[i].movement_type = 0;
-
-			if(GetUnitDef(i).movedata)
-			{
-				if(GetUnitDef(i).movedata->moveFamily == MoveData::Tank || GetUnitDef(i).movedata->moveFamily == MoveData::KBot)
-				{
-					// check for amphibious units
-					if(GetUnitDef(i).movedata->depth > 250)
-						units_static[i].movement_type |= MOVE_TYPE_AMPHIB;
-					else
-						units_static[i].movement_type |= MOVE_TYPE_GROUND;
-				}
-				else if(GetUnitDef(i).movedata->moveFamily == MoveData::Hover) {
-					units_static[i].movement_type |= MOVE_TYPE_HOVER;
-				}
-				// ship
-				else if(GetUnitDef(i).movedata->moveFamily == MoveData::Ship)
-				{
-					units_static[i].movement_type |= MOVE_TYPE_SEA;
-
-					if(GetUnitDef(i).categoryString.find("UNDERWATER") != string::npos) {
-						units_static[i].movement_type |= MOVE_TYPE_UNDERWATER;
-					} else {
-						units_static[i].movement_type |= MOVE_TYPE_FLOATER;
-					}
-				}
-			}
-			// aircraft
-			else if(GetUnitDef(i).canfly)
-				units_static[i].movement_type |= MOVE_TYPE_AIR;
-			// stationary
-			else
-			{
-				units_static[i].movement_type |= MOVE_TYPE_STATIC;
-
-				if(GetUnitDef(i).minWaterDepth <= 0)
-				{
-					units_static[i].movement_type |= MOVE_TYPE_STATIC_LAND;
-				}
-				else
-				{
-					units_static[i].movement_type |= MOVE_TYPE_STATIC_WATER;
-
-					if(GetUnitDef(i).floater)
-						units_static[i].movement_type |= MOVE_TYPE_FLOATER;
-					else
-						units_static[i].movement_type |= MOVE_TYPE_UNDERWATER;
-				}
-			}
-		}
-
-		//
 		// put units into the different categories
 		//
 		for(int i = 0; i <= numOfUnits; ++i)
@@ -393,7 +337,7 @@ void AAIBuildTable::Init()
 			else if(GetUnitDef(i).buildOptions.size() > 0 && !IsAttacker(i))
 			{
 				// stationary constructors
-				if(units_static[i].movement_type & MOVE_TYPE_STATIC)
+				if( s_buildTree.getUnitTypeProperties(UnitDefId(i)).movementType.isStatic() == true)
 				{
 					// ground factory or sea factory
 					units_of_category[STATIONARY_CONSTRUCTOR][units_static[i].side-1].push_back(GetUnitDef(i).id);
@@ -408,7 +352,7 @@ void AAIBuildTable::Init()
 			}
 			// no builder or factory
 			// check if other building
-			else if(units_static[i].movement_type & MOVE_TYPE_STATIC)
+			else if(s_buildTree.getUnitTypeProperties(UnitDefId(i)).movementType.isStatic() == true)
 			{
 				// check if extractor
 				if(GetUnitDef(i).extractsMetal)
@@ -643,14 +587,15 @@ void AAIBuildTable::Init()
 					// filter out neutral and unknown units
 					if(units_static[*unit].side > 0 && units_static[*unit].category != UNKNOWN)
 					{
-						if(units_static[*unit].movement_type & MOVE_TYPE_STATIC)
+						if(s_buildTree.getUnitTypeProperties(UnitDefId(*unit)).movementType.isStatic() == true)
 							units_static[i].unit_type |= UNIT_TYPE_BUILDER;
 						else
 							units_static[i].unit_type |= UNIT_TYPE_FACTORY;
 					}
 				}
 
-				if(!(units_static[i].movement_type & MOVE_TYPE_STATIC) && GetUnitDef(i).canAssist)
+				if(    !(s_buildTree.getUnitTypeProperties(UnitDefId(i)).movementType.isStatic() == true) 
+				    &&  (GetUnitDef(i).canAssist == true) )
 					units_static[i].unit_type |= UNIT_TYPE_ASSISTER;
 			}
 
@@ -1619,19 +1564,21 @@ int AAIBuildTable::GetCheapDefenceBuilding(int side, double efficiency, double c
 	double max_eff_selection = 0;
 	double max_power = 0;
 
-	unsigned int building_type;
+	uint32_t buildingTypeBitmask = 0;
 
 	if(water)
-		building_type = MOVE_TYPE_STATIC_WATER;
+		buildingTypeBitmask =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_FLOATER)
+						      + static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_SUBMERGED);
 	else
-		building_type = MOVE_TYPE_STATIC_LAND;
+		buildingTypeBitmask =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_LAND);
 
 	int k = 0;
 
 	// use my_power as temp var
 	for(list<int>::iterator defence = units_of_category[STATIONARY_DEF][side].begin(); defence != units_of_category[STATIONARY_DEF][side].end(); ++defence)
 	{
-		if( units_dynamic[*defence].constructorsAvailable > 0 && building_type & units_static[*defence].movement_type)
+		if(    (units_dynamic[*defence].constructorsAvailable > 0) 
+			&& (s_buildTree.getMovementType(UnitDefId(*defence)).isIncludedIn(buildingTypeBitmask) == true) )
 		{
 			unit = &units_static[*defence];
 
@@ -1667,7 +1614,8 @@ int AAIBuildTable::GetCheapDefenceBuilding(int side, double efficiency, double c
 	// calculate rating
 	for(list<int>::iterator defence = units_of_category[STATIONARY_DEF][side].begin(); defence != units_of_category[STATIONARY_DEF][side].end(); ++defence)
 	{
-		if( units_dynamic[*defence].constructorsAvailable > 0 && building_type & units_static[*defence].movement_type)
+		if(    (units_dynamic[*defence].constructorsAvailable > 0)
+		    && (s_buildTree.getMovementType(UnitDefId(*defence)).isIncludedIn(buildingTypeBitmask) == true) )
 		{
 			unit = &units_static[*defence];
 
@@ -2533,8 +2481,8 @@ bool AAIBuildTable::LoadBuildTable()
 
 			for(int i = 1; i < unitList.size(); ++i)
 			{
-				fscanf(load_file, "%i %i %u %u %f %f %i " _STPF_ " " _STPF_ " ",&units_static[i].def_id, &units_static[i].side,
-									&units_static[i].unit_type, &units_static[i].movement_type,
+				fscanf(load_file, "%i %i %u %f %f %i " _STPF_ " " _STPF_ " ",&units_static[i].def_id, &units_static[i].side,
+									&units_static[i].unit_type,
 									&units_static[i].range, &units_static[i].cost,
 									&cat, &bo, &bb);
 
@@ -2668,8 +2616,8 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 	{
 //		tmp = units_static[i].canBuildList.size();
 
-		fprintf(save_file, "%i %i %u %u %f %f %i " _STPF_ " " _STPF_ " ", units_static[i].def_id, units_static[i].side,
-								units_static[i].unit_type, units_static[i].movement_type, units_static[i].range,
+		fprintf(save_file, "%i %i %u %f %f %i " _STPF_ " " _STPF_ " ", units_static[i].def_id, units_static[i].side,
+								units_static[i].unit_type, units_static[i].range,
 								units_static[i].cost, (int) units_static[i].category,
 								units_static[i].canBuildList.size(), units_static[i].builtByList.size());
 
@@ -2778,7 +2726,7 @@ void AAIBuildTable::DebugPrint()
 			if(IsCommander(i))
 				fprintf(file, " commander");
 
-			if(units_static[i].movement_type & MOVE_TYPE_AMPHIB)
+			if(s_buildTree.getMovementType(UnitDefId(i)).isAmphibious() == true)
 				fprintf(file, " amphibious");
 
 			fprintf(file, "\n");
@@ -2926,12 +2874,14 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 
 				combat_units += 1;
 			}
-			else if(IsBuilder(def_id) && !IsSea(def_id))
+			else if(   (IsBuilder(def_id) == true) 
+			        && (s_buildTree.getMovementType(UnitDefId(def_id)).isSeaUnit() == false) )
 			{
 				rating += 256 * GetBuilderRating(*unit);
 				builder = true;
 			}
-			else if(units_static[*unit].category == SCOUT && !(units_static[*unit].movement_type & MOVE_TYPE_SEA) )
+			else if(   (units_static[*unit].category == SCOUT)
+					&& (s_buildTree.getMovementType(UnitDefId(*unit)).isSeaUnit() == false) )
 			{
 				scout = true;
 			}
@@ -3152,14 +3102,14 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 				my_rating += 2.0f;
 
 			// prevent AAI from requesting factories that cannot be built within the current base
-			if(units_static[*factory].movement_type & MOVE_TYPE_STATIC_LAND)
+			if(s_buildTree.getUnitTypeProperties(UnitDefId(*factory)).movementType.isStaticLand() == true)
 			{
 				if(ai->Getbrain()->baseLandRatio > 0.1f)
 					my_rating *= ai->Getbrain()->baseLandRatio;
 				else
 					my_rating = -100000.0f;
 			}
-			else if(units_static[*factory].movement_type & MOVE_TYPE_STATIC_WATER)
+			else if(s_buildTree.getUnitTypeProperties(UnitDefId(*factory)).movementType.isStaticSea() == true)
 			{
 				if(ai->Getbrain()->baseWaterRatio > 0.1f)
 					my_rating *= ai->Getbrain()->baseWaterRatio;
@@ -3303,7 +3253,7 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 }
 
 
-void AAIBuildTable::AddAssistant(unsigned int allowed_movement_types, bool canBuild)
+void AAIBuildTable::AddAssistant(uint32_t allowedMovementTypes, bool canBuild)
 {
 	int builder = 0;
 	float best_rating = -10000, my_rating;
@@ -3316,7 +3266,7 @@ void AAIBuildTable::AddAssistant(unsigned int allowed_movement_types, bool canBu
 
 	for(list<int>::iterator unit = units_of_category[MOBILE_CONSTRUCTOR][side].begin();  unit != units_of_category[MOBILE_CONSTRUCTOR][side].end(); ++unit)
 	{
-		if(units_static[*unit].movement_type & allowed_movement_types)
+		if(s_buildTree.getMovementType(UnitDefId(*unit)).isIncludedIn(allowedMovementTypes) == true)
 		{
 			if( (!canBuild || units_dynamic[*unit].constructorsAvailable > 0)
 				&& units_dynamic[*unit].active + units_dynamic[*unit].under_construction + units_dynamic[*unit].requested < cfg->MAX_BUILDERS_PER_TYPE)
@@ -3496,55 +3446,6 @@ bool AAIBuildTable::IsDeflectionShieldEmitter(int def_id)
 bool AAIBuildTable::IsCommander(int def_id)
 {
 	if(units_static[def_id].unit_type & UNIT_TYPE_COMMANDER)
-		return true;
-	else
-		return false;
-}
-
-bool AAIBuildTable::IsGround(int def_id)
-{
-	if(units_static[def_id].movement_type & (MOVE_TYPE_GROUND + MOVE_TYPE_AMPHIB) )
-		return true;
-	else
-		return false;
-}
-
-bool AAIBuildTable::IsAir(int def_id)
-{
-	if(units_static[def_id].movement_type & MOVE_TYPE_AIR)
-		return true;
-	else
-		return false;
-}
-
-bool AAIBuildTable::IsHover(int def_id)
-{
-	if(units_static[def_id].movement_type & MOVE_TYPE_HOVER)
-		return true;
-	else
-		return false;
-}
-
-bool AAIBuildTable::IsSea(int def_id)
-{
-	if(units_static[def_id].movement_type & MOVE_TYPE_SEA)
-		return true;
-	else
-		return false;
-}
-
-
-bool AAIBuildTable::CanPlacedLand(int def_id)
-{
-	if(units_static[def_id].movement_type & MOVE_TYPE_STATIC_LAND)
-		return true;
-	else
-		return false;
-}
-
-bool AAIBuildTable::CanPlacedWater(int def_id)
-{
-	if(units_static[def_id].movement_type & MOVE_TYPE_STATIC_WATER)
 		return true;
 	else
 		return false;
@@ -3783,20 +3684,6 @@ UnitCategory AAIBuildTable::GetAssaultCategoryOfID(int id)
 		return STATIONARY_DEF;
 	else
 		return UNKNOWN;
-}
-
-unsigned int AAIBuildTable::GetAllowedMovementTypesForAssister(int building)
-{
-	// determine allowed movement types
-	// alwas allowed: MOVE_TYPE_AIR, MOVE_TYPE_HOVER, MOVE_TYPE_AMPHIB
-	unsigned int allowed_movement_types = 22;
-
-	if(units_static[building].movement_type & MOVE_TYPE_STATIC_LAND)
-		allowed_movement_types |= MOVE_TYPE_GROUND;
-	else
-		allowed_movement_types |= MOVE_TYPE_SEA;
-
-	return allowed_movement_types;
 }
 
 float AAIBuildTable::GetUnitRating(int unit, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff)

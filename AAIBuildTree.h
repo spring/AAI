@@ -29,6 +29,8 @@ public:
 
     bool isValid() const { return (id > 0) ? true : false; };
 
+    void invalidate() { id = 0; };
+
 	int id;
 };
 
@@ -77,6 +79,9 @@ public:
 
     //! @brief Returns the unit type properties of the given unit type
     const UnitTypeProperties& getUnitTypeProperties(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id]; };
+
+    //! @brief Returns movement type of given unit type
+    const AAIMovementType& getMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].movementType; };
 
 private:
     //! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.

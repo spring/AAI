@@ -39,7 +39,7 @@ AAIGroup::AAIGroup(AAI *ai, const UnitDef *def, UnitType unit_type, int continen
 	group_unit_type = unit_type;
 
 	// set movement type of group (filter out add. movement info like underwater, floater, etc.)
-	m_moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties( UnitDefId(def->id) ).movementType;
+	m_moveType = ai->Getbt()->s_buildTree.getMovementType( UnitDefId(def->id) );
 
 	continent = continent_id;
 
@@ -227,7 +227,7 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 						int unit = GetRandomUnit();
 
 						if(unit)
-							ai->Getexecute()->DefendUnitVS(unit, ai->Getbt()->units_static[def->id].movement_type, &enemy_pos, 100);
+							ai->Getexecute()->DefendUnitVS(unit, ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def->id)), &enemy_pos, 100);
 					}
 				}
 			}

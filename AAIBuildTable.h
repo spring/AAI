@@ -49,7 +49,6 @@ struct UnitTypeStatic
 	UnitCategory category;
 
 	unsigned int unit_type;
-	unsigned int movement_type;
 };
 
 
@@ -135,10 +134,7 @@ public:
 	void BuildBuilderFor(int building_def_id);
 
 	// tries to build an assistant for the specified kind of unit
-	void AddAssistant(unsigned int allowed_movement_types, bool canBuild);
-
-	// returns the allowed movement types for an assisters to assist constrcution of a specified building
-	unsigned int GetAllowedMovementTypesForAssister(int building);
+	void AddAssistant(uint32_t allowedMovementTypes, bool canBuild);
 
 	float GetFactoryRating(int def_id);
 	float GetBuilderRating(int def_id);
@@ -181,14 +177,6 @@ public:
 
 	bool IsBuilder(int def_id);
 	bool IsFactory(int def_id);
-
-	bool IsGround(int def_id);
-	bool IsAir(int def_id);
-	bool IsHover(int def_id);
-	bool IsSea(int def_id);
-
-	bool CanPlacedLand(int def_id);
-	bool CanPlacedWater(int def_id);
 
 	// returns id of assault category
 	int GetIDOfAssaultCategory(UnitCategory category);

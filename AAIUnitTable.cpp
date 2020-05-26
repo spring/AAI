@@ -149,7 +149,7 @@ void AAIUnitTable::AddConstructor(int unit_id, int def_id)
 		++activeBuilders;
 	}
 
-	if( (factory == true) && (ai->Getbt()->s_buildTree.getUnitTypeProperties(UnitDefId(def_id)).movementType.isStatic() == true) )
+	if( (factory == true) && (ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStatic() == true) )
 	{
 		--futureFactories;
 		++activeFactories;
@@ -165,7 +165,7 @@ void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 	if(units[unit_id].cons->builder)
 		activeBuilders -= 1;
 
-	if( (units[unit_id].cons->factory == true) && (ai->Getbt()->s_buildTree.getUnitTypeProperties(UnitDefId(def_id)).movementType.isStatic() == true) )
+	if( (units[unit_id].cons->factory == true) && (ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStatic() == true) )
 		activeFactories -= 1;
 
 	// decrease number of available builders for all buildoptions of the builder
@@ -367,7 +367,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool
 			{
 				builder_pos = ai->Getcb()->GetUnitPos(builder->unit_id);
 
-				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties(builder->def_id).movementType;
+				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(builder->def_id);
 
 				// check continent if necessary
 				if( moveType.cannotMoveToOtherContinents() )
@@ -423,7 +423,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 			{
 				assistant_pos = ai->Getcb()->GetUnitPos(assistant->unit_id);
 
-				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties(assistant->def_id).movementType;
+				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(assistant->def_id);
 
 				// check continent if necessary
 				if( moveType.cannotMoveToOtherContinents() )
@@ -459,14 +459,20 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 	// no assister found -> request one
 	if(!best_assistant)
 	{
-		unsigned int allowed_movement_types = 22;
+		uint32_t allowedMovementTypes =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR)
+										+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
 
-		if(ai->Getcb()->GetElevation(pos.x, pos.z) < 0)
-			allowed_movement_types |= MOVE_TYPE_SEA;
+		if(ai->Getcb()->GetElevation(pos.x, pos.z) < 0.0f)
+		{
+			allowedMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
+			allowedMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
+		}
 		else
-			allowed_movement_types |= MOVE_TYPE_GROUND;
+		{
+			allowedMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
+		}
 
-		ai->Getbt()->AddAssistant(allowed_movement_types, true);
+		ai->Getbt()->AddAssistant(allowedMovementTypes, true);
 	}
 
 	return best_assistant;

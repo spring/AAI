@@ -223,7 +223,7 @@ void AAIExecute::AddUnitToGroup(int unit_id, int def_id, UnitCategory category)
 
 	// determine continent if necessary
 	int continent_id = -1;
-	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties(def_id).movementType;
+	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(def_id);
 
 	if( moveType.cannotMoveToOtherContinents() == true )
 	{
@@ -363,24 +363,21 @@ float3 AAIExecute::GetBuildsite(int builder, int building, UnitCategory /*catego
 	return pos;
 }
 
-float3 AAIExecute::GetUnitBuildsite(int /*builder*/, int unit)
+float3 AAIExecute::GetUnitBuildsite(int builder, int unit)
 {
-//	float3 builder_pos = ai->Getcb()->GetUnitPos(builder);
+	float3 builder_pos = ai->Getcb()->GetUnitPos(builder);
 	float3 pos = ZeroVector, best_pos = ZeroVector;
 	float min_dist = 1000000, dist;
 
 	for(list<AAISector*>::iterator s = ai->Getbrain()->sectors[1].begin(); s != ai->Getbrain()->sectors[1].end(); ++s)
 	{
-		bool water = false;
-
-		if(ai->Getbt()->IsSea(unit) )
-			water = true;
+		bool water = ai->Getbt()->s_buildTree.getMovementType(UnitDefId(unit)).isSeaUnit();
 
 		pos = (*s)->GetBuildsite(unit, water);
 
 		if(pos.x)
 		{
-			dist = sqrt( pow(pos.x - best_pos.x ,2.0f) + pow(pos.z - best_pos.z, 2.0f) );
+			dist = sqrt( pow(pos.x - builder_pos.x ,2.0f) + pow(pos.z - builder_pos.z, 2.0f) );
 
 			if(dist < min_dist)
 			{
@@ -435,7 +432,7 @@ bool AAIExecute::AddUnitToBuildqueue(int def_id, int number, bool urgent)
 
 	list<int> *buildqueue = 0, *temp_buildqueue = 0;
 
-	float my_rating, best_rating = 0;
+	float my_rating, best_rating = 0.0f;
 
 	for(list<int>::iterator fac = ai->Getbt()->units_static[def_id].builtByList.begin(); fac != ai->Getbt()->units_static[def_id].builtByList.end(); ++fac)
 	{
@@ -445,16 +442,18 @@ bool AAIExecute::AddUnitToBuildqueue(int def_id, int number, bool urgent)
 
 			if(temp_buildqueue)
 			{
-				my_rating = (1 + 2 * (float) ai->Getbt()->units_dynamic[*fac].active) / (temp_buildqueue->size() + 3);
+				my_rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[*fac].active) / static_cast<float>(temp_buildqueue->size() + 3);
 
-				if(ai->Getmap()->map_type == WATER_MAP && !ai->Getbt()->CanPlacedWater(*fac))
-					my_rating /= 10.0;
+				// @todo rework criterion to reflect available buildspace instead of maptype
+				if(     (ai->Getmap()->map_type == WATER_MAP) 
+				    && !(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(*fac)).isStaticSea()  == true) )
+					my_rating /= 10.0f;
 			}
 			else
-				my_rating = 0;
+				my_rating = 0.0f;
 		}
 		else
-			my_rating = 0;
+			my_rating = 0.0f;
 
 		if(my_rating > best_rating)
 		{
@@ -1697,7 +1696,7 @@ bool AAIExecute::BuildFactory()
 		bool water = false;
 
 		// land
-		if(ai->Getbt()->CanPlacedLand(building))
+		if(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(building)).isStaticLand() == true)
 		{
 			water = false;
 
@@ -1725,7 +1724,8 @@ bool AAIExecute::BuildFactory()
 		}
 
 		// try to build on water if land has not been possible
-		if(pos.x <= 0 && ai->Getbt()->CanPlacedWater(building))
+		if(    (pos.x <= 0.0f) 
+			&& (ai->Getbt()->s_buildTree.getMovementType(UnitDefId(building)).isStaticSea() == true) )
 		{
 			water = true;
 
@@ -1790,13 +1790,13 @@ bool AAIExecute::BuildFactory()
 			bool expanded = false;
 
 			// no suitable buildsite found
-			if(ai->Getbt()->CanPlacedLand(building))
+			if(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(building)).isStaticLand() == true)
 			{
 				expanded = ai->Getbrain()->ExpandBase(LAND_SECTOR);
 				ai->Log("Base expanded by BuildFactory()\n");
 			}
 
-			if(!expanded && ai->Getbt()->CanPlacedWater(building))
+			if(!expanded && ai->Getbt()->s_buildTree.getMovementType(UnitDefId(building)).isStaticSea() == true)
 			{
 				ai->Getbrain()->ExpandBase(WATER_SECTOR);
 				ai->Log("Base expanded by BuildFactory() (water sector)\n");
@@ -2967,12 +2967,12 @@ void AAIExecute::ConstructionFailed(float3 build_pos, int def_id)
 			futureRequestedMetal = 0;
 
 		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->CanPlacedWater(def_id), true);
+		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStaticSea(), true);
 	}
 	else // normal building
 	{
 		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->CanPlacedWater(def_id), false);
+		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStaticSea(), false);
 	}
 }
 
@@ -3042,7 +3042,7 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(UnitType group_type, float3 *pos
 	return best_group;
 }
 
-void AAIExecute::DefendUnitVS(int unit, unsigned int enemy_movement_type, float3 *enemy_pos, int importance)
+void AAIExecute::DefendUnitVS(int unit, const AAIMovementType& attackerMoveType, float3 *enemy_pos, int importance)
 {
 	AAIGroup *support = 0;
 
@@ -3051,7 +3051,7 @@ void AAIExecute::DefendUnitVS(int unit, unsigned int enemy_movement_type, float3
 	UnitType group_type;
 
 	// anti air needed
-	if(enemy_movement_type & MOVE_TYPE_AIR && !cfg->AIR_ONLY_MOD)
+	if(attackerMoveType.isAir() && !cfg->AIR_ONLY_MOD)
 		group_type = ANTI_AIR_UNIT;
 	else
 		group_type = ASSAULT_UNIT;
@@ -3067,7 +3067,7 @@ float3 AAIExecute::GetSafePos(int def_id, float3 unit_pos)
 	float3 best_pos = ZeroVector;
 	float my_rating, best_rating = -10000.0f;
 
-	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getUnitTypeProperties(def_id).movementType;
+	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(def_id);
 
 	if( moveType.cannotMoveToOtherContinents() )
 	{

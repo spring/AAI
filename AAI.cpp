@@ -258,7 +258,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 
 		if (att_def)
 		{
-			unsigned int att_movement_type = bt->units_static[att_def->id].movement_type;
+			
 			att_cat = bt->units_static[att_def->id].category;
 
 			// retreat builders
@@ -273,15 +273,17 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 
 				if (sector && !am->SufficientDefencePowerAt(sector, 1.2f))
 				{
+					const AAIMovementType& attackerMoveType = bt->s_buildTree.getMovementType(UnitDefId(att_def->id));
+					
 					// building has been attacked
 					if (cat <= METAL_MAKER)
-						execute->DefendUnitVS(damaged, att_movement_type, &pos, 115);
+						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 115);
 					// builder
 					else if (ut->IsBuilder(damaged))
-						execute->DefendUnitVS(damaged, att_movement_type, &pos, 110);
+						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 110);
 					// normal units
 					else
-						execute->DefendUnitVS(damaged, att_movement_type, &pos, 105);
+						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 105);
 				}
 			}
 		}
@@ -641,7 +643,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			{
 				ut->RemoveConstructor(unit, def->id);
 
-				map->UpdateBuildMap(pos, def, false, bt->CanPlacedWater(def->id), true);
+				map->UpdateBuildMap(pos, def, false, bt->s_buildTree.getMovementType(UnitDefId(def->id)).isStaticSea(), true);
 
 				// speed up reconstruction
 				execute->urgency[STATIONARY_CONSTRUCTOR] += 1.5;
@@ -651,11 +653,11 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			{
 				ut->RemoveCommander(unit, def->id);
 
-				map->UpdateBuildMap(pos, def, false, bt->CanPlacedWater(def->id), true);
+				map->UpdateBuildMap(pos, def, false, bt->s_buildTree.getMovementType(UnitDefId(def->id)).isStaticSea(), true);
 			}
 			// other building
 			else
-				map->UpdateBuildMap(pos, def, false, bt->CanPlacedWater(def->id), false);
+				map->UpdateBuildMap(pos, def, false, bt->s_buildTree.getMovementType(UnitDefId(def->id)).isStaticSea(), false);
 
 			// if no buildings left in that sector, remove from base sectors
 			if (map->sector[x][y].own_structures == 0 && brain->sectors[0].size() > 2)

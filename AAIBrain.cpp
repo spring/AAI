@@ -161,7 +161,7 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 	AAISector *scout_sector = 0, *sector;
 
 	const UnitDef *def = ai->Getcb()->GetUnitDef(scout);
-	const AAIMovementType& scoutMoveType = ai->Getbt()->s_buildTree.getUnitTypeProperties( UnitDefId(def->id) ).movementType;
+	const AAIMovementType& scoutMoveType = ai->Getbt()->s_buildTree.getMovementType( UnitDefId(def->id) );
 
 	float3 pos = ai->Getcb()->GetUnitPos(scout);
 
@@ -392,26 +392,6 @@ bool AAIBrain::SectorInList(list<AAISector*> mylist, AAISector *sector)
 			return true;
 	}
 	return false;
-}
-
-float AAIBrain::GetBaseBuildspaceRatio(unsigned int building_move_type)
-{
-	if(building_move_type & MOVE_TYPE_STATIC_LAND)
-	{
-		if(baseLandRatio > 0.1f)
-			return baseLandRatio;
-		else
-			return 0;
-	}
-	else if(building_move_type & MOVE_TYPE_STATIC_WATER)
-	{
-		if(baseWaterRatio > 0.1f)
-			return baseWaterRatio;
-		else
-			return 0;
-	}
-	else
-		return 1.0f;
 }
 
 bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
@@ -684,7 +664,7 @@ void AAIBrain::BuildUnits()
 	//int side = ai->Getside()-1;
 	bool urgent = false;
 	int k;
-	unsigned int allowed_move_type = 0;
+	uint32_t allowedMoveTypes = 0u;
 
 	float cost = 1.0f + Affordable()/12.0f;
 
@@ -744,7 +724,9 @@ void AAIBrain::BuildUnits()
 				sea_eff = 4;
 			}
 
-			BuildUnitOfMovementType(MOVE_TYPE_AIR, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff, stat_eff, urgent);
+			allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR);
+
+			BuildUnitOfMovementType(allowedMoveTypes, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff, stat_eff, urgent);
 		}
 	}
 	else
@@ -767,7 +749,7 @@ void AAIBrain::BuildUnits()
 				// determine unit type
 				if(rand()%(cfg->AIRCRAFT_RATE * 100) < 100)
 				{
-					allowed_move_type |= MOVE_TYPE_AIR;
+					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR);
 
 					k = rand()%1024;
 
@@ -787,8 +769,8 @@ void AAIBrain::BuildUnits()
 				}
 				else
 				{
-					allowed_move_type |= MOVE_TYPE_GROUND;
-					allowed_move_type |= MOVE_TYPE_HOVER;
+					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
+					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
 
 					k = rand()%(anti_ground_urgency + anti_air_urgency + anti_hover_urgency);
 
@@ -812,7 +794,7 @@ void AAIBrain::BuildUnits()
 					}
 				}
 
-				BuildUnitOfMovementType(allowed_move_type, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff, stat_eff, urgent);
+				BuildUnitOfMovementType(allowedMoveTypes, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff, stat_eff, urgent);
 			}
 		}
 		else if(ai->Getmap()->map_type == LAND_WATER_MAP)
@@ -836,7 +818,7 @@ void AAIBrain::BuildUnits()
 
 				if(rand()%(cfg->AIRCRAFT_RATE * 100) < 100)
 				{
-					allowed_move_type |= MOVE_TYPE_AIR;
+					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR);
 
 					if(rand()%1000 < 333)
 					{
@@ -856,7 +838,7 @@ void AAIBrain::BuildUnits()
 				}
 				else
 				{
-					allowed_move_type |= MOVE_TYPE_HOVER;
+					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
 
 					k = rand()%(anti_ground_urgency + anti_air_urgency + anti_hover_urgency + anti_sea_urgency + anti_submarine_urgency);
 
@@ -865,12 +847,12 @@ void AAIBrain::BuildUnits()
 						stat_eff = 2;
 						ground_eff = 5;
 						hover_eff = 1;
-						allowed_move_type |= MOVE_TYPE_GROUND;
+						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
 					}
 					else if(k < anti_ground_urgency + anti_air_urgency)
 					{
-						allowed_move_type |= MOVE_TYPE_GROUND;
-						allowed_move_type |= MOVE_TYPE_SEA;
+						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
+						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
 
 						air_eff = 4;
 
@@ -879,28 +861,30 @@ void AAIBrain::BuildUnits()
 					}
 					else if(k < anti_ground_urgency + anti_air_urgency + anti_hover_urgency)
 					{
-						allowed_move_type |= MOVE_TYPE_GROUND;
-						allowed_move_type |= MOVE_TYPE_SEA;
+						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
+						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
 
 						ground_eff = 1;
 						hover_eff = 4;
 					}
 					else if(k < anti_ground_urgency + anti_air_urgency + anti_hover_urgency + anti_sea_urgency)
 					{
-						allowed_move_type |= MOVE_TYPE_SEA;
+						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
+						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
 						hover_eff = 1;
 						sea_eff = 4;
 						submarine_eff = 1;
 					}
 					else
 					{
-						allowed_move_type |= MOVE_TYPE_SEA;
+						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
+						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
 						submarine_eff = 4;
 						sea_eff = 1;
 					}
 				}
 
-				BuildUnitOfMovementType(allowed_move_type, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff,stat_eff, urgent);
+				BuildUnitOfMovementType(allowedMoveTypes, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff,stat_eff, urgent);
 			}
 		}
 		else if(ai->Getmap()->map_type == WATER_MAP)
@@ -921,7 +905,7 @@ void AAIBrain::BuildUnits()
 
 				if(rand()%(cfg->AIRCRAFT_RATE * 100) < 100)
 				{
-					allowed_move_type |= MOVE_TYPE_AIR;
+					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR);
 
 					if(rand()%1000 < 333)
 					{
@@ -935,8 +919,9 @@ void AAIBrain::BuildUnits()
 				}
 				else
 				{
-					allowed_move_type |= MOVE_TYPE_HOVER;
-					allowed_move_type |= MOVE_TYPE_SEA;
+					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
+					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
+					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
 
 					k = rand()%(anti_sea_urgency + anti_air_urgency + anti_hover_urgency + anti_submarine_urgency);
 
@@ -965,13 +950,13 @@ void AAIBrain::BuildUnits()
 					}
 				}
 
-				BuildUnitOfMovementType(allowed_move_type, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff,stat_eff, urgent);
+				BuildUnitOfMovementType(allowedMoveTypes, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff,stat_eff, urgent);
 			}
 		}
 	}
 }
 
-void AAIBrain::BuildUnitOfMovementType(unsigned int allowed_move_type, float cost, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, bool urgent)
+void AAIBrain::BuildUnitOfMovementType(uint32_t allowedMoveTypes, float cost, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, bool urgent)
 {
 	float speed = 0;
 	float range = 0;
@@ -1012,7 +997,7 @@ void AAIBrain::BuildUnitOfMovementType(unsigned int allowed_move_type, float cos
 	// start selection
 	int unit = 0, ground = 0, hover = 0;
 
-	if(allowed_move_type & MOVE_TYPE_AIR)
+	if(allowedMoveTypes & static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR) )
 	{
 		if(rand()%cfg->LEARN_RATE == 1)
 			unit = ai->Getbt()->GetRandomUnit(ai->Getbt()->units_of_category[AIR_ASSAULT][ai->Getside()-1]);
@@ -1028,7 +1013,7 @@ void AAIBrain::BuildUnitOfMovementType(unsigned int allowed_move_type, float cos
 		}
 	}
 
-	if(allowed_move_type & MOVE_TYPE_GROUND)
+	if(allowedMoveTypes & static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND))
 	{
 		// choose random unit (to learn more)
 		if(rand()%cfg->LEARN_RATE == 1)
@@ -1045,7 +1030,7 @@ void AAIBrain::BuildUnitOfMovementType(unsigned int allowed_move_type, float cos
 		}
 	}
 
-	if(allowed_move_type & MOVE_TYPE_HOVER)
+	if(allowedMoveTypes & static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER))
 	{
 		if(rand()%cfg->LEARN_RATE == 1)
 			hover = ai->Getbt()->GetRandomUnit(ai->Getbt()->units_of_category[HOVER_ASSAULT][ai->Getside()-1]);
@@ -1061,7 +1046,8 @@ void AAIBrain::BuildUnitOfMovementType(unsigned int allowed_move_type, float cos
 		}
 	}
 
-	if(allowed_move_type & MOVE_TYPE_SEA)
+	// @todo: submarines are not handled separately 
+	if(allowedMoveTypes & static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER))
 	{
 		int ship, submarine;
 

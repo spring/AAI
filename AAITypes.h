@@ -81,8 +81,35 @@ public:
         return static_cast<bool>( static_cast<uint32_t>(m_movementType) & staticBitmask );
     };
 
+    //! @brief Returns whether unit type is static on ground (i.e. a land based building)
+    bool isStaticLand() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_STATIC_LAND); };
+
+    //! @brief Returns whether unit type is static on sea (i.e. a floating or submerged building)
+    bool isStaticSea() const 
+    { 
+        const uint32_t staticSeaBitmask =     static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_FLOATER)
+                                            + static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_SUBMERGED);
+        return static_cast<bool>( static_cast<uint32_t>(m_movementType) & staticSeaBitmask ); 
+    };
+
+    //! @brief Returns whether unit type is air
+    bool isAir() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AIR); };
+
+    //! @brief Returns whether unit type is amphibious
+    bool isAmphibious() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AMPHIBIOUS); };
+
+    //! @brief Returns whether unit type can only move on sea (i.e. a floating or submerged unit)
+    bool isSeaUnit() const 
+    { 
+        const uint32_t seaUnitBitmask =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER)
+                                        + static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
+        return static_cast<bool>( static_cast<uint32_t>(m_movementType) & seaUnitBitmask ); 
+    };
+
     //! @brief Returns whether this movement type is included in the given movement type bitmask.
     bool isIncludedIn(uint32_t moveTypesBitmask) const { return static_cast<bool>( static_cast<uint32_t>(m_movementType) & moveTypesBitmask); };
+
+
 
 private:
     //! Movement type

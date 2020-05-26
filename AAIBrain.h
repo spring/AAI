@@ -124,9 +124,8 @@ private:
 	// returns true if sector is considered to be safe
 	bool IsSafeSector(AAISector *sector);
 
-	void BuildUnitOfMovementType(unsigned int allowed_move_type, float cost, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, bool urgent);
-	// returns ratio of cells in the current base sectors that match movement_type (e.g. 0.3 if 30% of base is covered with water and building is naval)
-	float GetBaseBuildspaceRatio(unsigned int building_move_type);
+	void BuildUnitOfMovementType(uint32_t allowedMoveTypes, float cost, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, bool urgent);
+
 	bool SectorInList(list<AAISector*> mylist, AAISector *sector);
 	list<AAISector*> GetSectors();
 	vector<float> defence_power_vs;
