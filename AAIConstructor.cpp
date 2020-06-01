@@ -24,41 +24,35 @@
 using namespace springLegacyAI;
 
 
-AAIConstructor::AAIConstructor(AAI *ai, int unit_id, int def_id, bool factory, bool builder, bool assistant)
+AAIConstructor::AAIConstructor(AAI *ai, UnitId unitId, UnitDefId defId, bool factory, bool builder, bool assistant, std::list<int>* buildque) :
+	m_myUnitId(unitId),
+	m_myDefId(defId),
+	m_constructedUnitId(),
+	m_constructedDefId(),
+	construction_category(UnitCategory::UNKNOWN),
+	m_isFactory(factory),
+	m_isBuilder(builder),
+	m_isAssistant(assistant),
+ 	m_buildPos(ZeroVector),
+	m_assistUnitId(),
+	m_activity(EConstructorActivity::IDLE),
+	m_buildqueue(buildque)
 {
 	this->ai = ai;
 
-	this->unit_id = unit_id;
-	this->def_id = def_id;
-	buildspeed = ai->Getbt()->GetUnitDef(def_id).buildSpeed;
+	buildspeed = ai->Getbt()->GetUnitDef(m_myDefId.id).buildSpeed;
 
-	construction_unit_id = -1;
-	construction_def_id = -1;
-	construction_category = UNKNOWN;
-
-	assistance = -1;
 	build_task = 0;
-	order_tick = 0;
 
-	task = UNIT_IDLE;
-
-	build_pos = ZeroVector;
-
-	this->factory = factory;
-	this->builder = builder;
-	this->assistant = assistant;
-
-	buildque = ai->Getexecute()->GetBuildqueueOfFactory(def_id);
 }
 
 AAIConstructor::~AAIConstructor(void)
 {
 }
 
-// returns true if factory is busy
-bool AAIConstructor::IsBusy()
+bool AAIConstructor::isBusy() const
 {
-	const CCommandQueue *commands = ai->Getcb()->GetCurrentUnitCommands(unit_id);
+	const CCommandQueue *commands = ai->Getcb()->GetCurrentUnitCommands(m_myUnitId.id);
 
 	if(commands->empty())
 		return false;
@@ -70,34 +64,34 @@ void AAIConstructor::Idle()
 {
 	//ai->LogConsole("%s is idle", ai->Getbt()->GetUnitDef(def_id-1).humanName.c_str());
 
-	if(builder)
+	if(m_isBuilder)
 	{
-		if(task == BUILDING)
+		if(m_activity.IsConstructing() == true)
 		{
-			if(!ai->Getbt()->IsValidUnitDefID(construction_unit_id))
+			if(m_constructedUnitId.isValid() == false)
 			{
 				//ai->Getbt()->units_dynamic[construction_def_id].active -= 1;
 				//assert(ai->Getbt()->units_dynamic[construction_def_id].active >= 0);
 				ai->Getut()->UnitRequestFailed(construction_category);
 
 				// clear up buildmap etc. (make sure conctructor wanted to build a building and not a unit)
-				if(ai->Getbt()->units_static[construction_def_id].category <= METAL_MAKER)
-					ai->Getexecute()->ConstructionFailed(build_pos, construction_def_id);
+				if( ai->Getbt()->s_buildTree.getMovementType(m_constructedDefId).isStatic() == true )
+					ai->Getexecute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
 
 				// free builder
 				ConstructionFinished();
 			}
 		}
-		else if(task != UNIT_KILLED)
+		else if(m_activity.IsDestroyed() == false)
 		{
-			task = UNIT_IDLE;
-			assistance = -1;
+			m_activity.SetActivity(EConstructorActivity::IDLE);
+			m_assistUnitId.invalidate();
 
 			ReleaseAllAssistants();
 		}
 	}
 
-	if(factory)
+	if(m_isFactory)
 	{
 		ConstructionFinished();
 
@@ -107,50 +101,56 @@ void AAIConstructor::Idle()
 
 void AAIConstructor::Update()
 {
-	if(factory && buildque != nullptr)
+	
+	if(m_isFactory && m_buildqueue != nullptr)
 	{
-		if(!ai->Getbt()->IsValidUnitDefID(construction_def_id) && !buildque->empty())
-		{
-			int def_id = (*buildque->begin());
-			UnitCategory cat = ai->Getbt()->units_static[def_id].category;
+		ai->Log("Updating status of %s\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(m_myDefId).m_name.c_str() ) ;
 
-			if(ai->Getbt()->IsBuilder(def_id) || cat == SCOUT || ai->Getcb()->GetMetal() > 50
-				|| ai->Getbt()->units_static[def_id].cost < ai->Getbt()->avg_cost[ai->Getbt()->units_static[def_id].category][ai->Getside()-1])
+		if( (m_activity.IsConstructing() == false) && (m_buildqueue->empty() == false) )
+		{
+			UnitDefId constructedUnitDefId(*m_buildqueue->begin());
+
+			ai->Log(" %s is next unit to be built, buildque length %i\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(constructedUnitDefId).m_name.c_str(), m_buildqueue->size() ) ;
+
+			if(ai->Getbt()->IsBuilder(constructedUnitDefId.id) 
+			    || (ai->Getbt()->units_static[constructedUnitDefId.id].category == SCOUT) 
+				|| (ai->Getcb()->GetMetal() > 50)
+				|| (ai->Getbt()->units_static[constructedUnitDefId.id].cost < ai->Getbt()->avg_cost[ai->Getbt()->units_static[constructedUnitDefId.id].category][ai->Getside()-1]) )
 			{
 				// check if mobile or stationary builder
-				if(ai->Getbt()->s_buildTree.getUnitTypeProperties(UnitDefId(this->def_id)).m_movementType.isStatic() == true )  
+				if(ai->Getbt()->s_buildTree.getMovementType(m_myDefId).isStatic() == true )  
 				{
 					// give build order
-					Command c(-def_id);
-					ai->Getcb()->GiveOrder(unit_id, &c);
-					construction_def_id = def_id;
-					assert(ai->Getbt()->IsValidUnitDefID(def_id));
-					task = BUILDING;
+					Command c(-constructedUnitDefId.id);
+					ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
+
+					m_constructedDefId = constructedUnitDefId.id;
+					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
 
 					//if(ai->Getbt()->IsFactory(def_id))
 					//	++ai->futureFactories;
 
-					buildque->pop_front();
+					m_buildqueue->pop_front();
 				}
 				else
 				{
 					// find buildpos for the unit
-					float3 pos = ai->Getexecute()->GetUnitBuildsite(unit_id, def_id);
+					float3 pos = ai->Getexecute()->GetUnitBuildsite(m_myUnitId.id, constructedUnitDefId.id);
 
 					if(pos.x > 0)
 					{
 						// give build order
-						Command c(-def_id);
+						Command c(-constructedUnitDefId.id);
 						c.PushPos(pos);
 
-						ai->Getcb()->GiveOrder(unit_id, &c);
-						construction_def_id = def_id;
-						assert(ai->Getbt()->IsValidUnitDefID(def_id));
-						task = BUILDING;
+						ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
+						m_constructedDefId = constructedUnitDefId.id;
+						assert(ai->Getbt()->IsValidUnitDefID(constructedUnitDefId.id));
+						m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
 
-						++ai->Getut()->futureUnits[cat];
+						++ai->Getut()->futureUnits[ai->Getbt()->units_static[constructedUnitDefId.id].category];
 
-						buildque->pop_front();
+						m_buildqueue->pop_front();
 					}
 				}
 
@@ -161,18 +161,17 @@ void AAIConstructor::Update()
 		CheckAssistance();
 	}
 
-	if(builder)
+	if(m_isBuilder)
 	{
-		if(task == BUILDING)
+		if(m_activity.IsConstructing() == true)
 		{
 			// if building has begun, check for possible assisters
-			if(construction_unit_id >= 0)
+			if(m_constructedUnitId.isValid() == true)
 				CheckAssistance();
 			// if building has not yet begun, check if something unexpected happened (buildsite blocked)
-			else
+			else if(isBusy() == false) // && !ai->Getbt()->IsValidUnitDefID(construction_unit_id))
 			{
-				if(!IsBusy() && !ai->Getbt()->IsValidUnitDefID(construction_unit_id))
-					ConstructionFailed();
+				ConstructionFailed();
 			}
 		}
 		/*else if(task == UNIT_IDLE)
@@ -223,19 +222,19 @@ void AAIConstructor::Update()
 
 void AAIConstructor::CheckAssistance()
 {
-	if(factory && (buildque != nullptr))
+	if(m_isFactory && (m_buildqueue != nullptr))
 	{
 		// check if another factory of that type needed
-		if(buildque->size() >= cfg->MAX_BUILDQUE_SIZE - 2 && assistants.size() >= cfg->MAX_ASSISTANTS-2)
+		if(m_buildqueue->size() >= cfg->MAX_BUILDQUE_SIZE - 2 && assistants.size() >= cfg->MAX_ASSISTANTS-2)
 		{
-			if(ai->Getbt()->units_dynamic[def_id].active + ai->Getbt()->units_dynamic[def_id].requested + ai->Getbt()->units_dynamic[def_id].under_construction  < cfg->MAX_FACTORIES_PER_TYPE)
+			if(ai->Getbt()->units_dynamic[m_myDefId.id].active + ai->Getbt()->units_dynamic[m_myDefId.id].requested + ai->Getbt()->units_dynamic[m_myDefId.id].under_construction  < cfg->MAX_FACTORIES_PER_TYPE)
 			{
-				ai->Getbt()->units_dynamic[def_id].requested += 1;
+				ai->Getbt()->units_dynamic[m_myDefId.id].requested += 1;
 
 				if(ai->Getexecute()->urgency[STATIONARY_CONSTRUCTOR] < 1.5f)
 					ai->Getexecute()->urgency[STATIONARY_CONSTRUCTOR] = 1.5f;
 
-				for(list<int>::iterator j = ai->Getbt()->units_static[def_id].canBuildList.begin(); j != ai->Getbt()->units_static[def_id].canBuildList.end(); ++j)
+				for(list<int>::iterator j = ai->Getbt()->units_static[m_myDefId.id].canBuildList.begin(); j != ai->Getbt()->units_static[m_myDefId.id].canBuildList.end(); ++j)
 					ai->Getbt()->units_dynamic[*j].constructorsRequested += 1;
 			}
 		}
@@ -246,13 +245,14 @@ void AAIConstructor::CheckAssistance()
 			bool assist = false;
 
 
-			if(buildque->size() > 2)
+			if(m_buildqueue->size() > 2)
 				assist = true;
-			else if(ai->Getbt()->IsValidUnitDefID(construction_def_id)) {
-				float buildtime = 1e6;
+			else if(m_constructedDefId.isValid() == true) 
+			{
+				float buildtime = 1e6f;
 				if (buildspeed > 0) {
 					//FIXME why use *1/30 here? below there is exactly the same code w/o it, so what's the correct one?
-					buildtime = ai->Getbt()->GetUnitDef(construction_def_id).buildTime / (30.0f * buildspeed);
+					buildtime = ai->Getbt()->GetUnitDef(m_constructedDefId.id).buildTime / (30.0f * buildspeed);
 				}
 
 				if (buildtime > cfg->MIN_ASSISTANCE_BUILDTIME)
@@ -261,17 +261,17 @@ void AAIConstructor::CheckAssistance()
 
 			if(assist)
 			{
-				AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(ai->Getcb()->GetUnitPos(unit_id), 5, true);
+				AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(ai->Getcb()->GetUnitPos(m_myUnitId.id), 5, true);
 
 				if(assistant)
 				{
-					assistants.insert(assistant->unit_id);
-					assistant->AssistConstruction(unit_id);
+					assistants.insert(assistant->m_myUnitId.id);
+					assistant->AssistConstruction(m_myUnitId);
 				}
 			}
 		}
 		// check if assistants are needed anymore
-		else if(!assistants.empty() && buildque->empty() && !ai->Getbt()->IsValidUnitDefID(construction_def_id))
+		else if(!assistants.empty() && m_buildqueue->empty() && (m_constructedDefId.isValid() == false))
 		{
 			//ai->LogConsole("factory releasing assistants");
 			ReleaseAllAssistants();
@@ -279,14 +279,14 @@ void AAIConstructor::CheckAssistance()
 
 	}
 
-	if(builder && build_task)
+	if(m_isBuilder && build_task)
 	{
 		// prevent assisting when low on ressources
 		if(ai->Getexecute()->averageMetalSurplus < 0.1)
 		{
 			if(construction_category == METAL_MAKER)
 			{
-				if(ai->Getexecute()->averageEnergySurplus < 0.5 * ai->Getbt()->GetUnitDef(construction_def_id).energyUpkeep)
+				if(ai->Getexecute()->averageEnergySurplus < 0.5 * ai->Getbt()->GetUnitDef(m_constructedDefId.id).energyUpkeep)
 					return;
 			}
 			else if(construction_category != EXTRACTOR && construction_category != POWER_PLANT)
@@ -295,7 +295,7 @@ void AAIConstructor::CheckAssistance()
 
 		float buildtime = 1e6;
 		if (buildspeed > 0) {
-			buildtime = ai->Getbt()->GetUnitDef(construction_def_id).buildTime / buildspeed;
+			buildtime = ai->Getbt()->GetUnitDef(m_constructedDefId.id).buildTime / buildspeed;
 		}
 
 		if((buildtime > cfg->MIN_ASSISTANCE_BUILDTIME) && (assistants.size() < cfg->MAX_ASSISTANTS))
@@ -303,8 +303,8 @@ void AAIConstructor::CheckAssistance()
 			// com only allowed if buildpos is inside the base
 			bool commander = false;
 
-			int x = build_pos.x / ai->Getmap()->xSectorSize;
-			int y = build_pos.z / ai->Getmap()->ySectorSize;
+			int x = m_buildPos.x / ai->Getmap()->xSectorSize;
+			int y = m_buildPos.z / ai->Getmap()->ySectorSize;
 
 			if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
 			{
@@ -312,45 +312,31 @@ void AAIConstructor::CheckAssistance()
 					commander = true;
 			}
 
-			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(build_pos, 5, commander);
+			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(m_buildPos, 5, commander);
 
 			if(assistant)
 			{
-				assistants.insert(assistant->unit_id);
-				assistant->AssistConstruction(unit_id, construction_unit_id);
+				assistants.insert(assistant->m_myUnitId.id);
+				assistant->AssistConstruction(m_myUnitId);
 			}
 		}
 	}
 }
 
-
-double AAIConstructor::GetMyQueBuildtime()
-{
-	if (buildque == nullptr)
-		return 0;
-
-	double buildtime = 0;
-	for(list<int>::iterator unit = buildque->begin(); unit != buildque->end(); ++unit)
-		buildtime += ai->Getbt()->GetUnitDef((*unit)).buildTime;
-
-	return buildtime;
-}
-
 void AAIConstructor::GiveReclaimOrder(int unit_id)
 {
-	if(assistance >= 0)
+	if(m_assistUnitId.isValid() == true)
 	{
-		ai->Getut()->units[assistance].cons->RemoveAssitant(unit_id);
-
-		assistance = -1;
+		ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
+		m_assistUnitId.invalidate();
 	}
 
-	task = RECLAIMING;
+	m_activity.SetActivity(EConstructorActivity::RECLAIMING);
 
 	Command c(CMD_RECLAIM);
 	c.PushParam(unit_id);
 	//ai->Getcb()->GiveOrder(this->unit_id, &c);
-	ai->Getexecute()->GiveOrder(&c, this->unit_id, "Builder::GiveRelaimOrder");
+	ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "Builder::GiveRelaimOrder");
 }
 
 
@@ -362,27 +348,25 @@ void AAIConstructor::GiveConstructionOrder(int id_building, float3 pos, bool wat
 	// give order if building can be placed at the desired position (position lies within a valid sector)
 	if(ai->Getexecute()->InitBuildingAt(def, &pos, water))
 	{
-		order_tick = ai->Getcb()->GetCurrentFrame();
-
 		// check if builder was previously assisting other builders/factories
-		if(assistance >= 0)
+		if(m_assistUnitId.isValid() == true)
 		{
-			ai->Getut()->units[assistance].cons->RemoveAssitant(unit_id);
-			assistance = -1;
+			ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
+			m_assistUnitId.invalidate();
 		}
 
 		// set building as current task and order construction
-		build_pos = pos;
-		construction_def_id = id_building;
-		assert(ai->Getbt()->IsValidUnitDefID(id_building));
-		task = BUILDING;
+		m_buildPos = pos;
+		m_constructedDefId.id = id_building;
+		assert(m_constructedUnitId.isValid());
+		m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
 		construction_category = ai->Getbt()->units_static[id_building].category;
 
 		// order builder to construct building
 		Command c(-id_building);
-		c.PushPos(build_pos);
+		c.PushPos(m_buildPos);
 
-		ai->Getcb()->GiveOrder(unit_id, &c);
+		ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
 
 		// increase number of active units of that type/category
 		ai->Getbt()->units_dynamic[def->id].requested += 1;
@@ -394,78 +378,84 @@ void AAIConstructor::GiveConstructionOrder(int id_building, float3 pos, bool wat
 	}
 }
 
-void AAIConstructor::AssistConstruction(int constructor, int target_unit)
+void AAIConstructor::AssistConstruction(UnitId constructorUnitId)
 {
-	if(target_unit == -1)
-	{
-		// Check if the target can be assisted at all. If not, try to repair it instead
-		const UnitDef* def = ai->Getcb()->GetUnitDef(constructor);
-		Command c(def->canBeAssisted? CMD_GUARD: CMD_REPAIR);
-		c.PushParam(constructor);
-		//ai->Getcb()->GiveOrder(unit_id, &c);
-		ai->Getexecute()->GiveOrder(&c, unit_id, "Builder::Assist");
+	// Check if the target can be assisted at all. If not, try to repair it instead
+	const UnitDef* def = ai->Getcb()->GetUnitDef(constructorUnitId.id);
+	Command c(def->canBeAssisted? CMD_GUARD: CMD_REPAIR);
+	c.PushParam(constructorUnitId.id);
 
-		task = ASSISTING;
-		assistance = constructor;
-	}
-	else
-	{
-		Command c(CMD_REPAIR);
-		c.PushParam(target_unit);
-		//ai->Getcb()->GiveOrder(unit_id, &c);
-		ai->Getexecute()->GiveOrder(&c, unit_id, "Builder::Assist");
+	//ai->Getcb()->GiveOrder(unit_id, &c);
+	ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "Builder::Assist");
 
-		task = ASSISTING;
-		assistance = constructor;
-	}
+	m_activity.SetActivity(EConstructorActivity::ASSISTING);
+	m_assistUnitId = UnitId(constructorUnitId.id);
 }
 
 void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 {
-	if(assistance >= 0)
+	if(m_assistUnitId.isValid())
 	{
-		ai->Getut()->units[assistance].cons->RemoveAssitant(unit_id);
-		assistance = -1;
+		ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
+		m_assistUnitId.invalidate();
 	}
 
-	order_tick = build_task->order_tick;
+	m_constructedDefId.id  = build_task->unit_id;
+	m_constructedUnitId.id = build_task->def_id;
+	assert(m_constructedDefId.isValid());
+	assert(m_constructedUnitId.isValid());
 
-	construction_unit_id = build_task->unit_id;
-	construction_def_id = build_task->def_id;
-	assert(ai->Getbt()->IsValidUnitDefID(construction_def_id));
-	construction_category = ai->Getbt()->units_static[construction_def_id].category;
-	build_pos = build_task->build_pos;
+	construction_category = ai->Getbt()->units_static[m_constructedDefId.id].category;
+	m_buildPos = build_task->build_pos;
 
 	Command c(CMD_REPAIR);
 	c.PushParam(build_task->unit_id);
 
-	task = BUILDING;
-	ai->Getcb()->GiveOrder(unit_id, &c);
+	m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
+	ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
 }
+
+void AAIConstructor::CheckIfConstructionFailed()
+{
+	if( (m_activity.IsConstructing() == true) && (m_constructedUnitId.isValid() == false))
+	{
+		ConstructionFailed();
+	}
+}
+
 
 void AAIConstructor::ConstructionFailed()
 {
-	--ai->Getbt()->units_dynamic[construction_def_id].requested;
+	--ai->Getbt()->units_dynamic[m_constructedDefId.id].requested;
 	ai->Getut()->UnitRequestFailed(construction_category);
 
 	// clear up buildmap etc.
-	if(ai->Getbt()->units_static[construction_def_id].category <= METAL_MAKER)
-		ai->Getexecute()->ConstructionFailed(build_pos, construction_def_id);
+	if(ai->Getbt()->s_buildTree.getMovementType(m_constructedDefId).isStatic() == true)
+		ai->Getexecute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
 
 	// tells the builder construction has finished
 	ConstructionFinished();
 }
 
+
+void AAIConstructor::ConstructionStarted(UnitId unitId, AAIBuildTask *buildTask)
+{
+	m_constructedUnitId = unitId;
+	build_task = buildTask;
+	m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
+	CheckAssistance();
+}
+
 void AAIConstructor::ConstructionFinished()
 {
-	task = UNIT_IDLE;
+  	m_activity.SetActivity(EConstructorActivity::IDLE);
 
-	build_pos = ZeroVector;
-	construction_def_id = -1;
-	construction_unit_id = -1;
+	m_buildPos = ZeroVector;
+	m_constructedUnitId.invalidate();
+	m_constructedDefId.invalidate();
 	construction_category = UNKNOWN;
 
-	build_task = 0;
+	build_task = nullptr;
 
 	// release assisters
 	ReleaseAllAssistants();
@@ -485,12 +475,12 @@ void AAIConstructor::ReleaseAllAssistants()
 
 void AAIConstructor::StopAssisting()
 {
-	task = UNIT_IDLE;
-	assistance = -1;
+	m_activity.SetActivity(EConstructorActivity::IDLE);
+	m_assistUnitId.invalidate();
 
 	Command c(CMD_STOP);
 	//ai->Getcb()->GiveOrder(unit_id, &c);
-	ai->Getexecute()->GiveOrder(&c, unit_id, "Builder::StopAssisting");
+	ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "Builder::StopAssisting");
 }
 void AAIConstructor::RemoveAssitant(int unit_id)
 {
@@ -498,43 +488,37 @@ void AAIConstructor::RemoveAssitant(int unit_id)
 }
 void AAIConstructor::Killed()
 {
-	if(builder)
-	{
-		// when builder was killed on the way to the buildsite, inform ai that construction
-		// of building hasnt been started
-		if(task == BUILDING)
-		{
-			//if buildling has not begun yet, decrease some values
-			if(construction_unit_id == -1)
-			{
-				// killed on the way to the buildsite
-				ai->Getmap()->UnitKilledAt(&build_pos, MOBILE_CONSTRUCTOR);
 
-				// clear up buildmap etc.
-				ConstructionFailed();
-			}
-			// building has begun
-			else
-			{
-				if(build_task)
-					build_task->BuilderDestroyed();
-			}
-		}
-		else if(task == ASSISTING)
-		{
-			ai->Getut()->units[assistance].cons->RemoveAssitant(unit_id);
-		}
+	// when builder was killed on the way to the buildsite, inform ai that construction
+	// of building hasnt been started
+	if(m_activity.IsHeadingToBuildsite() == true)
+	{
+		//if buildling has not begun yet, decrease some values
+		// killed on the way to the buildsite
+		ai->Getmap()->UnitKilledAt(&m_buildPos, MOBILE_CONSTRUCTOR);
+
+		// clear up buildmap etc.
+		ConstructionFailed();
+	}
+	else if(m_activity.IsConstructing() == true)
+	{
+		if(build_task)
+			build_task->BuilderDestroyed();
+	}
+	else if(m_activity.IsAssisting() == true)
+	{
+			ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
 	}
 
 	ReleaseAllAssistants();
-	task = UNIT_KILLED;
+	m_activity.SetActivity(EConstructorActivity::DESTROYED);
 }
 
 void AAIConstructor::Retreat(UnitCategory attacked_by)
 {
-	if(task != UNIT_KILLED)
+	if(m_activity.IsDestroyed() == false)
 	{
-		float3 pos = ai->Getcb()->GetUnitPos(unit_id);
+		float3 pos = ai->Getcb()->GetUnitPos(m_myUnitId.id);
 
 		int x = pos.x / ai->Getmap()->xSectorSize;
 		int y = pos.z / ai->Getmap()->ySectorSize;
@@ -551,7 +535,7 @@ void AAIConstructor::Retreat(UnitCategory attacked_by)
 				// dont flee outside of the base if health is > 50%
 				else
 				{
-					if(ai->Getcb()->GetUnitHealth(unit_id) > ai->Getbt()->GetUnitDef(def_id).health / 2.0)
+					if(ai->Getcb()->GetUnitHealth(m_myUnitId.id) > ai->Getbt()->GetUnitDef(m_myDefId.id).health / 2.0f)
 						return;
 				}
 			}
@@ -568,7 +552,7 @@ void AAIConstructor::Retreat(UnitCategory attacked_by)
 
 
 		// get safe position
-		pos = ai->Getexecute()->GetSafePos(def_id, pos);
+		pos = ai->Getexecute()->determineSafePos(m_myDefId, pos);
 
 		if(pos.x > 0)
 		{
@@ -577,7 +561,7 @@ void AAIConstructor::Retreat(UnitCategory attacked_by)
 			c.PushParam(ai->Getcb()->GetElevation(pos.x, pos.z));
 			c.PushParam(pos.z);
 
-			ai->Getexecute()->GiveOrder(&c, unit_id, "BuilderRetreat");
+			ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "BuilderRetreat");
 			//ai->Getcb()->GiveOrder(unit_id, &c);
 		}
 	}

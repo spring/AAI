@@ -38,7 +38,8 @@ public:
 	// return true if building will be placed at a valid pos = inside sectors
 	bool InitBuildingAt(const UnitDef *def, float3 *pos, bool water);
 
-	void CreateBuildTask(int unit, const UnitDef *def, float3 *pos);
+    //! @brief creates a BuildTask for given unit and links it to responsible construction unit
+	void createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos);
 
 	void MoveUnitTo(int unit, float3 *position);
 
@@ -48,8 +49,8 @@ public:
 
 	void SendScoutToNewDest(int scout);
 
-	// returns a position to retreat unit of certain type
-	float3 GetSafePos(int def_id, float3 unit_pos);
+	//! @brief Searches for a position to retreat unit of certain type
+	float3 determineSafePos(UnitDefId unitDefId, float3 unit_pos);
 
 	// updates average ressource usage
 	void UpdateRessources();
@@ -85,7 +86,6 @@ public:
 
 	// called when building has been finished / contruction failed
 	void ConstructionFailed(float3 build_pos, int def_id);
-	void ConstructionFinished();
 
 	// builds defences around mex spot if necessary
 	void DefendMex(int mex, int def_id);

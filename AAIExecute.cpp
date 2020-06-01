@@ -132,7 +132,7 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 
 	ai->Getbt()->InitCombatEffCache(ai->Getside());
 
-	ai->Getut()->AddCommander(commander_unit_id, commander_def->id);
+	ai->Getut()->AddCommander(UnitId(commander_unit_id), UnitDefId(commander_def->id));
 
 	// add the highest rated, buildable factory
 	AddStartFactory();
@@ -141,9 +141,9 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 	CheckRessources();
 }
 
-void AAIExecute::CreateBuildTask(int unit, const UnitDef *def, float3 *pos)
+void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos)
 {
-	AAIBuildTask *task = new AAIBuildTask(ai, unit, def->id, pos, ai->Getcb()->GetCurrentFrame());
+	AAIBuildTask *task = new AAIBuildTask(ai, unitId.id, unitDefId.id, pos, ai->Getcb()->GetCurrentFrame());
 	ai->Getbuild_tasks().push_back(task);
 
 	// find builder and associate building with that builder
@@ -151,12 +151,12 @@ void AAIExecute::CreateBuildTask(int unit, const UnitDef *def, float3 *pos)
 
 	for(set<int>::iterator i = ai->Getut()->constructors.begin(); i != ai->Getut()->constructors.end(); ++i)
 	{
-		if(ai->Getut()->units[*i].cons->build_pos.x == pos->x && ai->Getut()->units[*i].cons->build_pos.z == pos->z)
+		const float3& buildPos = ai->Getut()->units[*i].cons->GetBuildPos();
+
+		if(buildPos.x == pos->x && buildPos.z == pos->z)
 		{
-			ai->Getut()->units[*i].cons->construction_unit_id = unit;
-			task->builder_id = ai->Getut()->units[*i].cons->unit_id;
-			ai->Getut()->units[*i].cons->build_task = task;
-			ai->Getut()->units[*i].cons->CheckAssistance();
+			task->builder_id = ai->Getut()->units[*i].cons->m_myUnitId.id;
+			ai->Getut()->units[*i].cons->ConstructionStarted(unitId, task);
 			break;
 		}
 	}
@@ -305,7 +305,7 @@ void AAIExecute::BuildScouts()
 		{
 			bool urgent = true;
 
-			if(ai->Getut()->activeUnits[SCOUT] >= 2)
+			if(ai->Getut()->activeUnits[SCOUT] > 1)
 				urgent = false;
 
 			if(AddUnitToBuildqueue(scoutId.id, 1, urgent))
@@ -426,7 +426,7 @@ list<int>* AAIExecute::GetBuildqueueOfFactory(int def_id)
 
 bool AAIExecute::AddUnitToBuildqueue(int def_id, int number, bool urgent)
 {
-	urgent = false;
+	//urgent = false;
 
 	//UnitCategory category = ai->Getbt()->units_static[def_id].category;
 
@@ -613,7 +613,7 @@ bool AAIExecute::BuildExtractor()
 
 		if(land_builder)
 		{
-			pos = GetBuildsite(land_builder->unit_id, land_mex, EXTRACTOR);
+			pos = GetBuildsite(land_builder->m_myUnitId.id, land_mex, EXTRACTOR);
 
 			if(pos.x != 0)
 				land_builder->GiveConstructionOrder(land_mex, pos, false);
@@ -789,18 +789,18 @@ bool AAIExecute::BuildPowerPlant()
 			if(builder && builder->construction_category == POWER_PLANT)
 			{
 				// dont build further power plants if already building an expensive plant
-				if(ai->Getbt()->units_static[builder->construction_def_id].cost > ai->Getbt()->avg_cost[POWER_PLANT][ai->Getside()-1])
+				if(ai->Getbt()->units_static[builder->m_constructedDefId.id].cost > ai->Getbt()->avg_cost[POWER_PLANT][ai->Getside()-1])
 					return true;
 
 				// try to assist
 				if(builder->assistants.size() < cfg->MAX_ASSISTANTS)
 				{
-					AAIConstructor *assistant = ai->Getut()->FindClosestAssistant(builder->build_pos, 5, true);
+					AAIConstructor *assistant = ai->Getut()->FindClosestAssistant(builder->GetBuildPos(), 5, true);
 
 					if(assistant)
 					{
-						builder->assistants.insert(assistant->unit_id);
-						assistant->AssistConstruction(builder->unit_id, (*task)->unit_id);
+						builder->assistants.insert(assistant->m_myUnitId.id);
+						assistant->AssistConstruction(builder->m_myUnitId);
 						return true;
 					}
 					else
@@ -931,7 +931,7 @@ bool AAIExecute::BuildPowerPlant()
 
 				if(builder)
 				{
-					pos = ai->Getmap()->GetClosestBuildsite(&ai->Getbt()->GetUnitDef(water_plant), ai->Getcb()->GetUnitPos(builder->unit_id), 40, true);
+					pos = ai->Getmap()->GetClosestBuildsite(&ai->Getbt()->GetUnitDef(water_plant), ai->Getcb()->GetUnitPos(builder->m_myUnitId.id), 40, true);
 
 					if(pos.x <= 0)
 						pos = (*sector)->GetBuildsite(water_plant, true);
@@ -2783,12 +2783,12 @@ bool AAIExecute::AssistConstructionOfCategory(UnitCategory category, int /*impor
 
 		if(builder && builder->construction_category == category && builder->assistants.size() < cfg->MAX_ASSISTANTS)
 		{
-			assistant = ai->Getut()->FindClosestAssistant(builder->build_pos, 5, true);
+			assistant = ai->Getut()->FindClosestAssistant(builder->GetBuildPos(), 5, true);
 
 			if(assistant)
 			{
-				builder->assistants.insert(assistant->unit_id);
-				assistant->AssistConstruction(builder->unit_id, (*task)->unit_id);
+				builder->assistants.insert(assistant->m_myUnitId.id);
+				assistant->AssistConstruction(builder->m_myUnitId);
 				return true;
 			}
 		}
@@ -2882,10 +2882,6 @@ bool AAIExecute::defend_vs_submarine(AAISector *left, AAISector *right)
 {
 	return ((2.0f + left->GetThreatBy(SUBMARINE_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(4)+ 0.5f))
 		>  ((2.0f + right->GetThreatBy(SUBMARINE_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(4)+ 0.5f));
-}
-
-void AAIExecute::ConstructionFinished()
-{
 }
 
 void AAIExecute::ConstructionFailed(float3 build_pos, int def_id)
@@ -3062,12 +3058,12 @@ void AAIExecute::DefendUnitVS(int unit, const AAIMovementType& attackerMoveType,
 		support->Defend(unit, enemy_pos, importance);
 }
 
-float3 AAIExecute::GetSafePos(int def_id, float3 unit_pos)
+float3 AAIExecute::determineSafePos(UnitDefId unitDefId, float3 unit_pos)
 {
 	float3 best_pos = ZeroVector;
 	float my_rating, best_rating = -10000.0f;
 
-	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(def_id);
+	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(unitDefId);
 
 	if( moveType.cannotMoveToOtherContinents() )
 	{

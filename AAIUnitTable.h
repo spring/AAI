@@ -12,12 +12,10 @@
 
 #include <set>
 
-using std::set;
-
 #include "aidef.h"
+#include "AAIBuildTable.h"
 
 class AAI;
-class AAIBuildTable;
 class AAIExecute;
 class AAIConstructor;
 
@@ -33,10 +31,10 @@ public:
 	void AddScout(int unit_id);
 	void RemoveScout(int unit_id);
 
-	void AddConstructor(int unit_id, int def_id);
+	void AddConstructor(UnitId unitId, UnitDefId unitDefId);
 	void RemoveConstructor(int unit_id, int def_id);
 
-	void AddCommander(int unit_id, int def_id);
+	void AddCommander(UnitId unitId, UnitDefId unitDefId);
 	void RemoveCommander(int unit_id, int def_id);
 
 	void AddExtractor(int unit_id);
@@ -71,7 +69,7 @@ public:
 	void AssignGroupToEnemy(int unit, AAIGroup *group);
 
 	// determine whether unit with specified def/unit id is commander/constrcutor
-	bool IsBuilder(int unit_id);
+	bool IsBuilder(UnitId unitId);
 
 	// called when unit of specified catgeory has been created (= construction started)
 	void UnitCreated(UnitCategory category);
@@ -108,7 +106,16 @@ public:
 	int activeBuilders, futureBuilders;
 	int activeFactories, futureFactories;
 private:
+
 	bool IsUnitCommander(int unit_id);
+
+	//! @todo These functions are duplicated in buildtable -> remove duplication after unit category handling is reworked
+	bool IsFactory(UnitDefId unitDefId) const  { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_FACTORY ); };
+
+	bool IsBuilder(UnitDefId unitDefId) const  { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_BUILDER ); };
+
+	bool IsAssister(UnitDefId unitDefId) const { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_ASSISTER ); };
+
 	set<int> scouts;
 	set<int> extractors;
 	set<int> power_plants;

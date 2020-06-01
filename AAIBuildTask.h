@@ -32,7 +32,6 @@ public:
 
 	int builder_id;
 
-	int order_tick;
 private:
 	AAI* ai;
 };

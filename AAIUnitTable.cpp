@@ -110,62 +110,43 @@ void AAIUnitTable::RemoveUnit(int unit_id)
 	}
 }
 
-void AAIUnitTable::AddConstructor(int unit_id, int def_id)
+void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 {
-	bool factory;
-	bool builder;
-	bool assister;
+	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, IsFactory(unitDefId), IsBuilder(unitDefId), IsAssister(unitDefId), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId.id));
 
-	if(ai->Getbt()->units_static[def_id].unit_type & UNIT_TYPE_FACTORY)
-		factory = true;
-	else
-		factory = false;
-
-	if(ai->Getbt()->units_static[def_id].unit_type & UNIT_TYPE_BUILDER)
-		builder = true;
-	else
-		builder = false;
-
-	if(ai->Getbt()->units_static[def_id].unit_type & UNIT_TYPE_ASSISTER)
-		assister = true;
-	else
-		assister = false;
-
-	AAIConstructor *cons = new AAIConstructor(ai, unit_id, def_id, factory, builder, assister);
-
-	constructors.insert(unit_id);
-	units[unit_id].cons = cons;
+	constructors.insert(unitId.id);
+	units[unitId.id].cons = cons;
 
 	// increase/decrease number of available/requested builders for all buildoptions of the builder
-	for(list<int>::iterator unit = ai->Getbt()->units_static[def_id].canBuildList.begin();  unit != ai->Getbt()->units_static[def_id].canBuildList.end(); ++unit)
+	for(list<int>::iterator unit = ai->Getbt()->units_static[unitDefId.id].canBuildList.begin();  unit != ai->Getbt()->units_static[unitDefId.id].canBuildList.end(); ++unit)
 	{
 		ai->Getbt()->units_dynamic[*unit].constructorsAvailable += 1;
 		ai->Getbt()->units_dynamic[*unit].constructorsRequested -= 1;
 	}
 
-	if(builder)
+	if(IsBuilder(unitDefId) == true)
 	{
 		--futureBuilders;
 		++activeBuilders;
 	}
 
-	if( (factory == true) && (ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStatic() == true) )
+	if( (IsFactory(unitDefId) == true) && (ai->Getbt()->s_buildTree.getMovementType(unitDefId).isStatic() == true) )
 	{
 		--futureFactories;
 		++activeFactories;
 
 		// remove future ressource demand now factory has been finished
-		ai->Getexecute()->futureRequestedMetal -= ai->Getbt()->units_static[def_id].efficiency[0];
-		ai->Getexecute()->futureRequestedEnergy -= ai->Getbt()->units_static[def_id].efficiency[1];
+		ai->Getexecute()->futureRequestedMetal -= ai->Getbt()->units_static[unitDefId.id].efficiency[0];
+		ai->Getexecute()->futureRequestedEnergy -= ai->Getbt()->units_static[unitDefId.id].efficiency[1];
 	}
 }
 
 void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 {
-	if(units[unit_id].cons->builder)
+	if(IsBuilder(UnitDefId(def_id)) == true)
 		activeBuilders -= 1;
 
-	if( (units[unit_id].cons->factory == true) && (ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStatic() == true) )
+	if( (IsFactory(UnitDefId(def_id)) == true) && (ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStatic() == true) )
 		activeFactories -= 1;
 
 	// decrease number of available builders for all buildoptions of the builder
@@ -178,40 +159,21 @@ void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 	// clean up memory
 	units[unit_id].cons->Killed();
 	delete units[unit_id].cons;
-	units[unit_id].cons = 0;
+	units[unit_id].cons = nullptr;
 }
 
-void AAIUnitTable::AddCommander(int unit_id, int def_id)
+void AAIUnitTable::AddCommander(UnitId unitId, UnitDefId unitDefId)
 {
-	bool factory;
-	bool builder;
-	bool assister;
+	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, IsFactory(unitDefId), IsBuilder(unitDefId), IsAssister(unitDefId), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId.id));
+	units[unitId.id].cons = cons;
 
-	if(ai->Getbt()->units_static[def_id].unit_type & UNIT_TYPE_FACTORY)
-		factory = true;
-	else
-		factory = false;
+	constructors.insert(unitId.id);
 
-	if(ai->Getbt()->units_static[def_id].unit_type & UNIT_TYPE_BUILDER)
-		builder = true;
-	else
-		builder = false;
-
-	if(ai->Getbt()->units_static[def_id].unit_type & UNIT_TYPE_ASSISTER)
-		assister = true;
-	else
-		assister = false;
-
-	AAIConstructor *cons = new AAIConstructor(ai, unit_id, def_id, factory, builder, assister);
-	constructors.insert(unit_id);
-	units[unit_id].cons = cons;
-
-	cmdr = unit_id;
+	cmdr = unitId.id;
 
 	// increase number of builders for all buildoptions of the commander
-	for(list<int>::iterator unit = ai->Getbt()->units_static[def_id].canBuildList.begin();  unit != ai->Getbt()->units_static[def_id].canBuildList.end(); ++unit)
+	for(list<int>::iterator unit = ai->Getbt()->units_static[unitDefId.id].canBuildList.begin();  unit != ai->Getbt()->units_static[unitDefId.id].canBuildList.end(); ++unit)
 		++ai->Getbt()->units_dynamic[*unit].constructorsAvailable;
-
 }
 
 void AAIUnitTable::RemoveCommander(int unit_id, int def_id)
@@ -321,19 +283,19 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
 	{
 		// check all builders
-		if(units[*i].cons->builder)
+		if( IsBuilder(units[*i].cons->m_myDefId) == true )
 		{
 			builder = units[*i].cons;
 
 			// find unit that can directly build that building
-			if(    (builder->task != BUILDING) 
-				&& (ai->Getbt()->s_buildTree.canBuildUnitType(builder->def_id, building) == true) )
+			if(    (builder->IsAvailableForConstruction() == true) 
+				&& (ai->Getbt()->s_buildTree.canBuildUnitType(builder->m_myDefId.id, building) == true) )
 			{
 				//if(ai->Getbt()->units_static[building].category == STATIONARY_JAMMER)
 				//	ai->Log("%s can build %s\n", ai->Getbt()->GetUnitDef(builder->def_id-1).humanName.c_str(), ai->Getbt()->GetUnitDef(building-1).humanName.c_str());
 
 				// filter out commander (if not allowed)
-				if(! (!commander &&  ai->Getbt()->IsCommander(builder->def_id)) )
+				if(! (!commander &&  ai->Getbt()->IsCommander(builder->m_myDefId.id)) )
 					return builder;
 			}
 		}
@@ -357,17 +319,17 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool
 	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
 	{
 		// check all builders
-		if(units[*i].cons->builder)
+		if(IsBuilder(units[*i].cons->m_myDefId) == true)
 		{
 			builder = units[*i].cons;
 
 			// find idle or assisting builder, who can build this building
-			if(    (builder->task != BUILDING) 
-				&& ( ai->Getbt()->s_buildTree.canBuildUnitType(builder->def_id, building) == true) )
+			if(    (builder->IsAvailableForConstruction() == true) 
+				&& ( ai->Getbt()->s_buildTree.canBuildUnitType(builder->m_myDefId.id, building) == true) )
 			{
-				builder_pos = ai->Getcb()->GetUnitPos(builder->unit_id);
+				builder_pos = ai->Getcb()->GetUnitPos(builder->m_myUnitId.id);
 
-				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(builder->def_id);
+				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(builder->m_myDefId);
 
 				// check continent if necessary
 				if( moveType.cannotMoveToOtherContinents() )
@@ -381,12 +343,12 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool
 					suitable = true;
 
 				// filter out commander
-				if(suitable && ( commander || !ai->Getbt()->IsCommander(builder->def_id) ) )
+				if(suitable && ( commander || !ai->Getbt()->IsCommander(builder->m_myDefId.id) ) )
 				{
 					my_dist = fastmath::apxsqrt( (builder_pos.x - pos->x) * (builder_pos.x - pos->x) + (builder_pos.z - pos->z) * (builder_pos.z - pos->z) );
 
-					if(ai->Getbt()->GetUnitDef(builder->def_id).speed > 0)
-						my_dist /= ai->Getbt()->GetUnitDef(builder->def_id).speed;
+					if(ai->Getbt()->GetUnitDef(builder->m_myDefId.id).speed > 0)
+						my_dist /= ai->Getbt()->GetUnitDef(builder->m_myDefId.id).speed;
 
 					if(my_dist < *min_dist)
 					{
@@ -414,16 +376,16 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
 	{
 		// check all assisters
-		if(units[*i].cons->assistant)
+		if(IsAssister(units[*i].cons->m_myDefId) == true)
 		{
 			assistant = units[*i].cons;
 
 			// find idle assister
-			if(assistant->task == UNIT_IDLE)
+			if(assistant->IsIdle() == true)
 			{
-				assistant_pos = ai->Getcb()->GetUnitPos(assistant->unit_id);
+				assistant_pos = ai->Getcb()->GetUnitPos(assistant->m_myUnitId.id);
 
-				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(assistant->def_id);
+				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(assistant->m_myDefId.id);
 
 				// check continent if necessary
 				if( moveType.cannotMoveToOtherContinents() )
@@ -437,7 +399,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 					suitable = true;
 
 				// filter out commander
-				if(suitable && ( commander || !ai->Getbt()->IsCommander(assistant->def_id) ) )
+				if(suitable && ( commander || !ai->Getbt()->IsCommander(assistant->m_myDefId.id) ) )
 				{
 					dist = (pos.x - assistant_pos.x) * (pos.x - assistant_pos.x) + (pos.z - assistant_pos.z) * (pos.z - assistant_pos.z);
 
@@ -513,12 +475,13 @@ void AAIUnitTable::SetUnitStatus(int unit, UnitTask status)
 	units[unit].status = status;
 }
 
-bool AAIUnitTable::IsBuilder(int unit_id)
+bool AAIUnitTable::IsBuilder(UnitId unitId)
 {
-	if(units[unit_id].cons && units[unit_id].cons->builder)
-		return true;
-	else
-		return false;
+	if(units[unitId.id].cons != nullptr)
+	{
+		return IsBuilder(units[unitId.id].cons->m_myDefId);
+	}
+	return false;
 }
 
 void AAIUnitTable::ActiveUnitKilled(UnitCategory category)

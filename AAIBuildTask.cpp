@@ -26,10 +26,7 @@ AAIBuildTask::AAIBuildTask(AAI *ai, int unit_id, int def_id, float3 *pos, int ti
 	this->unit_id = unit_id;
 	this->def_id = def_id;
 
-	order_tick = tick;
-
 	builder_id = -1;
-
 }
 
 AAIBuildTask::~AAIBuildTask(void)
@@ -58,7 +55,7 @@ void AAIBuildTask::BuilderDestroyed()
 	if(new_builder)
 	{
 		new_builder->TakeOverConstruction(this);
-		builder_id = new_builder->unit_id;
+		builder_id = new_builder->m_myUnitId.id;
 	}
 }
 

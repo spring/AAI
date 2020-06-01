@@ -19,21 +19,6 @@
 //! @todo Make this changeable via optinal mod config file
 const float energyToMetalConversionFactor = 60.0f;
 
-//! @brief An id identifying a unit type - used to prevent mixing ids referring to units and unit definitions
-class UnitDefId
-{
-public:
-    UnitDefId() : id(0) { };
-
-	UnitDefId(int unitDefId) : id(unitDefId) { };
-
-    bool isValid() const { return (id > 0) ? true : false; };
-
-    void invalidate() { id = 0; };
-
-	int id;
-};
-
 //! @brief Unit Type properties needed by AAI for internal decision making (i.e. unit type selection)
 struct UnitTypeProperties
 {

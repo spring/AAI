@@ -262,7 +262,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 			att_cat = bt->units_static[att_def->id].category;
 
 			// retreat builders
-			if (ut->IsBuilder(damaged))
+			if (ut->IsBuilder(UnitId(damaged)) == true)
 				ut->units[damaged].cons->Retreat(att_cat);
 			else
 			{
@@ -279,7 +279,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 					if (cat <= METAL_MAKER)
 						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 115);
 					// builder
-					else if (ut->IsBuilder(damaged))
+					else if ( ut->IsBuilder(UnitId(damaged)) == true )
 						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 110);
 					// normal units
 					else
@@ -300,7 +300,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 			att_cat = SEA_ASSAULT;
 
 		// retreat builders
-		if (ut->IsBuilder(damaged))
+		if (ut->IsBuilder(UnitId(damaged)) == true)
 			ut->units[damaged].cons->Retreat(att_cat);
 
 		// building has been attacked
@@ -374,7 +374,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 			float3 pos = cb->GetUnitPos(unit);
 
 			// create new buildtask
-			execute->CreateBuildTask(unit, def, &pos);
+			execute->createBuildTask(UnitId(unit), UnitDefId(def->id), &pos);
 
 			// add extractor to the sector
 			if (category == EXTRACTOR)
@@ -392,7 +392,10 @@ void AAI::UnitFinished(int unit)
 {
 	AAI_SCOPED_TIMER("UnitFinished")
 	if (m_initialized == false)
-		return;
+    {
+        Log("Error: AAI not initialized when unit %i was finished\n", unit);
+        return;
+    }
 
 	// get unit's id
 	const UnitDef* def = cb->GetUnitDef(unit);
@@ -405,7 +408,7 @@ void AAI::UnitFinished(int unit)
 	bt->units_dynamic[def->id].active += 1;
 
 	// building was completed
-	if (!def->movedata && !def->canfly)
+	if (bt->s_buildTree.getMovementType(UnitDefId(def->id)).isStatic() == true)
 	{
 		// delete buildtask
 		for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
@@ -458,7 +461,7 @@ void AAI::UnitFinished(int unit)
 		}
 		else if (category == STATIONARY_CONSTRUCTOR)
 		{
-			ut->AddConstructor(unit, def->id);
+			ut->AddConstructor(UnitId(unit), UnitDefId(def->id));
 
 			ut->units[unit].cons->Update();
 		}
@@ -492,7 +495,7 @@ void AAI::UnitFinished(int unit)
 		// builder
 		else if (bt->IsBuilder(def->id))
 		{
-			ut->AddConstructor(unit, def->id);
+			ut->AddConstructor(UnitId(unit), UnitDefId(def->id));
 
 			ut->units[unit].cons->Update();
 		}
@@ -714,7 +717,7 @@ void AAI::UnitIdle(int unit)
 	// if factory is idle, start construction of further units
 	if (ut->units[unit].cons)
 	{
-		if (ut->units[unit].cons->assistance < 0 && ut->units[unit].cons->construction_unit_id < 0 )
+		if (ut->units[unit].cons->isBusy() == false)
 		{
 			ut->SetUnitStatus(unit, UNIT_IDLE);
 
@@ -743,8 +746,7 @@ void AAI::UnitMoveFailed(int unit)
 	AAI_SCOPED_TIMER("UnitMoveFailed")
 	if (ut->units[unit].cons)
 	{
-		if (ut->units[unit].cons->task == BUILDING && ut->units[unit].cons->construction_unit_id == -1)
-			ut->units[unit].cons->ConstructionFailed();
+		ut->units[unit].cons->CheckIfConstructionFailed();
 	}
 
 	float3 pos = cb->GetUnitPos(unit);

@@ -84,6 +84,10 @@ struct UnitId
 public:
 	UnitId(int unitId) : id(unitId) { };
 
+	UnitId() : id(-1) { };
+
+	bool isValid() const { return (id >= 0) ? true : false; };
+
 	void invalidate() { id = -1; };
 
 	int id;
