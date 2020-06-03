@@ -9,6 +9,7 @@
 
 #include "System/SafeUtil.h"
 #include "AAIBuildTree.h"
+#include "AAIConfig.h"
 
 #include "LegacyCpp/IGlobalAICallback.h"
 
@@ -113,6 +114,7 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
     for(int id = 1; id <= numberOfUnitTypes; ++id)
     {
         m_unitTypeProperties[id].m_totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / energyToMetalConversionFactor);
+        m_unitTypeProperties[id].m_buildtime = unitDefs[id]->buildTime;
         m_unitTypeProperties[id].m_maxSpeed  = unitDefs[id]->speed;
         m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
         
@@ -125,6 +127,7 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 
         m_unitTypeProperties[id].m_movementType.setMovementType( determineMovementType(unitDefs[id]) );
 
+		m_unitTypeProperties[id].m_unitCategory.setUnitCategory( determineUnitCategory(unitDefs[id]) );
     }
     
     //-----------------------------------------------------------------------------------------------------------------
@@ -144,12 +147,15 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
         fprintf(file, "\nUnit Side\n");
         for(int id = 1; id <= numberOfUnitTypes; ++id)
         {
-            fprintf(file, "%s %s %i %f %u %i\n", m_unitTypeProperties[id].m_name.c_str(), 
+            /*fprintf(file, "%s %s %i %f %u %i\n", m_unitTypeProperties[id].m_name.c_str(), 
                                                  unitDefs[id]->name.c_str(), 
                                                  m_sideOfUnitType[id], 
                                                  m_unitTypeProperties[id].m_maxRange,
                                                  static_cast<uint32_t>(m_unitTypeProperties[id].m_movementType.getMovementType()),
-                                                 static_cast<int>(m_unitTypeProperties[id].m_movementType.cannotMoveToOtherContinents()) );
+                                                 static_cast<int>(m_unitTypeProperties[id].m_movementType.cannotMoveToOtherContinents()) );*/
+			fprintf(file, "%s %s %u\n", m_unitTypeProperties[id].m_name.c_str(), 
+										unitDefs[id]->name.c_str(), 
+										static_cast<uint32_t>(m_unitTypeProperties[id].m_unitCategory.getUnitCategory()));
         }
         fclose(file);
     }
@@ -224,6 +230,232 @@ EMovementType AAIBuildTree::determineMovementType(const springLegacyAI::UnitDef*
 
     return moveType;
 }
+
+EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef* unitDef) const
+{
+	if(m_sideOfUnitType[unitDef->id] == 0)
+		return EUnitCategory::UNIT_CATEGORY_UNKNOWN;
+
+	// --------------- buildings --------------------------------------------------------------------------------------
+	if(m_unitTypeProperties[unitDef->id].m_movementType.isStatic() == true)
+	{
+		if(m_unitTypeCanConstructLists[unitDef->id].size() > 0)
+		{
+			return EUnitCategory::UNIT_CATEGORY_STATIC_CONSTRUCTOR;
+		}
+		else if(unitDef->extractsMetal > 0.0f)
+		{
+			return EUnitCategory::UNIT_CATEGORY_METAL_EXTRACTOR;
+		}
+		else if(unitDef->isAirBase == true)
+		{
+			return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
+		}
+		else if(   (unitDef->energyMake > cfg->MIN_ENERGY)
+				|| (unitDef->tidalGenerator > 0.0f)
+				|| (unitDef->windGenerator  > 0.0f) 
+				|| (unitDef->energyUpkeep < -cfg->MIN_ENERGY) )
+		{
+			if(unitDef->radarRadius == 0 && unitDef->sonarRadius == 0) // prevent radar/sonar who make some energy to be classified as power plant
+			{
+				return EUnitCategory::UNIT_CATEGORY_POWER_PLANT;
+			}
+		}
+		// --------------- armed buildings --------------------------------------------------------------------------------
+		else if( (unitDef->weapons.empty() == false) && (GetMaxDamage(unitDef) > 1) )
+		{
+			// filter out nuke silos, antinukes and stuff like that
+			if(IsMissileLauncher(unitDef) == true)
+			{
+				return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
+			}
+			else if(IsDeflectionShieldEmitter(unitDef) == true)
+			{
+				return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
+			}
+			//else
+			{
+				if( getMaxRange( UnitDefId(unitDef->id) ) < cfg->STATIONARY_ARTY_RANGE)
+				{
+					return EUnitCategory::UNIT_CATEGORY_STATIC_DEFENCE;
+				}
+				else
+				{
+					return EUnitCategory::UNIT_CATEGORY_STATIC_ARTILLERY;
+				}
+			}
+		}
+		else if((unitDef->sonarJamRadius > 0) || (unitDef->sonarRadius > 0) || (unitDef->jammerRadius > 0) || (unitDef->radarRadius > 0))
+		{
+			return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
+		}
+		else if(unitDef->metalMake > 0.0f) //! @todo Does not work - investigate later
+		{
+			return EUnitCategory::UNIT_CATEGORY_METAL_MAKER;
+		}
+		else if( (unitDef->metalStorage > static_cast<float>(cfg->MIN_METAL_STORAGE)) || (unitDef->energyStorage > static_cast<float>(cfg->MIN_ENERGY_STORAGE)) )
+		{
+			return EUnitCategory::UNIT_CATEGORY_STORAGE;
+		}
+	}
+	// --------------- units ------------------------------------------------------------------------------------------
+	else
+	{
+		if( isStartingUnit(unitDef->id) == true )
+		{
+			return EUnitCategory::UNIT_CATEGORY_COMMANDER;
+		}
+		else if(IsScout(unitDef) == true)
+		{
+			return EUnitCategory::UNIT_CATEGORY_SCOUT;
+		}
+		else if(IsMobileTransport(unitDef) == true)
+		{
+			return EUnitCategory::UNIT_CATEGORY_TRANSPORT;
+		}
+
+		// --------------- armed units --------------------------------------------------------------------------------
+		if( (unitDef->weapons.empty() == false) && (GetMaxDamage(unitDef) > 1))
+		{
+			if(unitDef->weapons.begin()->def->stockpile)
+			{
+				return EUnitCategory::UNIT_CATEGORY_MOBILE_SUPPORT;
+			}
+			else
+			{
+				if(    (m_unitTypeProperties[unitDef->id].m_movementType.isGround()     == true) 
+				    || (m_unitTypeProperties[unitDef->id].m_movementType.isAmphibious() == true) )
+				{
+					if( IsArtillery(unitDef, cfg->GROUND_ARTY_RANGE) == true)
+						return EUnitCategory::UNIT_CATEGORY_MOBILE_ARTILLERY;
+					else
+						return EUnitCategory::UNIT_CATEGORY_GROUND_COMBAT;
+				}
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.isHover() == true)
+				{
+					if( IsArtillery(unitDef, cfg->HOVER_ARTY_RANGE) == true)
+						return EUnitCategory::UNIT_CATEGORY_MOBILE_ARTILLERY;
+					else
+						return EUnitCategory::UNIT_CATEGORY_HOVER_COMBAT;
+				}
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.isAir() == true)
+				{
+					return EUnitCategory::UNIT_CATEGORY_AIR_COMBAT;
+				}
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.isSeaUnit() == true)
+				{
+					//! @todo: Sea artillery is skipped on prupose - handling of sea artillery not implemented at the moment.
+					return EUnitCategory::UNIT_CATEGORY_SEA_COMBAT;
+				}
+			}
+		}
+		// --------------- unarmed units ------------------------------------------------------------------------------
+		else
+		{
+			if(   (m_unitTypeCanConstructLists[unitDef->id].size() > 0)
+					|| (unitDef->canResurrect == true)
+					|| (unitDef->canAssist    == true)  )
+			{
+				return EUnitCategory::UNIT_CATEGORY_MOBILE_CONSTRUCTOR;
+			}
+			else if( (unitDef->sonarJamRadius > 0) || (unitDef->sonarRadius > 0) || (unitDef->jammerRadius > 0) || (unitDef->radarRadius > 0) )
+			{
+				return EUnitCategory::UNIT_CATEGORY_MOBILE_SUPPORT;
+			}
+		}
+	}
+	
+	return EUnitCategory::UNIT_CATEGORY_UNKNOWN;
+}
+
+bool AAIBuildTree::IsScout(const springLegacyAI::UnitDef* unitDef) const
+{
+	if( (unitDef->speed > cfg->SCOUT_SPEED) && (unitDef->canfly == false) )
+		return true;
+	else
+	{
+		for(list<int>::iterator i = cfg->SCOUTS.begin(); i != cfg->SCOUTS.end(); ++i)
+		{
+			if(*i == unitDef->id)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+bool AAIBuildTree::IsMobileTransport(const springLegacyAI::UnitDef* unitDef) const
+{
+	for(list<int>::iterator i = cfg->TRANSPORTERS.begin(); i != cfg->TRANSPORTERS.end(); ++i)
+	{
+		if(*i == unitDef->id)
+			return true;
+	}
+
+	return false;
+}
+
+bool AAIBuildTree::IsArtillery(const springLegacyAI::UnitDef* unitDef, float artilleryRangeThreshold) const
+{
+	if(unitDef->weapons.empty() == true)
+		return false;
+
+	if(    (m_unitTypeProperties[unitDef->id].m_maxRange > artilleryRangeThreshold)
+	    || (unitDef->highTrajectoryType == 1) )
+		return true;
+	else
+		return false;
+}
+
+bool AAIBuildTree::IsMissileLauncher(const springLegacyAI::UnitDef* unitDef) const
+{
+	for(vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator weapon = unitDef->weapons.begin(); weapon != unitDef->weapons.end(); ++weapon)
+	{
+		if( (weapon->def->stockpile == true) && (weapon->def->noAutoTarget == true) )
+			return true;
+	}
+
+	return false;
+}
+
+bool AAIBuildTree::IsDeflectionShieldEmitter(const springLegacyAI::UnitDef* unitDef) const
+{
+	for(vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator weapon = unitDef->weapons.begin(); weapon != unitDef->weapons.end(); ++weapon)
+	{
+		if(weapon->def->isShield)
+			return true;
+	}
+
+	return false;
+}
+
+
+float AAIBuildTree::GetMaxDamage(const springLegacyAI::UnitDef* unitDef) const
+{
+	float maxDamage = 0.0f;
+
+	for(vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDef->weapons.begin(); w != unitDef->weapons.end(); ++w)
+	{
+		for(int d = 0; d < (*w).def->damages.GetNumTypes(); ++d)
+		{
+			if((*w).def->damages[d] > maxDamage)
+				maxDamage = (*w).def->damages[d];
+		}
+	}
+
+	return maxDamage;
+}
+
+/*bool AAIBuildTree::IsCombatUnit(const springLegacyAI::UnitDef* unitDef) const
+{
+	for(list<int>::iterator i = cfg->ATTACKERS.begin(); i != cfg->ATTACKERS.end(); ++i)
+	{
+		if(*i == id)
+			return true;
+	}
+
+	return false;
+}*/
 
 bool AAIBuildTree::canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const
 {

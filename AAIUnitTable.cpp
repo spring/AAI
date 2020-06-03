@@ -64,7 +64,7 @@ AAIUnitTable::~AAIUnitTable(void)
 
 bool AAIUnitTable::AddUnit(int unit_id, int def_id, AAIGroup *group, AAIConstructor *cons)
 {
-	if(unit_id <= cfg->MAX_UNITS)
+	if(unit_id < cfg->MAX_UNITS)
 	{
 		// clear possible enemies that are still listed (since they had been killed outside of los)
 		if(units[unit_id].status == ENEMY_UNIT)
@@ -96,7 +96,7 @@ bool AAIUnitTable::AddUnit(int unit_id, int def_id, AAIGroup *group, AAIConstruc
 
 void AAIUnitTable::RemoveUnit(int unit_id)
 {
-	if(unit_id <= cfg->MAX_UNITS)
+	if(unit_id < cfg->MAX_UNITS)
 	{
 		units[unit_id].unit_id = -1;
 		units[unit_id].def_id = 0;

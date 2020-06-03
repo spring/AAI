@@ -101,16 +101,11 @@ void AAIConstructor::Idle()
 
 void AAIConstructor::Update()
 {
-	
 	if(m_isFactory && m_buildqueue != nullptr)
 	{
-		ai->Log("Updating status of %s\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(m_myDefId).m_name.c_str() ) ;
-
 		if( (m_activity.IsConstructing() == false) && (m_buildqueue->empty() == false) )
 		{
 			UnitDefId constructedUnitDefId(*m_buildqueue->begin());
-
-			ai->Log(" %s is next unit to be built, buildque length %i\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(constructedUnitDefId).m_name.c_str(), m_buildqueue->size() ) ;
 
 			if(ai->Getbt()->IsBuilder(constructedUnitDefId.id) 
 			    || (ai->Getbt()->units_static[constructedUnitDefId.id].category == SCOUT) 
