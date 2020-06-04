@@ -224,7 +224,7 @@ EMovementType AAIBuildTree::determineMovementType(const springLegacyAI::UnitDef*
             if(unitDef->floater)
                 moveType = EMovementType::MOVEMENT_TYPE_STATIC_SEA_FLOATER;
             else
-                moveType = EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED;
+                moveType = EMovementType::MOVEMENT_TYPE_STATIC_SEA_SUBMERGED;
         }
     }
 
