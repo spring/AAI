@@ -231,7 +231,6 @@ void AAIBuildTable::Init()
 
 	// generate buildtree (if not already done by other instance)
 	s_buildTree.generate(ai->Getcb());
-	
 
 	// Try to load buildtable; if not possible, create a new one
 	if(!LoadBuildTable())
@@ -291,7 +290,7 @@ void AAIBuildTable::Init()
 			if(!GetUnitDef(i).weapons.empty())
 			{
 				// get range
-				units_static[i].range = s_buildTree.getUnitTypeProperties( UnitDefId(i) ).m_maxRange;
+				units_static[i].range = s_buildTree.getMaxRange( UnitDefId(i) );
 
 				// get memory for eff
 				units_static[i].efficiency.resize(combat_categories);
@@ -306,7 +305,7 @@ void AAIBuildTable::Init()
 			}
 			else
 			{
-				units_static[i].range = 0;
+				units_static[i].range = s_buildTree.getMaxRange( UnitDefId(i) );
 
 				// get memory for eff
 				units_static[i].efficiency.resize(combat_categories, 0.0f);
@@ -391,7 +390,7 @@ void AAIBuildTable::Init()
 					}
 					else
 					{
-						if( s_buildTree.getUnitTypeProperties( UnitDefId(i) ).m_maxRange  < cfg->STATIONARY_ARTY_RANGE)
+						if( s_buildTree.getUnitTypeProperties( UnitDefId(i) ).m_range  < cfg->STATIONARY_ARTY_RANGE)
 						{
 							units_of_category[STATIONARY_DEF][units_static[i].side-1].push_back(GetUnitDef(i).id);
 							units_static[i].category = STATIONARY_DEF;
@@ -684,8 +683,6 @@ void AAIBuildTable::Init()
 		ai->LogConsole("New BuildTable has been created");
 	}
 
-
-
 	// only once
 	if(ai->getAAIInstance() == 1)
 	{
@@ -814,7 +811,7 @@ void AAIBuildTable::PrecacheStats()
 		// precache range of arty
 		for(list<int>::iterator i = units_of_category[STATIONARY_ARTY][s].begin(); i != units_of_category[STATIONARY_ARTY][s].end(); ++i)
 		{
-			units_static[*i].efficiency[1] = s_buildTree.getUnitTypeProperties( UnitDefId(*i) ).m_maxRange;
+			units_static[*i].efficiency[1] = s_buildTree.getUnitTypeProperties( UnitDefId(*i) ).m_range;
 			units_static[*i].efficiency[0] = 1 + units_static[*i].cost/100.0;
 		}
 
@@ -1117,7 +1114,7 @@ void AAIBuildTable::PrecacheStats()
 			{
 				for(list<int>::iterator unit = units_of_category[*category][s].begin(); unit != units_of_category[*category][s].end(); ++unit)
 				{
-					range = s_buildTree.getUnitTypeProperties( UnitDefId(*unit) ).m_maxRange;
+					range = s_buildTree.getUnitTypeProperties( UnitDefId(*unit) ).m_range;
 
 					avg_value[*category][s] += range;
 
@@ -1522,13 +1519,14 @@ int AAIBuildTable::GetDefenceBuilding(int side, double efficiency, double combat
 			my_ranking = -100000;
 		else if( (!water && GetUnitDef(*defence).minWaterDepth <= 0) || (water && GetUnitDef(*defence).minWaterDepth > 0) )
 		{
+			UnitDefId defId(*defence);
 			unit = &units_static[*defence];
 
-			my_ranking = efficiency * (def_power[side][k] / unit->cost) / max_eff_selection
+			my_ranking = efficiency * (def_power[side][k] / s_buildTree.getTotalCost(defId)) / max_eff_selection
 						+ combat_power * def_power[side][k] / max_power
-						+ range * unit->range / max_value[STATIONARY_DEF][side]
-						- cost * unit->cost / max_cost[STATIONARY_DEF][side]
-						- urgency * GetUnitDef(*defence).buildTime / max_buildtime[STATIONARY_DEF][side];
+						+ range   * s_buildTree.getMaxRange(defId)  / max_value[STATIONARY_DEF][side]
+						- cost    * s_buildTree.getTotalCost(defId) / max_cost[STATIONARY_DEF][side]
+						- urgency * s_buildTree.getBuildtime(defId) / max_buildtime[STATIONARY_DEF][side];
 
 			my_ranking += (0.1 * ((double)(rand()%randomness)));
 
@@ -1862,21 +1860,15 @@ int AAIBuildTable::GetGroundAssault(int side, float power, float gr_eff, float a
 	float best_ranking = -10000, my_ranking;
 	int best_unit = 0;
 
-	float max_cost = this->max_cost[GROUND_ASSAULT][side];
-	float max_range = max_value[GROUND_ASSAULT][side];
-	float max_speed = this->max_speed[0][side];
-
 	float max_power = 0;
 	float max_efficiency  = 0;
-
-	UnitTypeStatic *unit;
 
 	// precache eff
 	int c = 0;
 
 	for(list<int>::iterator i = units_of_category[GROUND_ASSAULT][side].begin(); i != units_of_category[GROUND_ASSAULT][side].end(); ++i)
 	{
-		unit = &units_static[*i];
+		UnitTypeStatic *unit = &units_static[*i];
 
 		combat_eff[c] = gr_eff * unit->efficiency[0] + air_eff * unit->efficiency[1] + hover_eff * unit->efficiency[2]
 						+ sea_eff * unit->efficiency[3] + stat_eff * unit->efficiency[5];
@@ -1901,37 +1893,27 @@ int AAIBuildTable::GetGroundAssault(int side, float power, float gr_eff, float a
 	// TODO: improve algorithm
 	for(list<int>::iterator i = units_of_category[GROUND_ASSAULT][side].begin(); i != units_of_category[GROUND_ASSAULT][side].end(); ++i)
 	{
-		unit = &units_static[*i];
+		UnitDefId defId(*i);
+		UnitTypeStatic *unit = &units_static[*i];
 
-		if(canBuild && units_dynamic[*i].constructorsAvailable > 0)
+		if(    (canBuild == false)
+			|| ((canBuild == true) && (units_dynamic[*i].constructorsAvailable > 0)) )
 		{
 			my_ranking = power * combat_eff[c] / max_power;
-			my_ranking -= cost * unit->cost / max_cost;
-			my_ranking += efficiency * (combat_eff[c] / unit->cost) / max_efficiency;
-			my_ranking += range * unit->range / max_range;
-			my_ranking += speed * GetUnitDef(*i).speed / max_speed;
+			my_ranking -= cost * s_buildTree.getTotalCost(defId) / max_cost[GROUND_ASSAULT][side];
+			my_ranking += efficiency * (combat_eff[c] / s_buildTree.getTotalCost(defId) ) / max_efficiency;
+			my_ranking += range * s_buildTree.getMaxRange(defId) / max_value[GROUND_ASSAULT][side];
+			my_ranking += speed * s_buildTree.getMaxSpeed(defId) / max_speed[0][side];
 			my_ranking += 0.1f * ((float)(rand()%randomness));
-		}
-		else if(!canBuild)
-		{
-			my_ranking = power * combat_eff[c] / max_power;
-			my_ranking -= cost * unit->cost / max_cost;
-			my_ranking += efficiency * (combat_eff[c] / unit->cost) / max_efficiency;
-			my_ranking += range * unit->range / max_range;
-			my_ranking += speed * GetUnitDef(*i).speed / max_speed;
-			my_ranking += 0.1f * ((float)(rand()%randomness));
-		}
-		else
-			my_ranking = -10000;
 
-
-		if(my_ranking > best_ranking)
-		{
-			// check max metal cost
-			if(GetUnitDef(*i).metalCost < cfg->MAX_METAL_COST)
+			if(my_ranking > best_ranking)
 			{
-				best_ranking = my_ranking;
-				best_unit = *i;
+				// check max metal cost
+				if(GetUnitDef(*i).metalCost < cfg->MAX_METAL_COST)
+				{
+					best_ranking = my_ranking;
+					best_unit = *i;
+				}
 			}
 		}
 
@@ -1986,6 +1968,7 @@ int AAIBuildTable::GetHoverAssault(int side,  float power, float gr_eff, float a
 
 	for(list<int>::iterator i = units_of_category[HOVER_ASSAULT][side].begin(); i != units_of_category[HOVER_ASSAULT][side].end(); ++i)
 	{
+		UnitDefId defId(*i);
 		unit = &units_static[*i];
 
 		if(canBuild && units_dynamic[*i].constructorsAvailable > 0)
@@ -2436,7 +2419,9 @@ bool AAIBuildTable::LoadBuildTable()
 		}
 
 		return true;
-	} else {
+	}
+	else 
+	{
 		// load data
 
 		FILE *load_file;
@@ -2554,6 +2539,8 @@ bool AAIBuildTable::LoadBuildTable()
 			return true;
 		}
 	}
+
+
 
 	return false;
 }

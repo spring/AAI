@@ -281,8 +281,11 @@ private:
 	bool MemberOf(int unit_id, list<int> unit_list);
 	// for internal use
 	void CalcBuildTree(int unit);
+
 	bool LoadBuildTable();
+
 	float GetUnitRating(int unit, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff);
+
 	void DebugPrint();
 
 	AAI * ai;

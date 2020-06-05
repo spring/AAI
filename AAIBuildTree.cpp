@@ -22,162 +22,244 @@
 using namespace springLegacyAI;
 
 AAIBuildTree::AAIBuildTree() :
-    m_initialized(false),
-    m_numberOfSides(0)
+	m_initialized(false),
+	m_numberOfSides(0)
 {
 }
 
 AAIBuildTree::~AAIBuildTree(void)
 {
-    m_initialized = false;
-    m_unitTypeCanBeConstructedtByLists.clear();
-    m_unitTypeCanConstructLists.clear();
-    m_unitTypeProperties.clear();
-    m_sideOfUnitType.clear();
-    m_startUnitsOfSide.clear();
+	m_initialized = false;
+	m_unitTypeCanBeConstructedtByLists.clear();
+	m_unitTypeCanConstructLists.clear();
+	m_unitTypeProperties.clear();
+	m_sideOfUnitType.clear();
+	m_startUnitsOfSide.clear();
 }
 
 bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 {
-    // prevent buildtree from beeing initialized several times
-    if(m_initialized == true)
-        return false;
+	// prevent buildtree from beeing initialized several times
+	if(m_initialized == true)
+		return false;
 
-    m_initialized = true;
+	m_initialized = true;
 
-    //-----------------------------------------------------------------------------------------------------------------
-    // get number of unit types and set up arrays
-    //-----------------------------------------------------------------------------------------------------------------
-    const int numberOfUnitTypes = cb->GetNumUnitDefs();
+	//-----------------------------------------------------------------------------------------------------------------
+	// get number of unit types and set up arrays
+	//-----------------------------------------------------------------------------------------------------------------
+	const int numberOfUnitTypes = cb->GetNumUnitDefs();
 
-    // unit ids start with 1 -> add one additional element to arrays to be able to directly access unit def with corresponding id
-    m_unitTypeCanBeConstructedtByLists.resize(numberOfUnitTypes+1);
-    m_unitTypeCanConstructLists.resize(numberOfUnitTypes+1);
-    m_unitTypeProperties.resize(numberOfUnitTypes+1);
-    m_sideOfUnitType.resize(numberOfUnitTypes+1, 0);
+	// unit ids start with 1 -> add one additional element to arrays to be able to directly access unit def with corresponding id
+	m_unitTypeCanBeConstructedtByLists.resize(numberOfUnitTypes+1);
+	m_unitTypeCanConstructLists.resize(numberOfUnitTypes+1);
+	m_unitTypeProperties.resize(numberOfUnitTypes+1);
+	m_sideOfUnitType.resize(numberOfUnitTypes+1, 0);
 
-    //-----------------------------------------------------------------------------------------------------------------
-    // get list all of unit definitions for further analysis
-    //-----------------------------------------------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------------------------------------------
+	// get list all of unit definitions for further analysis
+	//-----------------------------------------------------------------------------------------------------------------
 
-    //spring first unitdef id is 1, we remap it so id = is position in array
+	//spring first unitdef id is 1, we remap it so id = is position in array
 	std::vector<const springLegacyAI::UnitDef*> unitDefs(numberOfUnitTypes+1);
 
-    cb->GetUnitDefList(&unitDefs[1]);
+	cb->GetUnitDefList(&unitDefs[1]);
 
-    //-----------------------------------------------------------------------------------------------------------------
-    // determine build tree
-    //-----------------------------------------------------------------------------------------------------------------
-    for(int id = 1; id <= numberOfUnitTypes; ++id)
-    {
-        // determine which unit types can be constructed by the current unit type
-        for(std::map<int, std::string>::const_iterator j = unitDefs[id]->buildOptions.begin(); j != unitDefs[id]->buildOptions.end(); ++j)
-        {
-            int canConstructId = cb->GetUnitDef(j->second.c_str())->id;
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine build tree
+	//-----------------------------------------------------------------------------------------------------------------
+	for(int id = 1; id <= numberOfUnitTypes; ++id)
+	{
+		// determine which unit types can be constructed by the current unit type
+		for(std::map<int, std::string>::const_iterator j = unitDefs[id]->buildOptions.begin(); j != unitDefs[id]->buildOptions.end(); ++j)
+		{
+			int canConstructId = cb->GetUnitDef(j->second.c_str())->id;
 
-            m_unitTypeCanConstructLists[id].push_back(canConstructId);
-            m_unitTypeCanBeConstructedtByLists[canConstructId].push_back(id);
-        }
+			m_unitTypeCanConstructLists[id].push_back(canConstructId);
+			m_unitTypeCanBeConstructedtByLists[canConstructId].push_back(id);
+		}
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine "roots" of buildtrees
+	//-----------------------------------------------------------------------------------------------------------------
+	std::list<int> rootUnits;
+
+	for(int id = 1; id <= numberOfUnitTypes; ++id)
+	{
+		if(    (m_unitTypeCanConstructLists[id].size() > 0) 
+			&& (m_unitTypeCanBeConstructedtByLists[id].size() == 0) )
+		{
+			rootUnits.push_back(id);
+		}
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// assign sides to units
+	//-----------------------------------------------------------------------------------------------------------------
+	m_numberOfSides = 0;
+	m_startUnitsOfSide.resize( rootUnits.size()+1, 0);  // +1 because of neutral (side = 0) units
+
+	for(std::list<int>::iterator id = rootUnits.begin(); id != rootUnits.end(); ++id)
+	{
+		++m_numberOfSides;
+		assignSideToUnitType(m_numberOfSides, UnitDefId(*id) );
+		m_startUnitsOfSide[m_numberOfSides] = *id;
+	}
+
+	m_unitsInCategory.resize( m_numberOfSides ); // no need to create statistics for neutral units
+
+	for(int side = 0; side < m_numberOfSides; ++side)
+	{
+		m_unitsInCategory[side].resize( AAIUnitCategory::getNumberOfUnitCategories() ); 
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// set further unit type properties
+	//-----------------------------------------------------------------------------------------------------------------
+
+	for(int id = 1; id <= numberOfUnitTypes; ++id)
+	{
+		m_unitTypeProperties[id].m_totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / energyToMetalConversionFactor);
+		m_unitTypeProperties[id].m_buildtime = unitDefs[id]->buildTime;
+		m_unitTypeProperties[id].m_maxSpeed  = unitDefs[id]->speed;
+		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
+		
+		m_unitTypeProperties[id].m_movementType.setMovementType( determineMovementType(unitDefs[id]) );
+
+		// set unit category and add to corresponding unit list (if unit is not neutral)
+		AAIUnitCategory unitCategory( determineUnitCategory(unitDefs[id]) );
+		m_unitTypeProperties[id].m_unitCategory = unitCategory;
+
+		if(m_sideOfUnitType[id] > 0)
+		{
+			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.getCategoryIndex() ].push_back(id);
+		}
+
+		m_unitTypeProperties[id].m_range = determineRange(unitDefs[id], unitCategory);
     }
 
-    //-----------------------------------------------------------------------------------------------------------------
-    // determine "roots" of buildtrees
-    //-----------------------------------------------------------------------------------------------------------------
-    std::list<int> rootUnits;
+	//-----------------------------------------------------------------------------------------------------------------
+	// calculate unit category statistics
+	//-----------------------------------------------------------------------------------------------------------------
 
-    for(int id = 1; id <= numberOfUnitTypes; ++id)
-    {
-        if(    (m_unitTypeCanConstructLists[id].size() > 0) 
-            && (m_unitTypeCanBeConstructedtByLists[id].size() == 0) )
-        {
-            rootUnits.push_back(id);
-        }
-    }
+	m_unitCategoryStatisticsOfSide.resize(m_numberOfSides);
 
-    //-----------------------------------------------------------------------------------------------------------------
-    // assign sides to units
-    //-----------------------------------------------------------------------------------------------------------------
-    m_numberOfSides = 0;
-    m_startUnitsOfSide.resize( rootUnits.size()+1, 0);  // +1 because of neutral (side = 0) units
+	for(int side = 0; side < m_numberOfSides; ++side)
+	{
+		m_unitCategoryStatisticsOfSide[side].Init(m_unitTypeProperties, m_unitsInCategory[side]);
+	}
 
-    for(std::list<int>::iterator id = rootUnits.begin(); id != rootUnits.end(); ++id)
-    {
-        ++m_numberOfSides;
-        assignSideToUnitType(m_numberOfSides, UnitDefId(*id) );
-        m_startUnitsOfSide[m_numberOfSides] = *id;
-    }
+	//-----------------------------------------------------------------------------------------------------------------
+	// print info to file for debug purposes
+	//-----------------------------------------------------------------------------------------------------------------
+	std::string filename("buildtree.txt");
 
-    //-----------------------------------------------------------------------------------------------------------------
-    // set further unit type properties
-    //-----------------------------------------------------------------------------------------------------------------
-
-    for(int id = 1; id <= numberOfUnitTypes; ++id)
-    {
-        m_unitTypeProperties[id].m_totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / energyToMetalConversionFactor);
-        m_unitTypeProperties[id].m_buildtime = unitDefs[id]->buildTime;
-        m_unitTypeProperties[id].m_maxSpeed  = unitDefs[id]->speed;
-        m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
-        
-        m_unitTypeProperties[id].m_maxRange = 0.0f;
-        for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDefs[id]->weapons.begin(); w != unitDefs[id]->weapons.end(); ++w)
-        {
-            if((*w).def->range > m_unitTypeProperties[id].m_maxRange)
-                m_unitTypeProperties[id].m_maxRange = (*w).def->range;
-        }
-
-        m_unitTypeProperties[id].m_movementType.setMovementType( determineMovementType(unitDefs[id]) );
-
-		m_unitTypeProperties[id].m_unitCategory.setUnitCategory( determineUnitCategory(unitDefs[id]) );
-    }
-    
-    //-----------------------------------------------------------------------------------------------------------------
-    // print info to file for debug purposes
-    //-----------------------------------------------------------------------------------------------------------------
-    FILE* file = fopen("buildtree.txt", "w+");
-    if(file != nullptr)
-    {
-        fprintf(file, "Number of unit types: %i\n", numberOfUnitTypes);
-
-        fprintf(file, "Detected start units (aka commanders):\n");
-        for(int side = 1; side <= m_numberOfSides; ++side)
-        {
-            fprintf(file, " %s\n", unitDefs[ m_startUnitsOfSide[side] ]->name.c_str());
-        }
-
-        fprintf(file, "\nUnit Side\n");
-        for(int id = 1; id <= numberOfUnitTypes; ++id)
-        {
-            /*fprintf(file, "%s %s %i %f %u %i\n", m_unitTypeProperties[id].m_name.c_str(), 
-                                                 unitDefs[id]->name.c_str(), 
-                                                 m_sideOfUnitType[id], 
-                                                 m_unitTypeProperties[id].m_maxRange,
-                                                 static_cast<uint32_t>(m_unitTypeProperties[id].m_movementType.getMovementType()),
-                                                 static_cast<int>(m_unitTypeProperties[id].m_movementType.cannotMoveToOtherContinents()) );*/
-			fprintf(file, "%s %s %u\n", m_unitTypeProperties[id].m_name.c_str(), 
-										unitDefs[id]->name.c_str(), 
-										static_cast<uint32_t>(m_unitTypeProperties[id].m_unitCategory.getUnitCategory()));
-        }
-        fclose(file);
-    }
-    
+	printSummaryToFile(filename, unitDefs);
 
     return true;
 }
 
+void AAIBuildTree::printSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const
+{
+	FILE* file = fopen(filename.c_str(), "w+");
+
+	if(file != nullptr)
+	{
+		fprintf(file, "Number of unit types: %i\n", unitDefs.size()-1);
+
+		fprintf(file, "Detected start units (aka commanders):\n");
+		for(int side = 1; side <= m_numberOfSides; ++side)
+		{
+			fprintf(file, " %s\n", unitDefs[ m_startUnitsOfSide[side] ]->name.c_str());
+		}
+
+		fprintf(file, "\nUnit Side\n");
+		for(int id = 1; id < unitDefs.size(); ++id)
+		{
+			/*fprintf(file, "%s %s %i %f %u %i\n", m_unitTypeProperties[id].m_name.c_str(), 
+													unitDefs[id]->name.c_str(), 
+													m_sideOfUnitType[id], 
+													m_unitTypeProperties[id].m_maxRange,
+													static_cast<uint32_t>(m_unitTypeProperties[id].m_movementType.getMovementType()),
+													static_cast<int>(m_unitTypeProperties[id].m_movementType.cannotMoveToOtherContinents()) );*/
+			fprintf(file, "%s %s %u\n", m_unitTypeProperties[id].m_name.c_str(), 
+										unitDefs[id]->name.c_str(),
+										static_cast<uint32_t>(m_unitTypeProperties[id].m_unitCategory.getUnitCategory()));
+		}
+
+		fprintf(file, "\n\nUnits in each category:\n");
+
+		for(int cat = 0; cat < AAIUnitCategory::getNumberOfUnitCategories(); ++cat)
+		{
+			fprintf(file, "Unit category %i:\n", cat);
+
+			for(int side = 0; side < m_numberOfSides; ++side)
+			{
+				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].getCostStatistics(AAIUnitCategory(cat));
+				const StatisticalData& buildtime = m_unitCategoryStatisticsOfSide[side].getBuildtimeStatistics(AAIUnitCategory(cat));
+				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].getRangeStatistics(AAIUnitCategory(cat));
+
+				fprintf(file, "Side %s - Min/max/avg cost: %f/%f/%f, Min/max/avg buildtime: %f/%f/%f Min/max/avg range: %f/%f/%f\n", cfg->SIDE_NAMES[side].c_str(),
+								cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
+								buildtime.GetMinValue(), buildtime.GetMaxValue(), buildtime.GetAvgValue(),
+								range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue()); 
+				fprintf(file, "Units:");
+				for(std::list<int>::const_iterator id = m_unitsInCategory[side][cat].begin(); id != m_unitsInCategory[side][cat].end(); ++id)
+				{
+					fprintf(file, "  %s", m_unitTypeProperties[*id].m_name.c_str());
+				}
+				fprintf(file, "\n");
+			}
+		}
+		fclose(file);
+	}
+}
+
 void AAIBuildTree::assignSideToUnitType(int side, UnitDefId unitDefId)
 {
-    // avoid "visiting" unit types multiple times (if units can be constructed by more than one other unit)
-    if( m_sideOfUnitType[unitDefId.id] == 0)
-    {
-        // set side of given unit type
-        m_sideOfUnitType[unitDefId.id] = side;
+	// avoid "visiting" unit types multiple times (if units can be constructed by more than one other unit)
+	if( m_sideOfUnitType[unitDefId.id] == 0)
+	{
+		// set side of given unit type
+		m_sideOfUnitType[unitDefId.id] = side;
 
-        // continue with unit types constructed by given unit type
-        for( std::list<int>::iterator id = m_unitTypeCanConstructLists[unitDefId.id].begin(); id != m_unitTypeCanConstructLists[unitDefId.id].end(); ++id)
-        {
-            assignSideToUnitType(side, UnitDefId(*id) );
-        }
-    }
+		// continue with unit types constructed by given unit type
+		for( std::list<int>::iterator id = m_unitTypeCanConstructLists[unitDefId.id].begin(); id != m_unitTypeCanConstructLists[unitDefId.id].end(); ++id)
+		{
+			assignSideToUnitType(side, UnitDefId(*id) );
+		}
+	}
+}
+
+float AAIBuildTree::determineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory)
+{
+	float range = 0.0f;
+
+	if(   (unitCategory.isGroundCombat() == true)
+	   || (unitCategory.isHoverCombat() == true)
+	   || (unitCategory.isSeaCombat() == true)
+	   || (unitCategory.isAirCombat() == true)
+	   || (unitCategory.isMobileArtillery() == true)
+	   || (unitCategory.isStaticArtillery() == true)
+	   || (unitCategory.isStaticDefence() == true) )
+	{
+		for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDef->weapons.begin(); w != unitDef->weapons.end(); ++w)
+		{
+			if((*w).def->range > range)
+				range = (*w).def->range;
+		}
+	}
+	else if(unitCategory.isScout() == true)
+	{
+		range = unitDef->losRadius;
+	}
+	else if(unitCategory.isStaticSensor() == true)
+	{
+		range = static_cast<float>(unitDef->radarRadius) + static_cast<float>(unitDef->sonarRadius) + static_cast<float>(unitDef->seismicRadius);
+	}
+
+	return range;
 }
 
 EMovementType AAIBuildTree::determineMovementType(const springLegacyAI::UnitDef* unitDef) const
@@ -251,12 +333,12 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 		{
 			return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
 		}
-		else if(   (unitDef->energyMake > cfg->MIN_ENERGY)
+		else if(   (unitDef->energyMake > static_cast<float>(cfg->MIN_ENERGY) )
 				|| (unitDef->tidalGenerator > 0.0f)
 				|| (unitDef->windGenerator  > 0.0f) 
-				|| (unitDef->energyUpkeep < -cfg->MIN_ENERGY) )
+				|| (unitDef->energyUpkeep < static_cast<float>(-cfg->MIN_ENERGY)) )
 		{
-			if(unitDef->radarRadius == 0 && unitDef->sonarRadius == 0) // prevent radar/sonar who make some energy to be classified as power plant
+			//if(unitDef->radarRadius == 0 && unitDef->sonarRadius == 0) // prevent radar/sonar who make some energy to be classified as power plant
 			{
 				return EUnitCategory::UNIT_CATEGORY_POWER_PLANT;
 			}
@@ -285,7 +367,11 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 				}
 			}
 		}
-		else if((unitDef->sonarJamRadius > 0) || (unitDef->sonarRadius > 0) || (unitDef->jammerRadius > 0) || (unitDef->radarRadius > 0))
+		else if((unitDef->radarRadius > 0) || (unitDef->sonarRadius > 0) || (unitDef->seismicRadius > 0))
+		{
+			return EUnitCategory::UNIT_CATEGORY_STATIC_SENSOR;
+		}
+		else if((unitDef->sonarJamRadius > 0) || (unitDef->jammerRadius > 0))
 		{
 			return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
 		}
@@ -400,7 +486,7 @@ bool AAIBuildTree::IsArtillery(const springLegacyAI::UnitDef* unitDef, float art
 	if(unitDef->weapons.empty() == true)
 		return false;
 
-	if(    (m_unitTypeProperties[unitDef->id].m_maxRange > artilleryRangeThreshold)
+	if(    (m_unitTypeProperties[unitDef->id].m_range > artilleryRangeThreshold)
 	    || (unitDef->highTrajectoryType == 1) )
 		return true;
 	else

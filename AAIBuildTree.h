@@ -12,6 +12,7 @@
 
 #include "AAITypes.h"
 #include "AAIUnitTypes.h"
+#include "AAIUnitStatistics.h"
 #include "LegacyCpp/IAICallback.h"
 
 #include <list>
@@ -19,33 +20,6 @@
 
 //! @todo Make this changeable via optinal mod config file
 const float energyToMetalConversionFactor = 60.0f;
-
-//! @brief Unit Type properties needed by AAI for internal decision making (i.e. unit type selection)
-struct UnitTypeProperties
-{
-	//! Name of the unit
-	std::string m_name;
-
-	//! Cost of unit (metal + energy / conversion_factor)
-	float m_totalCost;
-
-	//! Buildtime
-	float m_buildtime;
-
-	//! max weapon range (0.f for unarmed units)
-	float m_maxRange;
-
-	//! Movement type (land, sea, air, hover, submarine, ...)
-	AAIMovementType m_movementType;
-
-	//! Maximum movement speed
-	float m_maxSpeed;
-
-	//! The category of the unit
-	AAIUnitCategory m_unitCategory;
-
-	//unsigned int unitType;
-};
 
 //! @brief This class stores the build-tree, this includes which unit builds another, to which side each unit belongs
 class AAIBuildTree
@@ -57,6 +31,9 @@ public:
 
 	//! @brief Generates buildtree for current game/mod
 	bool generate(springLegacyAI::IAICallback* cb);
+
+	//! Returns the number of unit types
+	unsigned int getNumberOfUnitTypes() const { return m_unitTypeProperties.size(); };
 
 	//! @brief Returns whether given the given unit type can be constructed by the given constructor unit type
 	bool canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const;
@@ -83,7 +60,7 @@ public:
 	const float getBuildtime(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_buildtime; };
 
 	//! @brief Return the maximum weapon range (0.0f if unarmed)
-	const float getMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxRange; };
+	const float getMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
 
 	//! @brief Returns movement type of given unit type
 	const AAIMovementType& getMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].m_movementType; };
@@ -95,11 +72,17 @@ private:
 	//! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
 	void assignSideToUnitType(int side, UnitDefId unitDefId);
 
+	//! @brief helper function to determine the range (dependent on which category the unit type belongs to)
+	float determineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory);
+	
 	//! @brief Returns movement type of given unit definition
 	EMovementType determineMovementType(const springLegacyAI::UnitDef* unitDef) const;
 
 	//! @brief Returns Unit Category for given unit definition
 	EUnitCategory determineUnitCategory(const springLegacyAI::UnitDef* unitDef) const;
+
+	//! @brief Prints summary of newly created buildtree
+	void printSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const;
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// helper functions for determineUnitCategory(...)
@@ -136,6 +119,12 @@ private:
 
 	//! The number of sides (i.e. groups of units with disjunct buildtree)
 	int                             m_numberOfSides;
+
+	//! For every side (not neutral), a list of units that belong to a certain category (order: m_unitsInCategory[side][category])
+	std::vector< std::vector< std::list<int> > > m_unitsInCategory;
+
+	//! For every side, min/max/avg values for various data (e.g. cost) for every unit category
+	std::vector< AAIUnitStatistics > m_unitCategoryStatisticsOfSide;
 };
 
 #endif
