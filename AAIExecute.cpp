@@ -303,10 +303,7 @@ void AAIExecute::BuildScouts()
 
 		if(scoutId.isValid() == true)
 		{
-			bool urgent = true;
-
-			if(ai->Getut()->activeUnits[SCOUT] > 1)
-				urgent = false;
+			bool urgent = (ai->Getut()->activeUnits[SCOUT] > 1) ? false : true;
 
 			if(AddUnitToBuildqueue(scoutId.id, 1, urgent))
 			{
@@ -426,10 +423,6 @@ list<int>* AAIExecute::GetBuildqueueOfFactory(int def_id)
 
 bool AAIExecute::AddUnitToBuildqueue(int def_id, int number, bool urgent)
 {
-	//urgent = false;
-
-	//UnitCategory category = ai->Getbt()->units_static[def_id].category;
-
 	list<int> *buildqueue = 0, *temp_buildqueue = 0;
 
 	float my_rating, best_rating = 0.0f;
