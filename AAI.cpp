@@ -440,8 +440,8 @@ void AAI::UnitFinished(int unit)
 		}
 		else if (category == STORAGE)
 		{
-			execute->futureStoredEnergy -= cb->GetUnitDef(def->id)->energyStorage;
-			execute->futureStoredMetal  -= cb->GetUnitDef(def->id)->metalStorage;
+			execute->futureStoredEnergy -= def->energyStorage;
+			execute->futureStoredMetal  -= def->metalStorage;
 		}
 		else if (category == METAL_MAKER)
 		{
