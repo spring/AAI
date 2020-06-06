@@ -18,7 +18,7 @@
 class StatisticalData
 {
 public:
-	StatisticalData() : m_minValue(0.0f), m_maxValue(0.0f), m_avgValue(0.0f), m_dataPoints(0u) {};
+	StatisticalData() : m_minValue(0.0f), m_maxValue(0.0f), m_avgValue(0.0f), m_valueRange(0.0f), m_dataPoints(0u) {};
 
 	//! Updates min and max value if necessary, adds given value to avg value
 	void AddValue(float value)
@@ -38,6 +38,14 @@ public:
 	{
 		if(m_dataPoints > 0u)
 			m_avgValue /= static_cast<float>(m_dataPoints);
+
+		if(m_dataPoints > 1u)
+		{
+			m_valueRange = m_maxValue - m_minValue;
+
+			if(m_valueRange < 0.00001f)
+				m_valueRange = 0.0f;
+		}
 	}
 
 	// getter functions
@@ -45,12 +53,32 @@ public:
 	float GetMaxValue() const { return m_maxValue; };
 	float GetAvgValue() const { return m_avgValue; };
 
+	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
+	float GetNormalizedDeviationFromMax(float value) const
+	{
+		if(m_valueRange != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
+			return (m_maxValue - value) / m_valueRange;
+		else
+			return 0.0f;
+	};
+
+	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
+	float GetNormalizedDeviationFromMin(float value) const
+	{
+		if(m_valueRange != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
+			return (value - m_minValue) / m_valueRange;
+		else
+			return 0.0f;
+	};
+
 private:
 	float m_minValue;
 
 	float m_maxValue;
 
 	float m_avgValue;
+
+	float m_valueRange;
 
 	unsigned int m_dataPoints;
 };
@@ -65,11 +93,13 @@ public:
 	//! Calculates values for given input data
 	void Init(const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<int> >& unitsInCategory);
 
-	const StatisticalData& getCostStatistics(const AAIUnitCategory& category) const { return m_costStatistics[category.getCategoryIndex()]; };
+	const StatisticalData& GetCostStatistics(const AAIUnitCategory& category) const { return m_costStatistics[category.getCategoryIndex()]; };
 
-	const StatisticalData& getBuildtimeStatistics(const AAIUnitCategory& category) const { return m_buildtimeStatistics[category.getCategoryIndex()]; };
+	const StatisticalData& GetBuildtimeStatistics(const AAIUnitCategory& category) const { return m_buildtimeStatistics[category.getCategoryIndex()]; };
 
-	const StatisticalData& getRangeStatistics(const AAIUnitCategory& category) const { return m_range[category.getCategoryIndex()]; };
+	const StatisticalData& GetRangeStatistics(const AAIUnitCategory& category) const { return m_range[category.getCategoryIndex()]; };
+
+	const StatisticalData& GetSpeedStatistics(const AAIUnitCategory& category) const { return m_speed[category.getCategoryIndex()]; };
 
 private:
 	//! Min,max,avg cost for every unit category
@@ -78,8 +108,11 @@ private:
 	//! Min,max,avg buildtime for every unit category
 	std::vector<StatisticalData> m_buildtimeStatistics;
 
-	//! Range of unit category relevant ability: max range of weapons (Combat units, artillery and static defences), line of sight (scouts), radar/sonar
+	//! Min.max,avg range of unit category relevant ability: max range of weapons (Combat units, artillery and static defences), line of sight (scouts), radar/sonar
 	std::vector<StatisticalData> m_range;
+
+	//! Min,max,avg speed for every unit category
+	std::vector<StatisticalData> m_speed;
 };
 
 #endif

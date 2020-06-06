@@ -14,6 +14,7 @@ AAIUnitStatistics::AAIUnitStatistics()
 	m_costStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
 	m_buildtimeStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
 	m_range.resize( AAIUnitCategory::getNumberOfUnitCategories() );
+	m_speed.resize( AAIUnitCategory::getNumberOfUnitCategories() );
 };
 
 AAIUnitStatistics::~AAIUnitStatistics()
@@ -21,6 +22,7 @@ AAIUnitStatistics::~AAIUnitStatistics()
 	m_costStatistics.clear();
 	m_buildtimeStatistics.clear();
 	m_range.clear();
+	m_speed.clear();
 };
 
 void AAIUnitStatistics::Init(const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<int> >& unitsInCategory)
@@ -32,11 +34,13 @@ void AAIUnitStatistics::Init(const std::vector<UnitTypeProperties>& unitProperti
 			m_buildtimeStatistics[cat].AddValue( unitProperties[*id].m_buildtime );
 			m_costStatistics[cat].AddValue( unitProperties[*id].m_totalCost );
 			m_range[cat].AddValue( unitProperties[*id].m_range );
+			m_speed[cat].AddValue( unitProperties[*id].m_maxSpeed );
 		}
 
 		// calculate average values after last value has been added
 		m_buildtimeStatistics[cat].Finalize();
 		m_costStatistics[cat].Finalize();
 		m_range[cat].Finalize();
+		m_speed[cat].Finalize();
 	}
 }

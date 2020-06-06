@@ -196,9 +196,9 @@ void AAIBuildTree::printSummaryToFile(const std::string& filename, const std::ve
 
 			for(int side = 0; side < m_numberOfSides; ++side)
 			{
-				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].getCostStatistics(AAIUnitCategory(cat));
-				const StatisticalData& buildtime = m_unitCategoryStatisticsOfSide[side].getBuildtimeStatistics(AAIUnitCategory(cat));
-				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].getRangeStatistics(AAIUnitCategory(cat));
+				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetCostStatistics(AAIUnitCategory(cat));
+				const StatisticalData& buildtime = m_unitCategoryStatisticsOfSide[side].GetBuildtimeStatistics(AAIUnitCategory(cat));
+				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetRangeStatistics(AAIUnitCategory(cat));
 
 				fprintf(file, "Side %s - Min/max/avg cost: %f/%f/%f, Min/max/avg buildtime: %f/%f/%f Min/max/avg range: %f/%f/%f\n", cfg->SIDE_NAMES[side].c_str(),
 								cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 

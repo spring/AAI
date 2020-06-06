@@ -68,6 +68,12 @@ public:
 	//! @brief Return the maximum speed
 	const float getMaxSpeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; };
 
+	//! @brief Returns the list of units of the given category for given side
+	const std::list<int>& getUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.getCategoryIndex()]; };
+
+	//! @brief Returns the unit category statistics for given side
+	const AAIUnitStatistics& getUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; };
+
 private:
 	//! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
 	void assignSideToUnitType(int side, UnitDefId unitDefId);
