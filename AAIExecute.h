@@ -49,6 +49,8 @@ public:
 
 	void SendScoutToNewDest(int scout);
 
+	unsigned int GetLinkingBuildTaskToBuilderFailedCounter() const { return m_linkingBuildTaskToBuilderFailed; };
+
 	//! @brief Searches for a position to retreat unit of certain type
 	float3 determineSafePos(UnitDefId unitDefId, float3 unit_pos);
 
@@ -223,6 +225,9 @@ private:
 
 	// stores which buildque belongs to what kind of factory
 	vector<int> factory_table;
+
+	//! Number of times a building was created but no suitable builder could be identfied.
+	unsigned int m_linkingBuildTaskToBuilderFailed;
 };
 
 #endif

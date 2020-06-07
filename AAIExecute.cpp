@@ -30,7 +30,8 @@ float AAIExecute::current = 0.5;
 float AAIExecute::learned = 2.5;
 
 
-AAIExecute::AAIExecute(AAI *ai)
+AAIExecute::AAIExecute(AAI *ai) :
+	m_linkingBuildTaskToBuilderFailed(0u)
 {
 	issued_orders = 0;
 
@@ -149,17 +150,26 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 	// find builder and associate building with that builder
 	task->builder_id = -1;
 
+	bool builderFound = false;
+
 	for(set<int>::iterator i = ai->Getut()->constructors.begin(); i != ai->Getut()->constructors.end(); ++i)
 	{
-		const float3& buildPos = ai->Getut()->units[*i].cons->GetBuildPos();
-
-		if(buildPos.x == pos->x && buildPos.z == pos->z)
+		if(ai->Getut()->units[*i].cons->IsHeadingToBuildsite() == true)
 		{
-			task->builder_id = ai->Getut()->units[*i].cons->m_myUnitId.id;
-			ai->Getut()->units[*i].cons->ConstructionStarted(unitId, task);
-			break;
+			const float3& buildPos = ai->Getut()->units[*i].cons->GetBuildPos();
+
+			if((fabs(buildPos.x - pos->x) < 9.0f) && (fabs(buildPos.z - pos->z) < 9.0f))
+			{
+				builderFound = true;
+				task->builder_id = ai->Getut()->units[*i].cons->m_myUnitId.id;
+				ai->Getut()->units[*i].cons->ConstructionStarted(unitId, task);
+				break;
+			}
 		}
 	}
+
+	if(builderFound == false)
+		++m_linkingBuildTaskToBuilderFailed;
 }
 
 bool AAIExecute::InitBuildingAt(const UnitDef *def, float3 *pos, bool water)

@@ -82,6 +82,9 @@ public:
 	//! @brief Returns whether constructor is currently idle (-> not building anything or assisting) @todo: check for heading to buildsite/reclaiming
 	bool IsIdle() const { return m_activity.IsIdle(); }; //  (assistance < 0) && (m_constructedUnitId.isValid() == false); };
 
+	//! @brief Returns true if builder is currently heading to buildsite
+	bool IsHeadingToBuildsite() const { return m_activity.IsHeadingToBuildsite(); };
+
 	//! @brief A constructor is considered as available if idle/occupied with lower priority tasks suchs as assisting/reclaiming
 	bool IsAvailableForConstruction() const { return (m_activity.IsCarryingOutConstructionOrder() == false); };
 
@@ -117,7 +120,6 @@ public:
 
 	//! @brief Return the position where a building has been placed
 	const float3& GetBuildPos() const { return m_buildPos; };
-
 
 	int buildspeed;
 

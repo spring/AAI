@@ -66,7 +66,7 @@ void AAIConstructor::Idle()
 
 	if(m_isBuilder)
 	{
-		if(m_activity.IsConstructing() == true)
+		if(m_activity.IsCarryingOutConstructionOrder() == true)
 		{
 			if(m_constructedUnitId.isValid() == false)
 			{
@@ -158,7 +158,7 @@ void AAIConstructor::Update()
 
 	if(m_isBuilder)
 	{
-		if(m_activity.IsConstructing() == true)
+		if(m_activity.IsCarryingOutConstructionOrder() == true)
 		{
 			// if building has begun, check for possible assisters
 			if(m_constructedUnitId.isValid() == true)
@@ -354,7 +354,7 @@ void AAIConstructor::GiveConstructionOrder(int id_building, float3 pos, bool wat
 		m_buildPos = pos;
 		m_constructedDefId.id = id_building;
 		assert(m_constructedUnitId.isValid());
-		m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
+		m_activity.SetActivity(EConstructorActivity::HEADING_TO_BUILDSITE);
 		construction_category = ai->Getbt()->units_static[id_building].category;
 
 		// order builder to construct building
@@ -395,8 +395,8 @@ void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 		m_assistUnitId.invalidate();
 	}
 
-	m_constructedDefId.id  = build_task->unit_id;
-	m_constructedUnitId.id = build_task->def_id;
+	m_constructedDefId.id  = build_task->def_id;
+	m_constructedUnitId.id = build_task->unit_id;
 	assert(m_constructedDefId.isValid());
 	assert(m_constructedUnitId.isValid());
 
@@ -412,7 +412,7 @@ void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 
 void AAIConstructor::CheckIfConstructionFailed()
 {
-	if( (m_activity.IsConstructing() == true) && (m_constructedUnitId.isValid() == false))
+	if( (m_activity.IsCarryingOutConstructionOrder() == true) && (m_constructedUnitId.isValid() == false))
 	{
 		ConstructionFailed();
 	}
