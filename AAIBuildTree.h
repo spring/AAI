@@ -71,6 +71,9 @@ public:
 	//! @brief Returns the list of units of the given category for given side
 	const std::list<int>& getUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.getCategoryIndex()]; };
 
+	//! @brief Returns the list of units of the given combat category for given side
+	const std::list<int>& getUnitsInCombatCategory(const AAICombatCategory& category, int side) const { return m_unitsInCombatCategory[side-1][category.GetCategoryIndex()]; };
+
 	//! @brief Returns the unit category statistics for given side
 	const AAIUnitStatistics& getUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; };
 
@@ -128,6 +131,9 @@ private:
 
 	//! For every side (not neutral), a list of units that belong to a certain category (order: m_unitsInCategory[side][category])
 	std::vector< std::vector< std::list<int> > > m_unitsInCategory;
+
+	//! For every side (not neutral), a list of units that belong to a certain combat category (order: m_unitsInCategory[side][category])
+	std::vector< std::vector< std::list<int> > > m_unitsInCombatCategory;
 
 	//! For every side, min/max/avg values for various data (e.g. cost) for every unit category
 	std::vector< AAIUnitStatistics > m_unitCategoryStatisticsOfSide;

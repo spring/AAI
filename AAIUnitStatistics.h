@@ -91,28 +91,48 @@ public:
 	~AAIUnitStatistics();
 
 	//! Calculates values for given input data
-	void Init(const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<int> >& unitsInCategory);
+	void Init(const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<int> >& unitsInCategory, const std::vector< std::list<int> >& unitsInCombatCategory);
 
-	const StatisticalData& GetCostStatistics(const AAIUnitCategory& category) const { return m_costStatistics[category.getCategoryIndex()]; };
+	const StatisticalData& GetUnitCostStatistics(const AAIUnitCategory& category) const { return m_unitCostStatistics[category.getCategoryIndex()]; };
 
-	const StatisticalData& GetBuildtimeStatistics(const AAIUnitCategory& category) const { return m_buildtimeStatistics[category.getCategoryIndex()]; };
+	const StatisticalData& GetUnitBuildtimeStatistics(const AAIUnitCategory& category) const { return m_unitBuildtimeStatistics[category.getCategoryIndex()]; };
 
-	const StatisticalData& GetRangeStatistics(const AAIUnitCategory& category) const { return m_range[category.getCategoryIndex()]; };
+	const StatisticalData& GetUnitPrimaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitPrimaryAbilityStatistics[category.getCategoryIndex()]; };
 
-	const StatisticalData& GetSpeedStatistics(const AAIUnitCategory& category) const { return m_speed[category.getCategoryIndex()]; };
+	const StatisticalData& GetUnitSecondaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitSecondaryAbilityStatistics[category.getCategoryIndex()]; };
+	
+	const StatisticalData& GetCombatCostStatistics(const AAICombatCategory& category) const { return m_combatCostStatistics[category.GetCategoryIndex()]; };
+
+	const StatisticalData& GetCombatBuildtimeStatistics(const AAICombatCategory& category) const { return m_combatBuildtimeStatistics[category.GetCategoryIndex()]; };
+
+	const StatisticalData& GetCombatRangeStatistics(const AAICombatCategory& category) const { return m_combatRangeStatistics[category.GetCategoryIndex()]; };
+
+	const StatisticalData& GetCombatSpeedStatistics(const AAICombatCategory& category) const { return m_combatSpeedStatistics[category.GetCategoryIndex()]; };
 
 private:
 	//! Min,max,avg cost for every unit category
-	std::vector<StatisticalData> m_costStatistics;
+	std::vector<StatisticalData> m_unitCostStatistics;
 	
 	//! Min,max,avg buildtime for every unit category
-	std::vector<StatisticalData> m_buildtimeStatistics;
+	std::vector<StatisticalData> m_unitBuildtimeStatistics;
 
-	//! Min.max,avg range of unit category relevant ability: max range of weapons (Combat units, artillery and static defences), line of sight (scouts), radar/sonar
-	std::vector<StatisticalData> m_range;
+	//! Min,max,avg:  sight range for scouts, radar/sonar/artillery range, build 
+	std::vector<StatisticalData> m_unitPrimaryAbilityStatistics;
 
-	//! Min,max,avg speed for every unit category
-	std::vector<StatisticalData> m_speed;
+	//! Min,max,avg:  speed for scouts, mobile constructors, mobile artillery
+	std::vector<StatisticalData> m_unitSecondaryAbilityStatistics;
+
+	//! Min,max,avg cost for every unit category
+	std::vector<StatisticalData> m_combatCostStatistics;
+	
+	//! Min,max,avg buildtime for every unit category
+	std::vector<StatisticalData> m_combatBuildtimeStatistics;
+
+	//! Min.max,avg range of combat unit category
+	std::vector<StatisticalData> m_combatRangeStatistics;
+
+	//! Min,max,avg speed for every combat unit category
+	std::vector<StatisticalData> m_combatSpeedStatistics;
 };
 
 #endif

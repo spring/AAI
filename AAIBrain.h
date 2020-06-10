@@ -11,12 +11,13 @@
 #define AAI_BRAIN_H
 
 class AAI;
-class AAIBuildTable;
 class AAIExecute;
 class AIIMap;
 class AAISector;
 
 #include "aidef.h"
+#include "AAIUnitTypes.h"
+#include "AAIBuildTable.h"
 
 enum SectorType {UNKNOWN_SECTOR, LAND_SECTOR, LAND_WATER_SECTOR, WATER_SECTOR};
 
@@ -124,12 +125,14 @@ private:
 	// returns true if sector is considered to be safe
 	bool IsSafeSector(AAISector *sector);
 
-	void BuildUnitOfMovementType(uint32_t allowedMoveTypes, float cost, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, bool urgent);
+	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatVsCriteria& combatCriteria, bool urgent);
 
 	bool SectorInList(list<AAISector*> mylist, AAISector *sector);
 	list<AAISector*> GetSectors();
 	vector<float> defence_power_vs;
-	vector<float> attacked_by;
+
+	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
+	std::vector<float> recentlyAttackedByCategory;
 
 	AAI *ai;
 };

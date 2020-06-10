@@ -32,7 +32,7 @@ AAIBrain::AAIBrain(AAI *ai)
 	base_center = ZeroVector;
 
 	max_combat_units_spotted.resize(AAIBuildTable::ass_categories, 0);
-	attacked_by.resize(AAIBuildTable::combat_categories, 0);
+	recentlyAttackedByCategory.resize(AAIBuildTable::combat_categories, 0);
 	defence_power_vs.resize(AAIBuildTable::ass_categories, 0);
 
 	enemy_pressure_estimation = 0;
@@ -529,14 +529,14 @@ void AAIBrain::UpdateAttackedByValues()
 {
 	for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
 	{
-		attacked_by[i] *= 0.96f;
+		recentlyAttackedByCategory[i] *= 0.95f;
 	}
 }
 
 void AAIBrain::AttackedBy(int combat_category_id)
 {
 	// update counter for current game
-	attacked_by[combat_category_id] += 1;
+	recentlyAttackedByCategory[combat_category_id] += 1.0f;
 
 	// update counter for memory dependent on playtime
 	ai->Getbt()->attacked_by_category_current[GetGamePeriod()][combat_category_id] += 1.0f;
@@ -661,36 +661,98 @@ float AAIBrain::Affordable()
 
 void AAIBrain::BuildUnits()
 {
-	//int side = ai->Getside()-1;
 	bool urgent = false;
-	int k;
-	uint32_t allowedMoveTypes = 0u;
 
-	float cost = 1.0f + Affordable()/12.0f;
+	int gamePhase = GetGamePeriod();
 
-	float ground_eff = 0;
-	float air_eff = 0;
-	float hover_eff = 0;
-	float sea_eff = 0;
-	float stat_eff = 0;
-	float submarine_eff = 0;
+	//-----------------------------------------------------------------------------------------------------------------
+	// Calculate threat by and defence vs. the different combat categories
+	//-----------------------------------------------------------------------------------------------------------------
+	float attackedByCategory[AAIBuildTable::ass_categories];
+	StatisticalData attackedByCatStatistics;
+	StatisticalData unitsSpottedStatistics;
+	StatisticalData defenceStatistics;
 
-	int anti_air_urgency;
-	int anti_sea_urgency;
-	int anti_ground_urgency;
-	int anti_hover_urgency;
-	int anti_submarine_urgency;
+	for(int cat = 0; cat < AAIBuildTable::ass_categories; ++cat)
+	{
+		attackedByCategory[cat] = GetAttacksBy(cat, gamePhase) + recentlyAttackedByCategory[cat];
+		attackedByCatStatistics.AddValue( attackedByCategory[cat] );
 
-	// determine elapsed game time
-	int game_period = GetGamePeriod();
+		unitsSpottedStatistics.AddValue(max_combat_units_spotted[cat]);
+		defenceStatistics.AddValue(defence_power_vs[cat]);
 
-	float ground = GetAttacksBy(0, game_period);
-	float air = GetAttacksBy(0, game_period);
-	float hover = GetAttacksBy(0, game_period);
-	float sea = GetAttacksBy(0, game_period);
-	float submarine = GetAttacksBy(0, game_period);
+	}
 
-	if(cfg->AIR_ONLY_MOD)
+	attackedByCatStatistics.Finalize();
+	unitsSpottedStatistics.Finalize();
+	defenceStatistics.Finalize();
+
+	
+	//-----------------------------------------------------------------------------------------------------------------
+	// Calculate urgency to counter each of the different combat categories
+	//-----------------------------------------------------------------------------------------------------------------
+	float urgency[AAIBuildTable::ass_categories];
+
+	for(int cat = 0; cat < AAIBuildTable::ass_categories; ++cat)
+	{
+		urgency[cat] =    attackedByCatStatistics.GetNormalizedDeviationFromMin(attackedByCategory[cat]) 
+	                    + unitsSpottedStatistics.GetNormalizedDeviationFromMin(max_combat_units_spotted[cat])
+	                    + 1.5f * defenceStatistics.GetNormalizedDeviationFromMax(defence_power_vs[cat]);
+	}
+								 
+
+	CombatVsCriteria combatCriteria;
+	combatCriteria.efficiencyVsGround    = urgency[0];
+	combatCriteria.efficiencyVsAir       = urgency[1];
+	combatCriteria.efficiencyVsHover     = urgency[2];
+	combatCriteria.efficiencyVsSea       = urgency[3];
+	combatCriteria.efficiencyVsSubmarine = urgency[4];
+	combatCriteria.efficiencyVSBuildings = urgency[0] + urgency[3];
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// Order building of units according to determined threat/own defence capabilities
+	//-----------------------------------------------------------------------------------------------------------------
+
+	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
+	{
+		// choose unit category dependend on map type
+		if(ai->Getmap()->map_type == LAND_MAP)
+		{
+			AAICombatCategory unitCategory(ECombatUnitCategory::COMBAT_CATEGORY_GROUND);
+		
+			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && gamePhase > 0)
+				unitCategory.setCategory(ECombatUnitCategory::COMBAT_CATEGORY_AIR);
+
+			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
+		}
+		else if(ai->Getmap()->map_type == LAND_WATER_MAP)
+		{
+			//! @todo Add selection of Submarines
+			int groundRatio = static_cast<int>(100.0f * ai->Getmap()->land_ratio);
+			AAICombatCategory unitCategory(ECombatUnitCategory::COMBAT_CATEGORY_GROUND);
+
+			if(rand()%100 < groundRatio)
+				unitCategory.setCategory(ECombatUnitCategory::COMBAT_CATEGORY_FLOATER);
+
+			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && gamePhase > 0)
+				unitCategory.setCategory(ECombatUnitCategory::COMBAT_CATEGORY_AIR);
+			
+
+			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
+		}
+		else if(ai->Getmap()->map_type == WATER_MAP)
+		{
+			//! @todo Add selection of Submarines
+			AAICombatCategory unitCategory(ECombatUnitCategory::COMBAT_CATEGORY_FLOATER);
+
+			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && gamePhase > 0)
+				unitCategory.setCategory(ECombatUnitCategory::COMBAT_CATEGORY_AIR);
+
+			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
+		}
+	}
+	
+	/*if(cfg->AIR_ONLY_MOD)
 	{
 		// determine effectiveness vs several other units
 		anti_ground_urgency = (int)( 2 + (0.05f + ground) * (2.0f * attacked_by[0] + 1.0f) * (4.0f * max_combat_units_spotted[0] + 0.2f) / (4.0f * defence_power_vs[0] + 1));
@@ -728,409 +790,90 @@ void AAIBrain::BuildUnits()
 
 			BuildUnitOfMovementType(allowedMoveTypes, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff, stat_eff, urgent);
 		}
-	}
-	else
-	{
-		// choose unit category dependend on map type
-		if(ai->Getmap()->map_type == LAND_MAP)
-		{
-			// determine effectiveness vs several other units
-			anti_ground_urgency = (int)( 2 + (0.1f + ground) * (attacked_by[0] + 1.0f) * (4.0f * max_combat_units_spotted[0] + 0.2f) / (4.0f * defence_power_vs[0] + 1));
-			anti_air_urgency = (int)( 2 + (0.1f + air) * (attacked_by[1] + 1.0f) * (4.0f * max_combat_units_spotted[1] + 0.2f) / (4.0f * defence_power_vs[1] + 1));
-			anti_hover_urgency = (int)( 2 + (0.1f + hover) * (attacked_by[2] + 1.0f) * (4.0f * max_combat_units_spotted[2] + 0.2f) / (4.0f * defence_power_vs[2] + 1));
-
-			for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
-			{
-				ground_eff = 0;
-				air_eff = 0;
-				hover_eff = 0;
-				stat_eff = 0;
-
-				// determine unit type
-				if(rand()%(cfg->AIRCRAFT_RATE * 100) < 100)
-				{
-					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR);
-
-					k = rand()%1024;
-
-					if(k < 384)
-					{
-						ground_eff = 4;
-						hover_eff = 1;
-					}
-					else if(k < 640)
-					{
-						air_eff = 4;
-					}
-					else
-					{
-						stat_eff = 4;
-					}
-				}
-				else
-				{
-					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
-					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
-
-					k = rand()%(anti_ground_urgency + anti_air_urgency + anti_hover_urgency);
-
-					if(k < anti_ground_urgency)
-					{
-						stat_eff = 2;
-						ground_eff = 5;
-						hover_eff = 1;
-					}
-					else if(k < anti_ground_urgency + anti_air_urgency)
-					{
-						air_eff = 4;
-
-						if(anti_air_urgency > 2.0f * anti_ground_urgency)
-							urgent = true;
-					}
-					else
-					{
-						ground_eff = 1;
-						hover_eff = 4;
-					}
-				}
-
-				BuildUnitOfMovementType(allowedMoveTypes, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff, stat_eff, urgent);
-			}
-		}
-		else if(ai->Getmap()->map_type == LAND_WATER_MAP)
-		{
-			// determine effectiveness vs several other units
-			anti_ground_urgency = (int)( 2 + (0.1f + ground) * (2.0f * attacked_by[0] + 1.0f) * (4.0f * max_combat_units_spotted[0] + 0.2f) / (4.0f * defence_power_vs[0] + 1));
-			anti_air_urgency = (int)( 2 + (0.1f + air) * (2.0f * attacked_by[1] + 1.0f) * (4.0f * max_combat_units_spotted[1] + 0.2f) / (4.0f * defence_power_vs[1] + 1));
-			anti_hover_urgency = (int)( 2 + (0.1f + hover) * (2.0f * attacked_by[2] + 1.0f) * (4.0f * max_combat_units_spotted[2] + 0.2f) / (4.0f * defence_power_vs[2] + 1));
-			anti_sea_urgency = (int) (2 + (0.1f + sea) * (2.0f * attacked_by[3] + 1.0f) * (4.0f * max_combat_units_spotted[3] + 0.2f) / (4.0f * defence_power_vs[3] + 1));
-			anti_submarine_urgency = (int)( 2 + (0.1f + submarine) * (2.0f * attacked_by[4] + 1.0f) * (4.0f * max_combat_units_spotted[4] + 0.2f) / (4.0f * defence_power_vs[4] + 1));
-
-			for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
-			{
-				ground_eff = 0;
-				air_eff = 0;
-				hover_eff = 0;
-				sea_eff = 0;
-				submarine_eff = 0;
-				stat_eff = 0;
-
-
-				if(rand()%(cfg->AIRCRAFT_RATE * 100) < 100)
-				{
-					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR);
-
-					if(rand()%1000 < 333)
-					{
-						ground_eff = 4;
-						hover_eff = 1;
-						sea_eff = 2;
-					}
-					else if(rand()%1000 < 333)
-					{
-						air_eff = 4;
-					}
-					else
-					{
-						stat_eff = 4;
-					}
-
-				}
-				else
-				{
-					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
-
-					k = rand()%(anti_ground_urgency + anti_air_urgency + anti_hover_urgency + anti_sea_urgency + anti_submarine_urgency);
-
-					if(k < anti_ground_urgency)
-					{
-						stat_eff = 2;
-						ground_eff = 5;
-						hover_eff = 1;
-						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
-					}
-					else if(k < anti_ground_urgency + anti_air_urgency)
-					{
-						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
-						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
-
-						air_eff = 4;
-
-						if(anti_air_urgency > 2.0f * anti_ground_urgency)
-							urgent = true;
-					}
-					else if(k < anti_ground_urgency + anti_air_urgency + anti_hover_urgency)
-					{
-						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
-						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
-
-						ground_eff = 1;
-						hover_eff = 4;
-					}
-					else if(k < anti_ground_urgency + anti_air_urgency + anti_hover_urgency + anti_sea_urgency)
-					{
-						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
-						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
-						hover_eff = 1;
-						sea_eff = 4;
-						submarine_eff = 1;
-					}
-					else
-					{
-						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
-						allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
-						submarine_eff = 4;
-						sea_eff = 1;
-					}
-				}
-
-				BuildUnitOfMovementType(allowedMoveTypes, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff,stat_eff, urgent);
-			}
-		}
-		else if(ai->Getmap()->map_type == WATER_MAP)
-		{
-			// determine effectiveness vs several other units
-			anti_air_urgency = (int)( 2 + (0.1f + air) * (2.0f * attacked_by[1] + 1.0f) * (4.0f * max_combat_units_spotted[1] + 0.2f) / (4.0f * defence_power_vs[1] + 1));
-			anti_hover_urgency = (int)( 2 + (0.1f + hover) * (2.0f * attacked_by[2] + 1.0f) * (4.0f * max_combat_units_spotted[2] + 0.2f) / (4.0f * defence_power_vs[2] + 1));
-			anti_sea_urgency = (int) (2 + (0.1f + sea) * (2.0f * attacked_by[3] + 1.0f) * (4.0f * max_combat_units_spotted[3] + 0.2f) / (4.0f * defence_power_vs[3] + 1));
-			anti_submarine_urgency = (int)( 2 + (0.1f + submarine) * (2.0f * attacked_by[4] + 1.0f) * (4.0f * max_combat_units_spotted[4] + 0.2f) / (4.0f * defence_power_vs[4] + 1));
-
-			for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
-			{
-				air_eff = 0;
-				hover_eff = 0;
-				sea_eff = 0;
-				submarine_eff = 0;
-				stat_eff = 0;
-
-				if(rand()%(cfg->AIRCRAFT_RATE * 100) < 100)
-				{
-					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR);
-
-					if(rand()%1000 < 333)
-					{
-						sea_eff = 4;
-						hover_eff = 2;
-					}
-					else if(rand()%1000 < 333)
-						air_eff = 4;
-					else
-						stat_eff = 4;
-				}
-				else
-				{
-					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
-					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
-					allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
-
-					k = rand()%(anti_sea_urgency + anti_air_urgency + anti_hover_urgency + anti_submarine_urgency);
-
-					if(k < anti_air_urgency)
-					{
-						air_eff = 4;
-
-						if(anti_air_urgency > anti_sea_urgency)
-							urgent = true;
-					}
-					else if(k < anti_hover_urgency + anti_air_urgency)
-					{
-						sea_eff = 1;
-						hover_eff = 5;
-					}
-					else if(k < anti_hover_urgency + anti_air_urgency + anti_submarine_urgency)
-					{
-						submarine_eff = 4;
-						sea_eff = 1;
-					}
-					else
-					{
-						hover_eff = 1;
-						sea_eff = 5;
-						submarine_eff = 1;
-					}
-				}
-
-				BuildUnitOfMovementType(allowedMoveTypes, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff,stat_eff, urgent);
-			}
-		}
-	}
+	}*/
 }
 
-void AAIBrain::BuildUnitOfMovementType(uint32_t allowedMoveTypes, float cost, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, bool urgent)
+void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatVsCriteria& combatCriteria, bool urgent)
 {
-	float speed = 0;
-	float range = 0;
-	float power = 2;
-	float eff = 2;
+	UnitSelectionCriteria unitCriteria;
+	unitCriteria.speed      = 0.25f;
+	unitCriteria.range      = 0.25f;
+	unitCriteria.cost       = 0.5f;
+	unitCriteria.power      = 1.0f;
+	unitCriteria.efficiency = 1.0f;
 
-	// determine speed, range & eff
-	if(rand()%cfg->FAST_UNITS_RATE == 1)
+	int gamePhase = GetGamePeriod();
+
+	// prefer cheaper but effective units in the first few minutes
+	if(gamePhase < 1)
 	{
-		if(rand()%2 == 1)
-			speed = 1;
-		else
-			speed = 2;
+		unitCriteria.cost       = 2.0f;
+		unitCriteria.efficiency = 2.0f;
 	}
 	else
-		speed = 0.1f;
-
-	if(rand()%cfg->HIGH_RANGE_UNITS_RATE == 1)
 	{
-		const int t = rand()%1000;
-
-		if(t < 350)
-			range = 0.75;
-		else if(t == 700)
-			range = 1.3f;
-		else
-			range = 1.7f;
-	}
-	else
-		range = 0.1f;
-
-	if(rand()%3 == 1)
-		power = 4;
-
-	if(rand()%3 == 1)
-		eff = 4;
-
-	// start selection
-	int unit = 0, ground = 0, hover = 0;
-
-	if(allowedMoveTypes & static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR) )
-	{
-		if(rand()%cfg->LEARN_RATE == 1)
-			unit = ai->Getbt()->GetRandomUnit(ai->Getbt()->units_of_category[AIR_ASSAULT][ai->Getside()-1]);
-		else
+		// determine speed, range & eff
+		if(rand()%cfg->FAST_UNITS_RATE == 1)
 		{
-			unit = ai->Getbt()->GetAirAssault(ai->Getside(), power, ground_eff, air_eff, hover_eff, sea_eff, stat_eff, eff, speed, range, cost, 9, false);
-
-			if(unit && ai->Getbt()->units_dynamic[unit].constructorsAvailable + ai->Getbt()->units_dynamic[unit].constructorsRequested <= 0)
-			{
-				ai->Getbt()->BuildFactoryFor(unit);
-				unit = ai->Getbt()->GetAirAssault(ai->Getside(), power, ground_eff, air_eff, hover_eff, sea_eff, stat_eff, eff, speed, range, cost, 9, true);
-			}
-		}
-	}
-
-	if(allowedMoveTypes & static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND))
-	{
-		// choose random unit (to learn more)
-		if(rand()%cfg->LEARN_RATE == 1)
-			ground = ai->Getbt()->GetRandomUnit(ai->Getbt()->units_of_category[GROUND_ASSAULT][ai->Getside()-1]);
-		else
-		{
-			ground = ai->Getbt()->GetGroundAssault(ai->Getside(), power, ground_eff, air_eff, hover_eff, sea_eff, stat_eff, eff, speed, range, cost, 15, false);
-
-			if(ground && ai->Getbt()->units_dynamic[ground].constructorsAvailable + ai->Getbt()->units_dynamic[ground].constructorsRequested <= 0)
-			{
-				ai->Getbt()->BuildFactoryFor(ground);
-				ground = ai->Getbt()->GetGroundAssault(ai->Getside(), power, ground_eff, air_eff, hover_eff, sea_eff, stat_eff, eff, speed, range, cost, 15, true);
-			}
-		}
-	}
-
-	if(allowedMoveTypes & static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER))
-	{
-		if(rand()%cfg->LEARN_RATE == 1)
-			hover = ai->Getbt()->GetRandomUnit(ai->Getbt()->units_of_category[HOVER_ASSAULT][ai->Getside()-1]);
-		else
-		{
-			hover = ai->Getbt()->GetHoverAssault(ai->Getside(), power, ground_eff, air_eff, hover_eff, sea_eff, stat_eff, eff, speed, range, cost, 9, false);
-
-			if(hover && ai->Getbt()->units_dynamic[hover].constructorsAvailable + ai->Getbt()->units_dynamic[hover].constructorsRequested <= 0)
-			{
-				ai->Getbt()->BuildFactoryFor(hover);
-				hover = ai->Getbt()->GetHoverAssault(ai->Getside(), power, ground_eff, air_eff, hover_eff, sea_eff, stat_eff, eff, speed, range, cost, 9, true);
-			}
-		}
-	}
-
-	// @todo: submarines are not handled separately 
-	if(allowedMoveTypes & static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER))
-	{
-		int ship, submarine;
-
-		if(rand()%cfg->LEARN_RATE == 1)
-		{
-			ship = ai->Getbt()->GetRandomUnit(ai->Getbt()->units_of_category[SEA_ASSAULT][ai->Getside()-1]);
-			submarine = ai->Getbt()->GetRandomUnit(ai->Getbt()->units_of_category[SUBMARINE_ASSAULT][ai->Getside()-1]);
-		}
-		else
-		{
-			ship = ai->Getbt()->GetSeaAssault(ai->Getside(), power, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff, stat_eff, eff, speed, range, cost, 9, false);
-
-			if(ship && ai->Getbt()->units_dynamic[ship].constructorsAvailable + ai->Getbt()->units_dynamic[ship].constructorsRequested <= 0)
-			{
-				ai->Getbt()->BuildFactoryFor(ship);
-				ship = ai->Getbt()->GetSeaAssault(ai->Getside(), power, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff, stat_eff, eff, speed, range, cost, 9, false);
-			}
-
-			submarine = ai->Getbt()->GetSubmarineAssault(ai->Getside(), power, sea_eff, submarine_eff, stat_eff, eff, speed, range, cost, 9, false);
-
-			if(submarine && ai->Getbt()->units_dynamic[submarine].constructorsAvailable + ai->Getbt()->units_dynamic[submarine].constructorsRequested <= 0)
-			{
-				ai->Getbt()->BuildFactoryFor(submarine);
-				submarine = ai->Getbt()->GetSubmarineAssault(ai->Getside(), power, sea_eff, submarine_eff, stat_eff, eff, speed, range, cost, 9, false);
-			}
-		}
-
-		// determine better unit for desired purpose
-		if(ship)
-		{
-			if(submarine)
-				unit = ai->Getbt()->DetermineBetterUnit(ship, submarine, 0, air_eff, hover_eff, sea_eff, submarine_eff, speed, range, cost);
+			if(rand()%2 == 1)
+				unitCriteria.speed = 1.0f;
 			else
-				unit = ship;
+				unitCriteria.speed = 2.0f;
 		}
-		else if(submarine)
-			unit = submarine;
-	}
 
-	// ground and hover assault
-	if(ground)
-	{
-		if(hover)
-			unit = ai->Getbt()->DetermineBetterUnit(ground, hover, ground_eff, air_eff, hover_eff, sea_eff, 0, speed, range, cost);
-		else
-			unit = ground;
-	}
-	// hover and sea
-	else if(hover)
-	{
-		if(unit)
-			unit =  ai->Getbt()->DetermineBetterUnit(unit, hover, 0, air_eff, hover_eff, sea_eff, submarine_eff, speed, range, cost);
-		else
-			unit = hover;
-	}
-
-	if(unit)
-	{
-		if(ai->Getbt()->units_dynamic[unit].constructorsAvailable > 0)
+		if(rand()%cfg->HIGH_RANGE_UNITS_RATE == 1)
 		{
-			if(ai->Getbt()->units_static[unit].cost < cfg->MAX_COST_LIGHT_ASSAULT * ai->Getbt()->max_cost[ai->Getbt()->units_static[unit].category][ai->Getside()-1])
+			const int t = rand()%1000;
+
+			if(t < 350)
+				unitCriteria.range = 0.5f;
+			else if(t == 700)
+				unitCriteria.range = 1.0f;
+			else
+				unitCriteria.range = 1.5f;
+		}
+
+		if(rand()%3 == 1)
+			unitCriteria.power = 2.0f;
+	}
+
+	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->Getside(), unitCategory, combatCriteria, unitCriteria, 6, false);
+
+	if( (unitDefId.isValid() == true) && (ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0) )
+	{
+		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
+			ai->Getbt()->BuildFactoryFor(unitDefId.id);
+
+		unitDefId = ai->Getbt()->SelectCombatUnit(ai->Getside(), unitCategory, combatCriteria, unitCriteria, 6, true);
+	}
+
+	if(unitDefId.isValid() == true)
+	{
+		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable > 0)
+		{
+			if(ai->Getbt()->units_static[unitDefId.id].cost < cfg->MAX_COST_LIGHT_ASSAULT * ai->Getbt()->max_cost[ai->Getbt()->units_static[unitDefId.id].category][ai->Getside()-1])
 			{
-				if(ai->Getexecute()->AddUnitToBuildqueue(unit, 3, urgent))
+				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId.id, 3, urgent))
 				{
-					ai->Getbt()->units_dynamic[unit].requested += 3;
-					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unit].category, 3);
+					ai->Getbt()->units_dynamic[unitDefId.id].requested += 3;
+					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unitDefId.id].category, 3);
 				}
 			}
-			else if(ai->Getbt()->units_static[unit].cost < cfg->MAX_COST_MEDIUM_ASSAULT * ai->Getbt()->max_cost[ai->Getbt()->units_static[unit].category][ai->Getside()-1])
+			else if(ai->Getbt()->units_static[unitDefId.id].cost < cfg->MAX_COST_MEDIUM_ASSAULT * ai->Getbt()->max_cost[ai->Getbt()->units_static[unitDefId.id].category][ai->Getside()-1])
 			{
-				if(ai->Getexecute()->AddUnitToBuildqueue(unit, 2, urgent))
-					ai->Getbt()->units_dynamic[unit].requested += 2;
-					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unit].category, 2);
+				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId.id, 2, urgent))
+					ai->Getbt()->units_dynamic[unitDefId.id].requested += 2;
+					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unitDefId.id].category, 2);
 			}
 			else
 			{
-				if(ai->Getexecute()->AddUnitToBuildqueue(unit, 1, urgent))
-					ai->Getbt()->units_dynamic[unit].requested += 1;
-					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unit].category);
+				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId.id, 1, urgent))
+					ai->Getbt()->units_dynamic[unitDefId.id].requested += 1;
+					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unitDefId.id].category);
 			}
 		}
-		else if(ai->Getbt()->units_dynamic[unit].constructorsRequested <= 0)
-			ai->Getbt()->BuildFactoryFor(unit);
+		else if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
+			ai->Getbt()->BuildFactoryFor(unitDefId.id);
 	}
 }
 
@@ -1139,11 +882,11 @@ int AAIBrain::GetGamePeriod()
 {
 	int tick = ai->Getcb()->GetCurrentFrame();
 
-	if(tick < 18000)
+	if(tick < 9000) // below 5 minutes
 		return 0;
-	else if(tick < 36000)
+	else if(tick < 18000) // below 10 minutes
 		return 1;
-	else if(tick < 72000)
+	else if(tick < 54000) // below 30 minutes
 		return 2;
 	else
 		return 3;

@@ -62,8 +62,6 @@ bool AAIConstructor::isBusy() const
 
 void AAIConstructor::Idle()
 {
-	//ai->LogConsole("%s is idle", ai->Getbt()->GetUnitDef(def_id-1).humanName.c_str());
-
 	if(m_isBuilder)
 	{
 		if(m_activity.IsCarryingOutConstructionOrder() == true)
@@ -107,50 +105,44 @@ void AAIConstructor::Update()
 		{
 			UnitDefId constructedUnitDefId(*m_buildqueue->begin());
 
-			if(ai->Getbt()->IsBuilder(constructedUnitDefId.id) 
-			    || (ai->Getbt()->units_static[constructedUnitDefId.id].category == SCOUT) 
-				|| (ai->Getcb()->GetMetal() > 50)
-				|| (ai->Getbt()->units_static[constructedUnitDefId.id].cost < ai->Getbt()->avg_cost[ai->Getbt()->units_static[constructedUnitDefId.id].category][ai->Getside()-1]) )
+			// check if mobile or stationary builder
+			if(ai->Getbt()->s_buildTree.getMovementType(m_myDefId).isStatic() == true )  
 			{
-				// check if mobile or stationary builder
-				if(ai->Getbt()->s_buildTree.getMovementType(m_myDefId).isStatic() == true )  
+				// give build order
+				Command c(-constructedUnitDefId.id);
+				ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
+
+				m_constructedDefId = constructedUnitDefId.id;
+				m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
+
+				//if(ai->Getbt()->IsFactory(def_id))
+				//	++ai->futureFactories;
+
+				m_buildqueue->pop_front();
+			}
+			else
+			{
+				// find buildpos for the unit
+				float3 pos = ai->Getexecute()->GetUnitBuildsite(m_myUnitId.id, constructedUnitDefId.id);
+
+				if(pos.x > 0)
 				{
 					// give build order
 					Command c(-constructedUnitDefId.id);
+					c.PushPos(pos);
+
 					ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
-
 					m_constructedDefId = constructedUnitDefId.id;
-					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
+					assert(ai->Getbt()->IsValidUnitDefID(constructedUnitDefId.id));
+					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
 
-					//if(ai->Getbt()->IsFactory(def_id))
-					//	++ai->futureFactories;
+					++ai->Getut()->futureUnits[ai->Getbt()->units_static[constructedUnitDefId.id].category];
 
 					m_buildqueue->pop_front();
 				}
-				else
-				{
-					// find buildpos for the unit
-					float3 pos = ai->Getexecute()->GetUnitBuildsite(m_myUnitId.id, constructedUnitDefId.id);
-
-					if(pos.x > 0)
-					{
-						// give build order
-						Command c(-constructedUnitDefId.id);
-						c.PushPos(pos);
-
-						ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
-						m_constructedDefId = constructedUnitDefId.id;
-						assert(ai->Getbt()->IsValidUnitDefID(constructedUnitDefId.id));
-						m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
-
-						++ai->Getut()->futureUnits[ai->Getbt()->units_static[constructedUnitDefId.id].category];
-
-						m_buildqueue->pop_front();
-					}
-				}
-
-				return;
 			}
+
+			return;
 		}
 
 		CheckAssistance();
@@ -483,7 +475,6 @@ void AAIConstructor::RemoveAssitant(int unit_id)
 }
 void AAIConstructor::Killed()
 {
-
 	// when builder was killed on the way to the buildsite, inform ai that construction
 	// of building hasnt been started
 	if(m_activity.IsHeadingToBuildsite() == true)

@@ -51,6 +51,27 @@ struct UnitTypeStatic
 	unsigned int unit_type;
 };
 
+//! Criteria (combat efficiency vs specific kind of target type) used for selection of units
+struct CombatVsCriteria
+{
+	float efficiencyVsGround;
+	float efficiencyVsAir;
+	float efficiencyVsHover;
+	float efficiencyVsSea;
+	float efficiencyVsSubmarine;
+	float efficiencyVSBuildings;
+};
+
+//! Criteria used for selection of units
+struct UnitSelectionCriteria
+{
+	float power;      //! Combat power for combat units; Buildpower for construction units 
+	float efficiency; //! Power relative to cost
+	float cost;       //! Unit cost
+	float speed;	  //! Speed of unit
+	float range;	  //! max range for combat units/artillery, los for scouts
+};
+
 
 class AAIBuildTable
 {
@@ -84,7 +105,7 @@ public:
 	int GetBiggestMex();
 
 	// return defence buildings to counter a certain category
-	int GetDefenceBuilding(int side, double efficiency, double combat_power, double cost, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, double urgency, double range, int randomness, bool water, bool canBuild);
+	int DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, double urgency, double range, int randomness, bool water, bool canBuild);
 
 	// returns a cheap defence building (= avg_cost taken
 	int GetCheapDefenceBuilding(int side, double efficiency, double combat_power, double cost, double urgency, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, bool water);
@@ -98,23 +119,11 @@ public:
 	// return repair pad
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
 
-	// returns a ground unit according to the following criteria
-	int GetGroundAssault(int side, float power, float gr_eff, float air_eff, float hover_eff, float sea_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
-
-	int GetHoverAssault(int side, float power, float gr_eff, float air_eff, float hover_eff, float sea_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
-
-	// returns an air unit according to the following criteria
-	int GetAirAssault(int side, float power, float gr_eff, float air_eff, float hover_eff, float sea_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
-
-	int GetSeaAssault(int side, float power, float gr_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
-
-	int GetSubmarineAssault(int side, float power, float sea_eff, float submarine_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
+	//! @brief Seletcs a combat unit of specified category according to given criteria
+	UnitDefId SelectCombatUnit(int side, const AAICombatCategory& category, const CombatVsCriteria& combatCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild);
 
 	// returns a random unit from the list
 	int GetRandomUnit(list<int> unit_list);
-
-	// compares two units with respect to their combat power
-	int DetermineBetterUnit(int unit1, int unit2, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float speed, float range, float cost);
 
 	int GetRandomDefence(int side, UnitCategory category);
 
@@ -269,6 +278,7 @@ public:
 
 	const UnitDef& GetUnitDef(int i) { assert(IsValidUnitDefID(i));	return *unitList[i];}
 	bool IsValidUnitDefID(int i) { return (i>=0) && (i<=unitList.size()); }
+
 private:
 	std::string GetBuildCacheFileName();
 	// precaches speed/cost/buildtime/range stats
@@ -284,9 +294,10 @@ private:
 
 	bool LoadBuildTable();
 
-	float GetUnitRating(int unit, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff);
-
 	void DebugPrint();
+
+	//! @brief Calculates the combat statistics needed for unit selection
+	void CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const CombatVsCriteria& combatCriteria, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
 
 	AAI * ai;
 

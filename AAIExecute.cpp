@@ -158,7 +158,13 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 		{
 			const float3& buildPos = ai->Getut()->units[*i].cons->GetBuildPos();
 
-			if((fabs(buildPos.x - pos->x) < 9.0f) && (fabs(buildPos.z - pos->z) < 9.0f))
+			if(ai->Getbt()->s_buildTree.getUnitTypeProperties(unitDefId).m_unitCategory.isStaticDefence() == true)
+			{
+				ai->Log("Builtask for %s: %f %f %f %f\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(unitDefId).m_name.c_str(),
+					buildPos.x, pos->x, buildPos.z, pos->z);
+			}
+
+			if((fabs(buildPos.x - pos->x) < 16.0f) && (fabs(buildPos.z - pos->z) < 16.0f))
 			{
 				builderFound = true;
 				task->builder_id = ai->Getut()->units[*i].cons->m_myUnitId.id;
@@ -169,7 +175,10 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 	}
 
 	if(builderFound == false)
+	{
 		++m_linkingBuildTaskToBuilderFailed;
+		ai->Log("Failed to link buildtask for %s to builder\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(unitDefId).m_name.c_str() );
+	}
 }
 
 bool AAIExecute::InitBuildingAt(const UnitDef *def, float3 *pos, bool water)
@@ -366,8 +375,7 @@ float3 AAIExecute::GetBuildsite(int builder, int building, UnitCategory /*catego
 			return pos;
 	}
 
-	pos.x = pos.y = pos.z = 0;
-	return pos;
+	return ZeroVector;
 }
 
 float3 AAIExecute::GetUnitBuildsite(int builder, int unit)
@@ -1404,28 +1412,49 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 		checkGround = false;
 	}
 
-	float dynDef  = dest->GetMyDefencePowerAgainstAssaultCategory(ai->Getbt()->GetIDOfAssaultCategory(category));
+	/*float dynDef  = dest->GetMyDefencePowerAgainstAssaultCategory(ai->Getbt()->GetIDOfAssaultCategory(category));
 	float baseDef = dest->my_buildings[STATIONARY_DEF];
-	float urgency = 0.25f + 10.0f / (std::max(0.0f, dynDef + baseDef) + 1.0);
-	float power = 0.5 + baseDef;
-	float eff = 0.2 + 2.5 / (urgency + 1.0);
-	float range = 0.2 + 0.6 / (urgency + 1.0);
-	float cost = 0.5 + ai->Getbrain()->Affordable()/5.0;
+	float urgency = 0.25f + 10.0f / (std::max(0.0f, dynDef + baseDef) + 1.0f);
+	float power = 0.5f + baseDef;
+	float eff = 0.2f + 2.5f / (urgency + 1.0f);
+	float range = 0.2f + 0.6f / (urgency + 1.0f);
+	float cost = 0.5 + ai->Getbrain()->Affordable()/5.0f;*/
 
-	if(dest->my_buildings[STATIONARY_DEF] > 3)
+	float range   = 1.0f;
+	float power   = 1.0f;
+	float eff     = 1.0f;
+	float cost    = 1.0f;
+	float urgency = 1.0f;
+
+
+	if(dest->my_buildings[STATIONARY_DEF] > 2)
 	{
+		urgency = 0.25f;
+		power   = 2.0f;
+		eff     = 2.0f;
+
 		int t = rand()%500;
 
 		if(t < 70)
 		{
-			range = 2.5;
+			range   = 2.5f;
 			terrain = 10.0f;
 		}
 		else if(t < 200)
 		{
-			range = 1;
+			range   = 1.0f;
 			terrain = 5.0f;
 		}
+	}
+	else if(dest->my_buildings[STATIONARY_DEF] > 0)
+	{
+		power   = 1.5f;
+		eff     = 1.5f;
+	}
+	else // no static defences so far
+	{
+		eff     = 2.0f;
+		urgency = 2.0f;
 	}
 
 	if(category == GROUND_ASSAULT)
@@ -1451,17 +1480,17 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 
 	if(checkGround)
 	{
-		if(dest->my_buildings[STATIONARY_DEF] > 2 && rand()%cfg->LEARN_RATE == 1)
+		if(dest->my_buildings[STATIONARY_DEF] > 4 && rand()%cfg->LEARN_RATE == 1)
 			building = ai->Getbt()->GetRandomDefence(ai->Getside(), category);
 		else
-			building = ai->Getbt()->GetDefenceBuilding(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, range, 8, false, false);
+			building = ai->Getbt()->DetermineStaticDefence(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, range, 8, false, false);
 
 		if(building && ai->Getbt()->units_dynamic[building].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[building].constructorsRequested <= 0)
 				ai->Getbt()->BuildBuilderFor(building);
 
-			building = ai->Getbt()->GetDefenceBuilding(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, range, 8, false, true);
+			building = ai->Getbt()->DetermineStaticDefence(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, range, 8, false, true);
 		}
 
 		// stop building weak defences if urgency is too low (wait for better defences)
@@ -1503,17 +1532,17 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 
 	if(checkWater)
 	{
-		if(rand()%cfg->LEARN_RATE == 1 && dest->my_buildings[STATIONARY_DEF] > 3)
+		if((rand()%cfg->LEARN_RATE == 1) && (dest->my_buildings[STATIONARY_DEF] > 4))
 			building = ai->Getbt()->GetRandomDefence(ai->Getside(), category);
 		else
-			building = ai->Getbt()->GetDefenceBuilding(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, 1, 8, true, false);
+			building = ai->Getbt()->DetermineStaticDefence(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, 1, 8, true, false);
 
 		if(building && ai->Getbt()->units_dynamic[building].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[building].constructorsRequested <= 0)
 				ai->Getbt()->BuildBuilderFor(building);
 
-			building = ai->Getbt()->GetDefenceBuilding(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, 1,  8, true, true);
+			building = ai->Getbt()->DetermineStaticDefence(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, 1,  8, true, true);
 		}
 
 		// stop building of weak defences if urgency is too low (wait for better defences)
@@ -2198,7 +2227,7 @@ void AAIExecute::CheckDefences()
 					for(list<int>::iterator cat = ai->Getmap()->map_categories_id.begin(); cat!= ai->Getmap()->map_categories_id.end(); ++cat)
 					{
 						// anti air defences may be built anywhere
-						if(cfg->AIR_ONLY_MOD || *cat == AIR_ASSAULT)
+						/*if(cfg->AIR_ONLY_MOD || *cat == AIR_ASSAULT)
 						{
 							//rating = (*sector)->own_structures * (0.25 + ai->Getbrain()->GetAttacksBy(*cat, game_period)) * (0.25 + (*sector)->GetThreatByID(*cat, learned, current)) / ( 0.1 + (*sector)->GetMyDefencePowerAgainstAssaultCategory(*cat));
 							// how often did units of category attack that sector compared to current def power
@@ -2206,9 +2235,9 @@ void AAIExecute::CheckDefences()
 
 							// how often did unist of that category attack anywere in the current period of the game
 							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(*cat, game_period));
-						}
+						}*/
 						//else if(!(*sector)->interior)
-						else if((*sector)->distance_to_base > 0) // dont build anti ground/hover/sea defences in interior sectors
+						if(true) //(*sector)->distance_to_base > 0) // dont build anti ground/hover/sea defences in interior sectors
 						{
 							// how often did units of category attack that sector compared to current def power
 							rating = (1.0f + (*sector)->GetThreatByID(*cat, learned, current)) / ( 1.0f + (*sector)->GetMyDefencePowerAgainstAssaultCategory(*cat));

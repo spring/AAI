@@ -15,7 +15,7 @@
 
 typedef unsigned int   uint32_t;
 
-//! Movement types that are used to describe the movement type of every unit
+//! Different categories that are used to group units with similar/same purpose
 enum class EUnitCategory : uint32_t
 {
 	UNIT_CATEGORY_UNKNOWN              =  0u, //! Unknown unit category, i.e. not set
@@ -77,7 +77,7 @@ public:
 
 	bool isStaticSensor()      const { return (m_unitCategory == EUnitCategory::UNIT_CATEGORY_STATIC_SENSOR) ? true : false; };
 
-	bool isSPowerPlant()       const { return (m_unitCategory == EUnitCategory::UNIT_CATEGORY_POWER_PLANT) ? true : false; };
+	bool isPowerPlant()        const { return (m_unitCategory == EUnitCategory::UNIT_CATEGORY_POWER_PLANT) ? true : false; };
 
 	bool isMetalExtractor()    const { return (m_unitCategory == EUnitCategory::UNIT_CATEGORY_METAL_EXTRACTOR) ? true : false; };
 
@@ -138,6 +138,47 @@ struct UnitTypeProperties
 	AAIUnitCategory m_unitCategory;
 
 	//unsigned int unitType;
+};
+
+//! The combat category describes what kind of target class a unit belongs to
+enum class ECombatUnitCategory : uint32_t
+{
+	COMBAT_CATEGORY_GROUND               = 0u, //! Units on ground (move type ground, amphibious, hover, land buildings)
+	COMBAT_CATEGORY_AIR                  = 1u, //! Air units
+	COMBAT_CATEGORY_FLOATER              = 2u, //! Units moving above water (ships, hover) or floating buildings
+	COMBAT_CATEGORY_SUBMERGED            = 3u, //! Units moving below water (submarines) or submerged buildings
+	COMBAT_CATEGORY_NUMBER_OF_CATEGORIES = 4u, //! The number of combat categories (unknown/invalid not used)
+	COMBAT_CATEGORY_UNKNOWN              = 5u, //! This value will be treated as invalid
+};
+
+//! This class handles the target category which describes
+class AAICombatCategory
+{
+public:
+	AAICombatCategory(ECombatUnitCategory combatUnitCategory) : m_combatUnitCategory(combatUnitCategory) {};
+
+	AAICombatCategory() : AAICombatCategory(ECombatUnitCategory::COMBAT_CATEGORY_UNKNOWN) {};
+
+	void setCategory(ECombatUnitCategory category) { m_combatUnitCategory = category; };
+
+	bool IsValid()     const { return (m_combatUnitCategory != ECombatUnitCategory::COMBAT_CATEGORY_UNKNOWN); };
+
+	bool IsGround()    const { return (m_combatUnitCategory == ECombatUnitCategory::COMBAT_CATEGORY_GROUND); };
+
+	bool IsAir()       const { return (m_combatUnitCategory == ECombatUnitCategory::COMBAT_CATEGORY_AIR); };
+
+	bool IsFloater()   const { return (m_combatUnitCategory == ECombatUnitCategory::COMBAT_CATEGORY_FLOATER); };
+
+	bool IsSubmerged() const { return (m_combatUnitCategory == ECombatUnitCategory::COMBAT_CATEGORY_SUBMERGED); };
+
+	uint32_t GetCategoryIndex() const {return static_cast<uint32_t>(m_combatUnitCategory); };
+
+	static uint32_t GetCategoryIndex(ECombatUnitCategory category) { return static_cast<uint32_t>(category); };
+
+	static uint32_t GetNumberOfCombatCategories() { return static_cast<uint32_t>(ECombatUnitCategory::COMBAT_CATEGORY_NUMBER_OF_CATEGORIES); };
+
+private:
+	ECombatUnitCategory m_combatUnitCategory;
 };
 
 #endif

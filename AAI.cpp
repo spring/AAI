@@ -70,8 +70,10 @@ AAI::~AAI()
 	// save several AI data
 	Log("\nShutting down....\n\n");
 
-	Log("\nProfiling summary:\n");
-	Log("%s\n", profiler->ToString().c_str());
+	//Log("\nProfiling summary:\n");
+	//Log("%s\n", profiler->ToString().c_str());
+
+	Log("Linking buildtask to builder failed counter: %u\n", execute->GetLinkingBuildTaskToBuilderFailedCounter());
 
 	Log("Unit category active / under construction / requested\n");
 	for(int i = 0; i <= MOBILE_CONSTRUCTOR; ++i)
@@ -350,6 +352,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	if ( !cb->UnitBeingBuilt(unit))
 	{
 		LogConsole("ressurected", 0);
+		Log("Ressurected %s\n", bt->s_buildTree.getUnitTypeProperties(UnitDefId(def->id)).m_name.c_str() );
 
 		UnitCategory category = bt->units_static[def->id].category;
 

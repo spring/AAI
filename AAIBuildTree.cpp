@@ -107,11 +107,13 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 		m_startUnitsOfSide[m_numberOfSides] = *id;
 	}
 
-	m_unitsInCategory.resize( m_numberOfSides ); // no need to create statistics for neutral units
+	m_unitsInCategory.resize(m_numberOfSides); // no need to create statistics for neutral units
+	m_unitsInCombatCategory.resize(m_numberOfSides);
 
 	for(int side = 0; side < m_numberOfSides; ++side)
 	{
 		m_unitsInCategory[side].resize( AAIUnitCategory::getNumberOfUnitCategories() ); 
+		m_unitsInCombatCategory[side].resize( AAICombatCategory::GetNumberOfCombatCategories() );
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -136,6 +138,21 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.getCategoryIndex() ].push_back(id);
 		}
 
+		if(unitCategory.isGroundCombat() == true)
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_GROUND) ].push_back(id);
+		else if(unitCategory.isAirCombat() == true)
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_AIR) ].push_back(id);
+		else if(unitCategory.isHoverCombat() == true)
+		{
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_GROUND) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_FLOATER) ].push_back(id);
+		}
+		else if(unitCategory.isSeaCombat() == true)
+		{
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_FLOATER) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_SUBMERGED) ].push_back(id);
+		}
+
 		m_unitTypeProperties[id].m_range = determineRange(unitDefs[id], unitCategory);
     }
 
@@ -147,7 +164,7 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 
 	for(int side = 0; side < m_numberOfSides; ++side)
 	{
-		m_unitCategoryStatisticsOfSide[side].Init(m_unitTypeProperties, m_unitsInCategory[side]);
+		m_unitCategoryStatisticsOfSide[side].Init(m_unitTypeProperties, m_unitsInCategory[side], m_unitsInCombatCategory[side]);
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -196,9 +213,9 @@ void AAIBuildTree::printSummaryToFile(const std::string& filename, const std::ve
 
 			for(int side = 0; side < m_numberOfSides; ++side)
 			{
-				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetCostStatistics(AAIUnitCategory(cat));
-				const StatisticalData& buildtime = m_unitCategoryStatisticsOfSide[side].GetBuildtimeStatistics(AAIUnitCategory(cat));
-				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetRangeStatistics(AAIUnitCategory(cat));
+				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetUnitCostStatistics(AAIUnitCategory(cat));
+				const StatisticalData& buildtime = m_unitCategoryStatisticsOfSide[side].GetUnitBuildtimeStatistics(AAIUnitCategory(cat));
+				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetUnitPrimaryAbilityStatistics(AAIUnitCategory(cat));
 
 				fprintf(file, "Side %s - Min/max/avg cost: %f/%f/%f, Min/max/avg buildtime: %f/%f/%f Min/max/avg range: %f/%f/%f\n", cfg->SIDE_NAMES[side].c_str(),
 								cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
@@ -316,6 +333,10 @@ EMovementType AAIBuildTree::determineMovementType(const springLegacyAI::UnitDef*
 EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef* unitDef) const
 {
 	if(m_sideOfUnitType[unitDef->id] == 0)
+		return EUnitCategory::UNIT_CATEGORY_UNKNOWN;
+
+	// discard units that are on ignore list
+	if(std::find(cfg->DONT_BUILD.begin(), cfg->DONT_BUILD.end(), unitDef->id) != cfg->DONT_BUILD.end())
 		return EUnitCategory::UNIT_CATEGORY_UNKNOWN;
 
 	// --------------- buildings --------------------------------------------------------------------------------------
