@@ -439,13 +439,13 @@ list<int>* AAIExecute::GetBuildqueueOfFactory(int def_id)
 	return 0;
 }
 
-bool AAIExecute::AddUnitToBuildqueue(int def_id, int number, bool urgent)
+bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent)
 {
 	list<int> *buildqueue = 0, *temp_buildqueue = 0;
 
 	float my_rating, best_rating = 0.0f;
 
-	for(list<int>::iterator fac = ai->Getbt()->units_static[def_id].builtByList.begin(); fac != ai->Getbt()->units_static[def_id].builtByList.end(); ++fac)
+	for(list<int>::const_iterator fac = ai->Getbt()->s_buildTree.getConstructedByList(unitDefId).begin(); fac != ai->Getbt()->s_buildTree.getConstructedByList(unitDefId).end(); ++fac)
 	{
 		if(ai->Getbt()->units_dynamic[*fac].active > 0)
 		{
@@ -478,12 +478,12 @@ bool AAIExecute::AddUnitToBuildqueue(int def_id, int number, bool urgent)
 	{
 		if(urgent)
 		{
-				buildqueue->insert(buildqueue->begin(), number, def_id);
+				buildqueue->insert(buildqueue->begin(), number, unitDefId.id);
 				return true;
 		}
 		else if(buildqueue->size() < cfg->MAX_BUILDQUE_SIZE)
 		{
-			buildqueue->insert(buildqueue->end(), number, def_id);
+			buildqueue->insert(buildqueue->end(), number, unitDefId.id);
 			return true;
 		}
 	}

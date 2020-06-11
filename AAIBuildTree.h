@@ -41,6 +41,9 @@ public:
 	//! @brief Return side of given unit type (0 if not initialized)
 	int getSideOfUnitType(UnitDefId unitDefId) const { return m_initialized ? m_sideOfUnitType[unitDefId.id] : 0; };
 
+	//! @brief Returns the list of units that can construct the given unit.
+	const std::list<int>& getConstructedByList(UnitDefId unitDefId) const { return m_unitTypeCanBeConstructedtByLists[unitDefId.id]; };
+
 	//! @brief Returns the number of sides
 	int getNumberOfSides() const { return m_numberOfSides; };
 

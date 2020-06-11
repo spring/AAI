@@ -101,8 +101,8 @@ public:
 	//! @brief Tries to call support against specific attacker (e.g. air)
 	void DefendUnitVS(int unit, const AAIMovementType& attackerMoveType, float3 *enemy_pos, int importance);
 
-	// adds a unit to the correct wishlist
-	bool AddUnitToBuildqueue(int def_id, int number, bool urgent);
+	//! @brief Adds the given number of units to the most suitable buildqueue
+	bool AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent);
 
 	// returns buildque for a certain factory
 	list<int>* GetBuildqueueOfFactory(int def_id);

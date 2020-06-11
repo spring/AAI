@@ -2353,12 +2353,10 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 
 	for(int i = 1; i < unitList.size(); ++i)
 	{
-//		tmp = units_static[i].canBuildList.size();
-
-		fprintf(save_file, "%i %i %u %f %f %i " _STPF_ " " _STPF_ " ", units_static[i].def_id, units_static[i].side,
+		fprintf(save_file, "%i %i %u %f %f %i " _STPF_ " ", units_static[i].def_id, units_static[i].side,
 								units_static[i].unit_type, units_static[i].range,
 								units_static[i].cost, (int) units_static[i].category,
-								units_static[i].canBuildList.size(), units_static[i].builtByList.size());
+								units_static[i].canBuildList.size());
 
 		// save combat eff
 		for(int k = 0; k < combat_categories; ++k)
@@ -2367,10 +2365,6 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 		// save buildoptions
 		for(list<int>::iterator j = units_static[i].canBuildList.begin(); j != units_static[i].canBuildList.end(); ++j)
 			fprintf(save_file, "%i ", *j);
-
-		// save builtby-list
-		for(list<int>::iterator k = units_static[i].builtByList.begin(); k != units_static[i].builtByList.end(); ++k)
-			fprintf(save_file, "%i ", *k);
 
 		fprintf(save_file, "\n");
 	}
@@ -2470,21 +2464,6 @@ void AAIBuildTable::DebugPrint()
 
 			fprintf(file, "\n");
 		}
-
-		//fprintf(file, "Max damage: %f\n", GetMaxDamage(i));
-
-		/*fprintf(file, "Can Build:\n");
-
-		for(list<int>::iterator j = units_static[i].canBuildList.begin(); j != units_static[i].canBuildList.end(); ++j)
-			fprintf(file, "%s ", GetUnitDef(*j)->humanName.c_str());
-
-		fprintf(file, "\n Built by: ");
-
-		for(list<int>::iterator k = units_static[i].builtByList.begin(); k != units_static[i].builtByList.end(); ++k)
-			fprintf(file, "%s ", GetUnitDef(*k)->humanName.c_str());
-
-		fprintf(file, "\n \n");
-		*/
 	}
 
 	for(int s = 1; s <= numOfSides; s++)
@@ -2813,7 +2792,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 	float max_buildspeed = 0;
 	float max_cost = 0;
 
-	for(list<int>::iterator factory = units_static[unit_def_id].builtByList.begin();  factory != units_static[unit_def_id].builtByList.end(); ++factory)
+	for(list<int>::const_iterator factory = s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).begin();  factory != s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).end(); ++factory)
 	{
 		if(units_static[*factory].cost > max_cost)
 			max_cost = units_static[*factory].cost;
@@ -2826,7 +2805,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 	}
 
 	// look for best builder to do the job
-	for(list<int>::iterator factory = units_static[unit_def_id].builtByList.begin();  factory != units_static[unit_def_id].builtByList.end(); ++factory)
+	for(list<int>::const_iterator factory = s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).begin();  factory != s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).end(); ++factory)
 	{
 		if(units_dynamic[*factory].active + units_dynamic[*factory].requested + units_dynamic[*factory].under_construction < cfg->MAX_FACTORIES_PER_TYPE)
 		{
@@ -2893,7 +2872,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 			// only mark as urgent (unit gets added to front of buildqueue) if no constructor of that type already exists
 			bool urgent = (units_dynamic[constructor].active > 0) ? false : true;
 
-			if(ai->Getexecute()->AddUnitToBuildqueue(constructor, 1, urgent))
+			if(ai->Getexecute()->AddUnitToBuildqueue(UnitDefId(constructor), 1, urgent))
 			{
 				// increase counter if mobile factory is a builder as well
 				if(units_static[constructor].unit_type & UNIT_TYPE_BUILDER)
@@ -2934,7 +2913,7 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 	float max_buildspeed = 0;
 	float max_cost = 0;
 
-	for(list<int>::iterator builder = units_static[building_def_id].builtByList.begin();  builder != units_static[building_def_id].builtByList.end(); ++builder)
+	for(list<int>::const_iterator builder = s_buildTree.getConstructedByList(UnitDefId(building_def_id)).begin();  builder != s_buildTree.getConstructedByList(UnitDefId(building_def_id)).end(); ++builder)
 	{
 		if(units_static[*builder].cost > max_cost)
 			max_cost = units_static[*builder].cost;
@@ -2947,7 +2926,7 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 	}
 
 	// look for best builder to do the job
-	for(list<int>::iterator builder = units_static[building_def_id].builtByList.begin();  builder != units_static[building_def_id].builtByList.end(); ++builder)
+	for(list<int>::const_iterator builder = s_buildTree.getConstructedByList(UnitDefId(building_def_id)).begin();  builder != s_buildTree.getConstructedByList(UnitDefId(building_def_id)).end(); ++builder)
 	{
 		// prevent ai from ordering too many builders of the same type/commanders/builders that cant be built atm
 		if(units_dynamic[*builder].active + units_dynamic[*builder].under_construction + units_dynamic[*builder].requested < cfg->MAX_BUILDERS_PER_TYPE)
@@ -2981,7 +2960,7 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 		// only mark as urgent (unit gets added to front of buildqueue) if no constructor of that type already exists
 		bool urgent = (units_dynamic[constructor].active > 0) ? false : true;
 
-		if(ai->Getexecute()->AddUnitToBuildqueue(constructor, 1, urgent))
+		if(ai->Getexecute()->AddUnitToBuildqueue(UnitDefId(constructor), 1, urgent))
 		{
 			units_dynamic[constructor].requested += 1;
 			ai->Getut()->futureBuilders += 1;
@@ -3038,7 +3017,7 @@ void AAIBuildTable::AddAssistant(uint32_t allowedMovementTypes, bool canBuild)
 		if(units_dynamic[builder].constructorsAvailable <= 0)
 			BuildFactoryFor(builder);
 
-		if(ai->Getexecute()->AddUnitToBuildqueue(builder, 1, true))
+		if(ai->Getexecute()->AddUnitToBuildqueue(UnitDefId(builder), 1, true))
 		{
 			units_dynamic[builder].requested += 1;
 			ai->Getut()->futureBuilders += 1;
