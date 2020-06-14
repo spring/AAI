@@ -221,8 +221,7 @@ void AAIConstructor::CheckAssistance()
 				if(ai->Getexecute()->urgency[STATIONARY_CONSTRUCTOR] < 1.5f)
 					ai->Getexecute()->urgency[STATIONARY_CONSTRUCTOR] = 1.5f;
 
-				for(list<int>::iterator j = ai->Getbt()->units_static[m_myDefId.id].canBuildList.begin(); j != ai->Getbt()->units_static[m_myDefId.id].canBuildList.end(); ++j)
-					ai->Getbt()->units_dynamic[*j].constructorsRequested += 1;
+				ai->Getbt()->ConstructorRequested(m_myDefId);
 			}
 		}
 

@@ -88,7 +88,7 @@ float AAIConfig::GetFloat(AAI* ai, FILE* file)
 AAIConfig::AAIConfig(void)
 {
 	SIDES = 2;
-	SECTOR_SIZE = 100.0;
+	SECTOR_SIZE = 80.0;
 	MIN_ENERGY = 18;  // min energy make value to be considered beeing a power plant
 	MAX_UNITS = 30000;
 	MAX_SCOUTS = 4;

@@ -118,11 +118,7 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 	units[unitId.id].cons = cons;
 
 	// increase/decrease number of available/requested builders for all buildoptions of the builder
-	for(list<int>::iterator unit = ai->Getbt()->units_static[unitDefId.id].canBuildList.begin();  unit != ai->Getbt()->units_static[unitDefId.id].canBuildList.end(); ++unit)
-	{
-		ai->Getbt()->units_dynamic[*unit].constructorsAvailable += 1;
-		ai->Getbt()->units_dynamic[*unit].constructorsRequested -= 1;
-	}
+	ai->Getbt()->ConstructorFinished(unitDefId);
 
 	if(IsBuilder(unitDefId) == true)
 	{
@@ -136,7 +132,7 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 		++activeFactories;
 
 		// remove future ressource demand now factory has been finished
-		ai->Getexecute()->futureRequestedMetal -= ai->Getbt()->units_static[unitDefId.id].efficiency[0];
+		ai->Getexecute()->futureRequestedMetal  -= ai->Getbt()->units_static[unitDefId.id].efficiency[0];
 		ai->Getexecute()->futureRequestedEnergy -= ai->Getbt()->units_static[unitDefId.id].efficiency[1];
 	}
 }
@@ -150,8 +146,7 @@ void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 		activeFactories -= 1;
 
 	// decrease number of available builders for all buildoptions of the builder
-	for(list<int>::iterator unit = ai->Getbt()->units_static[def_id].canBuildList.begin();  unit != ai->Getbt()->units_static[def_id].canBuildList.end(); ++unit)
-		ai->Getbt()->units_dynamic[*unit].constructorsAvailable -= 1;
+	ai->Getbt()->ConstructorKilled(UnitDefId(def_id));
 
 	// erase from builders list
 	constructors.erase(unit_id);
@@ -172,15 +167,14 @@ void AAIUnitTable::AddCommander(UnitId unitId, UnitDefId unitDefId)
 	cmdr = unitId.id;
 
 	// increase number of builders for all buildoptions of the commander
-	for(list<int>::iterator unit = ai->Getbt()->units_static[unitDefId.id].canBuildList.begin();  unit != ai->Getbt()->units_static[unitDefId.id].canBuildList.end(); ++unit)
-		++ai->Getbt()->units_dynamic[*unit].constructorsAvailable;
+	ai->Getbt()->ConstructorRequested(unitDefId); // commander has not been requested -> increase "requested constructors" counter as it is decreased by ConstructorFinished(...)
+	ai->Getbt()->ConstructorFinished(unitDefId);
 }
 
 void AAIUnitTable::RemoveCommander(int unit_id, int def_id)
 {
 	// decrease number of builders for all buildoptions of the commander
-	for(list<int>::iterator unit = ai->Getbt()->units_static[def_id].canBuildList.begin();  unit != ai->Getbt()->units_static[def_id].canBuildList.end(); ++unit)
-		--ai->Getbt()->units_dynamic[*unit].constructorsAvailable;
+	ai->Getbt()->ConstructorKilled(UnitDefId(def_id));
 
 	// erase from builders list
 	constructors.erase(unit_id);

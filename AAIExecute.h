@@ -87,7 +87,7 @@ public:
 //	void BuildUnit(UnitCategory category, float speed, float cost, float range, float power, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, float eff, bool urgent);
 
 	// called when building has been finished / contruction failed
-	void ConstructionFailed(float3 build_pos, int def_id);
+	void ConstructionFailed(float3 build_pos, UnitDefId unitDefId);
 
 	// builds defences around mex spot if necessary
 	void DefendMex(int mex, int def_id);

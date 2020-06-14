@@ -44,6 +44,9 @@ public:
 	//! @brief Returns the list of units that can construct the given unit.
 	const std::list<int>& getConstructedByList(UnitDefId unitDefId) const { return m_unitTypeCanBeConstructedtByLists[unitDefId.id]; };
 
+	//! @brief Returns the list of units that can be construct by the given unit.
+	const std::list<int>& getCanConstructList(UnitDefId unitDefId) const { return m_unitTypeCanConstructLists[unitDefId.id]; };
+
 	//! @brief Returns the number of sides
 	int getNumberOfSides() const { return m_numberOfSides; };
 
@@ -64,6 +67,9 @@ public:
 
 	//! @brief Return the maximum weapon range (0.0f if unarmed)
 	const float getMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
+
+	//! @brief Returns the category that the given unit belongs to
+	const AAIUnitCategory& getUnitCategory(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_unitCategory; };
 
 	//! @brief Returns movement type of given unit type
 	const AAIMovementType& getMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].m_movementType; };

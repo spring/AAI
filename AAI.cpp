@@ -107,11 +107,6 @@ AAI::~AAI()
 	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac)
 		Log("%-24s: %f\n", bt->s_buildTree.getUnitTypeProperties(UnitDefId(*fac)).m_name.c_str(), bt->GetFactoryRating(*fac));
 
-	Log("Mobile constructor ratings:\n");
-	for(list<int>::iterator cons = bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].begin(); cons != bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].end(); ++cons)
-		Log("%-24s: %f\n", bt->s_buildTree.getUnitTypeProperties(UnitDefId(*cons)).m_name.c_str(), bt->GetBuilderRating(*cons));
-
-
 	// delete buildtasks
 	for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
 	{
@@ -562,16 +557,14 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			{
 				--ut->futureBuilders;
 
-				for(list<int>::iterator unit = bt->units_static[def->id].canBuildList.begin();  unit != bt->units_static[def->id].canBuildList.end(); ++unit)
-					--bt->units_dynamic[*unit].constructorsRequested;
+				bt->UnfinishedConstructorKilled(UnitDefId(def->id));
 			}
 			else if (bt->IsFactory(def->id))
 			{
 				if (category == STATIONARY_CONSTRUCTOR)
 					--ut->futureFactories;
 
-				for(list<int>::iterator unit = bt->units_static[def->id].canBuildList.begin();  unit != bt->units_static[def->id].canBuildList.end(); ++unit)
-					--bt->units_dynamic[*unit].constructorsRequested;
+				bt->UnfinishedConstructorKilled(UnitDefId(def->id));
 			}
 		}
 	}

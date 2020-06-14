@@ -40,8 +40,6 @@ struct UnitTypeStatic
 {
 	int def_id;
 	int side;				// 0 if side has not been set
-	list<int> canBuildList;
-	list<int> builtByList;
 	vector<float> efficiency;		// 0 -> ground assault, 1 -> air assault, 2 -> hover assault
 									// 3 -> sea assault, 4 -> submarine , 5 -> stat. defences
 	float range;              // max weapon range (0 for unarmed units)
@@ -84,11 +82,24 @@ public:
 	void Init();
 
 	void SaveBuildTable(int game_period, MapType map_type);
+
 	// cache for combat eff (needs side, thus initialized later)
 	void InitCombatEffCache(int side);
 
 	// return unit type (for groups)
 	UnitType GetUnitType(int def_id);
+
+	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
+	void ConstructorRequested(UnitDefId constructor);
+
+	//! @brief Updates counters for available/requested constructors for units that can be built by given construction unit
+	void ConstructorFinished(UnitDefId constructor);
+
+	//! @brief Updates counters for available constructors for units that can be built by given construction unit
+	void ConstructorKilled(UnitDefId constructor);
+
+	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
+	void UnfinishedConstructorKilled(UnitDefId constructor);
 
 	// ******************************************************************************************************
 	// the following functions are used to determine units that suit a certain purpose
@@ -146,7 +157,6 @@ public:
 	void AddAssistant(uint32_t allowedMovementTypes, bool canBuild);
 
 	float GetFactoryRating(int def_id);
-	float GetBuilderRating(int def_id);
 
 	// updates unit table
 	void UpdateTable(const UnitDef* def_killer, int killer, const UnitDef *def_killed, int killed);

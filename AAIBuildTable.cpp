@@ -267,10 +267,6 @@ void AAIBuildTable::Init()
 			units_static[i].category = UNKNOWN;
 
 			units_static[i].unit_type = 0;
-
-			// get build options
-			for(map<int, string>::const_iterator j = GetUnitDef(i).buildOptions.begin(); j != GetUnitDef(i).buildOptions.end(); ++j)
-				units_static[i].canBuildList.push_back(ai->Getcb()->GetUnitDef(j->second.c_str())->id);
 		}
 
 		// now set the sides and create buildtree
@@ -579,9 +575,9 @@ void AAIBuildTable::Init()
 		for(int i = 1; i <= numOfUnits; i++)
 		{
 			// check for factories and builders
-			if(units_static[i].canBuildList.size() > 0)
+			if(s_buildTree.getCanConstructList(UnitDefId(i)).size() > 0)
 			{
-				for(list<int>::iterator unit = units_static[i].canBuildList.begin(); unit != units_static[i].canBuildList.end(); ++unit)
+				for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(i)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(i)).end(); ++unit)
 				{
 					// filter out neutral and unknown units
 					if(units_static[*unit].side > 0 && units_static[*unit].category != UNKNOWN)
@@ -759,6 +755,39 @@ void AAIBuildTable::InitCombatEffCache(int side)
 	combat_eff.resize(max_size, 0);
 }
 
+void AAIBuildTable::ConstructorRequested(UnitDefId constructor)
+{
+	for(list<int>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
+	{
+		++units_dynamic[*id].constructorsRequested;
+	}
+}
+
+void AAIBuildTable::ConstructorFinished(UnitDefId constructor)
+{
+	for(list<int>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
+	{
+		++units_dynamic[*id].constructorsAvailable;
+		--units_dynamic[*id].constructorsRequested;
+	}
+}
+
+void AAIBuildTable::ConstructorKilled(UnitDefId constructor)
+{
+	for(list<int>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
+	{
+		--units_dynamic[*id].constructorsAvailable;
+	}
+}
+
+void AAIBuildTable::UnfinishedConstructorKilled(UnitDefId constructor)
+{
+	for(list<int>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
+	{
+		--units_dynamic[*id].constructorsRequested;
+	}
+}
+
 void AAIBuildTable::PrecacheStats()
 {
 	for(int s = 0; s < numOfSides; s++)
@@ -798,14 +827,14 @@ void AAIBuildTable::PrecacheStats()
 		{
 			average_metal = average_energy = 0;
 
-			for(list<int>::iterator unit = units_static[*i].canBuildList.begin(); unit != units_static[*i].canBuildList.end(); ++unit)
+			for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(*i)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(*i)).end(); ++unit)
 			{
 				average_metal += ( GetUnitDef(*unit).metalCost * GetUnitDef(*i).buildSpeed ) / GetUnitDef(*unit).buildTime;
 				average_energy += ( GetUnitDef(*unit).energyCost * GetUnitDef(*i).buildSpeed ) / GetUnitDef(*unit).buildTime;
 			}
 
-			units_static[*i].efficiency[0] = average_metal / units_static[*i].canBuildList.size();
-			units_static[*i].efficiency[1] = average_energy / units_static[*i].canBuildList.size();
+			units_static[*i].efficiency[0] = average_metal  / s_buildTree.getCanConstructList(UnitDefId(*i)).size();
+			units_static[*i].efficiency[1] = average_energy / s_buildTree.getCanConstructList(UnitDefId(*i)).size();
 		}
 
 		// precache range of arty
@@ -2132,11 +2161,8 @@ void AAIBuildTable::UpdateMinMaxAvgEfficiency()
 void AAIBuildTable::CalcBuildTree(int unit)
 {
 	// go through all possible build options and set side if necessary
-	for(list<int>::iterator i = units_static[unit].canBuildList.begin(); i != units_static[unit].canBuildList.end(); ++i)
+	for(list<int>::const_iterator i = s_buildTree.getCanConstructList(UnitDefId(unit)).begin(); i != s_buildTree.getCanConstructList(UnitDefId(unit)).end(); ++i)
 	{
-		// add this unit to targets builtby-list
-		units_static[*i].builtByList.push_back(unit);
-
 		// continue with all builldoptions (if they have not been visited yet)
 		if(!units_static[*i].side && AllowedToBuild(*i))
 		{
@@ -2239,20 +2265,6 @@ bool AAIBuildTable::LoadBuildTable()
 				units_dynamic[i].requested = 0;
 				units_dynamic[i].constructorsAvailable = 0;
 				units_dynamic[i].constructorsRequested = 0;
-
-				// load buildoptions
-				for(size_t j = 0; j < bo; j++)
-				{
-					fscanf(load_file, "%i ", &tmp);
-					units_static[i].canBuildList.push_back(tmp);
-				}
-
-				// load builtby-list
-				for(size_t k = 0; k < bb; ++k)
-				{
-					fscanf(load_file, "%i ", &tmp);
-					units_static[i].builtByList.push_back(tmp);
-				}
 			}
 
 			// now load unit lists
@@ -2349,22 +2361,15 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 		}
 	}
 
-//	int tmp;
-
 	for(int i = 1; i < unitList.size(); ++i)
 	{
-		fprintf(save_file, "%i %i %u %f %f %i " _STPF_ " ", units_static[i].def_id, units_static[i].side,
+		fprintf(save_file, "%i %i %u %f %f %i ", units_static[i].def_id, units_static[i].side,
 								units_static[i].unit_type, units_static[i].range,
-								units_static[i].cost, (int) units_static[i].category,
-								units_static[i].canBuildList.size());
+								units_static[i].cost, (int) units_static[i].category);
 
 		// save combat eff
 		for(int k = 0; k < combat_categories; ++k)
 			fprintf(save_file, "%f ", units_static[i].efficiency[k]);
-
-		// save buildoptions
-		for(list<int>::iterator j = units_static[i].canBuildList.begin(); j != units_static[i].canBuildList.end(); ++j)
-			fprintf(save_file, "%i ", *j);
 
 		fprintf(save_file, "\n");
 	}
@@ -2552,7 +2557,7 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 
 	if(cfg->AIR_ONLY_MOD)
 	{
-		for(list<int>::iterator unit = units_static[def_id].canBuildList.begin(); unit != units_static[def_id].canBuildList.end(); ++unit)
+		for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
 		{
 			if(units_static[*unit].category >= GROUND_ASSAULT && units_static[*unit].category <= SEA_ASSAULT)
 			{
@@ -2561,7 +2566,6 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 			}
 			else if(IsBuilder(def_id))
 			{
-				rating += 256.0 * GetBuilderRating(*unit);
 				builder = true;
 			}
 			else if(IsScout(def_id))
@@ -2572,7 +2576,7 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 	}
 	else if(ai->Getmap()->map_type == LAND_MAP)
 	{
-		for(list<int>::iterator unit = units_static[def_id].canBuildList.begin(); unit != units_static[def_id].canBuildList.end(); ++unit)
+		for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
 		{
 			if(units_static[*unit].category == GROUND_ASSAULT || units_static[*unit].category == HOVER_ASSAULT)
 			{
@@ -2595,7 +2599,6 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 			else if(   (IsBuilder(def_id) == true) 
 			        && (s_buildTree.getMovementType(UnitDefId(def_id)).isSeaUnit() == false) )
 			{
-				rating += 256 * GetBuilderRating(*unit);
 				builder = true;
 			}
 			else if(   (units_static[*unit].category == SCOUT)
@@ -2607,7 +2610,7 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 	}
 	else if(ai->Getmap()->map_type == LAND_WATER_MAP)
 	{
-		for(list<int>::iterator unit = units_static[def_id].canBuildList.begin(); unit != units_static[def_id].canBuildList.end(); ++unit)
+		for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
 		{
 			if(units_static[*unit].category == GROUND_ASSAULT)
 			{
@@ -2652,7 +2655,6 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 			}
 			else if(IsBuilder(def_id))
 			{
-				rating += 256 * GetBuilderRating(*unit);
 				builder = true;
 			}
 			else if(units_static[*unit].category == SCOUT)
@@ -2663,7 +2665,7 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 	}
 	else if(ai->Getmap()->map_type == WATER_MAP)
 	{
-		for(list<int>::iterator unit = units_static[def_id].canBuildList.begin(); unit != units_static[def_id].canBuildList.end(); ++unit)
+		for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
 		{
 			if(units_static[*unit].category == HOVER_ASSAULT)
 			{
@@ -2699,7 +2701,6 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 			}
 			else if(IsBuilder(def_id))
 			{
-				rating += 256 * GetBuilderRating(*unit);
 				builder = true;
 			}
 			else if(units_static[*unit].category == SCOUT)
@@ -2741,44 +2742,6 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 	}
 }
 
-float AAIBuildTable::GetBuilderRating(int def_id)
-{
-	// check if value already chached
-	if(units_static[def_id].efficiency[5] != -1)
-		return units_static[def_id].efficiency[5];
-	else
-	{
-		// calculate rating and cache result
-		int buildings = 10;
-
-		// only cout buildings that are likely to be built on that type of map
-		if(ai->Getmap()->map_type == LAND_MAP)
-		{
-			for(list<int>::iterator building = units_static[def_id].canBuildList.begin(); building != units_static[def_id].canBuildList.end(); ++building)
-			{
-				if(GetUnitDef(*building).minWaterDepth <= 0)
-					++buildings;
-			}
-		}
-		else if(ai->Getmap()->map_type == WATER_MAP)
-		{
-			for(list<int>::iterator building = units_static[def_id].canBuildList.begin(); building != units_static[def_id].canBuildList.end(); ++building)
-			{
-				if(GetUnitDef(*building).minWaterDepth > 0)
-					++buildings;
-			}
-		}
-		else
-		{
-			buildings = units_static[def_id].canBuildList.size();
-		}
-
-		units_static[def_id].efficiency[5] = sqrt((double)buildings);
-
-		return units_static[def_id].efficiency[5];
-	}
-}
-
 void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 {
 	int constructor = 0;
@@ -2813,8 +2776,6 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 				- (GetUnitDef(*factory).buildTime / max_buildtime)
 				- cost * (units_static[*factory].cost / max_cost);
 
-			//my_rating += GetBuilderRating(*unit, cost, buildspeed) / ;
-
 			// prefer builders that can be built atm
 			if(units_dynamic[*factory].constructorsAvailable > 0)
 				my_rating += 2.0f;
@@ -2845,12 +2806,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 
 	if(constructor && units_dynamic[constructor].requested + units_dynamic[constructor].under_construction <= 0)
 	{
-		for(list<int>::iterator j = units_static[constructor].canBuildList.begin(); j != units_static[constructor].canBuildList.end(); ++j)
-		{
-			//// only set to true, if the factory is not built by that unit itself
-			//if(!MemberOf(*j, units_static[*i].builtByList))
-			units_dynamic[*j].constructorsRequested += 1;
-		}
+		ConstructorRequested(UnitDefId(constructor));
 
 		units_dynamic[constructor].requested += 1;
 
@@ -2892,8 +2848,8 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 				//something went wrong -> decrease values
 				units_dynamic[constructor].requested -= 1;
 
-				for(list<int>::iterator j = units_static[constructor].canBuildList.begin(); j != units_static[constructor].canBuildList.end(); ++j)
-					units_dynamic[*j].constructorsRequested -= 1;
+				// decrease "contructor requested" counters of buildoptions 
+				UnfinishedConstructorKilled(UnitDefId(constructor));
 			}
 		}
 	}
@@ -2967,8 +2923,7 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 			ai->Getut()->UnitRequested(MOBILE_CONSTRUCTOR);
 
 			// set all its buildoptions buildable
-			for(list<int>::iterator j = units_static[constructor].canBuildList.begin(); j != units_static[constructor].canBuildList.end(); ++j)
-				units_dynamic[*j].constructorsRequested += 1;
+			ConstructorRequested(UnitDefId(constructor));
 
 			// debug
 			ai->Log("BuildBuilderFor(%s) requested %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(building_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
@@ -3024,8 +2979,7 @@ void AAIBuildTable::AddAssistant(uint32_t allowedMovementTypes, bool canBuild)
 			ai->Getut()->UnitRequested(MOBILE_CONSTRUCTOR);
 
 			// increase number of requested builders of all buildoptions
-			for(list<int>::iterator j = units_static[builder].canBuildList.begin(); j != units_static[builder].canBuildList.end(); ++j)
-				units_dynamic[*j].constructorsRequested += 1;
+			ConstructorRequested(UnitDefId(builder));
 
 			//ai->Log("AddAssister() requested: %s %i \n", GetUnitDef(builder).humanName.c_str(), units_dynamic[builder].requested);
 		}

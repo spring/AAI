@@ -2916,10 +2916,10 @@ bool AAIExecute::defend_vs_submarine(AAISector *left, AAISector *right)
 		>  ((2.0f + right->GetThreatBy(SUBMARINE_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(4)+ 0.5f));
 }
 
-void AAIExecute::ConstructionFailed(float3 build_pos, int def_id)
+void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 {
-	const UnitDef *def = &ai->Getbt()->GetUnitDef(def_id);
-	UnitCategory category = ai->Getbt()->units_static[def_id].category;
+	const UnitDef *def = &ai->Getbt()->GetUnitDef(unitDefId.id);
+	const AAIUnitCategory category = ai->Getbt()->s_buildTree.getUnitCategory(unitDefId);
 
 	int x = build_pos.x/ai->Getmap()->xSectorSize;
 	int y = build_pos.z/ai->Getmap()->ySectorSize;
@@ -2931,58 +2931,57 @@ void AAIExecute::ConstructionFailed(float3 build_pos, int def_id)
 
 	// decrease number of units of that category in the target sector
 	if(validSector)
-		ai->Getmap()->sector[x][y].RemoveBuildingType(def_id);
+		ai->Getmap()->sector[x][y].RemoveBuildingType(unitDefId.id);
 
 	// free metalspot if mex was odered to be built
-	if(category == EXTRACTOR && build_pos.x > 0)
+	if( (category.isMetalExtractor() == true) && (build_pos.x > 0) )
 	{
 		ai->Getmap()->sector[x][y].FreeMetalSpot(build_pos, def);
 	}
-	else if(category == POWER_PLANT)
+	else if(category.isPowerPlant() == true)
 	{
-		futureAvailableEnergy -= ai->Getbt()->units_static[def_id].efficiency[0];
+		futureAvailableEnergy -= ai->Getbt()->units_static[unitDefId.id].efficiency[0];
 
 		if(futureAvailableEnergy < 0)
 			futureAvailableEnergy = 0;
 	}
-	else if(category == STORAGE)
+	else if(category.isStorage() == true)
 	{
 		futureStoredEnergy -= ai->Getbt()->GetUnitDef(def->id).energyStorage;
 		futureStoredMetal -= ai->Getbt()->GetUnitDef(def->id).metalStorage;
 	}
-	else if(category == METAL_MAKER)
+	else if(category.isMetalMaker() == true)
 	{
 		futureRequestedEnergy -= ai->Getbt()->GetUnitDef(def->id).energyUpkeep;
 
 		if(futureRequestedEnergy < 0)
 			futureRequestedEnergy = 0;
 	}
-	else if(category == STATIONARY_JAMMER)
+	/*else if(category == STATIONARY_JAMMER)
+	{
+		futureRequestedEnergy -= ai->Getbt()->units_static[def->id].efficiency[0];
+
+		if(futureRequestedEnergy < 0)
+			futureRequestedEnergy = 0;
+	}*/
+	else if(category.isStaticSensor() == true)
 	{
 		futureRequestedEnergy -= ai->Getbt()->units_static[def->id].efficiency[0];
 
 		if(futureRequestedEnergy < 0)
 			futureRequestedEnergy = 0;
 	}
-	else if(category == STATIONARY_RECON)
+	else if(category.isStaticDefence() == true)
 	{
-		futureRequestedEnergy -= ai->Getbt()->units_static[def->id].efficiency[0];
-
-		if(futureRequestedEnergy < 0)
-			futureRequestedEnergy = 0;
-	}
-	else if(category == STATIONARY_DEF)
-	{
-		ai->Getmap()->RemoveDefence(&build_pos, def_id);
+		ai->Getmap()->RemoveDefence(&build_pos, unitDefId.id);
 	}
 
 	// clear buildmap
-	if(category == STATIONARY_CONSTRUCTOR)
+	if(category.isStaticConstructor() == true)
 	{
 		ai->Getut()->futureFactories -= 1;
 
-		for(list<int>::iterator unit = ai->Getbt()->units_static[def_id].canBuildList.begin();  unit != ai->Getbt()->units_static[def_id].canBuildList.end(); ++unit)
-			ai->Getbt()->units_dynamic[*unit].constructorsRequested -= 1;
+		ai->Getbt()->UnfinishedConstructorKilled(unitDefId);
 
 		// remove future ressource demand since factory is no longer being built
 		futureRequestedMetal -= ai->Getbt()->units_static[def->id].efficiency[0];
@@ -2995,12 +2994,12 @@ void AAIExecute::ConstructionFailed(float3 build_pos, int def_id)
 			futureRequestedMetal = 0;
 
 		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStaticSea(), true);
+		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.getMovementType(unitDefId).isStaticSea(), true);
 	}
 	else // normal building
 	{
 		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStaticSea(), false);
+		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.getMovementType(unitDefId).isStaticSea(), false);
 	}
 }
 
@@ -3031,8 +3030,7 @@ void AAIExecute::AddStartFactory()
 
 		ai->Log("%s requested\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(UnitDefId(best_factory)).m_name.c_str());
 
-		for(list<int>::iterator j = ai->Getbt()->units_static[best_factory].canBuildList.begin(); j != ai->Getbt()->units_static[best_factory].canBuildList.end(); ++j)
-			ai->Getbt()->units_dynamic[*j].constructorsRequested += 1;
+		ai->Getbt()->ConstructorRequested(UnitDefId(best_factory));
 	}
 }
 
