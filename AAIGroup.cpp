@@ -284,7 +284,7 @@ void AAIGroup::Update()
 
 		for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
 		{
-			range = ai->Getbt()->units_static[unit->y].range;
+			range = ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(unit->y));
 
 			if(range > cfg->MIN_FALLBACK_RANGE)
 			{

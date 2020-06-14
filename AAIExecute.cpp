@@ -1636,11 +1636,11 @@ bool AAIExecute::BuildArty()
 			my_pos = ZeroVector;
 
 			if(ground_arty && (*sector)->water_ratio < 0.9f)
-				my_pos = (*sector)->GetRadarArtyBuildsite(ground_arty, ai->Getbt()->units_static[ground_arty].range/4.0f, false);
+				my_pos = (*sector)->GetRadarArtyBuildsite(ground_arty, ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(ground_arty))/4.0f, false);
 
 			if(my_pos.x <= 0 && sea_arty && (*sector)->water_ratio > 0.1f)
 			{
-				my_pos = (*sector)->GetRadarArtyBuildsite(sea_arty, ai->Getbt()->units_static[sea_arty].range/4.0f, true);
+				my_pos = (*sector)->GetRadarArtyBuildsite(sea_arty,  ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(sea_arty))/4.0f, true);
 
 				if(my_pos.x > 0)
 					ground_arty = sea_arty;
@@ -1911,11 +1911,11 @@ bool AAIExecute::BuildRadar()
 				my_pos = ZeroVector;
 
 				if(ground_radar && (*sector)->water_ratio < 0.9f)
-					my_pos = (*sector)->GetRadarArtyBuildsite(ground_radar, ai->Getbt()->units_static[ground_radar].range, false);
+					my_pos = (*sector)->GetRadarArtyBuildsite(ground_radar,  ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(ground_radar)), false);
 
 				if(my_pos.x <= 0 && sea_radar && (*sector)->water_ratio > 0.1f)
 				{
-					my_pos = (*sector)->GetRadarArtyBuildsite(sea_radar, ai->Getbt()->units_static[sea_radar].range, true);
+					my_pos = (*sector)->GetRadarArtyBuildsite(sea_radar, ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(sea_radar)), true);
 
 					if(my_pos.x > 0)
 						ground_radar = sea_radar;
@@ -3199,7 +3199,7 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 
 void AAIExecute::CheckFallBack(int unit_id, int def_id)
 {
-	float max_weapon_range = ai->Getbt()->units_static[def_id].range;
+	float max_weapon_range = ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(def_id));
 
 	if(max_weapon_range > cfg->MIN_FALLBACK_RANGE && ai->Getbt()->GetUnitDef(def_id).turnRate >= cfg->MIN_FALLBACK_TURNRATE)
 	{

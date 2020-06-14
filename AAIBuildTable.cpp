@@ -262,7 +262,6 @@ void AAIBuildTable::Init()
 
 			// side has not been assigned - will be done later
 			units_static[i].side = 0;
-			units_static[i].range = 0;
 
 			units_static[i].category = UNKNOWN;
 
@@ -285,9 +284,6 @@ void AAIBuildTable::Init()
 			// effiency has starting value of 1
 			if(!GetUnitDef(i).weapons.empty())
 			{
-				// get range
-				units_static[i].range = s_buildTree.getMaxRange( UnitDefId(i) );
-
 				// get memory for eff
 				units_static[i].efficiency.resize(combat_categories);
 
@@ -301,8 +297,6 @@ void AAIBuildTable::Init()
 			}
 			else
 			{
-				units_static[i].range = s_buildTree.getMaxRange( UnitDefId(i) );
-
 				// get memory for eff
 				units_static[i].efficiency.resize(combat_categories, 0.0f);
 			}
@@ -1077,7 +1071,7 @@ void AAIBuildTable::PrecacheStats()
 		{
 			for(list<int>::iterator unit = units_of_category[STATIONARY_DEF][s].begin(); unit != units_of_category[STATIONARY_DEF][s].end(); ++unit)
 			{
-				range = units_static[*unit].range;
+				range = s_buildTree.getMaxRange(UnitDefId(*unit));
 
 				avg_value[STATIONARY_DEF][s] += range;
 
@@ -2244,9 +2238,11 @@ bool AAIBuildTable::LoadBuildTable()
 
 			for(int i = 1; i < unitList.size(); ++i)
 			{
+				float dummy;
+
 				fscanf(load_file, "%i %i %u %f %f %i " _STPF_ " " _STPF_ " ",&units_static[i].def_id, &units_static[i].side,
 									&units_static[i].unit_type,
-									&units_static[i].range, &units_static[i].cost,
+									&dummy, &units_static[i].cost,
 									&cat, &bo, &bb);
 
 				// get memory for eff
@@ -2364,7 +2360,7 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 	for(int i = 1; i < unitList.size(); ++i)
 	{
 		fprintf(save_file, "%i %i %u %f %f %i ", units_static[i].def_id, units_static[i].side,
-								units_static[i].unit_type, units_static[i].range,
+								units_static[i].unit_type, 0.0f,
 								units_static[i].cost, (int) units_static[i].category);
 
 		// save combat eff
