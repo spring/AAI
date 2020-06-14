@@ -38,8 +38,6 @@ struct UnitTypeDynamic
 
 struct UnitTypeStatic
 {
-	int def_id;
-	int side;				// 0 if side has not been set
 	vector<float> efficiency;		// 0 -> ground assault, 1 -> air assault, 2 -> hover assault
 									// 3 -> sea assault, 4 -> submarine , 5 -> stat. defences
 	float cost;
@@ -298,8 +296,6 @@ private:
 
 	// returns true, if unitid is in the list
 	bool MemberOf(int unit_id, list<int> unit_list);
-	// for internal use
-	void CalcBuildTree(int unit);
 
 	bool LoadBuildTable();
 
