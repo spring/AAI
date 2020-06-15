@@ -27,11 +27,6 @@ namespace springLegacyAI {
 
 using namespace springLegacyAI;
 
-struct CostMultiplier
-{
-	int id;
-	float multiplier;
-};
 
 /// Converts a string to one that can be used in a file name (eg. "Abc.123 $%^*" -> "Abc.123_____")
 std::string MakeFileSystemCompatible(const std::string& str);
@@ -115,8 +110,6 @@ public:
 	float MAX_COST_MEDIUM_ASSAULT;
 	float MAX_COST_HEAVY_ASSAULT;
 	int MAX_ATTACKS;
-
-	vector<CostMultiplier> cost_multipliers;
 
 	// combat behaviour
 	float FALLBACK_DIST_RATIO;	// units will try to fall back if enemy is closer than ratio of weapons range of the unit

@@ -197,8 +197,6 @@ AAIBuildTable::~AAIBuildTable(void)
 
 void AAIBuildTable::Init()
 {
-	float max_cost = 0, min_cost = 1000000, eff;
-
 	// get number of units and alloc memory for unit list
 	const int numOfUnits = ai->Getcb()->GetNumUnitDefs();
 
@@ -247,14 +245,6 @@ void AAIBuildTable::Init()
 		// add units to buildtable
 		for(int i = 0; i <= numOfUnits; ++i)
 		{
-			units_static[i].cost = (GetUnitDef(i).metalCost + (GetUnitDef(i).energyCost / 75.0f)) / 10.0f;
-
-			if(units_static[i].cost > max_cost)
-				max_cost = units_static[i].cost;
-
-			if(units_static[i].cost < min_cost)
-				min_cost = units_static[i].cost;
-
 			units_static[i].category = UNKNOWN;
 
 			units_static[i].unit_type = 0;
@@ -269,8 +259,12 @@ void AAIBuildTable::Init()
 				// get memory for eff
 				units_static[i].efficiency.resize(combat_categories);
 
-				eff = 5 + 25 * (units_static[i].cost - min_cost)/(max_cost - min_cost);
-				assert(eff > 0);
+				const int side                  = s_buildTree.getSideOfUnitType(UnitDefId(i));
+				const AAIUnitCategory& category = s_buildTree.getUnitCategory(UnitDefId(i));
+				const float cost                = s_buildTree.getTotalCost(UnitDefId(i));
+				
+				const float eff = 1.0f + 3.0f * s_buildTree.getUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
+
 				for(int k = 0; k < combat_categories; ++k)
 				{
 					units_static[i].efficiency[k] = eff;
@@ -588,7 +582,12 @@ void AAIBuildTable::Init()
 			for(int i = 1; i <= numOfUnits; ++i)
 			{
 				cat = units_static[i].category;
-				eff = 1.5 + 7 * (units_static[i].cost - min_cost)/(max_cost - min_cost);
+				
+				const int side                  = s_buildTree.getSideOfUnitType(UnitDefId(i));
+				const AAIUnitCategory& category = s_buildTree.getUnitCategory(UnitDefId(i));
+				const float cost                = s_buildTree.getTotalCost(UnitDefId(i));
+				
+				const float eff = 1.0f + 3.0f * s_buildTree.getUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
 
 				if(cat == AIR_ASSAULT)
 				{
@@ -622,7 +621,7 @@ void AAIBuildTable::Init()
 
 				for(list<int>::iterator unit = temp_list[s].begin(); unit != temp_list[s].end(); ++unit)
 				{
-					my_cost = (units_static[*unit].cost - this->min_cost[AIR_ASSAULT][s]) / total_cost;
+					my_cost = (s_buildTree.getTotalCost(UnitDefId(*unit)) - this->min_cost[AIR_ASSAULT][s]) / total_cost;
 
 					if(my_cost < cfg->MAX_COST_LIGHT_ASSAULT)
 					{
@@ -660,16 +659,6 @@ void AAIBuildTable::Init()
 	// only once
 	if(ai->getAAIInstance() == 1)
 	{
-		// apply possible cost multipliers
-		if(cfg->cost_multipliers.size() > 0)
-		{
-			for(size_t i = 0; i < cfg->cost_multipliers.size(); ++i)
-				units_static[cfg->cost_multipliers[i].id].cost *= cfg->cost_multipliers[i].multiplier;
-
-			// recalculate costs
-			PrecacheCosts();
-		}
-
 		UpdateMinMaxAvgEfficiency();
 
 		float temp;
@@ -691,12 +680,12 @@ void AAIBuildTable::Init()
 				// eff. of tidal generators have not been calculated yet (depend on map)
 				if(temp == 0)
 				{
-					temp = ai->Getcb()->GetTidalStrength() / units_static[*pplant].cost;
+					temp = ai->Getcb()->GetTidalStrength() / s_buildTree.getTotalCost(UnitDefId(*pplant));
 
 					units_static[*pplant].efficiency[0] = ai->Getcb()->GetTidalStrength();
 					units_static[*pplant].efficiency[1] = temp;
 				} else if (temp < 0) {
-					temp = (ai->Getcb()->GetMaxWind() + ai->Getcb()->GetMinWind()) * 0.5f / units_static[*pplant].cost;
+					temp = (ai->Getcb()->GetMaxWind() + ai->Getcb()->GetMinWind()) * 0.5f / s_buildTree.getTotalCost(UnitDefId(*pplant));
 
 					units_static[*pplant].efficiency[0] = (ai->Getcb()->GetMaxWind() + ai->Getcb()->GetMinWind()) * 0.5f;
 					units_static[*pplant].efficiency[1] = temp;
@@ -782,7 +771,7 @@ void AAIBuildTable::PrecacheStats()
 			else if(GetUnitDef(*i).energyUpkeep <= -cfg->MIN_ENERGY)
 				units_static[*i].efficiency[0] = - GetUnitDef(*i).energyUpkeep;
 
-			units_static[*i].efficiency[1] = units_static[*i].efficiency[0] / units_static[*i].cost;
+			units_static[*i].efficiency[1] = units_static[*i].efficiency[0] / s_buildTree.getTotalCost(UnitDefId(*i));
 		}
 
 		// precache efficiency of extractors
@@ -819,7 +808,7 @@ void AAIBuildTable::PrecacheStats()
 		for(list<int>::iterator i = units_of_category[STATIONARY_ARTY][s].begin(); i != units_of_category[STATIONARY_ARTY][s].end(); ++i)
 		{
 			units_static[*i].efficiency[1] = s_buildTree.getUnitTypeProperties( UnitDefId(*i) ).m_range;
-			units_static[*i].efficiency[0] = 1 + units_static[*i].cost/100.0;
+			units_static[*i].efficiency[0] = 1 + s_buildTree.getTotalCost(UnitDefId(*i))/100.0;
 		}
 
 		// precache costs and buildtime
@@ -834,13 +823,13 @@ void AAIBuildTable::PrecacheStats()
 
 			for(list<int>::iterator unit = units_of_category[i][s].begin(); unit != units_of_category[i][s].end(); ++unit)
 			{
-				avg_cost[i][s] += units_static[*unit].cost;
+				avg_cost[i][s] += s_buildTree.getTotalCost(UnitDefId(*unit));
 
-				if(units_static[*unit].cost > this->max_cost[i][s])
-					this->max_cost[i][s] = units_static[*unit].cost;
+				if(s_buildTree.getTotalCost(UnitDefId(*unit)) > this->max_cost[i][s])
+					this->max_cost[i][s] = s_buildTree.getTotalCost(UnitDefId(*unit));
 
-				if(units_static[*unit].cost < this->min_cost[i][s] )
-					this->min_cost[i][s] = units_static[*unit].cost;
+				if(s_buildTree.getTotalCost(UnitDefId(*unit)) < this->min_cost[i][s] )
+					this->min_cost[i][s] = s_buildTree.getTotalCost(UnitDefId(*unit));
 			}
 
 			if(units_of_category[i][s].size() > 0)
@@ -1193,13 +1182,13 @@ void AAIBuildTable::PrecacheCosts()
 
 			for(list<int>::iterator unit = units_of_category[i][s].begin(); unit != units_of_category[i][s].end(); ++unit)
 			{
-				avg_cost[i][s] += units_static[*unit].cost;
+				avg_cost[i][s] += s_buildTree.getTotalCost(UnitDefId(*unit));
 
-				if(units_static[*unit].cost > this->max_cost[i][s])
-					this->max_cost[i][s] = units_static[*unit].cost;
+				if(s_buildTree.getTotalCost(UnitDefId(*unit)) > this->max_cost[i][s])
+					this->max_cost[i][s] = s_buildTree.getTotalCost(UnitDefId(*unit));
 
-				if(units_static[*unit].cost < this->min_cost[i][s] )
-					this->min_cost[i][s] = units_static[*unit].cost;
+				if(s_buildTree.getTotalCost(UnitDefId(*unit)) < this->min_cost[i][s] )
+					this->min_cost[i][s] = s_buildTree.getTotalCost(UnitDefId(*unit));
 			}
 
 			if(units_of_category[i][s].size() > 0)
@@ -1318,7 +1307,7 @@ int AAIBuildTable::GetPowerPlant(int side, float cost, float urgency, float powe
 						- urgency * (GetUnitDef(*pplant).buildTime / max_buildtime[POWER_PLANT][side-1]);
 
 			//
-			if(unit->cost >= max_cost[POWER_PLANT][side-1])
+			if(s_buildTree.getTotalCost(UnitDefId(*pplant)) >= max_cost[POWER_PLANT][side-1])
 				my_ranking -= (cost + urgency + power)/2.0f;
 
 			//ai->Log("%-20s: %f\n", GetUnitDef(*pplant)->humanName.c_str(), my_ranking);
@@ -1352,7 +1341,7 @@ int AAIBuildTable::GetMex(int side, float cost, float effiency, bool armed, bool
 		else if( ( (!water) && GetUnitDef(*i).minWaterDepth <= 0 ) || ( water && GetUnitDef(*i).minWaterDepth > 0 ) )
 		{
 			my_ranking = effiency * (GetUnitDef(*i).extractsMetal - avg_value[EXTRACTOR][side]) / max_value[EXTRACTOR][side]
-						- cost * (units_static[*i].cost - avg_cost[EXTRACTOR][side]) / max_cost[EXTRACTOR][side];
+						- cost * (s_buildTree.getTotalCost(UnitDefId(*i)) - avg_cost[EXTRACTOR][side]) / max_cost[EXTRACTOR][side];
 
 			if(armed && !GetUnitDef(*i).weapons.empty())
 				my_ranking += 1;
@@ -1402,12 +1391,12 @@ int AAIBuildTable::GetStorage(int side, float cost, float metal, float energy, f
 		else if(!water && GetUnitDef(*storage).minWaterDepth <= 0)
 		{
 			my_rating = (metal * GetUnitDef(*storage).metalStorage + energy * GetUnitDef(*storage).energyStorage)
-				/(cost * units_static[*storage].cost + urgency * GetUnitDef(*storage).buildTime);
+				/(cost * s_buildTree.getTotalCost(UnitDefId(*storage)) + urgency * GetUnitDef(*storage).buildTime);
 		}
 		else if(water && GetUnitDef(*storage).minWaterDepth > 0)
 		{
 			my_rating = (metal * GetUnitDef(*storage).metalStorage + energy * GetUnitDef(*storage).energyStorage)
-				/(cost * units_static[*storage].cost + urgency * GetUnitDef(*storage).buildTime);
+				/(cost * s_buildTree.getTotalCost(UnitDefId(*storage)) + urgency * GetUnitDef(*storage).buildTime);
 		}
 		else
 			my_rating = 0;
@@ -1443,12 +1432,12 @@ int AAIBuildTable::GetMetalMaker(int side, float cost, float efficiency, float m
 		else if(!water && GetUnitDef(*maker).minWaterDepth <= 0)
 		{
 			my_rating = (pow((long double) efficiency * units_static[*maker].efficiency[0], (long double) 1.4) + pow((long double) metal * makesMetal, (long double) 1.6))
-				/(pow((long double) cost * units_static[*maker].cost,(long double) 1.4) + pow((long double) urgency * GetUnitDef(*maker).buildTime,(long double) 1.4));
+				/(pow((long double) cost * s_buildTree.getTotalCost(UnitDefId(*maker)),(long double) 1.4) + pow((long double) urgency * GetUnitDef(*maker).buildTime,(long double) 1.4));
 		}
 		else if(water && GetUnitDef(*maker).minWaterDepth > 0)
 		{
 			my_rating = (pow((long double) efficiency * units_static[*maker].efficiency[0], (long double) 1.4) + pow((long double) metal * makesMetal, (long double) 1.6))
-				/(pow((long double) cost * units_static[*maker].cost,(long double) 1.4) + pow((long double) urgency * GetUnitDef(*maker).buildTime,(long double) 1.4));
+				/(pow((long double) cost * s_buildTree.getTotalCost(UnitDefId(*maker)),(long double) 1.4) + pow((long double) urgency * GetUnitDef(*maker).buildTime,(long double) 1.4));
 		}
 		else
 			my_rating = 0;
@@ -1563,7 +1552,7 @@ int AAIBuildTable::DetermineStaticDefence(int side, double efficiency, double co
 				max_power = my_power;
 
 			// calculate eff
-			my_power /= unit->cost;
+			my_power /= s_buildTree.getTotalCost(UnitDefId(*defence));
 
 			if(my_power > max_eff_selection)
 				max_eff_selection = my_power;
@@ -1662,7 +1651,7 @@ int AAIBuildTable::GetCheapDefenceBuilding(int side, double efficiency, double c
 				max_power = my_power;
 
 			// calculate eff
-			my_power /= unit->cost;
+			my_power /= s_buildTree.getTotalCost(UnitDefId(*defence));
 
 			if(my_power > max_eff_selection)
 				max_eff_selection = my_power;
@@ -1686,9 +1675,9 @@ int AAIBuildTable::GetCheapDefenceBuilding(int side, double efficiency, double c
 		{
 			unit = &units_static[*defence];
 
-			my_ranking = efficiency * (def_power[side][k] / unit->cost) / max_eff_selection
+			my_ranking = efficiency * (def_power[side][k] / s_buildTree.getTotalCost(UnitDefId(*defence))) / max_eff_selection
 						+ combat_power * def_power[side][k] / max_power
-						- cost * unit->cost / avg_cost[STATIONARY_DEF][side]
+						- cost * s_buildTree.getTotalCost(UnitDefId(*defence)) / avg_cost[STATIONARY_DEF][side]
 						- urgency * GetUnitDef(*defence).buildTime / max_buildtime[STATIONARY_DEF][side];
 
 			if(my_ranking > best_ranking)
@@ -1770,11 +1759,11 @@ int AAIBuildTable::GetStationaryArty(int side, float cost, float range, float ef
 			my_ranking = 0;
 		else if(!water && GetUnitDef(*arty).minWaterDepth <= 0)
 		{
-			my_ranking =  (range * units_static[*arty].efficiency[1] + efficiency * units_static[*arty].efficiency[0]) / (cost * units_static[*arty].cost);
+			my_ranking =  (range * units_static[*arty].efficiency[1] + efficiency * units_static[*arty].efficiency[0]) / (cost * s_buildTree.getTotalCost(UnitDefId(*arty)));
 		}
 		else if(water && GetUnitDef(*arty).minWaterDepth > 0)
 		{
-			my_ranking =  (range * units_static[*arty].efficiency[1] + efficiency * units_static[*arty].efficiency[0]) / (cost * units_static[*arty].cost);
+			my_ranking =  (range * units_static[*arty].efficiency[1] + efficiency * units_static[*arty].efficiency[0]) / (cost * s_buildTree.getTotalCost(UnitDefId(*arty)));
 		}
 		else
 			my_ranking = 0;
@@ -1801,10 +1790,10 @@ int AAIBuildTable::GetRadar(int side, float cost, float range, bool water, bool 
 			if(canBuild && units_dynamic[*i].constructorsAvailable <= 0)
 				my_rating = -10000;
 			else if(water && GetUnitDef(*i).minWaterDepth > 0)
-				my_rating = cost * (avg_cost[STATIONARY_RECON][side] - units_static[*i].cost)/max_cost[STATIONARY_RECON][side]
+				my_rating = cost * (avg_cost[STATIONARY_RECON][side] - s_buildTree.getTotalCost(UnitDefId(*i)))/max_cost[STATIONARY_RECON][side]
 						+ range * (GetUnitDef(*i).radarRadius - avg_value[STATIONARY_RECON][side])/max_value[STATIONARY_RECON][side];
 			else if (!water && GetUnitDef(*i).minWaterDepth <= 0)
-				my_rating = cost * (avg_cost[STATIONARY_RECON][side] - units_static[*i].cost)/max_cost[STATIONARY_RECON][side]
+				my_rating = cost * (avg_cost[STATIONARY_RECON][side] - s_buildTree.getTotalCost(UnitDefId(*i)))/max_cost[STATIONARY_RECON][side]
 						+ range * (GetUnitDef(*i).radarRadius - avg_value[STATIONARY_RECON][side])/max_value[STATIONARY_RECON][side];
 			else
 				my_rating = -10000;
@@ -1836,10 +1825,10 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 		if(canBuild && units_dynamic[*i].constructorsAvailable <= 0)
 			my_rating = -10000;
 		else if(water && GetUnitDef(*i).minWaterDepth > 0)
-			my_rating = cost * (avg_cost[STATIONARY_JAMMER][side] - units_static[*i].cost)/max_cost[STATIONARY_JAMMER][side]
+			my_rating = cost * (avg_cost[STATIONARY_JAMMER][side] - s_buildTree.getTotalCost(UnitDefId(*i)))/max_cost[STATIONARY_JAMMER][side]
 						+ range * (GetUnitDef(*i).jammerRadius - avg_value[STATIONARY_JAMMER][side])/max_value[STATIONARY_JAMMER][side];
 		else if (!water &&  GetUnitDef(*i).minWaterDepth <= 0)
-			my_rating = cost * (avg_cost[STATIONARY_JAMMER][side] - units_static[*i].cost)/max_cost[STATIONARY_JAMMER][side]
+			my_rating = cost * (avg_cost[STATIONARY_JAMMER][side] - s_buildTree.getTotalCost(UnitDefId(*i)))/max_cost[STATIONARY_JAMMER][side]
 						+ range * (GetUnitDef(*i).jammerRadius - avg_value[STATIONARY_JAMMER][side])/max_value[STATIONARY_JAMMER][side];
 		else
 			my_rating = -10000;
@@ -1882,7 +1871,7 @@ UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uin
 		if( (movementTypeAllowed == true) && (factoryPrerequisitesMet == true) )
 		{
 			float myRanking =     sightRange * ( (GetUnitDef(*i).losRadius - min_value[SCOUT][side]) / losRadiusRange)
-								+       cost * ( (max_cost[SCOUT][side]    - units_static[*i].cost) / costRange );
+								+       cost * ( (max_cost[SCOUT][side]    - s_buildTree.getTotalCost(UnitDefId(*i))) / costRange );
 
 			if(cloakable && GetUnitDef(*i).canCloak)
 				myRanking += 2.0f;
@@ -2208,7 +2197,7 @@ bool AAIBuildTable::LoadBuildTable()
 
 				fscanf(load_file, "%i %i %u %f %f %i " _STPF_ " " _STPF_ " ",&dummyInt, &dummyInt,
 									&units_static[i].unit_type,
-									&dummyFloat, &units_static[i].cost,
+									&dummyFloat, &dummyFloat,
 									&cat, &bo, &bb);
 
 				// get memory for eff
@@ -2327,7 +2316,7 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 	{
 		fprintf(save_file, "%i %i %u %f %f %i ", 0, 0,
 								units_static[i].unit_type, 0.0f,
-								units_static[i].cost, (int) units_static[i].category);
+								0.0f, (int) units_static[i].category);
 
 		// save combat eff
 		for(int k = 0; k < combat_categories; ++k)
@@ -2674,7 +2663,7 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 
 	if(combat_units > 0)
 	{
-		rating /= (combat_units * units_static[def_id].cost);
+		rating /= (combat_units * s_buildTree.getTotalCost(UnitDefId(def_id)));
 		rating *= fastmath::apxsqrt((float) (4 + combat_units) );
 
 		if(scout)
@@ -2719,8 +2708,8 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 
 	for(list<int>::const_iterator factory = s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).begin();  factory != s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).end(); ++factory)
 	{
-		if(units_static[*factory].cost > max_cost)
-			max_cost = units_static[*factory].cost;
+		if(s_buildTree.getTotalCost(UnitDefId(*factory)) > max_cost)
+			max_cost = s_buildTree.getTotalCost(UnitDefId(*factory));
 
 		if(GetUnitDef(*factory).buildTime > max_buildtime)
 			max_buildtime = GetUnitDef(*factory).buildTime;
@@ -2736,7 +2725,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 		{
 			my_rating = buildspeed * (GetUnitDef(*factory).buildSpeed / max_buildspeed)
 				- (GetUnitDef(*factory).buildTime / max_buildtime)
-				- cost * (units_static[*factory].cost / max_cost);
+				- cost * (s_buildTree.getTotalCost(UnitDefId(*factory)) / max_cost);
 
 			// prefer builders that can be built atm
 			if(units_dynamic[*factory].constructorsAvailable > 0)
@@ -2831,13 +2820,15 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 	float max_buildspeed = 0;
 	float max_cost = 0;
 
+	//! @todo Rework builder selection
+
 	for(list<int>::const_iterator builder = s_buildTree.getConstructedByList(UnitDefId(building_def_id)).begin();  builder != s_buildTree.getConstructedByList(UnitDefId(building_def_id)).end(); ++builder)
 	{
-		if(units_static[*builder].cost > max_cost)
-			max_cost = units_static[*builder].cost;
+		if(s_buildTree.getTotalCost(UnitDefId(*builder)) > max_cost)
+			max_cost = s_buildTree.getTotalCost(UnitDefId(*builder));
 
-		if(GetUnitDef(*builder).buildTime > max_buildtime)
-			max_buildtime = GetUnitDef(*builder).buildTime;
+		if(s_buildTree.getBuildtime(UnitDefId(*builder)) > max_buildtime)
+			max_buildtime = s_buildTree.getBuildtime(UnitDefId(*builder));
 
 		if(GetUnitDef(*builder).buildSpeed > max_buildspeed)
 			max_buildspeed = GetUnitDef(*builder).buildSpeed;
@@ -2850,8 +2841,8 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 		if(units_dynamic[*builder].active + units_dynamic[*builder].under_construction + units_dynamic[*builder].requested < cfg->MAX_BUILDERS_PER_TYPE)
 		{
 			my_rating = buildspeed * spring::SafeDivide(GetUnitDef(*builder).buildSpeed, max_buildspeed)
-				- spring::SafeDivide(GetUnitDef(*builder).buildTime, max_buildtime)
-				- cost * spring::SafeDivide(units_static[*builder].cost, max_cost);
+				- spring::SafeDivide(s_buildTree.getBuildtime(UnitDefId(*builder)), max_buildtime)
+				- cost * spring::SafeDivide(s_buildTree.getTotalCost(UnitDefId(*builder)), max_cost);
 
 			// prefer builders that can be built atm
 			if(units_dynamic[*builder].constructorsAvailable > 0)
@@ -2914,7 +2905,7 @@ void AAIBuildTable::AddAssistant(uint32_t allowedMovementTypes, bool canBuild)
 			{
 				if( GetUnitDef(*unit).buildSpeed >= (float)cfg->MIN_ASSISTANCE_BUILDTIME && GetUnitDef(*unit).canAssist)
 				{
-					my_rating = cost * (units_static[*unit].cost / max_cost[MOBILE_CONSTRUCTOR][ai->Getside()-1])
+					my_rating = cost * (s_buildTree.getTotalCost(UnitDefId(*unit)) / max_cost[MOBILE_CONSTRUCTOR][ai->Getside()-1])
 								+ buildspeed * (GetUnitDef(*unit).buildSpeed / max_value[MOBILE_CONSTRUCTOR][ai->Getside()-1])
 								- urgency * (GetUnitDef(*unit).buildTime / max_buildtime[MOBILE_CONSTRUCTOR][ai->Getside()-1]);
 

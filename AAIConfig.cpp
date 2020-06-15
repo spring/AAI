@@ -305,22 +305,6 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 					break;
 				}
 			}
-		} else if(!strcmp(keyword, "COST_MULTIPLIER")) {
-			// get the unit def
-			const std::string unitdef = GetString(ai, file);
-			const UnitDef* def = GetUnitDef(ai, unitdef);
-
-			if(def)
-			{
-				CostMultiplier temp;
-				temp.id = def->id;
-				temp.multiplier = GetFloat(ai, file);
-
-				cost_multipliers.push_back(temp);
-			} else {
-				errorOccurred = true;
-				break;
-			}
 		} else if(!strcmp(keyword,"SECTOR_SIZE")) {
 			SECTOR_SIZE = GetFloat(ai, file);
 			ai->Log("SECTOR_SIZE set to %f", SECTOR_SIZE);

@@ -851,7 +851,9 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 	{
 		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable > 0)
 		{
-			if(ai->Getbt()->units_static[unitDefId.id].cost < cfg->MAX_COST_LIGHT_ASSAULT * ai->Getbt()->max_cost[ai->Getbt()->units_static[unitDefId.id].category][ai->Getside()-1])
+			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(ai->Getbt()->s_buildTree.getUnitCategory(unitDefId));
+
+			if(ai->Getbt()->s_buildTree.getTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
 			{
 				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 3, urgent))
 				{
@@ -859,7 +861,7 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unitDefId.id].category, 3);
 				}
 			}
-			else if(ai->Getbt()->units_static[unitDefId.id].cost < cfg->MAX_COST_MEDIUM_ASSAULT * ai->Getbt()->max_cost[ai->Getbt()->units_static[unitDefId.id].category][ai->Getside()-1])
+			else if(ai->Getbt()->s_buildTree.getTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
 			{
 				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 2, urgent))
 					ai->Getbt()->units_dynamic[unitDefId.id].requested += 2;

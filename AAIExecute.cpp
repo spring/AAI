@@ -800,7 +800,8 @@ bool AAIExecute::BuildPowerPlant()
 			if(builder && builder->construction_category == POWER_PLANT)
 			{
 				// dont build further power plants if already building an expensive plant
-				if(ai->Getbt()->units_static[builder->m_constructedDefId.id].cost > ai->Getbt()->avg_cost[POWER_PLANT][ai->Getside()-1])
+				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_POWER_PLANT));
+				if(ai->Getbt()->s_buildTree.getTotalCost(builder->m_constructedDefId) > costStatistics.GetAvgValue() )
 					return true;
 
 				// try to assist
@@ -1378,7 +1379,9 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 		{
 			if(dest->PosInSector(&(*task)->build_pos))
 			{
-				if(ai->Getbt()->units_static[(*task)->def_id].cost > 0.7f * ai->Getbt()->avg_cost[STATIONARY_DEF][ai->Getside()-1])
+				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_STATIC_DEFENCE));
+
+				if( ai->Getbt()->s_buildTree.getTotalCost(UnitDefId((*task)->def_id)) > 0.7f * costStatistics.GetAvgValue() )
 					return BUILDORDER_SUCCESFUL;
 			}
 		}
@@ -1703,7 +1706,7 @@ bool AAIExecute::BuildFactory()
 			my_rating *= (1 + sqrt(2.0 + (float) GetBuildqueueOfFactory(*fac)->size()));
 
 			if(ai->Getut()->activeFactories < 1)
-				my_rating /= ai->Getbt()->units_static[*fac].cost;
+				my_rating /= ai->Getbt()->s_buildTree.getTotalCost(UnitDefId(*fac));
 
 			// skip factories that could not be built
 			if(ai->Getbt()->units_static[*fac].efficiency[4] > 1)
@@ -3013,7 +3016,10 @@ void AAIExecute::AddStartFactory()
 		if(ai->Getbt()->units_dynamic[*fac].constructorsAvailable > 0)
 		{
 			my_rating = ai->Getbt()->GetFactoryRating(*fac);
-			my_rating *= (2.0 - (ai->Getbt()->units_static[*fac].cost / ai->Getbt()->max_cost[STATIONARY_CONSTRUCTOR][ai->Getside()-1]));
+
+			//! @todo: Rework fatcory selection
+			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_STATIC_CONSTRUCTOR));
+			my_rating *= (1.0f + costStatistics.GetNormalizedDeviationFromMin( ai->Getbt()->s_buildTree.getTotalCost(UnitDefId(*fac)) ) );
 
 			if(my_rating > best_rating)
 			{
