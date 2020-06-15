@@ -616,7 +616,7 @@ bool AAIExecute::BuildExtractor()
 
 		if(land_mex && ai->Getbt()->units_dynamic[land_mex].constructorsAvailable <= 0 && ai->Getbt()->units_dynamic[land_mex].constructorsRequested <= 0)
 		{
-			ai->Getbt()->BuildBuilderFor(land_mex);
+			ai->Getbt()->BuildBuilderFor(UnitDefId(land_mex));
 			land_mex = ai->Getbt()->GetMex(ai->Getside(), cost, efficiency, false, false, true);
 		}
 
@@ -633,7 +633,7 @@ bool AAIExecute::BuildExtractor()
 		}
 		else
 		{
-			ai->Getbt()->BuildBuilderFor(land_mex);
+			ai->Getbt()->BuildBuilderFor(UnitDefId(land_mex));
 			return false;
 		}
 	}
@@ -647,7 +647,7 @@ bool AAIExecute::BuildExtractor()
 
 		if(land_mex && ai->Getbt()->units_dynamic[land_mex].constructorsAvailable + ai->Getbt()->units_dynamic[land_mex].constructorsRequested <= 0)
 		{
-			ai->Getbt()->BuildBuilderFor(land_mex);
+			ai->Getbt()->BuildBuilderFor(UnitDefId(land_mex));
 			land_mex = ai->Getbt()->GetMex(ai->Getside(), cost, efficiency, false, false, true);
 		}
 
@@ -660,7 +660,7 @@ bool AAIExecute::BuildExtractor()
 
 		if(water_mex && ai->Getbt()->units_dynamic[water_mex].constructorsAvailable + ai->Getbt()->units_dynamic[water_mex].constructorsRequested <= 0)
 		{
-			ai->Getbt()->BuildBuilderFor(water_mex);
+			ai->Getbt()->BuildBuilderFor(UnitDefId(water_mex));
 			water_mex = ai->Getbt()->GetMex(ai->Getside(), cost, efficiency, false, true, true);
 		}
 
@@ -872,7 +872,7 @@ bool AAIExecute::BuildPowerPlant()
 	if(ground_plant && ai->Getbt()->units_dynamic[ground_plant].constructorsAvailable <= 0)
 	{
 		if( ai->Getbt()->units_dynamic[water_plant].constructorsRequested <= 0)
-			ai->Getbt()->BuildBuilderFor(ground_plant);
+			ai->Getbt()->BuildBuilderFor(UnitDefId(ground_plant));
 
 		ground_plant = ai->Getbt()->GetPowerPlant(ai->Getside(), eff, urgency, max_power, energy, false, false, true);
 	}
@@ -882,7 +882,7 @@ bool AAIExecute::BuildPowerPlant()
 	if(water_plant && ai->Getbt()->units_dynamic[water_plant].constructorsAvailable <= 0)
 	{
 		if( ai->Getbt()->units_dynamic[water_plant].constructorsRequested <= 0)
-			ai->Getbt()->BuildBuilderFor(water_plant);
+			ai->Getbt()->BuildBuilderFor(UnitDefId(water_plant));
 
 		water_plant = ai->Getbt()->GetPowerPlant(ai->Getside(), eff, urgency, max_power, energy, true, false, true);
 	}
@@ -922,7 +922,7 @@ bool AAIExecute::BuildPowerPlant()
 				}
 				else
 				{
-					ai->Getbt()->BuildBuilderFor(ground_plant);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(ground_plant));
 					return false;
 				}
 			}
@@ -965,7 +965,7 @@ bool AAIExecute::BuildPowerPlant()
 				}
 				else
 				{
-					ai->Getbt()->BuildBuilderFor(water_plant);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(water_plant));
 					return false;
 				}
 			}
@@ -1034,7 +1034,7 @@ bool AAIExecute::BuildMetalMaker()
 			if(maker && ai->Getbt()->units_dynamic[maker].constructorsAvailable <= 0)
 			{
 				if(ai->Getbt()->units_dynamic[maker].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(maker);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(maker));
 
 				maker = ai->Getbt()->GetMetalMaker(ai->Getside(), cost, efficiency, metal, urgency, false, true);
 			}
@@ -1056,7 +1056,7 @@ bool AAIExecute::BuildMetalMaker()
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(maker);
+						ai->Getbt()->BuildBuilderFor(UnitDefId(maker));
 						return false;
 					}
 				}
@@ -1076,7 +1076,7 @@ bool AAIExecute::BuildMetalMaker()
 			if(maker && ai->Getbt()->units_dynamic[maker].constructorsAvailable <= 0)
 			{
 				if(ai->Getbt()->units_dynamic[maker].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(maker);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(maker));
 
 				maker = ai->Getbt()->GetMetalMaker(ai->Getside(), ai->Getbrain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, true);
 			}
@@ -1098,7 +1098,7 @@ bool AAIExecute::BuildMetalMaker()
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(maker);
+						ai->Getbt()->BuildBuilderFor(UnitDefId(maker));
 						return false;
 					}
 				}
@@ -1158,7 +1158,7 @@ bool AAIExecute::BuildStorage()
 			if(storage && ai->Getbt()->units_dynamic[storage].constructorsAvailable <= 0)
 			{
 				if(ai->Getbt()->units_dynamic[storage].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(storage);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(storage));
 
 				storage = ai->Getbt()->GetStorage(ai->Getside(), ai->Getbrain()->Affordable(),  metal, energy, 1, false, true);
 			}
@@ -1179,7 +1179,7 @@ bool AAIExecute::BuildStorage()
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(storage);
+						ai->Getbt()->BuildBuilderFor(UnitDefId(storage));
 						return false;
 					}
 				}
@@ -1198,7 +1198,7 @@ bool AAIExecute::BuildStorage()
 			if(storage && ai->Getbt()->units_dynamic[storage].constructorsAvailable <= 0)
 			{
 				if( ai->Getbt()->units_dynamic[storage].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(storage);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(storage));
 
 				storage = ai->Getbt()->GetStorage(ai->Getside(), ai->Getbrain()->Affordable(),  metal, energy, 1, true, true);
 			}
@@ -1219,7 +1219,7 @@ bool AAIExecute::BuildStorage()
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(storage);
+						ai->Getbt()->BuildBuilderFor(UnitDefId(storage));
 						return false;
 					}
 				}
@@ -1271,7 +1271,7 @@ bool AAIExecute::BuildAirBase()
 			if(airbase && ai->Getbt()->units_dynamic[airbase].constructorsAvailable <= 0)
 			{
 				if(ai->Getbt()->units_dynamic[airbase].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(airbase);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(airbase));
 
 				airbase = ai->Getbt()->GetAirBase(ai->Getside(), ai->Getbrain()->Affordable(), false, true);
 			}
@@ -1292,7 +1292,7 @@ bool AAIExecute::BuildAirBase()
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(airbase);
+						ai->Getbt()->BuildBuilderFor(UnitDefId(airbase));
 						return false;
 					}
 				}
@@ -1311,7 +1311,7 @@ bool AAIExecute::BuildAirBase()
 			if(airbase && ai->Getbt()->units_dynamic[airbase].constructorsAvailable <= 0 )
 			{
 				if(ai->Getbt()->units_dynamic[airbase].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(airbase);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(airbase));
 
 				airbase = ai->Getbt()->GetAirBase(ai->Getside(), ai->Getbrain()->Affordable(), true, true);
 			}
@@ -1332,7 +1332,7 @@ bool AAIExecute::BuildAirBase()
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(airbase);
+						ai->Getbt()->BuildBuilderFor(UnitDefId(airbase));
 						return false;
 					}
 				}
@@ -1491,7 +1491,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 		if(building && ai->Getbt()->units_dynamic[building].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[building].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(building);
+				ai->Getbt()->BuildBuilderFor(UnitDefId(building));
 
 			building = ai->Getbt()->DetermineStaticDefence(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, range, 8, false, true);
 		}
@@ -1524,7 +1524,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 				}
 				else
 				{
-					ai->Getbt()->BuildBuilderFor(building);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(building));
 					return BUILDORDER_NOBUILDER;
 				}
 			}
@@ -1543,7 +1543,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 		if(building && ai->Getbt()->units_dynamic[building].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[building].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(building);
+				ai->Getbt()->BuildBuilderFor(UnitDefId(building));
 
 			building = ai->Getbt()->DetermineStaticDefence(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, 1,  8, true, true);
 		}
@@ -1580,7 +1580,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 				}
 				else
 				{
-					ai->Getbt()->BuildBuilderFor(building);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(building));
 					return BUILDORDER_NOBUILDER;
 				}
 			}
@@ -1612,7 +1612,7 @@ bool AAIExecute::BuildArty()
 		if(ground_arty && ai->Getbt()->units_dynamic[ground_arty].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[ground_arty].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(ground_arty);
+				ai->Getbt()->BuildBuilderFor(UnitDefId(ground_arty));
 
 			ground_arty =ai->Getbt()->GetStationaryArty(ai->Getside(), 1, 2, 2, false, true);
 		}
@@ -1626,7 +1626,7 @@ bool AAIExecute::BuildArty()
 		if(sea_arty && ai->Getbt()->units_dynamic[sea_arty].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[sea_arty].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(sea_arty);
+				ai->Getbt()->BuildBuilderFor(UnitDefId(sea_arty));
 
 			sea_arty = ai->Getbt()->GetStationaryArty(ai->Getside(), 1, 2, 2, true, true);
 		}
@@ -1675,7 +1675,7 @@ bool AAIExecute::BuildArty()
 		}
 		else
 		{
-			ai->Getbt()->BuildBuilderFor(ground_arty);
+			ai->Getbt()->BuildBuilderFor(UnitDefId(ground_arty));
 			return false;
 		}
 	}
@@ -1815,7 +1815,7 @@ bool AAIExecute::BuildFactory()
 			else
 			{
 				if(ai->Getbt()->units_dynamic[building].constructorsRequested + ai->Getbt()->units_dynamic[building].constructorsAvailable <= 0)
-					ai->Getbt()->BuildBuilderFor(building);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(building));
 
 				return false;
 			}
@@ -1885,7 +1885,7 @@ bool AAIExecute::BuildRadar()
 		if(ground_radar && ai->Getbt()->units_dynamic[ground_radar].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[ground_radar].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(ground_radar);
+				ai->Getbt()->BuildBuilderFor(UnitDefId(ground_radar));
 
 			ground_radar = ai->Getbt()->GetRadar(ai->Getside(), cost, range, false, true);
 		}
@@ -1899,7 +1899,7 @@ bool AAIExecute::BuildRadar()
 		if(sea_radar && ai->Getbt()->units_dynamic[sea_radar].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[sea_radar].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(sea_radar);
+				ai->Getbt()->BuildBuilderFor(UnitDefId(sea_radar));
 
 			sea_radar = ai->Getbt()->GetRadar(ai->Getside(), cost, range, false, true);
 		}
@@ -1951,7 +1951,7 @@ bool AAIExecute::BuildRadar()
 		}
 		else
 		{
-			ai->Getbt()->BuildBuilderFor(radar);
+			ai->Getbt()->BuildBuilderFor(UnitDefId(radar));
 			return false;
 		}
 	}
@@ -1980,7 +1980,7 @@ bool AAIExecute::BuildJammer()
 		if(ground_jammer && ai->Getbt()->units_dynamic[ground_jammer].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[ground_jammer].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(ground_jammer);
+				ai->Getbt()->BuildBuilderFor(UnitDefId(ground_jammer));
 
 			ground_jammer = ai->Getbt()->GetJammer(ai->Getside(), cost, range, false, true);
 		}
@@ -1994,7 +1994,7 @@ bool AAIExecute::BuildJammer()
 		if(sea_jammer && ai->Getbt()->units_dynamic[sea_jammer].constructorsAvailable <= 0)
 		{
 			if(ai->Getbt()->units_dynamic[sea_jammer].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(sea_jammer);
+				ai->Getbt()->BuildBuilderFor(UnitDefId(sea_jammer));
 
 			sea_jammer = ai->Getbt()->GetJammer(ai->Getside(), cost, range, false, true);
 		}
@@ -2027,7 +2027,7 @@ bool AAIExecute::BuildJammer()
 				}
 				else
 				{
-					ai->Getbt()->BuildBuilderFor(ground_jammer);
+					ai->Getbt()->BuildBuilderFor(UnitDefId(ground_jammer));
 					return false;
 				}
 			}
@@ -2404,7 +2404,7 @@ void AAIExecute::CheckMexUpgrade()
 
 	if(land_mex && ai->Getbt()->units_dynamic[land_mex].constructorsAvailable + ai->Getbt()->units_dynamic[land_mex].constructorsRequested <= 0)
 	{
-		ai->Getbt()->BuildBuilderFor(land_mex);
+		ai->Getbt()->BuildBuilderFor(UnitDefId(land_mex));
 
 		land_mex = ai->Getbt()->GetMex(ai->Getside(), cost, eff, false, false, true);
 	}
@@ -2413,7 +2413,7 @@ void AAIExecute::CheckMexUpgrade()
 
 	if(water_mex && ai->Getbt()->units_dynamic[water_mex].constructorsAvailable + ai->Getbt()->units_dynamic[water_mex].constructorsRequested  <= 0)
 	{
-		ai->Getbt()->BuildBuilderFor(water_mex);
+		ai->Getbt()->BuildBuilderFor(UnitDefId(water_mex));
 
 		water_mex = ai->Getbt()->GetMex(ai->Getside(), cost, eff, false, true, true);
 	}

@@ -275,6 +275,10 @@ float AAIBuildTree::determineRange(const springLegacyAI::UnitDef* unitDef, const
 	{
 		range = static_cast<float>(unitDef->radarRadius) + static_cast<float>(unitDef->sonarRadius) + static_cast<float>(unitDef->seismicRadius);
 	}
+	else if(unitCategory.isStaticConstructor() == true || unitCategory.isMobileConstructor() == true)
+	{
+		range = unitDef->buildSpeed;
+	}
 
 	return range;
 }

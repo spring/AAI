@@ -68,6 +68,9 @@ public:
 	//! @brief Return the maximum weapon range (0.0f if unarmed)
 	const float getMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
 
+	//! @brief Returns the buildspeed for static and mobile constructors, range otherwise (buildspeed is stored in range variable)
+	const float getBuildspeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
+
 	//! @brief Returns the category that the given unit belongs to
 	const AAIUnitCategory& getUnitCategory(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_unitCategory; };
 

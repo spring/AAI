@@ -2714,7 +2714,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 			if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
 			{
 				ai->Log("BuildFactoryFor(%s) is requesting builder for %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
-				BuildBuilderFor(constructor);
+				BuildBuilderFor(UnitDefId(constructor));
 			}
 
 			// debug
@@ -2754,79 +2754,72 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 }
 
 // tries to build another builder for a certain building
-void AAIBuildTable::BuildBuilderFor(int building_def_id)
+void AAIBuildTable::BuildBuilderFor(UnitDefId building, float cost, float buildtime, float buildpower, float constructableBuilderBonus)
 {
-	int constructor = 0;
-	float best_rating = -10000.0f, my_rating;
+	StatisticalData costStatistics;
+	StatisticalData buildtimeStatistics;
+	StatisticalData buildpowerStatistics;
 
-	float cost = 1.0f;
-	float buildspeed = 1.0f;
-
-	// determine max values
-	float max_buildtime = 0;
-	float max_buildspeed = 0;
-	float max_cost = 0;
-
-	//! @todo Rework builder selection
-
-	for(std::list<UnitDefId>::const_iterator builder = s_buildTree.getConstructedByList(UnitDefId(building_def_id)).begin();  builder != s_buildTree.getConstructedByList(UnitDefId(building_def_id)).end(); ++builder)
+	for(std::list<UnitDefId>::const_iterator builder = s_buildTree.getConstructedByList(building).begin();  builder != s_buildTree.getConstructedByList(building).end(); ++builder)
 	{
-		if(s_buildTree.getTotalCost(*builder) > max_cost)
-			max_cost = s_buildTree.getTotalCost(*builder);
-
-		if(s_buildTree.getBuildtime(*builder) > max_buildtime)
-			max_buildtime = s_buildTree.getBuildtime(*builder);
-
-		if(GetUnitDef((*builder).id).buildSpeed > max_buildspeed)
-			max_buildspeed = GetUnitDef((*builder).id).buildSpeed;
+		costStatistics.AddValue( s_buildTree.getTotalCost(*builder) );
+		buildtimeStatistics.AddValue( s_buildTree.getBuildtime(*builder) );
+		buildpowerStatistics.AddValue( s_buildTree.getBuildspeed(*builder) );
 	}
 
+	costStatistics.Finalize();
+	buildtimeStatistics.Finalize();
+	buildpowerStatistics.Finalize();
+
+	float bestRating = 0.0f;
+	UnitDefId selectedBuilder;
+
+
 	// look for best builder to do the job
-	for(std::list<UnitDefId>::const_iterator builder = s_buildTree.getConstructedByList(UnitDefId(building_def_id)).begin();  builder != s_buildTree.getConstructedByList(UnitDefId(building_def_id)).end(); ++builder)
+	for(std::list<UnitDefId>::const_iterator builder = s_buildTree.getConstructedByList(building).begin();  builder != s_buildTree.getConstructedByList(building).end(); ++builder)
 	{
 		// prevent ai from ordering too many builders of the same type/commanders/builders that cant be built atm
 		if(units_dynamic[(*builder).id].active + units_dynamic[(*builder).id].under_construction + units_dynamic[(*builder).id].requested < cfg->MAX_BUILDERS_PER_TYPE)
 		{
-			my_rating = buildspeed * spring::SafeDivide(GetUnitDef((*builder).id).buildSpeed, max_buildspeed)
-				- spring::SafeDivide(s_buildTree.getBuildtime(*builder), max_buildtime)
-				- cost * spring::SafeDivide(s_buildTree.getTotalCost(*builder), max_cost);
+			float myRating = cost       * costStatistics.GetNormalizedDeviationFromMax( s_buildTree.getTotalCost(*builder) )
+			               + buildtime  * buildtimeStatistics.GetNormalizedDeviationFromMax( s_buildTree.getBuildtime(*builder) )
+				           + buildpower * buildpowerStatistics.GetNormalizedDeviationFromMin( s_buildTree.getBuildspeed(*builder) );
 
-			// prefer builders that can be built atm
 			if(units_dynamic[(*builder).id].constructorsAvailable > 0)
-				my_rating += 1.5f;
+				myRating += constructableBuilderBonus;
 
-			if(my_rating > best_rating)
+			if(myRating > bestRating)
 			{
-				best_rating = my_rating;
-				constructor = (*builder).id;
+				bestRating      = myRating;
+				selectedBuilder = *builder;
 			}
 		}
 	}
 
-	if(constructor && units_dynamic[constructor].under_construction + units_dynamic[constructor].requested <= 0)
+	if( (selectedBuilder.isValid() == true) && (units_dynamic[selectedBuilder.id].under_construction + units_dynamic[selectedBuilder.id].requested <= 0) )
 	{
 		// build factory if necessary
-		if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
+		if(units_dynamic[selectedBuilder.id].constructorsAvailable + units_dynamic[selectedBuilder.id].constructorsRequested <= 0)
 		{
-			ai->Log("BuildBuilderFor(%s) is requesting factory for %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(building_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
+			ai->Log("BuildBuilderFor(%s) is requesting factory for %s\n", s_buildTree.getUnitTypeProperties(building).m_name.c_str(), s_buildTree.getUnitTypeProperties(selectedBuilder).m_name.c_str());
 
-			BuildFactoryFor(constructor);
+			BuildFactoryFor(selectedBuilder.id);
 		}
 
 		// only mark as urgent (unit gets added to front of buildqueue) if no constructor of that type already exists
-		bool urgent = (units_dynamic[constructor].active > 0) ? false : true;
+		bool urgent = (units_dynamic[selectedBuilder.id].active > 0) ? false : true;
 
-		if(ai->Getexecute()->AddUnitToBuildqueue(UnitDefId(constructor), 1, urgent))
+		if(ai->Getexecute()->AddUnitToBuildqueue(selectedBuilder, 1, urgent))
 		{
-			units_dynamic[constructor].requested += 1;
+			units_dynamic[selectedBuilder.id].requested += 1;
 			ai->Getut()->futureBuilders += 1;
 			ai->Getut()->UnitRequested(MOBILE_CONSTRUCTOR);
 
 			// set all its buildoptions buildable
-			ConstructorRequested(UnitDefId(constructor));
+			ConstructorRequested(selectedBuilder);
 
 			// debug
-			ai->Log("BuildBuilderFor(%s) requested %s\n", s_buildTree.getUnitTypeProperties(UnitDefId(building_def_id)).m_name.c_str(), s_buildTree.getUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
+			ai->Log("BuildBuilderFor(%s) requested %s\n", s_buildTree.getUnitTypeProperties(building).m_name.c_str(), s_buildTree.getUnitTypeProperties(selectedBuilder).m_name.c_str());
 		}
 	}
 }
