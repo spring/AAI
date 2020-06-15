@@ -42,10 +42,10 @@ public:
 	int getSideOfUnitType(UnitDefId unitDefId) const { return m_initialized ? m_sideOfUnitType[unitDefId.id] : 0; };
 
 	//! @brief Returns the list of units that can construct the given unit.
-	const std::list<int>& getConstructedByList(UnitDefId unitDefId) const { return m_unitTypeCanBeConstructedtByLists[unitDefId.id]; };
+	const std::list<UnitDefId>& getConstructedByList(UnitDefId unitDefId) const { return m_unitTypeCanBeConstructedtByLists[unitDefId.id]; };
 
 	//! @brief Returns the list of units that can be construct by the given unit.
-	const std::list<int>& getCanConstructList(UnitDefId unitDefId) const { return m_unitTypeCanConstructLists[unitDefId.id]; };
+	const std::list<UnitDefId>& getCanConstructList(UnitDefId unitDefId) const { return m_unitTypeCanConstructLists[unitDefId.id]; };
 
 	//! @brief Returns the number of sides
 	int getNumberOfSides() const { return m_numberOfSides; };
@@ -118,34 +118,34 @@ private:
 	//-----------------------------------------------------------------------------------------------------------------
 
 	//! Flag if build tree is initialized
-	bool                            m_initialized;
+	bool                                          m_initialized;
 
 	//! For every unit type, a list of unit types (unit type id) that may contsruct it 
-	std::vector< std::list<int> >   m_unitTypeCanBeConstructedtByLists;
+	std::vector< std::list<UnitDefId> >           m_unitTypeCanBeConstructedtByLists;
 
 	//! For every unit type, a list of unit types (unit type id) that it may contsruct (e.g. empty if it cannot construct any units) 
-	std::vector< std::list<int> >   m_unitTypeCanConstructLists;
+	std::vector< std::list<UnitDefId> >           m_unitTypeCanConstructLists;
 
 	//! Properties of every unit type needed by other parts of AAI for decision making
-	std::vector< UnitTypeProperties > m_unitTypeProperties;
+	std::vector< UnitTypeProperties >             m_unitTypeProperties;
 
 	//! For every unit type, the side/faction it belongs to (0 if no side)
-	std::vector< int >              m_sideOfUnitType;
+	std::vector< int >                            m_sideOfUnitType;
 
 	//! For every side, the start unit, i.e. root of the buildtree (commander for original TA like mods)
-	std::vector< int >              m_startUnitsOfSide;
+	std::vector< int >                            m_startUnitsOfSide;
 
 	//! The number of sides (i.e. groups of units with disjunct buildtree)
-	int                             m_numberOfSides;
+	int                                           m_numberOfSides;
 
 	//! For every side (not neutral), a list of units that belong to a certain category (order: m_unitsInCategory[side][category])
-	std::vector< std::vector< std::list<int> > > m_unitsInCategory;
+	std::vector< std::vector< std::list<int> > >  m_unitsInCategory;
 
 	//! For every side (not neutral), a list of units that belong to a certain combat category (order: m_unitsInCategory[side][category])
-	std::vector< std::vector< std::list<int> > > m_unitsInCombatCategory;
+	std::vector< std::vector< std::list<int> > >  m_unitsInCombatCategory;
 
 	//! For every side, min/max/avg values for various data (e.g. cost) for every unit category
-	std::vector< AAIUnitStatistics > m_unitCategoryStatisticsOfSide;
+	std::vector< AAIUnitStatistics >              m_unitCategoryStatisticsOfSide;
 };
 
 #endif

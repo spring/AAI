@@ -445,15 +445,15 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgen
 
 	float my_rating, best_rating = 0.0f;
 
-	for(list<int>::const_iterator fac = ai->Getbt()->s_buildTree.getConstructedByList(unitDefId).begin(); fac != ai->Getbt()->s_buildTree.getConstructedByList(unitDefId).end(); ++fac)
+	for(std::list<UnitDefId>::const_iterator fac = ai->Getbt()->s_buildTree.getConstructedByList(unitDefId).begin(); fac != ai->Getbt()->s_buildTree.getConstructedByList(unitDefId).end(); ++fac)
 	{
-		if(ai->Getbt()->units_dynamic[*fac].active > 0)
+		if(ai->Getbt()->units_dynamic[(*fac).id].active > 0)
 		{
-			temp_buildqueue = GetBuildqueueOfFactory(*fac);
+			temp_buildqueue = GetBuildqueueOfFactory((*fac).id);
 
 			if(temp_buildqueue)
 			{
-				my_rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[*fac].active) / static_cast<float>(temp_buildqueue->size() + 3);
+				my_rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[(*fac).id].active) / static_cast<float>(temp_buildqueue->size() + 3);
 
 				// @todo rework criterion to reflect available buildspace instead of maptype
 				if(     (ai->Getmap()->map_type == WATER_MAP) 

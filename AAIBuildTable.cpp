@@ -549,12 +549,12 @@ void AAIBuildTable::Init()
 			// check for factories and builders
 			if(s_buildTree.getCanConstructList(UnitDefId(i)).size() > 0)
 			{
-				for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(i)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(i)).end(); ++unit)
+				for(std::list<UnitDefId>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(i)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(i)).end(); ++unit)
 				{
 					// filter out neutral and unknown units
-					if(s_buildTree.getSideOfUnitType(UnitDefId(*unit)) > 0 && units_static[*unit].category != UNKNOWN)
+					if( (s_buildTree.getSideOfUnitType(*unit) > 0) && (s_buildTree.getUnitCategory(*unit).isValid() == true) )
 					{
-						if(s_buildTree.getMovementType(UnitDefId(*unit)).isStatic() == true)
+						if(s_buildTree.getMovementType(*unit).isStatic() == true)
 							units_static[i].unit_type |= UNIT_TYPE_BUILDER;
 						else
 							units_static[i].unit_type |= UNIT_TYPE_FACTORY;
@@ -611,6 +611,7 @@ void AAIBuildTable::Init()
 
 			for(int s = 0; s < numOfSides; ++s)
 			{
+				
 				total_cost = this->max_cost[AIR_ASSAULT][s] - this->min_cost[AIR_ASSAULT][s];
 
 				if(total_cost <= 0)
@@ -724,34 +725,34 @@ void AAIBuildTable::InitCombatEffCache(int side)
 
 void AAIBuildTable::ConstructorRequested(UnitDefId constructor)
 {
-	for(list<int>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
+	for(std::list<UnitDefId>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
 	{
-		++units_dynamic[*id].constructorsRequested;
+		++units_dynamic[(*id).id].constructorsRequested;
 	}
 }
 
 void AAIBuildTable::ConstructorFinished(UnitDefId constructor)
 {
-	for(list<int>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
+	for(std::list<UnitDefId>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
 	{
-		++units_dynamic[*id].constructorsAvailable;
-		--units_dynamic[*id].constructorsRequested;
+		++units_dynamic[(*id).id].constructorsAvailable;
+		--units_dynamic[(*id).id].constructorsRequested;
 	}
 }
 
 void AAIBuildTable::ConstructorKilled(UnitDefId constructor)
 {
-	for(list<int>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
+	for(std::list<UnitDefId>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
 	{
-		--units_dynamic[*id].constructorsAvailable;
+		--units_dynamic[(*id).id].constructorsAvailable;
 	}
 }
 
 void AAIBuildTable::UnfinishedConstructorKilled(UnitDefId constructor)
 {
-	for(list<int>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
+	for(std::list<UnitDefId>::const_iterator id = s_buildTree.getCanConstructList(constructor).begin();  id != s_buildTree.getCanConstructList(constructor).end(); ++id)
 	{
-		--units_dynamic[*id].constructorsRequested;
+		--units_dynamic[(*id).id].constructorsRequested;
 	}
 }
 
@@ -794,10 +795,10 @@ void AAIBuildTable::PrecacheStats()
 		{
 			average_metal = average_energy = 0;
 
-			for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(*i)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(*i)).end(); ++unit)
+			for(std::list<UnitDefId>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(*i)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(*i)).end(); ++unit)
 			{
-				average_metal += ( GetUnitDef(*unit).metalCost * GetUnitDef(*i).buildSpeed ) / GetUnitDef(*unit).buildTime;
-				average_energy += ( GetUnitDef(*unit).energyCost * GetUnitDef(*i).buildSpeed ) / GetUnitDef(*unit).buildTime;
+				average_metal += ( GetUnitDef((*unit).id).metalCost * GetUnitDef(*i).buildSpeed ) / GetUnitDef((*unit).id).buildTime;
+				average_energy += ( GetUnitDef((*unit).id).energyCost * GetUnitDef(*i).buildSpeed ) / GetUnitDef((*unit).id).buildTime;
 			}
 
 			units_static[*i].efficiency[0] = average_metal  / s_buildTree.getCanConstructList(UnitDefId(*i)).size();
@@ -2508,155 +2509,115 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 
 	if(cfg->AIR_ONLY_MOD)
 	{
-		for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
+		for(std::list<UnitDefId>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
 		{
-			if(units_static[*unit].category >= GROUND_ASSAULT && units_static[*unit].category <= SEA_ASSAULT)
+			if(    (s_buildTree.getUnitCategory(*unit).isGroundCombat() == true)
+				|| (s_buildTree.getUnitCategory(*unit).isHoverCombat()  == true)
+				|| (s_buildTree.getUnitCategory(*unit).isAirCombat()    == true)
+				|| (s_buildTree.getUnitCategory(*unit).isSeaCombat()    == true) )
 			{
-				rating += ground * units_static[*unit].efficiency[0] + air * units_static[*unit].efficiency[1] + hover * units_static[*unit].efficiency[2] + sea * units_static[*unit].efficiency[3];
+				rating += ground * units_static[(*unit).id].efficiency[0] + air * units_static[(*unit).id].efficiency[1] + hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3];
 				combat_units += 1;
-			}
-			else if(IsBuilder(def_id))
-			{
-				builder = true;
-			}
-			else if(IsScout(def_id))
-			{
-				scout = true;
 			}
 		}
 	}
 	else if(ai->Getmap()->map_type == LAND_MAP)
 	{
-		for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
+		for(std::list<UnitDefId>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
 		{
-			if(units_static[*unit].category == GROUND_ASSAULT || units_static[*unit].category == HOVER_ASSAULT)
+			if(    (s_buildTree.getUnitCategory(*unit).isGroundCombat() == true)
+			    || (s_buildTree.getUnitCategory(*unit).isHoverCombat() == true) )
 			{
-				if(units_static[*unit].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[*unit].efficiency[1];
+				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
+					rating += air * units_static[(*unit).id].efficiency[1];
 				else
-					rating += 0.5f * (ground * units_static[*unit].efficiency[0] + hover * units_static[*unit].efficiency[2]);
+					rating += 0.5f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2]);
 
 				combat_units += 1;
 			}
-			else if(units_static[*unit].category == AIR_ASSAULT)
+			else if(s_buildTree.getUnitCategory(*unit).isAirCombat() == true)
 			{
-				if(units_static[*unit].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[*unit].efficiency[1];
+				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
+					rating += air * units_static[(*unit).id].efficiency[1];
 				else
-					rating += 0.5f * (ground * units_static[*unit].efficiency[0] + hover * units_static[*unit].efficiency[2]);
+					rating += 0.5f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2]);
 
 				combat_units += 1;
-			}
-			else if(   (IsBuilder(def_id) == true) 
-			        && (s_buildTree.getMovementType(UnitDefId(def_id)).isSeaUnit() == false) )
-			{
-				builder = true;
-			}
-			else if(   (units_static[*unit].category == SCOUT)
-					&& (s_buildTree.getMovementType(UnitDefId(*unit)).isSeaUnit() == false) )
-			{
-				scout = true;
 			}
 		}
 	}
 	else if(ai->Getmap()->map_type == LAND_WATER_MAP)
 	{
-		for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
+		for(std::list<UnitDefId>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
 		{
-			if(units_static[*unit].category == GROUND_ASSAULT)
+			if(s_buildTree.getUnitCategory(*unit).isGroundCombat() == true)
 			{
-				if(units_static[*unit].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[*unit].efficiency[1];
+				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
+					rating += air * units_static[(*unit).id].efficiency[1];
 				else
-					rating += 0.5f * (ground * units_static[*unit].efficiency[0] + hover * units_static[*unit].efficiency[2]);
+					rating += 0.5f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2]);
 
 				combat_units += 1;
 			}
-			else if(units_static[*unit].category == HOVER_ASSAULT)
+			else if(s_buildTree.getUnitCategory(*unit).isHoverCombat() == true)
 			{
-				if(units_static[*unit].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[*unit].efficiency[1];
+				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
+					rating += air * units_static[(*unit).id].efficiency[1];
 				else
-					rating += 0.33f * (ground * units_static[*unit].efficiency[0] + hover * units_static[*unit].efficiency[2] + sea * units_static[*unit].efficiency[3]);
+					rating += 0.33f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3]);
 
 				combat_units += 1;
 			}
-			else if(units_static[*unit].category == AIR_ASSAULT)
+			else if(s_buildTree.getUnitCategory(*unit).isAirCombat() == true)
 			{
-				if(units_static[*unit].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[*unit].efficiency[1];
+				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
+					rating += air * units_static[(*unit).id].efficiency[1];
 				else
-					rating += 0.33f * (ground * units_static[*unit].efficiency[0] + hover * units_static[*unit].efficiency[2] + sea * units_static[*unit].efficiency[3]);
+					rating += 0.33f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3]);
 
 				combat_units += 1;
 			}
-			else if(units_static[*unit].category == SEA_ASSAULT)
+			else if(s_buildTree.getUnitCategory(*unit).isSeaCombat() == true)
 			{
-				if(units_static[*unit].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[*unit].efficiency[1];
+				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
+					rating += air * units_static[(*unit).id].efficiency[1];
 				else
-					rating += 0.33f * (hover * units_static[*unit].efficiency[2] + sea * units_static[*unit].efficiency[3] + submarine * units_static[*unit].efficiency[4]);
+					rating += 0.33f * (hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3] + submarine * units_static[(*unit).id].efficiency[4]);
 
 				combat_units += 1;
-			}
-			else if(units_static[*unit].category == SUBMARINE_ASSAULT)
-			{
-				rating += 0.5f * (sea * units_static[*unit].efficiency[3] + submarine * units_static[*unit].efficiency[4]);
-				combat_units += 1;
-			}
-			else if(IsBuilder(def_id))
-			{
-				builder = true;
-			}
-			else if(units_static[*unit].category == SCOUT)
-			{
-				scout = true;
 			}
 		}
 	}
 	else if(ai->Getmap()->map_type == WATER_MAP)
 	{
-		for(list<int>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
+		for(std::list<UnitDefId>::const_iterator unit = s_buildTree.getCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.getCanConstructList(UnitDefId(def_id)).end(); ++unit)
 		{
-			if(units_static[*unit].category == HOVER_ASSAULT)
+			if(s_buildTree.getUnitCategory(*unit).isHoverCombat() == true)
 			{
-				if(units_static[*unit].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[*unit].efficiency[1];
+				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
+					rating += air * units_static[(*unit).id].efficiency[1];
 				else
-					rating += 0.5f * (hover * units_static[*unit].efficiency[2] + sea * units_static[*unit].efficiency[3]);
+					rating += 0.5f * (hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3]);
 
 				combat_units += 1;
 			}
-			else if(units_static[*unit].category == AIR_ASSAULT)
+			else if(s_buildTree.getUnitCategory(*unit).isAirCombat() == true)
 			{
-				if(units_static[*unit].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[*unit].efficiency[1];
+				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
+					rating += air * units_static[(*unit).id].efficiency[1];
 				else
-					rating += 0.5f * (hover * units_static[*unit].efficiency[2] + sea * units_static[*unit].efficiency[3]);
+					rating += 0.5f * (hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3]);
 
 				combat_units += 1;
 			}
-			else if(units_static[*unit].category == SEA_ASSAULT)
+			else if(s_buildTree.getUnitCategory(*unit).isSeaCombat() == true) //! @todo handling of submarines
 			{
-				if(units_static[*unit].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[*unit].efficiency[1];
+				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
+					rating += air * units_static[(*unit).id].efficiency[1];
 				else
-					rating += 0.33f * (hover * units_static[*unit].efficiency[2] + sea * units_static[*unit].efficiency[3] + submarine * units_static[*unit].efficiency[4]);
+					rating += 0.33f * (hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3] + submarine * units_static[(*unit).id].efficiency[4]);
 
 				combat_units += 1;
-			}
-			else if(units_static[*unit].category == SUBMARINE_ASSAULT)
-			{
-				rating += 0.5f * (sea * units_static[*unit].efficiency[3] + submarine * units_static[*unit].efficiency[4]);
-				combat_units += 1;
-			}
-			else if(IsBuilder(def_id))
-			{
-				builder = true;
-			}
-			else if(units_static[*unit].category == SCOUT)
-			{
-				scout = true;
 			}
 		}
 	}
@@ -2672,24 +2633,10 @@ float AAIBuildTable::GetFactoryRating(int def_id)
 		units_static[def_id].efficiency[5] = rating;
 		return rating;
 	}
-	else if(builder)
-	{
-		if(scout)
-		{
-
-			units_static[def_id].efficiency[5] = 1.0f;
-			return 1.0f;
-		}
-		else
-		{
-			units_static[def_id].efficiency[5] = 0.5f;
-			return 0.5f;
-		}
-	}
 	else
 	{
-		units_static[def_id].efficiency[5] = 0;
-		return 0;
+		units_static[def_id].efficiency[5] = 1.0f;
+		return 1.0f;
 	}
 }
 
@@ -2706,40 +2653,40 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 	float max_buildspeed = 0;
 	float max_cost = 0;
 
-	for(list<int>::const_iterator factory = s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).begin();  factory != s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).end(); ++factory)
+	for(std::list<UnitDefId>::const_iterator factory = s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).begin();  factory != s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).end(); ++factory)
 	{
-		if(s_buildTree.getTotalCost(UnitDefId(*factory)) > max_cost)
-			max_cost = s_buildTree.getTotalCost(UnitDefId(*factory));
+		if(s_buildTree.getTotalCost(*factory) > max_cost)
+			max_cost = s_buildTree.getTotalCost(*factory);
 
-		if(GetUnitDef(*factory).buildTime > max_buildtime)
-			max_buildtime = GetUnitDef(*factory).buildTime;
+		if(GetUnitDef((*factory).id).buildTime > max_buildtime)
+			max_buildtime = GetUnitDef((*factory).id).buildTime;
 
-		if(GetUnitDef(*factory).buildSpeed > max_buildspeed)
-			max_buildspeed = GetUnitDef(*factory).buildSpeed;
+		if(GetUnitDef((*factory).id).buildSpeed > max_buildspeed)
+			max_buildspeed = GetUnitDef((*factory).id).buildSpeed;
 	}
 
 	// look for best builder to do the job
-	for(list<int>::const_iterator factory = s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).begin();  factory != s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).end(); ++factory)
+	for(std::list<UnitDefId>::const_iterator factory = s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).begin();  factory != s_buildTree.getConstructedByList(UnitDefId(unit_def_id)).end(); ++factory)
 	{
-		if(units_dynamic[*factory].active + units_dynamic[*factory].requested + units_dynamic[*factory].under_construction < cfg->MAX_FACTORIES_PER_TYPE)
+		if(units_dynamic[(*factory).id].active + units_dynamic[(*factory).id].requested + units_dynamic[(*factory).id].under_construction < cfg->MAX_FACTORIES_PER_TYPE)
 		{
-			my_rating = buildspeed * (GetUnitDef(*factory).buildSpeed / max_buildspeed)
-				- (GetUnitDef(*factory).buildTime / max_buildtime)
-				- cost * (s_buildTree.getTotalCost(UnitDefId(*factory)) / max_cost);
+			my_rating = buildspeed * (GetUnitDef((*factory).id).buildSpeed / max_buildspeed)
+				- (GetUnitDef((*factory).id).buildTime / max_buildtime)
+				- cost * (s_buildTree.getTotalCost(*factory) / max_cost);
 
 			// prefer builders that can be built atm
-			if(units_dynamic[*factory].constructorsAvailable > 0)
+			if(units_dynamic[(*factory).id].constructorsAvailable > 0)
 				my_rating += 2.0f;
 
 			// prevent AAI from requesting factories that cannot be built within the current base
-			if(s_buildTree.getMovementType(UnitDefId(*factory)).isStaticLand() == true)
+			if(s_buildTree.getMovementType(*factory).isStaticLand() == true)
 			{
 				if(ai->Getbrain()->baseLandRatio > 0.1f)
 					my_rating *= ai->Getbrain()->baseLandRatio;
 				else
 					my_rating = -100000.0f;
 			}
-			else if(s_buildTree.getMovementType(UnitDefId(*factory)).isStaticSea() == true)
+			else if(s_buildTree.getMovementType(*factory).isStaticSea() == true)
 			{
 				if(ai->Getbrain()->baseWaterRatio > 0.1f)
 					my_rating *= ai->Getbrain()->baseWaterRatio;
@@ -2750,7 +2697,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 			if(my_rating > best_rating)
 			{
 				best_rating = my_rating;
-				constructor = *factory;
+				constructor = (*factory).id;
 			}
 		}
 	}
@@ -2822,36 +2769,36 @@ void AAIBuildTable::BuildBuilderFor(int building_def_id)
 
 	//! @todo Rework builder selection
 
-	for(list<int>::const_iterator builder = s_buildTree.getConstructedByList(UnitDefId(building_def_id)).begin();  builder != s_buildTree.getConstructedByList(UnitDefId(building_def_id)).end(); ++builder)
+	for(std::list<UnitDefId>::const_iterator builder = s_buildTree.getConstructedByList(UnitDefId(building_def_id)).begin();  builder != s_buildTree.getConstructedByList(UnitDefId(building_def_id)).end(); ++builder)
 	{
-		if(s_buildTree.getTotalCost(UnitDefId(*builder)) > max_cost)
-			max_cost = s_buildTree.getTotalCost(UnitDefId(*builder));
+		if(s_buildTree.getTotalCost(*builder) > max_cost)
+			max_cost = s_buildTree.getTotalCost(*builder);
 
-		if(s_buildTree.getBuildtime(UnitDefId(*builder)) > max_buildtime)
-			max_buildtime = s_buildTree.getBuildtime(UnitDefId(*builder));
+		if(s_buildTree.getBuildtime(*builder) > max_buildtime)
+			max_buildtime = s_buildTree.getBuildtime(*builder);
 
-		if(GetUnitDef(*builder).buildSpeed > max_buildspeed)
-			max_buildspeed = GetUnitDef(*builder).buildSpeed;
+		if(GetUnitDef((*builder).id).buildSpeed > max_buildspeed)
+			max_buildspeed = GetUnitDef((*builder).id).buildSpeed;
 	}
 
 	// look for best builder to do the job
-	for(list<int>::const_iterator builder = s_buildTree.getConstructedByList(UnitDefId(building_def_id)).begin();  builder != s_buildTree.getConstructedByList(UnitDefId(building_def_id)).end(); ++builder)
+	for(std::list<UnitDefId>::const_iterator builder = s_buildTree.getConstructedByList(UnitDefId(building_def_id)).begin();  builder != s_buildTree.getConstructedByList(UnitDefId(building_def_id)).end(); ++builder)
 	{
 		// prevent ai from ordering too many builders of the same type/commanders/builders that cant be built atm
-		if(units_dynamic[*builder].active + units_dynamic[*builder].under_construction + units_dynamic[*builder].requested < cfg->MAX_BUILDERS_PER_TYPE)
+		if(units_dynamic[(*builder).id].active + units_dynamic[(*builder).id].under_construction + units_dynamic[(*builder).id].requested < cfg->MAX_BUILDERS_PER_TYPE)
 		{
-			my_rating = buildspeed * spring::SafeDivide(GetUnitDef(*builder).buildSpeed, max_buildspeed)
-				- spring::SafeDivide(s_buildTree.getBuildtime(UnitDefId(*builder)), max_buildtime)
-				- cost * spring::SafeDivide(s_buildTree.getTotalCost(UnitDefId(*builder)), max_cost);
+			my_rating = buildspeed * spring::SafeDivide(GetUnitDef((*builder).id).buildSpeed, max_buildspeed)
+				- spring::SafeDivide(s_buildTree.getBuildtime(*builder), max_buildtime)
+				- cost * spring::SafeDivide(s_buildTree.getTotalCost(*builder), max_cost);
 
 			// prefer builders that can be built atm
-			if(units_dynamic[*builder].constructorsAvailable > 0)
+			if(units_dynamic[(*builder).id].constructorsAvailable > 0)
 				my_rating += 1.5f;
 
 			if(my_rating > best_rating)
 			{
 				best_rating = my_rating;
-				constructor = *builder;
+				constructor = (*builder).id;
 			}
 		}
 	}

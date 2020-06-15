@@ -75,8 +75,8 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 		{
 			int canConstructId = cb->GetUnitDef(j->second.c_str())->id;
 
-			m_unitTypeCanConstructLists[id].push_back(canConstructId);
-			m_unitTypeCanBeConstructedtByLists[canConstructId].push_back(id);
+			m_unitTypeCanConstructLists[id].push_back( UnitDefId(canConstructId) );
+			m_unitTypeCanBeConstructedtByLists[canConstructId].push_back( UnitDefId(id) );
 		}
 	}
 
@@ -242,9 +242,9 @@ void AAIBuildTree::assignSideToUnitType(int side, UnitDefId unitDefId)
 		m_sideOfUnitType[unitDefId.id] = side;
 
 		// continue with unit types constructed by given unit type
-		for( std::list<int>::iterator id = m_unitTypeCanConstructLists[unitDefId.id].begin(); id != m_unitTypeCanConstructLists[unitDefId.id].end(); ++id)
+		for( std::list<UnitDefId>::iterator id = m_unitTypeCanConstructLists[unitDefId.id].begin(); id != m_unitTypeCanConstructLists[unitDefId.id].end(); ++id)
 		{
-			assignSideToUnitType(side, UnitDefId(*id) );
+			assignSideToUnitType(side, *id);
 		}
 	}
 }
@@ -567,9 +567,9 @@ float AAIBuildTree::GetMaxDamage(const springLegacyAI::UnitDef* unitDef) const
 bool AAIBuildTree::canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const
 {
     // look in build options of builder for unit type
-    for(std::list<int>::const_iterator id = m_unitTypeCanConstructLists[unitDefIdBuilder.id].begin(); id != m_unitTypeCanConstructLists[unitDefIdBuilder.id].end(); ++id)
+    for(std::list<UnitDefId>::const_iterator id = m_unitTypeCanConstructLists[unitDefIdBuilder.id].begin(); id != m_unitTypeCanConstructLists[unitDefIdBuilder.id].end(); ++id)
     {
-        if(*id == unitDefId.id)
+        if((*id).id == unitDefId.id)
             return true;
     }
 
