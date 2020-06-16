@@ -38,11 +38,7 @@ AAIConstructor::AAIConstructor(AAI *ai, UnitId unitId, UnitDefId defId, bool fac
 	m_buildqueue(buildque)
 {
 	this->ai = ai;
-
-	buildspeed = ai->Getbt()->GetUnitDef(m_myDefId.id).buildSpeed;
-
 	build_task = 0;
-
 }
 
 AAIConstructor::~AAIConstructor(void)
@@ -229,19 +225,18 @@ void AAIConstructor::CheckAssistance()
 		{
 			bool assist = false;
 
-
 			if(m_buildqueue->size() > 2)
 				assist = true;
 			else if(m_constructedDefId.isValid() == true) 
 			{
-				float buildtime = 1e6f;
-				if (buildspeed > 0) {
-					//FIXME why use *1/30 here? below there is exactly the same code w/o it, so what's the correct one?
-					buildtime = ai->Getbt()->GetUnitDef(m_constructedDefId.id).buildTime / (30.0f * buildspeed);
-				}
+				const float buildspeed( ai->Getbt()->s_buildTree.getBuildspeed(m_myDefId) ); 
+				if (buildspeed > 0.0f) 
+				{
+					const float buildtime = ai->Getbt()->s_buildTree.getBuildtime(m_constructedDefId) / buildspeed;
 
-				if (buildtime > cfg->MIN_ASSISTANCE_BUILDTIME)
-					assist = true;
+					if (buildtime > static_cast<float>(cfg->MIN_ASSISTANCE_BUILDTIME))
+						assist = true;
+				}
 			}
 
 			if(assist)
@@ -279,31 +274,32 @@ void AAIConstructor::CheckAssistance()
 				return;
 		}
 
-		float buildtime = 1e6;
-		if (buildspeed > 0) {
-			buildtime = ai->Getbt()->GetUnitDef(m_constructedDefId.id).buildTime / buildspeed;
-		}
-
-		if((buildtime > cfg->MIN_ASSISTANCE_BUILDTIME) && (assistants.size() < cfg->MAX_ASSISTANTS))
+		const float buildspeed( ai->Getbt()->s_buildTree.getBuildspeed(m_myDefId) ); 
+		if (buildspeed > 0.0f)
 		{
-			// com only allowed if buildpos is inside the base
-			bool commander = false;
+			const float buildtime = ai->Getbt()->s_buildTree.getBuildtime(m_constructedDefId) / buildspeed;
 
-			int x = m_buildPos.x / ai->Getmap()->xSectorSize;
-			int y = m_buildPos.z / ai->Getmap()->ySectorSize;
-
-			if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
+			if((buildtime > static_cast<float>(cfg->MIN_ASSISTANCE_BUILDTIME)) && (assistants.size() < cfg->MAX_ASSISTANTS))
 			{
-				if(ai->Getmap()->sector[x][y].distance_to_base == 0)
-					commander = true;
-			}
+				// com only allowed if buildpos is inside the base
+				bool commander = false;
 
-			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(m_buildPos, 5, commander);
+				int x = m_buildPos.x / ai->Getmap()->xSectorSize;
+				int y = m_buildPos.z / ai->Getmap()->ySectorSize;
 
-			if(assistant)
-			{
-				assistants.insert(assistant->m_myUnitId.id);
-				assistant->AssistConstruction(m_myUnitId);
+				if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
+				{
+					if(ai->Getmap()->sector[x][y].distance_to_base == 0)
+						commander = true;
+				}
+
+				AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(m_buildPos, 5, commander);
+
+				if(assistant)
+				{
+					assistants.insert(assistant->m_myUnitId.id);
+					assistant->AssistConstruction(m_myUnitId);
+				}
 			}
 		}
 	}

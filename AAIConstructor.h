@@ -121,8 +121,6 @@ public:
 	//! @brief Return the position where a building has been placed
 	const float3& GetBuildPos() const { return m_buildPos; };
 
-	int buildspeed;
-
 	//! Unit id of the construction unit
 	UnitId    m_myUnitId;
 	

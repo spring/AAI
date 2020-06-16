@@ -359,8 +359,8 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool
 
 AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*/, bool commander)
 {
-	AAIConstructor *best_assistant = 0, *assistant;
-	float best_rating = 0, my_rating, dist;
+	AAIConstructor *best_assistant(nullptr);
+	float maxDist( 0.0f );
 	float3 assistant_pos;
 	bool suitable;
 
@@ -372,7 +372,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 		// check all assisters
 		if(IsAssister(units[*i].cons->m_myDefId) == true)
 		{
-			assistant = units[*i].cons;
+			AAIConstructor* assistant = units[*i].cons;
 
 			// find idle assister
 			if(assistant->IsIdle() == true)
@@ -395,16 +395,11 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 				// filter out commander
 				if(suitable && ( commander || !ai->Getbt()->IsCommander(assistant->m_myDefId.id) ) )
 				{
-					dist = (pos.x - assistant_pos.x) * (pos.x - assistant_pos.x) + (pos.z - assistant_pos.z) * (pos.z - assistant_pos.z);
+					const float dist = (pos.x - assistant_pos.x) * (pos.x - assistant_pos.x) + (pos.z - assistant_pos.z) * (pos.z - assistant_pos.z);
 
-					if(dist > 0)
-						my_rating = assistant->buildspeed / fastmath::apxsqrt(dist);
-					else
-						my_rating = 1;
-
-					if(my_rating > best_rating)
+					if( (dist < maxDist) || (maxDist == 0.0f) )
 					{
-						best_rating = my_rating;
+						maxDist = dist;
 						best_assistant = assistant;
 					}
 				}
