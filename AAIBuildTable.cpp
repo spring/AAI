@@ -242,11 +242,10 @@ void AAIBuildTable::Init()
 		list<int> *temp_list;
 		temp_list = new list<int>[numOfSides];
 
-		// add units to buildtable
+		// init with 
 		for(int i = 0; i <= numOfUnits; ++i)
 		{
 			units_static[i].category = UNKNOWN;
-
 			units_static[i].unit_type = 0;
 		}
 
@@ -262,13 +261,20 @@ void AAIBuildTable::Init()
 				const int side                  = s_buildTree.getSideOfUnitType(UnitDefId(i));
 				const AAIUnitCategory& category = s_buildTree.getUnitCategory(UnitDefId(i));
 				const float cost                = s_buildTree.getTotalCost(UnitDefId(i));
-				
-				const float eff = 1.0f + 3.0f * s_buildTree.getUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
 
-				for(int k = 0; k < combat_categories; ++k)
+				if(side > 0)
 				{
-					units_static[i].efficiency[k] = eff;
-					fixed_eff[i][k] = eff;
+					const float eff = 1.0f + 5.0f * s_buildTree.getUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
+
+					for(int k = 0; k < combat_categories; ++k)
+					{
+						units_static[i].efficiency[k] = eff;
+						fixed_eff[i][k] = eff;
+					}
+				}
+				else
+				{
+					units_static[i].efficiency.resize(combat_categories, 0.0f);
 				}
 			}
 			else
@@ -285,7 +291,7 @@ void AAIBuildTable::Init()
 		{
 			int side = s_buildTree.getSideOfUnitType(UnitDefId(i));
 
-			if(side > 0 || !AllowedToBuild(i))
+			if( (side == 0) || !AllowedToBuild(i))
 			{
 			}
 			// get scouts
@@ -587,16 +593,19 @@ void AAIBuildTable::Init()
 				const AAIUnitCategory& category = s_buildTree.getUnitCategory(UnitDefId(i));
 				const float cost                = s_buildTree.getTotalCost(UnitDefId(i));
 				
-				const float eff = 1.0f + 3.0f * s_buildTree.getUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
+				if(side > 0)
+				{
+					const float eff = 1.0f + 6.0f * s_buildTree.getUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
 
-				if(cat == AIR_ASSAULT)
-				{
-					for(int k = 0; k < combat_categories; ++k)
-						units_static[i].efficiency[k] = eff;
-				}
-				else if(cat == GROUND_ASSAULT ||  cat == HOVER_ASSAULT || cat == SEA_ASSAULT || cat == SUBMARINE_ASSAULT || cat == GROUND_ARTY || cat == SEA_ARTY || cat == HOVER_ARTY || cat == STATIONARY_DEF)
-				{
-					units_static[i].efficiency[1] = eff;
+					if(cat == AIR_ASSAULT)
+					{
+						for(int k = 0; k < combat_categories; ++k)
+							units_static[i].efficiency[k] = eff;
+					}
+					else if(cat == GROUND_ASSAULT ||  cat == HOVER_ASSAULT || cat == SEA_ASSAULT || cat == SUBMARINE_ASSAULT || cat == GROUND_ARTY || cat == SEA_ARTY || cat == HOVER_ARTY || cat == STATIONARY_DEF)
+					{
+						units_static[i].efficiency[1] = eff;
+					}
 				}
 			}
 		}
@@ -1217,9 +1226,12 @@ UnitType AAIBuildTable::GetUnitType(int def_id)
 		UnitCategory cat = units_static[def_id].category;
 		int side = s_buildTree.getSideOfUnitType(UnitDefId(def_id))-1;
 
+		if(side < 0)
+			return UnitType::UNKNOWN_UNIT;
+
 		if(cat == GROUND_ASSAULT)
 		{
-			if( units_static[def_id].efficiency[1] / max_eff[side][0][1]  > 6 * units_static[def_id].efficiency[0] / max_eff[side][0][0] )
+			if( units_static[def_id].efficiency[1] / max_eff[side][0][1]  > 6.0f * units_static[def_id].efficiency[0] / max_eff[side][0][0] )
 				return ANTI_AIR_UNIT;
 			else
 				return ASSAULT_UNIT;
@@ -1243,14 +1255,14 @@ UnitType AAIBuildTable::GetUnitType(int def_id)
 		}
 		else if(cat == HOVER_ASSAULT)
 		{
-			if( units_static[def_id].efficiency[1] / max_eff[side][2][1] > 6 * units_static[def_id].efficiency[0] / max_eff[side][2][0] )
+			if( units_static[def_id].efficiency[1] / max_eff[side][2][1] > 6.0f * units_static[def_id].efficiency[0] / max_eff[side][2][0] )
 				return ANTI_AIR_UNIT;
 			else
 				return ASSAULT_UNIT;
 		}
 		else if(cat == SEA_ASSAULT)
 		{
-			if( units_static[def_id].efficiency[1] / max_eff[side][3][1] > 6 * units_static[def_id].efficiency[3] / max_eff[side][3][3] )
+			if( units_static[def_id].efficiency[1] / max_eff[side][3][1] > 6.0f * units_static[def_id].efficiency[3] / max_eff[side][3][3] )
 				return ANTI_AIR_UNIT;
 			else
 				return ASSAULT_UNIT;
@@ -2127,7 +2139,7 @@ void AAIBuildTable::UpdateMinMaxAvgEfficiency()
 
 std::string AAIBuildTable::GetBuildCacheFileName()
 {
-	return cfg->GetFileName(ai, cfg->getUniqueName(ai, true, true, true, true), MOD_LEARN_PATH, "_buildcache.txt", true);
+	return cfg->GetFileName(ai, cfg->getUniqueName(ai, true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
 }
 
 
@@ -2137,16 +2149,6 @@ bool AAIBuildTable::LoadBuildTable()
 	// stop further loading if already done
 	if(!units_static.empty())
 	{
-		units_dynamic.resize(unitList.size());
-
-		for(int i = 0; i < unitList.size(); ++i)
-		{
-			units_dynamic[i].active = 0;
-			units_dynamic[i].requested = 0;
-			units_dynamic[i].constructorsAvailable = 0;
-			units_dynamic[i].constructorsRequested = 0;
-		}
-
 		return true;
 	}
 	else 
@@ -2187,7 +2189,6 @@ bool AAIBuildTable::LoadBuildTable()
 			}
 
 			units_static.resize(unitList.size());
-			units_dynamic.resize(unitList.size());
 			fixed_eff.resize(unitList.size(), vector<float>(combat_categories));
 
 			for(int i = 1; i < unitList.size(); ++i)
