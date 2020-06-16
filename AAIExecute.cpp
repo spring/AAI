@@ -797,7 +797,7 @@ bool AAIExecute::BuildPowerPlant()
 				builder = 0;
 
 			// find the power plant that is already under construction
-			if(builder && builder->construction_category == POWER_PLANT)
+			if(builder && ai->Getbt()->units_static[builder->m_constructedDefId.id].category == POWER_PLANT)
 			{
 				// dont build further power plants if already building an expensive plant
 				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_POWER_PLANT));
@@ -2814,9 +2814,11 @@ bool AAIExecute::AssistConstructionOfCategory(UnitCategory category, int /*impor
 		if((*task)->builder_id >= 0)
 			builder = ai->Getut()->units[(*task)->builder_id].cons;
 		else
-			builder = NULL;
+			builder = nullptr;
 
-		if(builder && builder->construction_category == category && builder->assistants.size() < cfg->MAX_ASSISTANTS)
+		if(   (builder != nullptr) 
+		   && (ai->Getbt()->units_static[builder->m_constructedDefId.id].category == category) 
+		   && (builder->assistants.size() < cfg->MAX_ASSISTANTS) )
 		{
 			assistant = ai->Getut()->FindClosestAssistant(builder->GetBuildPos(), 5, true);
 

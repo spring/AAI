@@ -34,7 +34,7 @@ AAIUnitTable::AAIUnitTable(AAI *ai)
 		units[i].unit_id = -1;
 		units[i].def_id = 0;
 		units[i].group = 0;
-		units[i].cons = 0;
+		units[i].cons = nullptr;
 		units[i].status = UNIT_KILLED;
 		units[i].last_order = 0;
 	}
@@ -101,7 +101,7 @@ void AAIUnitTable::RemoveUnit(int unit_id)
 		units[unit_id].unit_id = -1;
 		units[unit_id].def_id = 0;
 		units[unit_id].group = 0;
-		units[unit_id].cons = 0;
+		units[unit_id].cons = nullptr;
 		units[unit_id].status = UNIT_KILLED;
 	}
 	else
@@ -182,7 +182,7 @@ void AAIUnitTable::RemoveCommander(int unit_id, int def_id)
 	// clean up memory
 	units[unit_id].cons->Killed();
 	delete units[unit_id].cons;
-	units[unit_id].cons = 0;
+	units[unit_id].cons = nullptr;
 
 	// commander has been destroyed, set pointer to zero
 	if(unit_id == cmdr)

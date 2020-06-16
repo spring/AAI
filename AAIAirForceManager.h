@@ -30,7 +30,6 @@ struct AAIAirTarget
 	int unit_id;
 	float cost;
 	float health;
-	UnitCategory category;
 };
 
 class AAIAirForceManager

@@ -135,8 +135,6 @@ public:
 	//! Unit definition id of the constructed unit  (0 if none)
 	UnitDefId m_constructedDefId;
 
-	UnitCategory construction_category;
-
 	// assistant builders
 	set<int> assistants;
 
