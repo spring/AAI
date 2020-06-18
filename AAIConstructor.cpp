@@ -65,7 +65,7 @@ void AAIConstructor::Idle()
 			{
 				//ai->Getbt()->units_dynamic[construction_def_id].active -= 1;
 				//assert(ai->Getbt()->units_dynamic[construction_def_id].active >= 0);
-				ai->Getut()->UnitRequestFailed(ai->Getbt()->units_static[m_constructedDefId.id].category);
+				ai->Getut()->UnitRequestFailed(ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId));
 
 				// clear up buildmap etc. (make sure conctructor wanted to build a building and not a unit)
 				if( ai->Getbt()->s_buildTree.getMovementType(m_constructedDefId).isStatic() == true )
@@ -131,7 +131,8 @@ void AAIConstructor::Update()
 					assert(ai->Getbt()->IsValidUnitDefID(constructedUnitDefId.id));
 					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
 
-					++ai->Getut()->futureUnits[ai->Getbt()->units_static[constructedUnitDefId.id].category];
+					ai->Getut()->UnitRequested(ai->Getbt()->s_buildTree.getUnitCategory(constructedUnitDefId)); // request must be called before create to keep unit counters correct
+					ai->Getut()->UnitCreated(ai->Getbt()->s_buildTree.getUnitCategory(constructedUnitDefId));
 
 					m_buildqueue->pop_front();
 				}
@@ -352,7 +353,7 @@ void AAIConstructor::GiveConstructionOrder(int id_building, float3 pos, bool wat
 		// increase number of active units of that type/category
 		ai->Getbt()->units_dynamic[def->id].requested += 1;
 
-		ai->Getut()->UnitRequested(ai->Getbt()->units_static[m_constructedDefId.id].category);
+		ai->Getut()->UnitRequested(ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId));
 
 		if(ai->Getbt()->IsFactory(id_building))
 			ai->Getut()->futureFactories += 1;
@@ -407,7 +408,7 @@ void AAIConstructor::CheckIfConstructionFailed()
 void AAIConstructor::ConstructionFailed()
 {
 	--ai->Getbt()->units_dynamic[m_constructedDefId.id].requested;
-	ai->Getut()->UnitRequestFailed(ai->Getbt()->units_static[m_constructedDefId.id].category);
+	ai->Getut()->UnitRequestFailed(ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId));
 
 	// clear up buildmap etc.
 	if(ai->Getbt()->s_buildTree.getMovementType(m_constructedDefId).isStatic() == true)

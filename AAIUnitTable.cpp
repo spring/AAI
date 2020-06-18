@@ -39,12 +39,10 @@ AAIUnitTable::AAIUnitTable(AAI *ai)
 		units[i].last_order = 0;
 	}
 
-	for(int i = 0; i <= MOBILE_CONSTRUCTOR; ++i)
-	{
-		activeUnits[i] = 0;
-		futureUnits[i] = 0;
-		requestedUnits[i] = 0;
-	}
+
+	m_activeUnitsOfCategory.resize(AAIUnitCategory::getNumberOfUnitCategories(), 0);
+	m_underConstructionUnitsOfCategory.resize(AAIUnitCategory::getNumberOfUnitCategories(), 0);
+	m_requestedUnitsOfCategory.resize(AAIUnitCategory::getNumberOfUnitCategories(), 0);
 
 	activeBuilders = futureBuilders = 0;
 	activeFactories = futureFactories = 0;
@@ -59,6 +57,10 @@ AAIUnitTable::~AAIUnitTable(void)
 	{
 		delete units[*cons].cons;
 	}
+
+	m_activeUnitsOfCategory.clear();
+	m_underConstructionUnitsOfCategory.clear();
+	m_requestedUnitsOfCategory.clear();
 }
 
 
@@ -473,34 +475,34 @@ bool AAIUnitTable::IsBuilder(UnitId unitId)
 	return false;
 }
 
-void AAIUnitTable::ActiveUnitKilled(UnitCategory category)
+void AAIUnitTable::UnitRequested(const AAIUnitCategory& category, int number)
 {
-	--activeUnits[category];
+	m_requestedUnitsOfCategory[category.getCategoryIndex()] += number;
 }
 
-void AAIUnitTable::FutureUnitKilled(UnitCategory category)
+void AAIUnitTable::UnitRequestFailed(const AAIUnitCategory& category)
 {
-	--futureUnits[category];
+	--m_requestedUnitsOfCategory[category.getCategoryIndex()];
 }
 
-void AAIUnitTable::UnitCreated(UnitCategory category)
+void AAIUnitTable::UnitCreated(const AAIUnitCategory& category)
 {
-	--requestedUnits[category];
-	++futureUnits[category];
+	--m_requestedUnitsOfCategory[category.getCategoryIndex()];
+	++m_underConstructionUnitsOfCategory[category.getCategoryIndex()];
 }
 
-void AAIUnitTable::UnitFinished(UnitCategory category)
+void AAIUnitTable::UnitUnderConstructionKilled(const AAIUnitCategory& category)
 {
-	--futureUnits[category];
-	++activeUnits[category];
+	--m_underConstructionUnitsOfCategory[category.getCategoryIndex()];
 }
 
-void AAIUnitTable::UnitRequestFailed(UnitCategory category)
+void AAIUnitTable::UnitFinished(const AAIUnitCategory& category)
 {
-	--requestedUnits[category];
+	--m_underConstructionUnitsOfCategory[category.getCategoryIndex()];
+	++m_activeUnitsOfCategory[category.getCategoryIndex()];
 }
 
-void AAIUnitTable::UnitRequested(UnitCategory category, int number)
+void AAIUnitTable::ActiveUnitKilled(const AAIUnitCategory& category)
 {
-	requestedUnits[category] += number;
+	--m_activeUnitsOfCategory[category.getCategoryIndex()];
 }

@@ -103,6 +103,9 @@ public:
 	
 	bool isMobileSupport()     const { return (m_unitCategory == EUnitCategory::UNIT_CATEGORY_MOBILE_SUPPORT) ? true : false; };
 
+	bool isCombatUnit()        const { return      (static_cast<uint32_t>(m_unitCategory) >= static_cast<uint32_t>(EUnitCategory::UNIT_CATEGORY_GROUND_COMBAT) )
+												&& (static_cast<uint32_t>(m_unitCategory) <= static_cast<uint32_t>(EUnitCategory::UNIT_CATEGORY_SEA_COMBAT) ); };
+
 	//! Returns unit category as index (to access arrays)
 	uint32_t getCategoryIndex() const {return static_cast<uint32_t>(m_unitCategory); };
 	

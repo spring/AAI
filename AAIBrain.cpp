@@ -851,27 +851,28 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 	{
 		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable > 0)
 		{
-			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(ai->Getbt()->s_buildTree.getUnitCategory(unitDefId));
+			const AAIUnitCategory& category = ai->Getbt()->s_buildTree.getUnitCategory(unitDefId);
+			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(category);
 
 			if(ai->Getbt()->s_buildTree.getTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
 			{
 				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 3, urgent))
 				{
 					ai->Getbt()->units_dynamic[unitDefId.id].requested += 3;
-					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unitDefId.id].category, 3);
+					ai->Getut()->UnitRequested(category, 3);
 				}
 			}
 			else if(ai->Getbt()->s_buildTree.getTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
 			{
 				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 2, urgent))
 					ai->Getbt()->units_dynamic[unitDefId.id].requested += 2;
-					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unitDefId.id].category, 2);
+					ai->Getut()->UnitRequested(category, 2);
 			}
 			else
 			{
 				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 1, urgent))
 					ai->Getbt()->units_dynamic[unitDefId.id].requested += 1;
-					ai->Getut()->UnitRequested(ai->Getbt()->units_static[unitDefId.id].category);
+					ai->Getut()->UnitRequested(category);
 			}
 		}
 		else if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)

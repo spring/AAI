@@ -25,6 +25,24 @@ public:
 	AAIUnitTable(AAI *ai);
 	~AAIUnitTable(void);
 
+	//! @brief Returns the number of active (i.e. not under construction anymore) units of the given category
+	int GetNumberOfActiveUnitsOfCategory(const AAIUnitCategory& category)            const { return m_activeUnitsOfCategory[category.getCategoryIndex()]; };
+
+	//! @brief Returns the number of units under construction of the given category
+	int GetNumberOfUnitsUnderConstructionOfCategory(const AAIUnitCategory& category) const { return m_underConstructionUnitsOfCategory[category.getCategoryIndex()]; };
+
+	//! @brief Returns the number of requested (i.e. construction has not started yet) units of the given category
+	int GetNumberOfRequestedUnitsOfCategory(const AAIUnitCategory& category)         const { return m_requestedUnitsOfCategory[category.getCategoryIndex()]; };
+
+	//! @brief Returns the number of units requested or under construction of the given category
+	int GetNumberOfFutureUnitsOfCategory(const AAIUnitCategory& category)         const { return (  m_requestedUnitsOfCategory[category.getCategoryIndex()] 
+	                                                                                              + m_underConstructionUnitsOfCategory[category.getCategoryIndex()]); };
+
+	//! @brief Returns the number of units of the given category that are active, requested or under construction
+	int GetTotalNumberOfUnitsOfCategory(const AAIUnitCategory& category)         const { return (   m_requestedUnitsOfCategory[category.getCategoryIndex()]
+	                                                                                              + m_underConstructionUnitsOfCategory[category.getCategoryIndex()]
+	                                                                                              + m_activeUnitsOfCategory[category.getCategoryIndex()]); };
+
 	bool AddUnit(int unit_id, int def_id, AAIGroup *group = 0, AAIConstructor *cons = 0);
 	void RemoveUnit(int unit_id);
 
@@ -71,23 +89,23 @@ public:
 	// determine whether unit with specified def/unit id is commander/constrcutor
 	bool IsBuilder(UnitId unitId);
 
-	// called when unit of specified catgeory has been created (= construction started)
-	void UnitCreated(UnitCategory category);
-
-	// called when construction of unit has been finished
-	void UnitFinished(UnitCategory category);
+	//! @brief Shall be called when unit have been requested (i.e. added to buildqueue)
+	void UnitRequested(const AAIUnitCategory& category, int number = 1);
 
 	// called when unit request failed (e.g. builder has been killed on the way to the crash site)
-	void UnitRequestFailed(UnitCategory category);
+	void UnitRequestFailed(const AAIUnitCategory& category);
 
-	void UnitRequested(UnitCategory category, int number = 1);
+	// called when unit of specified catgeory has been created (= construction started)
+	void UnitCreated(const AAIUnitCategory& category);
+	
+	//! @brief Shall be called when a unit under construction has been killed to update internal counters
+	void UnitUnderConstructionKilled(const AAIUnitCategory& category);
 
-	// get/set methods
-	//int GetActiveScouts();
-	//int GetActiveBuilders();
-	//int GetActiveFactories();
-	void ActiveUnitKilled(UnitCategory category);
-	void FutureUnitKilled(UnitCategory category);
+	//! @brief Shall be called when construction of unit has been finished
+	void UnitFinished(const AAIUnitCategory& category);
+
+	//! @brief Shall be called when an active (i.e. construction finished) unit has been killed to update internal counters
+	void ActiveUnitKilled(const AAIUnitCategory& category);
 
 	// units[i].unitId = -1 -> not used , -2 -> enemy unit
 	vector<AAIUnit> units;
@@ -100,9 +118,6 @@ public:
 	set<int> recon;
 
 	// number of active/under construction units of all different types
-	int activeUnits[(int)MOBILE_CONSTRUCTOR+1];
-	int futureUnits[(int)MOBILE_CONSTRUCTOR+1];
-	int requestedUnits[(int)MOBILE_CONSTRUCTOR+1];
 	int activeBuilders, futureBuilders;
 	int activeFactories, futureFactories;
 private:
@@ -110,11 +125,20 @@ private:
 	bool IsUnitCommander(int unit_id);
 
 	//! @todo These functions are duplicated in buildtable -> remove duplication after unit category handling is reworked
-	bool IsFactory(UnitDefId unitDefId) const  { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_FACTORY ); };
+	bool IsFactory(UnitDefId unitDefId)  const { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_FACTORY ); };
 
-	bool IsBuilder(UnitDefId unitDefId) const  { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_BUILDER ); };
+	bool IsBuilder(UnitDefId unitDefId)  const { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_BUILDER ); };
 
 	bool IsAssister(UnitDefId unitDefId) const { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_ASSISTER ); };
+
+	//! Number of active (i.e. not under construction anymore) units of each unit category
+	std::vector<int> m_activeUnitsOfCategory;
+
+	//! Number of units under contsruction of each unit category
+	std::vector<int> m_underConstructionUnitsOfCategory;
+
+	//! Number of requested units (i.e. construction has not started yet) of each unit category
+	std::vector<int> m_requestedUnitsOfCategory;
 
 	set<int> scouts;
 	set<int> extractors;

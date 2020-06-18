@@ -231,7 +231,7 @@ void AAIBuildTable::Init()
 	s_buildTree.generate(ai->Getcb());
 
 	// Try to load buildtable; if not possible, create a new one
-	if(!LoadBuildTable())
+	if(LoadBuildTable() == false)
 	{
 		// one more than needed because 0 is dummy object
 		// (so UnitDef->id can be used to address that unit in the array)
@@ -252,24 +252,81 @@ void AAIBuildTable::Init()
 		// now calculate efficiency of combat units and get max range
 		for(int i = 1; i <= numOfUnits; i++)
 		{
-			// effiency has starting value of 1
-			if(!GetUnitDef(i).weapons.empty())
+			const AAIUnitCategory& category = s_buildTree.getUnitCategory(UnitDefId(i));
+			if( (category.isCombatUnit() == true) || (category.isStaticDefence() == true) )
 			{
-				// get memory for eff
-				units_static[i].efficiency.resize(combat_categories);
-
 				const int side                  = s_buildTree.getSideOfUnitType(UnitDefId(i));
 				const AAIUnitCategory& category = s_buildTree.getUnitCategory(UnitDefId(i));
 				const float cost                = s_buildTree.getTotalCost(UnitDefId(i));
 
 				if(side > 0)
 				{
+					units_static[i].efficiency.resize(combat_categories, 0.2f);
+
 					const float eff = 1.0f + 5.0f * s_buildTree.getUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
 
-					for(int k = 0; k < combat_categories; ++k)
+					if(category.isGroundCombat() == true)
 					{
-						units_static[i].efficiency[k] = eff;
-						fixed_eff[i][k] = eff;
+						units_static[i].efficiency[0] = eff;
+						units_static[i].efficiency[2] = eff;
+						units_static[i].efficiency[5] = eff;
+						fixed_eff[i][0] = eff;
+						fixed_eff[i][2] = eff;
+						fixed_eff[i][5] = eff;
+					}
+					if(category.isAirCombat() == true)
+					{
+						units_static[i].efficiency[0] = eff;
+						units_static[i].efficiency[1] = eff;
+						units_static[i].efficiency[2] = eff;
+						units_static[i].efficiency[3] = eff;
+						units_static[i].efficiency[5] = eff;
+						fixed_eff[i][0] = eff;
+						fixed_eff[i][1] = eff;
+						fixed_eff[i][2] = eff;
+						fixed_eff[i][3] = eff;
+						fixed_eff[i][5] = eff;
+					}
+					else if(category.isHoverCombat() == true)
+					{
+						units_static[i].efficiency[0] = eff;
+						units_static[i].efficiency[2] = eff;
+						units_static[i].efficiency[3] = eff;
+						units_static[i].efficiency[5] = eff;
+						fixed_eff[i][0] = eff;
+						fixed_eff[i][2] = eff;
+						fixed_eff[i][3] = eff;
+						fixed_eff[i][5] = eff;
+					}
+					else if(category.isSeaCombat() == true)
+					{
+						units_static[i].efficiency[2] = eff;
+						units_static[i].efficiency[3] = eff;
+						units_static[i].efficiency[4] = eff;
+						units_static[i].efficiency[5] = eff;
+						fixed_eff[i][2] = eff;
+						fixed_eff[i][3] = eff;
+						fixed_eff[i][4] = eff;
+						fixed_eff[i][5] = eff;
+					}
+					else if(category.isStaticDefence() == true)
+					{
+						if(s_buildTree.getMovementType(UnitDefId(i)).isStaticLand() == true)
+						{
+							units_static[i].efficiency[0] = eff;
+							units_static[i].efficiency[2] = eff;
+							fixed_eff[i][0] = eff;
+							fixed_eff[i][2] = eff;
+						}
+						else
+						{
+							units_static[i].efficiency[2] = eff;
+							units_static[i].efficiency[3] = eff;
+							units_static[i].efficiency[4] = eff;
+							fixed_eff[i][2] = eff;
+							fixed_eff[i][3] = eff;
+							fixed_eff[i][4] = eff;
+						}
 					}
 				}
 				else
@@ -577,37 +634,6 @@ void AAIBuildTable::Init()
 
 			if( s_buildTree.isStartingUnit( UnitDefId(i) ))
 				units_static[i].unit_type |= UNIT_TYPE_COMMANDER;
-		}
-
-
-		if(!cfg->AIR_ONLY_MOD)
-		{
-			UnitCategory cat;
-			float eff;
-
-			for(int i = 1; i <= numOfUnits; ++i)
-			{
-				cat = units_static[i].category;
-				
-				const int side                  = s_buildTree.getSideOfUnitType(UnitDefId(i));
-				const AAIUnitCategory& category = s_buildTree.getUnitCategory(UnitDefId(i));
-				const float cost                = s_buildTree.getTotalCost(UnitDefId(i));
-				
-				if(side > 0)
-				{
-					const float eff = 1.0f + 6.0f * s_buildTree.getUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
-
-					if(cat == AIR_ASSAULT)
-					{
-						for(int k = 0; k < combat_categories; ++k)
-							units_static[i].efficiency[k] = eff;
-					}
-					else if(cat == GROUND_ASSAULT ||  cat == HOVER_ASSAULT || cat == SEA_ASSAULT || cat == SUBMARINE_ASSAULT || cat == GROUND_ARTY || cat == SEA_ARTY || cat == HOVER_ARTY || cat == STATIONARY_DEF)
-					{
-						units_static[i].efficiency[1] = eff;
-					}
-				}
-			}
 		}
 
 		// precache stats
@@ -2147,7 +2173,7 @@ std::string AAIBuildTable::GetBuildCacheFileName()
 bool AAIBuildTable::LoadBuildTable()
 {
 	// stop further loading if already done
-	if(!units_static.empty())
+	if(units_static.empty() == false)
 	{
 		return true;
 	}
@@ -2213,11 +2239,6 @@ bool AAIBuildTable::LoadBuildTable()
 				}
 
 				units_static[i].category = (UnitCategory) cat;
-
-				units_dynamic[i].active = 0;
-				units_dynamic[i].requested = 0;
-				units_dynamic[i].constructorsAvailable = 0;
-				units_dynamic[i].constructorsRequested = 0;
 			}
 
 			// now load unit lists
@@ -2814,7 +2835,7 @@ void AAIBuildTable::BuildBuilderFor(UnitDefId building, float cost, float buildt
 		{
 			units_dynamic[selectedBuilder.id].requested += 1;
 			ai->Getut()->futureBuilders += 1;
-			ai->Getut()->UnitRequested(MOBILE_CONSTRUCTOR);
+			ai->Getut()->UnitRequested(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_MOBILE_CONSTRUCTOR));
 
 			// set all its buildoptions buildable
 			ConstructorRequested(selectedBuilder);
@@ -2870,7 +2891,7 @@ void AAIBuildTable::AddAssistant(uint32_t allowedMovementTypes, bool canBuild)
 		{
 			units_dynamic[builder].requested += 1;
 			ai->Getut()->futureBuilders += 1;
-			ai->Getut()->UnitRequested(MOBILE_CONSTRUCTOR);
+			ai->Getut()->UnitRequested(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_MOBILE_CONSTRUCTOR));
 
 			// increase number of requested builders of all buildoptions
 			ConstructorRequested(UnitDefId(builder));

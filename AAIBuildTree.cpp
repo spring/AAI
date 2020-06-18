@@ -392,7 +392,7 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 				}
 			}
 		}
-		else if((unitDef->radarRadius > 0) || (unitDef->sonarRadius > 0) || (unitDef->seismicRadius > 0))
+		else if((unitDef->radarRadius > 0) || (unitDef->sonarRadius > 0) ) // ignore seismic for now || (unitDef->seismicRadius > 0))
 		{
 			return EUnitCategory::UNIT_CATEGORY_STATIC_SENSOR;
 		}

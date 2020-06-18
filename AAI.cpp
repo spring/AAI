@@ -70,16 +70,13 @@ AAI::~AAI()
 	// save several AI data
 	Log("\nShutting down....\n\n");
 
-	//Log("\nProfiling summary:\n");
-	//Log("%s\n", profiler->ToString().c_str());
-
 	Log("Linking buildtask to builder failed counter: %u\n", execute->GetLinkingBuildTaskToBuilderFailedCounter());
 
-	Log("Unit category active / under construction / requested\n");
-	for(int i = 0; i <= MOBILE_CONSTRUCTOR; ++i)
+	/*Log("Unit category active / under construction / requested\n");
+	for(int i = 0; i < uni; ++i)
 	{
 		Log("%-20s: %i / %i / %i\n", bt->GetCategoryString2((UnitCategory)i), ut->activeUnits[i], ut->futureUnits[i], ut->requestedUnits[i]);
-	}
+	}*/
 
 	Log("\nGround Groups:    " _STPF_ "\n", group_list[GROUND_ASSAULT].size());
 	Log("\nAir Groups:       " _STPF_ "\n", group_list[AIR_ASSAULT].size());
@@ -316,12 +313,12 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 
 	// get unit's id
 	const UnitDef* def = cb->GetUnitDef(unit);
-	UnitCategory category = bt->units_static[def->id].category;
+	const AAIUnitCategory& category = bt->s_buildTree.getUnitCategory(UnitDefId(def->id));
+
+	ut->UnitCreated(category);
 
 	bt->units_dynamic[def->id].requested -= 1;
 	bt->units_dynamic[def->id].under_construction += 1;
-
-	ut->UnitCreated(category);
 
 	// add to unittable
 	ut->AddUnit(unit, def->id);
@@ -329,10 +326,11 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	// get commander a startup
 	if(m_initialized == false)
 	{
-		// UnitFinished() will decrease it later -> prevents AAI from having -1 future commanders
-		ut->requestedUnits[COMMANDER] += 1;
+		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
+		ut->UnitRequested(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_COMMANDER));
+		ut->UnitFinished(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_COMMANDER));
+
 		ut->futureBuilders += 1;
-		bt->units_dynamic[def->id].under_construction += 1;
 
 		// set side
 		side = bt->s_buildTree.getSideOfUnitType( UnitDefId(def->id)) ;
@@ -349,16 +347,15 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		LogConsole("ressurected", 0);
 		Log("Ressurected %s\n", bt->s_buildTree.getUnitTypeProperties(UnitDefId(def->id)).m_name.c_str() );
 
-		UnitCategory category = bt->units_static[def->id].category;
-
-		// UnitFinished() will decrease it later
-		ut->requestedUnits[category] += 1;
-		bt->units_dynamic[def->id].requested += 1;
+		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
+		ut->UnitRequested(category);
+		ut->UnitFinished(category);
+		bt->units_dynamic[def->id].active += 1;
 
 		if (bt->IsFactory(def->id))
 			ut->futureFactories += 1;
 
-		if (category <= METAL_MAKER && category > UNKNOWN)
+		if (bt->s_buildTree.getMovementType(UnitDefId(def->id)).isStatic() == true)
 		{
 			float3 pos = cb->GetUnitPos(unit);
 			execute->InitBuildingAt(def, &pos, pos.y < 0);
@@ -367,7 +364,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	else
 	{
 		// construction of building started
-		if (category <= METAL_MAKER && category > UNKNOWN)
+		if (bt->s_buildTree.getMovementType(UnitDefId(def->id)).isStatic() == true)
 		{
 			float3 pos = cb->GetUnitPos(unit);
 
@@ -375,7 +372,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 			execute->createBuildTask(UnitId(unit), UnitDefId(def->id), &pos);
 
 			// add extractor to the sector
-			if (category == EXTRACTOR)
+			if (category.isMetalExtractor() == true)
 			{
 				const int x = pos.x / map->xSectorSize;
 				const int y = pos.z / map->ySectorSize;
@@ -397,8 +394,7 @@ void AAI::UnitFinished(int unit)
 
 	// get unit's id
 	const UnitDef* def = cb->GetUnitDef(unit);
-
-	UnitCategory category = bt->units_static[def->id].category;
+	const AAIUnitCategory& category = bt->s_buildTree.getUnitCategory(UnitDefId(def->id));
 
 	ut->UnitFinished(category);
 
@@ -425,39 +421,39 @@ void AAI::UnitFinished(int unit)
 		}
 
 		// check if building belongs to one of this groups
-		if (category == EXTRACTOR)
+		if (category.isMetalExtractor() == true)
 		{
 			ut->AddExtractor(unit);
 
 			// order defence if necessary
 			execute->DefendMex(unit, def->id);
 		}
-		else if (category == POWER_PLANT)
+		else if (category.isPowerPlant() == true)
 		{
 			ut->AddPowerPlant(unit, def->id);
 		}
-		else if (category == STORAGE)
+		else if (category.isStorage() == true)
 		{
 			execute->futureStoredEnergy -= def->energyStorage;
 			execute->futureStoredMetal  -= def->metalStorage;
 		}
-		else if (category == METAL_MAKER)
+		else if (category.isMetalMaker() == true)
 		{
 			ut->AddMetalMaker(unit, def->id);
 		}
-		else if (category == STATIONARY_RECON)
+		else if (category.isStaticSensor() == true)
 		{
 			ut->AddRecon(unit, def->id);
 		}
-		else if (category == STATIONARY_JAMMER)
+		else if (category.isStaticSupport() == true)
 		{
 			ut->AddJammer(unit, def->id);
 		}
-		else if (category == STATIONARY_ARTY)
+		else if (category.isStaticArtillery() == true)
 		{
 			ut->AddStationaryArty(unit, def->id);
 		}
-		else if (category == STATIONARY_CONSTRUCTOR)
+		else if (category.isStaticConstructor() == true)
 		{
 			ut->AddConstructor(UnitId(unit), UnitDefId(def->id));
 
@@ -468,16 +464,16 @@ void AAI::UnitFinished(int unit)
 	else	// unit was completed
 	{
 		// unit
-		if (category >= GROUND_ASSAULT && category <= SUBMARINE_ASSAULT)
+		if (category.isCombatUnit() == true)
 		{
-			execute->AddUnitToGroup(unit, def->id, category);
+			execute->AddUnitToGroup(unit, def->id, bt->units_static[def->id].category);
 
-			brain->AddDefenceCapabilities(def->id, category);
+			brain->AddDefenceCapabilities(def->id, bt->units_static[def->id].category);
 
 			ut->SetUnitStatus(unit, HEADING_TO_RALLYPOINT);
 		}
 		// scout
-		else if (category == SCOUT)
+		else if (category.isScout() == true)
 		{
 			ut->AddScout(unit);
 
@@ -506,10 +502,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 	// get unit's id
 	const UnitDef* def = cb->GetUnitDef(unit);
 
-	// get unit's category and position
-	UnitCategory category = bt->units_static[def->id].category;
 	float3 pos = cb->GetUnitPos(unit);
-
 	int x = pos.x/map->xSectorSize;
 	int y = pos.z/map->ySectorSize;
 
@@ -525,13 +518,14 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		const UnitDef* att_def = cb->GetUnitDef(attacker);
 
 		if (att_def)
-			map->sector[x][y].UpdateThreatValues((UnitCategory)category, bt->units_static[att_def->id].category);
+			map->sector[x][y].UpdateThreatValues(bt->units_static[def->id].category, bt->units_static[att_def->id].category);
 	}
 
 	// unfinished unit has been killed
 	if (cb->UnitBeingBuilt(unit))
 	{
-		ut->FutureUnitKilled(category);
+		const AAIUnitCategory& category = bt->s_buildTree.getUnitCategory(UnitDefId(def->id));
+		ut->UnitUnderConstructionKilled(category);
 		bt->units_dynamic[def->id].under_construction -= 1;
 
 		// unfinished building
@@ -561,7 +555,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			}
 			else if (bt->IsFactory(def->id))
 			{
-				if (category == STATIONARY_CONSTRUCTOR)
+				if (category.isStaticConstructor() == true)
 					--ut->futureFactories;
 
 				bt->UnfinishedConstructorKilled(UnitDefId(def->id));
@@ -570,6 +564,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 	}
 	else	// finished unit/building has been killed
 	{
+		const AAIUnitCategory& category = bt->s_buildTree.getUnitCategory(UnitDefId(def->id));
 		ut->ActiveUnitKilled(category);
 
 		bt->units_dynamic[def->id].active -= 1;
@@ -583,7 +578,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			if (def_att)
 			{
 				int killer = bt->GetIDOfAssaultCategory(bt->units_static[def_att->id].category);
-				int killed = bt->GetIDOfAssaultCategory((UnitCategory)category);
+				int killed = bt->GetIDOfAssaultCategory(bt->units_static[def->id].category);
 
 				// check if valid id
 				if (killer != -1)
@@ -597,48 +592,48 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		}
 
 		// finished building has been killed
-		if (!def->canfly && !def->movedata)
+		if (bt->s_buildTree.getMovementType(UnitDefId(def->id)).isStatic() == true)
 		{
 			// decrease number of units of that category in the target sector
 			if (validSector)
 				map->sector[x][y].RemoveBuildingType(def->id);
 
 			// check if building belongs to one of this groups
-			if (category == STATIONARY_DEF)
+			if (category.isStaticDefence() == true)
 			{
 				// remove defence from map
 				map->RemoveDefence(&pos, def->id);
 			}
-			else if (category == EXTRACTOR)
+			else if (category.isMetalExtractor() == true)
 			{
 				ut->RemoveExtractor(unit);
 
 				// mark spots of destroyed mexes as unoccupied
 				map->sector[x][y].FreeMetalSpot(cb->GetUnitPos(unit), def);
 			}
-			else if (category == POWER_PLANT)
+			else if (category.isPowerPlant() == true)
 			{
 				ut->RemovePowerPlant(unit);
 			}
-			else if (category == STATIONARY_ARTY)
+			else if (category.isStaticArtillery() == true)
 			{
 				ut->RemoveStationaryArty(unit);
 			}
-			else if (category == STATIONARY_RECON)
+			else if (category.isStaticSensor() == true)
 			{
 				ut->RemoveRecon(unit);
 			}
-			else if (category == STATIONARY_JAMMER)
+			else if (category.isStaticSupport() == true)
 			{
 				ut->RemoveJammer(unit);
 			}
-			else if (category == METAL_MAKER)
+			else if (category.isMetalMaker() == true)
 			{
 				ut->RemoveMetalMaker(unit);
 			}
 
 			// clean up buildmap & some other stuff
-			if (category == STATIONARY_CONSTRUCTOR)
+			if (category.isStaticConstructor() == true)
 			{
 				ut->RemoveConstructor(unit, def->id);
 
@@ -648,7 +643,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 				execute->urgency[STATIONARY_CONSTRUCTOR] += 1.5;
 			}
 			// hq
-			else if (category == COMMANDER)
+			else if (category.isCommander() == true)
 			{
 				ut->RemoveCommander(unit, def->id);
 
@@ -674,7 +669,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		else // finished unit has been killed
 		{
 			// scout
-			if (category == SCOUT)
+			if (category.isScout() == true)
 			{
 				ut->RemoveScout(unit);
 
@@ -684,7 +679,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 			}
 			// assault units
-			else if (category >= GROUND_ASSAULT && category <= SUBMARINE_ASSAULT)
+			else if (category.isCombatUnit() == true)
 			{
 				// look for a safer rallypoint if units get killed on their way
 				if (ut->units[unit].status == HEADING_TO_RALLYPOINT)
@@ -697,7 +692,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			{
 				ut->RemoveConstructor(unit, def->id);
 			}
-			else if (category == COMMANDER)
+			else if (category.isCommander() == true)
 			{
 				ut->RemoveCommander(unit, def->id);
 			}
@@ -729,7 +724,7 @@ void AAI::UnitIdle(int unit)
 		//ut->SetUnitStatus(unit, UNIT_IDLE);
 		ut->units[unit].group->UnitIdle(unit);
 	}
-	else if (bt->units_static[ut->units[unit].def_id].category == SCOUT)
+	else if(bt->s_buildTree.getUnitCategory(UnitDefId(ut->units[unit].def_id)).isScout() == true)
 	{
 		execute->SendScoutToNewDest(unit);
 	}
@@ -851,7 +846,7 @@ void AAI::Update()
 		execute->BuildScouts();
 	}
 
-	if (!(tick % 911))
+	if (!(tick % 711))
 	{
 		AAI_SCOPED_TIMER("Check-Attack")
 		// check attack
@@ -868,7 +863,7 @@ void AAI::Update()
 	}
 
 	// update sectors
-	if (!(tick % 423))
+	if (!(tick % 323))
 	{
 		AAI_SCOPED_TIMER("Update-Sectors")
 		brain->UpdateAttackedByValues();
