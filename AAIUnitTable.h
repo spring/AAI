@@ -26,22 +26,22 @@ public:
 	~AAIUnitTable(void);
 
 	//! @brief Returns the number of active (i.e. not under construction anymore) units of the given category
-	int GetNumberOfActiveUnitsOfCategory(const AAIUnitCategory& category)            const { return m_activeUnitsOfCategory[category.getCategoryIndex()]; };
+	int GetNumberOfActiveUnitsOfCategory(const AAIUnitCategory& category)            const { return m_activeUnitsOfCategory[category.GetArrayIndex()]; };
 
 	//! @brief Returns the number of units under construction of the given category
-	int GetNumberOfUnitsUnderConstructionOfCategory(const AAIUnitCategory& category) const { return m_underConstructionUnitsOfCategory[category.getCategoryIndex()]; };
+	int GetNumberOfUnitsUnderConstructionOfCategory(const AAIUnitCategory& category) const { return m_underConstructionUnitsOfCategory[category.GetArrayIndex()]; };
 
 	//! @brief Returns the number of requested (i.e. construction has not started yet) units of the given category
-	int GetNumberOfRequestedUnitsOfCategory(const AAIUnitCategory& category)         const { return m_requestedUnitsOfCategory[category.getCategoryIndex()]; };
+	int GetNumberOfRequestedUnitsOfCategory(const AAIUnitCategory& category)         const { return m_requestedUnitsOfCategory[category.GetArrayIndex()]; };
 
 	//! @brief Returns the number of units requested or under construction of the given category
-	int GetNumberOfFutureUnitsOfCategory(const AAIUnitCategory& category)         const { return (  m_requestedUnitsOfCategory[category.getCategoryIndex()] 
-	                                                                                              + m_underConstructionUnitsOfCategory[category.getCategoryIndex()]); };
+	int GetNumberOfFutureUnitsOfCategory(const AAIUnitCategory& category)         const { return (  m_requestedUnitsOfCategory[category.GetArrayIndex()] 
+	                                                                                              + m_underConstructionUnitsOfCategory[category.GetArrayIndex()]); };
 
 	//! @brief Returns the number of units of the given category that are active, requested or under construction
-	int GetTotalNumberOfUnitsOfCategory(const AAIUnitCategory& category)         const { return (   m_requestedUnitsOfCategory[category.getCategoryIndex()]
-	                                                                                              + m_underConstructionUnitsOfCategory[category.getCategoryIndex()]
-	                                                                                              + m_activeUnitsOfCategory[category.getCategoryIndex()]); };
+	int GetTotalNumberOfUnitsOfCategory(const AAIUnitCategory& category)         const { return (   m_requestedUnitsOfCategory[category.GetArrayIndex()]
+	                                                                                              + m_underConstructionUnitsOfCategory[category.GetArrayIndex()]
+	                                                                                              + m_activeUnitsOfCategory[category.GetArrayIndex()]); };
 
 	bool AddUnit(int unit_id, int def_id, AAIGroup *group = 0, AAIConstructor *cons = 0);
 	void RemoveUnit(int unit_id);

@@ -93,13 +93,13 @@ public:
 	//! Calculates values for given input data
 	void Init(const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<int> >& unitsInCategory, const std::vector< std::list<int> >& unitsInCombatCategory);
 
-	const StatisticalData& GetUnitCostStatistics(const AAIUnitCategory& category) const { return m_unitCostStatistics[category.getCategoryIndex()]; };
+	const StatisticalData& GetUnitCostStatistics(const AAIUnitCategory& category) const { return m_unitCostStatistics[category.GetArrayIndex()]; };
 
-	const StatisticalData& GetUnitBuildtimeStatistics(const AAIUnitCategory& category) const { return m_unitBuildtimeStatistics[category.getCategoryIndex()]; };
+	const StatisticalData& GetUnitBuildtimeStatistics(const AAIUnitCategory& category) const { return m_unitBuildtimeStatistics[category.GetArrayIndex()]; };
 
-	const StatisticalData& GetUnitPrimaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitPrimaryAbilityStatistics[category.getCategoryIndex()]; };
+	const StatisticalData& GetUnitPrimaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitPrimaryAbilityStatistics[category.GetArrayIndex()]; };
 
-	const StatisticalData& GetUnitSecondaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitSecondaryAbilityStatistics[category.getCategoryIndex()]; };
+	const StatisticalData& GetUnitSecondaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitSecondaryAbilityStatistics[category.GetArrayIndex()]; };
 	
 	const StatisticalData& GetCombatCostStatistics(const AAICombatCategory& category) const { return m_combatCostStatistics[category.GetCategoryIndex()]; };
 

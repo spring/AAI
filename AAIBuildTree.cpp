@@ -135,7 +135,7 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 
 		if(m_sideOfUnitType[id] > 0)
 		{
-			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.getCategoryIndex() ].push_back(id);
+			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.GetArrayIndex() ].push_back(id);
 		}
 
 		if(unitCategory.isGroundCombat() == true)
@@ -207,22 +207,22 @@ void AAIBuildTree::printSummaryToFile(const std::string& filename, const std::ve
 
 		fprintf(file, "\n\nUnits in each category:\n");
 
-		for(int cat = 0; cat < AAIUnitCategory::getNumberOfUnitCategories(); ++cat)
+		for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.IsLast() == false; category.Next())
 		{
-			fprintf(file, "Unit category %i:\n", cat);
+			fprintf(file, "Unit category %u:\n", static_cast<uint32_t>(category.getUnitCategory()) );
 
 			for(int side = 0; side < m_numberOfSides; ++side)
 			{
-				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetUnitCostStatistics(AAIUnitCategory(cat));
-				const StatisticalData& buildtime = m_unitCategoryStatisticsOfSide[side].GetUnitBuildtimeStatistics(AAIUnitCategory(cat));
-				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetUnitPrimaryAbilityStatistics(AAIUnitCategory(cat));
+				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetUnitCostStatistics(category);
+				const StatisticalData& buildtime = m_unitCategoryStatisticsOfSide[side].GetUnitBuildtimeStatistics(category);
+				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetUnitPrimaryAbilityStatistics(category);
 
 				fprintf(file, "Side %s - Min/max/avg cost: %f/%f/%f, Min/max/avg buildtime: %f/%f/%f Min/max/avg range: %f/%f/%f\n", cfg->SIDE_NAMES[side].c_str(),
 								cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
 								buildtime.GetMinValue(), buildtime.GetMaxValue(), buildtime.GetAvgValue(),
 								range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue()); 
 				fprintf(file, "Units:");
-				for(std::list<int>::const_iterator id = m_unitsInCategory[side][cat].begin(); id != m_unitsInCategory[side][cat].end(); ++id)
+				for(std::list<int>::const_iterator id = m_unitsInCategory[side][category.GetArrayIndex()].begin(); id != m_unitsInCategory[side][category.GetArrayIndex()].end(); ++id)
 				{
 					fprintf(file, "  %s", m_unitTypeProperties[*id].m_name.c_str());
 				}
@@ -337,26 +337,26 @@ EMovementType AAIBuildTree::determineMovementType(const springLegacyAI::UnitDef*
 EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef* unitDef) const
 {
 	if(m_sideOfUnitType[unitDef->id] == 0)
-		return EUnitCategory::UNIT_CATEGORY_UNKNOWN;
+		return EUnitCategory::UNKNOWN;
 
 	// discard units that are on ignore list
 	if(std::find(cfg->DONT_BUILD.begin(), cfg->DONT_BUILD.end(), unitDef->id) != cfg->DONT_BUILD.end())
-		return EUnitCategory::UNIT_CATEGORY_UNKNOWN;
+		return EUnitCategory::UNKNOWN;
 
 	// --------------- buildings --------------------------------------------------------------------------------------
 	if(m_unitTypeProperties[unitDef->id].m_movementType.isStatic() == true)
 	{
 		if(m_unitTypeCanConstructLists[unitDef->id].size() > 0)
 		{
-			return EUnitCategory::UNIT_CATEGORY_STATIC_CONSTRUCTOR;
+			return EUnitCategory::STATIC_CONSTRUCTOR;
 		}
 		else if(unitDef->extractsMetal > 0.0f)
 		{
-			return EUnitCategory::UNIT_CATEGORY_METAL_EXTRACTOR;
+			return EUnitCategory::METAL_EXTRACTOR;
 		}
 		else if(unitDef->isAirBase == true)
 		{
-			return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
+			return EUnitCategory::STATIC_SUPPORT;
 		}
 		else if(   (unitDef->energyMake > static_cast<float>(cfg->MIN_ENERGY) )
 				|| (unitDef->tidalGenerator > 0.0f)
@@ -365,7 +365,7 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 		{
 			//if(unitDef->radarRadius == 0 && unitDef->sonarRadius == 0) // prevent radar/sonar who make some energy to be classified as power plant
 			{
-				return EUnitCategory::UNIT_CATEGORY_POWER_PLANT;
+				return EUnitCategory::POWER_PLANT;
 			}
 		}
 		// --------------- armed buildings --------------------------------------------------------------------------------
@@ -374,39 +374,39 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 			// filter out nuke silos, antinukes and stuff like that
 			if(IsMissileLauncher(unitDef) == true)
 			{
-				return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
+				return EUnitCategory::STATIC_SUPPORT;
 			}
 			else if(IsDeflectionShieldEmitter(unitDef) == true)
 			{
-				return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
+				return EUnitCategory::STATIC_SUPPORT;
 			}
 			//else
 			{
 				if( getMaxRange( UnitDefId(unitDef->id) ) < cfg->STATIONARY_ARTY_RANGE)
 				{
-					return EUnitCategory::UNIT_CATEGORY_STATIC_DEFENCE;
+					return EUnitCategory::STATIC_DEFENCE;
 				}
 				else
 				{
-					return EUnitCategory::UNIT_CATEGORY_STATIC_ARTILLERY;
+					return EUnitCategory::STATIC_ARTILLERY;
 				}
 			}
 		}
 		else if((unitDef->radarRadius > 0) || (unitDef->sonarRadius > 0) ) // ignore seismic for now || (unitDef->seismicRadius > 0))
 		{
-			return EUnitCategory::UNIT_CATEGORY_STATIC_SENSOR;
+			return EUnitCategory::STATIC_SENSOR;
 		}
 		else if((unitDef->sonarJamRadius > 0) || (unitDef->jammerRadius > 0))
 		{
-			return EUnitCategory::UNIT_CATEGORY_STATIC_SUPPORT;
+			return EUnitCategory::STATIC_SUPPORT;
 		}
 		else if(unitDef->metalMake > 0.0f) //! @todo Does not work - investigate later
 		{
-			return EUnitCategory::UNIT_CATEGORY_METAL_MAKER;
+			return EUnitCategory::METAL_MAKER;
 		}
 		else if( (unitDef->metalStorage > static_cast<float>(cfg->MIN_METAL_STORAGE)) || (unitDef->energyStorage > static_cast<float>(cfg->MIN_ENERGY_STORAGE)) )
 		{
-			return EUnitCategory::UNIT_CATEGORY_STORAGE;
+			return EUnitCategory::STORAGE;
 		}
 	}
 	// --------------- units ------------------------------------------------------------------------------------------
@@ -414,15 +414,15 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 	{
 		if( isStartingUnit(unitDef->id) == true )
 		{
-			return EUnitCategory::UNIT_CATEGORY_COMMANDER;
+			return EUnitCategory::COMMANDER;
 		}
 		else if(IsScout(unitDef) == true)
 		{
-			return EUnitCategory::UNIT_CATEGORY_SCOUT;
+			return EUnitCategory::SCOUT;
 		}
 		else if(IsMobileTransport(unitDef) == true)
 		{
-			return EUnitCategory::UNIT_CATEGORY_TRANSPORT;
+			return EUnitCategory::TRANSPORT;
 		}
 
 		// --------------- armed units --------------------------------------------------------------------------------
@@ -430,7 +430,7 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 		{
 			if(unitDef->weapons.begin()->def->stockpile)
 			{
-				return EUnitCategory::UNIT_CATEGORY_MOBILE_SUPPORT;
+				return EUnitCategory::MOBILE_SUPPORT;
 			}
 			else
 			{
@@ -438,25 +438,25 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 				    || (m_unitTypeProperties[unitDef->id].m_movementType.isAmphibious() == true) )
 				{
 					if( IsArtillery(unitDef, cfg->GROUND_ARTY_RANGE) == true)
-						return EUnitCategory::UNIT_CATEGORY_MOBILE_ARTILLERY;
+						return EUnitCategory::MOBILE_ARTILLERY;
 					else
-						return EUnitCategory::UNIT_CATEGORY_GROUND_COMBAT;
+						return EUnitCategory::GROUND_COMBAT;
 				}
 				else if(m_unitTypeProperties[unitDef->id].m_movementType.isHover() == true)
 				{
 					if( IsArtillery(unitDef, cfg->HOVER_ARTY_RANGE) == true)
-						return EUnitCategory::UNIT_CATEGORY_MOBILE_ARTILLERY;
+						return EUnitCategory::MOBILE_ARTILLERY;
 					else
-						return EUnitCategory::UNIT_CATEGORY_HOVER_COMBAT;
+						return EUnitCategory::HOVER_COMBAT;
 				}
 				else if(m_unitTypeProperties[unitDef->id].m_movementType.isAir() == true)
 				{
-					return EUnitCategory::UNIT_CATEGORY_AIR_COMBAT;
+					return EUnitCategory::AIR_COMBAT;
 				}
 				else if(m_unitTypeProperties[unitDef->id].m_movementType.isSeaUnit() == true)
 				{
 					//! @todo: Sea artillery is skipped on prupose - handling of sea artillery not implemented at the moment.
-					return EUnitCategory::UNIT_CATEGORY_SEA_COMBAT;
+					return EUnitCategory::SEA_COMBAT;
 				}
 			}
 		}
@@ -467,16 +467,16 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 					|| (unitDef->canResurrect == true)
 					|| (unitDef->canAssist    == true)  )
 			{
-				return EUnitCategory::UNIT_CATEGORY_MOBILE_CONSTRUCTOR;
+				return EUnitCategory::MOBILE_CONSTRUCTOR;
 			}
 			else if( (unitDef->sonarJamRadius > 0) || (unitDef->sonarRadius > 0) || (unitDef->jammerRadius > 0) || (unitDef->radarRadius > 0) )
 			{
-				return EUnitCategory::UNIT_CATEGORY_MOBILE_SUPPORT;
+				return EUnitCategory::MOBILE_SUPPORT;
 			}
 		}
 	}
 	
-	return EUnitCategory::UNIT_CATEGORY_UNKNOWN;
+	return EUnitCategory::UNKNOWN;
 }
 
 bool AAIBuildTree::IsScout(const springLegacyAI::UnitDef* unitDef) const

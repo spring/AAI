@@ -1495,7 +1495,7 @@ int AAIBuildTable::GetMetalMaker(int side, float cost, float efficiency, float m
 int AAIBuildTable::DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, double urgency, double range, int randomness, bool water, bool canBuild)
 {
 	// get data needed for selection
-	/*AAIUnitCategory category(EUnitCategory::UNIT_CATEGORY_GROUND_COMBAT);
+	/*AAIUnitCategory category(EUnitCategory::GROUND_COMBAT);
 	const std::list<int> unitList = s_buildTree.getUnitsInCategory(category, side);
 
 	const StatisticalData& costStatistics  = s_buildTree.getUnitStatistics(side).GetCostStatistics(category);
@@ -2835,7 +2835,7 @@ void AAIBuildTable::BuildBuilderFor(UnitDefId building, float cost, float buildt
 		{
 			units_dynamic[selectedBuilder.id].requested += 1;
 			ai->Getut()->futureBuilders += 1;
-			ai->Getut()->UnitRequested(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_MOBILE_CONSTRUCTOR));
+			ai->Getut()->UnitRequested(AAIUnitCategory(EUnitCategory::MOBILE_CONSTRUCTOR));
 
 			// set all its buildoptions buildable
 			ConstructorRequested(selectedBuilder);
@@ -2891,7 +2891,7 @@ void AAIBuildTable::AddAssistant(uint32_t allowedMovementTypes, bool canBuild)
 		{
 			units_dynamic[builder].requested += 1;
 			ai->Getut()->futureBuilders += 1;
-			ai->Getut()->UnitRequested(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_MOBILE_CONSTRUCTOR));
+			ai->Getut()->UnitRequested(AAIUnitCategory(EUnitCategory::MOBILE_CONSTRUCTOR));
 
 			// increase number of requested builders of all buildoptions
 			ConstructorRequested(UnitDefId(builder));

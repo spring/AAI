@@ -477,32 +477,32 @@ bool AAIUnitTable::IsBuilder(UnitId unitId)
 
 void AAIUnitTable::UnitRequested(const AAIUnitCategory& category, int number)
 {
-	m_requestedUnitsOfCategory[category.getCategoryIndex()] += number;
+	m_requestedUnitsOfCategory[category.GetArrayIndex()] += number;
 }
 
 void AAIUnitTable::UnitRequestFailed(const AAIUnitCategory& category)
 {
-	--m_requestedUnitsOfCategory[category.getCategoryIndex()];
+	--m_requestedUnitsOfCategory[category.GetArrayIndex()];
 }
 
 void AAIUnitTable::UnitCreated(const AAIUnitCategory& category)
 {
-	--m_requestedUnitsOfCategory[category.getCategoryIndex()];
-	++m_underConstructionUnitsOfCategory[category.getCategoryIndex()];
+	--m_requestedUnitsOfCategory[category.GetArrayIndex()];
+	++m_underConstructionUnitsOfCategory[category.GetArrayIndex()];
 }
 
 void AAIUnitTable::UnitUnderConstructionKilled(const AAIUnitCategory& category)
 {
-	--m_underConstructionUnitsOfCategory[category.getCategoryIndex()];
+	--m_underConstructionUnitsOfCategory[category.GetArrayIndex()];
 }
 
 void AAIUnitTable::UnitFinished(const AAIUnitCategory& category)
 {
-	--m_underConstructionUnitsOfCategory[category.getCategoryIndex()];
-	++m_activeUnitsOfCategory[category.getCategoryIndex()];
+	--m_underConstructionUnitsOfCategory[category.GetArrayIndex()];
+	++m_activeUnitsOfCategory[category.GetArrayIndex()];
 }
 
 void AAIUnitTable::ActiveUnitKilled(const AAIUnitCategory& category)
 {
-	--m_activeUnitsOfCategory[category.getCategoryIndex()];
+	--m_activeUnitsOfCategory[category.GetArrayIndex()];
 }

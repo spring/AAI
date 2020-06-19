@@ -14,6 +14,7 @@
 #include "System/float3.h"
 #include "aidef.h"
 #include "AAITypes.h"
+#include "AAIUnitTypes.h"
 
 #include <list>
 #include <vector>
@@ -52,7 +53,12 @@ public:
 	// adds/removes the sector from base sectors; returns true if succesful
 	bool SetBase(bool base);
 
-	int GetNumberOfMetalSpots();
+	//! @brief Returns the number of metal spots in this sector
+	int GetNumberOfMetalSpots() const { return metalSpots.size(); };
+
+	//! @brief Returns the number of buildings of the given category in this sector
+	int GetNumberOfBuildings(const AAIUnitCategory& category) const { return m_ownBuildingsOfCategory[category.GetArrayIndex()]; };
+
 	void Update();
 
 	// associates an extractor with a metal spot in that sector
@@ -67,8 +73,11 @@ public:
 	float3 GetCenterBuildsite(int building, bool water = false);
 	float3 GetRadarArtyBuildsite(int building, float range, bool water);
 
-	// removes building from sector -> update own_structure & unitsOfType[]
-	void RemoveBuildingType(int def_id);
+	//! @brief Adds building of category to sector
+	void AddBuilding(const AAIUnitCategory& category) { m_ownBuildingsOfCategory[category.GetArrayIndex()] += 1; };
+
+	//! @brief Removes building from sector
+	void RemoveBuilding(const AAIUnitCategory& category) { m_ownBuildingsOfCategory[category.GetArrayIndex()] -= 1; };
 
 	// returns threat to the sector by a certain category
 	float GetThreatBy(UnitCategory category, float learned, float current);
@@ -177,9 +186,6 @@ public:
 
 	int enemies_on_radar;
 
-	// buildings units in the sector
-	vector<short> my_buildings;
-
 	// stores combat power of all stationary defs/combat unit vs different categories
 	vector<float> my_stat_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine @todo: Check if hover really makes sense or can be merged with ground
 	vector<float> my_mobile_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine, 5 building
@@ -221,6 +227,8 @@ private:
 
 	AAI *ai;
 
+	//! number of own buildings of each category in the sector
+	std::vector<int> m_ownBuildingsOfCategory;
 };
 
 #endif

@@ -265,13 +265,13 @@ void AAIConstructor::CheckAssistance()
 		// prevent assisting when low on ressources
 		if(ai->Getexecute()->averageMetalSurplus < 0.1)
 		{
-			if(ai->Getbt()->units_static[m_constructedDefId.id].category == METAL_MAKER)
+			if(ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId).isMetalMaker() == true)
 			{
 				if(ai->Getexecute()->averageEnergySurplus < 0.5 * ai->Getbt()->GetUnitDef(m_constructedDefId.id).energyUpkeep)
 					return;
 			}
-			else if(   (ai->Getbt()->units_static[m_constructedDefId.id].category != EXTRACTOR) 
-			        && (ai->Getbt()->units_static[m_constructedDefId.id].category != POWER_PLANT) )
+			else if(   (ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId).isMetalExtractor() == false) 
+			        && (ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId).isPowerPlant() == false ) )
 				return;
 		}
 

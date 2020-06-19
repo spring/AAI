@@ -12,6 +12,7 @@
 
 #include "aidef.h"
 #include "AAITypes.h"
+#include "AAIUnitTypes.h"
 
 namespace springLegacyAI {
 	struct UnitDef;
@@ -168,13 +169,10 @@ private:
 	// returns BUILDORDER_SUCCESFUL if succesful
 	BuildOrderStatus BuildStationaryDefenceVS(UnitCategory category, AAISector *dest);
 
-	// returns true if successfully assisting construction
-	bool AssistConstructionOfCategory(UnitCategory category, int importance = 5);
+	//! @brief Returns true if a construction unit was ordered to assist construction of a building of givn category
+	bool AssistConstructionOfCategory(const AAIUnitCategory& category);
 
 	// returns the the total ground offensive power of all units
-
-
-
 	float GetTotalGroundPower();
 
 	// returns the the total air defence power of all units

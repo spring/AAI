@@ -190,15 +190,17 @@ bool AAIExecute::InitBuildingAt(const UnitDef *def, float3 *pos, bool water)
 	// update buildmap
 	ai->Getmap()->UpdateBuildMap(*pos, def, true, water, ai->Getbt()->IsFactory(def->id));
 
+	UnitDefId unitDefId(def->id);
+
 	// update defence map (if necessary)
-	if(ai->Getbt()->units_static[def->id].category == STATIONARY_DEF)
+	if(ai->Getbt()->s_buildTree.getUnitCategory(unitDefId).isStaticDefence() == true)
 		ai->Getmap()->AddDefence(pos, def->id);
 
 	// drop bad sectors (should only happen when defending mexes at the edge of the map)
 	if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
 	{
 		// increase number of units of that category in the target sector
-		ai->Getmap()->sector[x][y].my_buildings[ai->Getbt()->units_static[def->id].category] += 1;
+		ai->Getmap()->sector[x][y].AddBuilding(ai->Getbt()->s_buildTree.getUnitCategory(unitDefId));
 
 		return true;
 	}
@@ -278,7 +280,7 @@ void AAIExecute::AddUnitToGroup(int unit_id, int def_id, UnitCategory category)
 void AAIExecute::BuildScouts()
 {
 	// check number of scouts and order new ones if necessary
-	const AAIUnitCategory scout(EUnitCategory::UNIT_CATEGORY_SCOUT);
+	const AAIUnitCategory scout(EUnitCategory::SCOUT);
 	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(scout) < cfg->MAX_SCOUTS)
 	{
 		bool availableFactoryNeeded = true;
@@ -781,7 +783,7 @@ bool AAIExecute::BuildExtractor()
 
 bool AAIExecute::BuildPowerPlant()
 {
-	const AAIUnitCategory plant(EUnitCategory::UNIT_CATEGORY_POWER_PLANT);
+	const AAIUnitCategory plant(EUnitCategory::POWER_PLANT);
 
 	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(plant) > 1)
 		return true;
@@ -800,10 +802,10 @@ bool AAIExecute::BuildPowerPlant()
 				builder = 0;
 
 			// find the power plant that is already under construction
-			if(builder && ai->Getbt()->units_static[builder->m_constructedDefId.id].category == POWER_PLANT)
+			if(builder && builder->GetCategoryOfConstructedUnit().isPowerPlant() == true)
 			{
 				// dont build further power plants if already building an expensive plant
-				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_POWER_PLANT));
+				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::POWER_PLANT));
 				if(ai->Getbt()->s_buildTree.getTotalCost(builder->m_constructedDefId) > costStatistics.GetAvgValue() )
 					return true;
 
@@ -827,7 +829,7 @@ bool AAIExecute::BuildPowerPlant()
 		// power plant construction has not started -> builder is still on its way to construction site, wait until starting a new power plant
 		return false;
 	}
-	else if(ai->Getut()->activeFactories < 1 && ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_POWER_PLANT)) >= 2)
+	else if(ai->Getut()->activeFactories < 1 && ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) >= 2)
 		return true;
 
 	const float current_energy = ai->Getcb()->GetEnergyIncome();
@@ -987,7 +989,7 @@ bool AAIExecute::BuildPowerPlant()
 
 bool AAIExecute::BuildMetalMaker()
 {
-	const AAIUnitCategory metalMaker(EUnitCategory::UNIT_CATEGORY_METAL_EXTRACTOR);
+	const AAIUnitCategory metalMaker(EUnitCategory::METAL_EXTRACTOR);
 	if( (ai->Getut()->activeFactories < 1) && (ai->Getut()->GetNumberOfActiveUnitsOfCategory(metalMaker) >= 2) )
 		return true;
 
@@ -1005,7 +1007,7 @@ bool AAIExecute::BuildMetalMaker()
 
 	float cost = 0.25f + ai->Getbrain()->Affordable() / 2.0f;
 
-	float efficiency = 0.25f + ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_METAL_MAKER)) / 4.0f ;
+	float efficiency = 0.25f + ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::METAL_MAKER)) / 4.0f ;
 	float metal = efficiency;
 
 
@@ -1123,7 +1125,7 @@ bool AAIExecute::BuildMetalMaker()
 
 bool AAIExecute::BuildStorage()
 {
-	const AAIUnitCategory storage(EUnitCategory::UNIT_CATEGORY_STORAGE);
+	const AAIUnitCategory storage(EUnitCategory::STORAGE);
 	if(	   (ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(storage) + ai->Getut()->GetNumberOfRequestedUnitsOfCategory(storage) > 0) 
 		|| (ai->Getut()->GetNumberOfActiveUnitsOfCategory(storage) >= cfg->MAX_STORAGE) )
 		return true;
@@ -1357,7 +1359,7 @@ bool AAIExecute::BuildAirBase()
 
 bool AAIExecute::BuildDefences()
 {
-	const AAIUnitCategory staticDefence(EUnitCategory::UNIT_CATEGORY_STATIC_DEFENCE);
+	const AAIUnitCategory staticDefence(EUnitCategory::STATIC_DEFENCE);
 	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(staticDefence) > 2) 
 		|| (next_defence == 0) )
 		return true;
@@ -1383,11 +1385,11 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 	// dont start construction of further defences if expensive defences are already under construction in this sector
 	for(list<AAIBuildTask*>::iterator task = ai->Getbuild_tasks().begin(); task != ai->Getbuild_tasks().end(); ++task)
 	{
-		if(ai->Getbt()->units_static[(*task)->def_id].category == STATIONARY_DEF)
+		if(ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId((*task)->def_id)).isStaticDefence() == true)
 		{
 			if(dest->PosInSector(&(*task)->build_pos))
 			{
-				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_STATIC_DEFENCE));
+				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::STATIC_DEFENCE));
 
 				if( ai->Getbt()->s_buildTree.getTotalCost(UnitDefId((*task)->def_id)) > 0.7f * costStatistics.GetAvgValue() )
 					return BUILDORDER_SUCCESFUL;
@@ -1437,8 +1439,8 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 	float cost    = 1.0f;
 	float urgency = 1.0f;
 
-
-	if(dest->my_buildings[STATIONARY_DEF] > 2)
+	const int staticDefences = dest->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE);
+	if(staticDefences > 2)
 	{
 		urgency = 0.25f;
 		power   = 2.0f;
@@ -1457,7 +1459,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 			terrain = 5.0f;
 		}
 	}
-	else if(dest->my_buildings[STATIONARY_DEF] > 0)
+	else if(staticDefences > 0)
 	{
 		power   = 1.5f;
 		eff     = 1.5f;
@@ -1491,7 +1493,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 
 	if(checkGround)
 	{
-		if(dest->my_buildings[STATIONARY_DEF] > 4 && rand()%cfg->LEARN_RATE == 1)
+		if(staticDefences > 4 && rand()%cfg->LEARN_RATE == 1)
 			building = ai->Getbt()->GetRandomDefence(ai->Getside(), category);
 		else
 			building = ai->Getbt()->DetermineStaticDefence(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, range, 8, false, false);
@@ -1505,12 +1507,12 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 		}
 
 		// stop building weak defences if urgency is too low (wait for better defences)
-		if(dest->my_buildings[STATIONARY_DEF] > 3)
+		if(staticDefences > 3)
 		{
 			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ]  < 0.75f * ai->Getbt()->avg_eff[ai->Getside()-1][5][  ai->Getbt()->GetIDOfAssaultCategory(category) ] )
 				building = 0;
 		}
-		else if(dest->my_buildings[STATIONARY_DEF] > 6)
+		else if(staticDefences > 6)
 		{
 			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ] < ai->Getbt()->avg_eff[ai->Getside()-1][5][ ai->Getbt()->GetIDOfAssaultCategory(category) ] )
 				building = 0;
@@ -1543,7 +1545,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 
 	if(checkWater)
 	{
-		if((rand()%cfg->LEARN_RATE == 1) && (dest->my_buildings[STATIONARY_DEF] > 4))
+		if((rand()%cfg->LEARN_RATE == 1) && (staticDefences > 4))
 			building = ai->Getbt()->GetRandomDefence(ai->Getside(), category);
 		else
 			building = ai->Getbt()->DetermineStaticDefence(ai->Getside(), eff, power, cost, gr_eff, air_eff, hover_eff, sea_eff, submarine_eff, urgency, 1, 8, true, false);
@@ -1557,12 +1559,12 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 		}
 
 		// stop building of weak defences if urgency is too low (wait for better defences)
-		if(dest->my_buildings[STATIONARY_DEF] > 3)
+		if(staticDefences > 3)
 		{
 			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ]  < 0.75f * ai->Getbt()->avg_eff[ai->Getside()-1][5][  ai->Getbt()->GetIDOfAssaultCategory(category) ] )
 				building = 0;
 		}
-		else if(dest->my_buildings[STATIONARY_DEF] > 6)
+		else if(staticDefences > 6)
 		{
 			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ]  < ai->Getbt()->avg_eff[ai->Getside()-1][5][  ai->Getbt()->GetIDOfAssaultCategory(category) ] )
 				building = 0;
@@ -1602,7 +1604,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 
 bool AAIExecute::BuildArty()
 {
-	const AAIUnitCategory staticArtillery(EUnitCategory::UNIT_CATEGORY_STATIC_ARTILLERY);
+	const AAIUnitCategory staticArtillery(EUnitCategory::STATIC_ARTILLERY);
 	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(staticArtillery) > 0)
 		return true;
 
@@ -1643,7 +1645,7 @@ bool AAIExecute::BuildArty()
 
 	for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 	{
-		if((*sector)->my_buildings[STATIONARY_ARTY] < 2)
+		if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_ARTILLERY) < 2)
 		{
 			my_pos = ZeroVector;
 
@@ -1694,7 +1696,7 @@ bool AAIExecute::BuildArty()
 
 bool AAIExecute::BuildFactory()
 {
-	const AAIUnitCategory staticConstructor(EUnitCategory::UNIT_CATEGORY_STATIC_CONSTRUCTOR);
+	const AAIUnitCategory staticConstructor(EUnitCategory::STATIC_CONSTRUCTOR);
 	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(staticConstructor) > 0)
 		return true;
 
@@ -1875,7 +1877,7 @@ void AAIExecute::BuildUnit(UnitCategory category, float speed, float cost, float
 
 bool AAIExecute::BuildRadar()
 {
-	const AAIUnitCategory sensor(EUnitCategory::UNIT_CATEGORY_STATIC_SENSOR);
+	const AAIUnitCategory sensor(EUnitCategory::STATIC_SENSOR);
 	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(sensor) > ai->Getbrain()->sectors[0].size())
 		return true;
 
@@ -1920,7 +1922,7 @@ bool AAIExecute::BuildRadar()
 	{
 		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
 		{
-			if((*sector)->my_buildings[STATIONARY_RECON] <= 0)
+			if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_SENSOR) <= 0)
 			{
 				my_pos = ZeroVector;
 
@@ -2068,7 +2070,9 @@ void AAIExecute::DefendMex(int mex, int def_id)
 	{
 		AAISector *sector = &ai->Getmap()->sector[x][y];
 
-		if(sector->distance_to_base > 0 && sector->distance_to_base <= cfg->MAX_MEX_DEFENCE_DISTANCE && sector->my_buildings[STATIONARY_DEF] < 1)
+		if(    (sector->distance_to_base > 0)
+			&& (sector->distance_to_base <= cfg->MAX_MEX_DEFENCE_DISTANCE)
+			&& (sector->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < 1) )
 		{
 			int defence = 0;
 			bool water;
@@ -2167,7 +2171,7 @@ void AAIExecute::CheckStationaryArty()
 	if(cfg->MAX_STAT_ARTY == 0)
 		return;
 
-	const AAIUnitCategory staticArtillery(EUnitCategory::UNIT_CATEGORY_STATIC_ARTILLERY);
+	const AAIUnitCategory staticArtillery(EUnitCategory::STATIC_ARTILLERY);
 
 	if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(staticArtillery) +  ai->Getut()->GetNumberOfRequestedUnitsOfCategory(staticArtillery) > 0)
 		return;
@@ -2218,7 +2222,7 @@ void AAIExecute::CheckBuildqueues()
 
 void AAIExecute::CheckDefences()
 {
-	const AAIUnitCategory staticDefence(EUnitCategory::UNIT_CATEGORY_STATIC_DEFENCE);
+	const AAIUnitCategory staticDefence(EUnitCategory::STATIC_DEFENCE);
 	if(    (ai->Getut()->activeFactories < cfg->MIN_FACTORIES_FOR_DEFENCES)
 		|| (ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(staticDefence) +  ai->Getut()->GetNumberOfRequestedUnitsOfCategory(staticDefence) > 2) )
 		return;
@@ -2237,7 +2241,9 @@ void AAIExecute::CheckDefences()
 		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
 		{
 			// stop building further defences if maximum has been reached / sector contains allied buildings / is occupied by another aai instance
-			if((*sector)->my_buildings[STATIONARY_DEF] < cfg->MAX_DEFENCES && (*sector)->allied_structures < 4 && ai->Getmap()->team_sector_map[(*sector)->x][(*sector)->y] != ai->Getcb()->GetMyAllyTeam())
+			if(    ((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < cfg->MAX_DEFENCES) 
+				&& ((*sector)->allied_structures < 4)
+				&& (ai->Getmap()->team_sector_map[(*sector)->x][(*sector)->y] != ai->Getcb()->GetMyAllyTeam()) )
 			{
 				if((*sector)->failed_defences > 1)
 					(*sector)->failed_defences = 0;
@@ -2270,7 +2276,9 @@ void AAIExecute::CheckDefences()
 						if(rating > highest_rating)
 						{
 							// dont block empty sectors with too much aa
-							if(ai->Getbt()->GetAssaultCategoryOfID(*cat) != AIR_ASSAULT || ((*sector)->my_buildings[POWER_PLANT] > 0 || (*sector)->my_buildings[STATIONARY_CONSTRUCTOR] > 0 ) )
+							if(    (ai->Getbt()->GetAssaultCategoryOfID(*cat) != AIR_ASSAULT) 
+								|| ((*sector)->GetNumberOfBuildings(EUnitCategory::POWER_PLANT) > 0)
+								|| ((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_CONSTRUCTOR) > 0 ) ) 
 							{
 								second = first;
 								cat2 = cat1;
@@ -2294,7 +2302,7 @@ void AAIExecute::CheckDefences()
 
 		if(status == BUILDORDER_NOBUILDER)
 		{
-			float temp = 0.03f + 1.0f / ( (float) first->my_buildings[STATIONARY_DEF] + 0.5f);
+			float temp = 0.03f + 1.0f / ( static_cast<float>(first->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE)) + 0.5f);
 
 			if(urgency[STATIONARY_DEF] < temp)
 				urgency[STATIONARY_DEF] = temp;
@@ -2327,7 +2335,7 @@ void AAIExecute::CheckRessources()
 		urgency[POWER_PLANT] = temp;
 
 	// build storages if needed
-	const AAIUnitCategory storage(EUnitCategory::UNIT_CATEGORY_STORAGE);
+	const AAIUnitCategory storage(EUnitCategory::STORAGE);
 	if(    (ai->Getut()->GetTotalNumberOfUnitsOfCategory(storage) < cfg->MAX_STORAGE)
 		&& (ai->Getut()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE))
 	{
@@ -2341,12 +2349,12 @@ void AAIExecute::CheckRessources()
 	if(averageEnergySurplus < 1.5 * cfg->METAL_ENERGY_RATIO)
 	{
 		// try to accelerate power plant construction
-		const AAIUnitCategory plant(EUnitCategory::UNIT_CATEGORY_POWER_PLANT);
+		const AAIUnitCategory plant(EUnitCategory::POWER_PLANT);
 		if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(plant) > 0)
-			AssistConstructionOfCategory(POWER_PLANT, 10);
+			AssistConstructionOfCategory(plant);
 
 		// try to disbale some metal makers
-		if((ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_METAL_MAKER)) - disabledMMakers) > 0)
+		if((ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::METAL_MAKER)) - disabledMMakers) > 0)
 		{
 			for(set<int>::iterator maker = ai->Getut()->metal_makers.begin(); maker != ai->Getut()->metal_makers.end(); ++maker)
 			{
@@ -2392,14 +2400,14 @@ void AAIExecute::CheckRessources()
 	if(averageMetalSurplus < 15.0/cfg->METAL_ENERGY_RATIO)
 	{
 		// try to accelerate mex construction
-		const AAIUnitCategory extractor(EUnitCategory::UNIT_CATEGORY_METAL_EXTRACTOR);
+		const AAIUnitCategory extractor(EUnitCategory::METAL_EXTRACTOR);
 		if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(extractor) > 0)
-			AssistConstructionOfCategory(EXTRACTOR, 10);
+			AssistConstructionOfCategory(extractor);
 
 		// try to accelerate mex construction
-		const AAIUnitCategory metalMaker(EUnitCategory::UNIT_CATEGORY_POWER_PLANT);
+		const AAIUnitCategory metalMaker(EUnitCategory::METAL_MAKER);
 		if( (ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(metalMaker) > 0) && (averageEnergySurplus > cfg->MIN_METAL_MAKER_ENERGY) )
-			AssistConstructionOfCategory(METAL_MAKER, 10);
+			AssistConstructionOfCategory(metalMaker);
 	}
 }
 
@@ -2497,7 +2505,7 @@ void AAIExecute::CheckMexUpgrade()
 
 void AAIExecute::CheckRadarUpgrade()
 {
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_STATIC_SENSOR))  > 0)
+	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_SENSOR))  > 0)
 		return;
 
 	float cost = ai->Getbrain()->Affordable();
@@ -2607,14 +2615,14 @@ float AAIExecute::GetEnergyUrgency()
 	if(surplus < 0)
 		surplus = 0;
 
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_POWER_PLANT)) > 8)
+	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) > 8)
 	{
 		if(averageEnergySurplus > 1000)
 			return 0;
 		else
 			return 8.0f / pow( surplus / cfg->METAL_ENERGY_RATIO + 2.0f, 2.0f);
 	}
-	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_POWER_PLANT)) > 0)
+	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) > 0)
 		return 15.0f / pow( surplus / cfg->METAL_ENERGY_RATIO + 2.0f, 2.0f);
 	else
 		return 6.0f;
@@ -2622,7 +2630,7 @@ float AAIExecute::GetEnergyUrgency()
 
 float AAIExecute::GetMetalUrgency()
 {
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_METAL_EXTRACTOR)) > 0)
+	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR)) > 0)
 		return 20.0f / pow(averageMetalSurplus * cfg->METAL_ENERGY_RATIO + 2.0f, 2.0f);
 	else
 		return 7.0f;
@@ -2646,7 +2654,7 @@ float AAIExecute::GetMetalStorageUrgency()
 
 void AAIExecute::CheckFactories()
 {
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_STATIC_CONSTRUCTOR)) > 0)
+	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR)) > 0)
 		return;
 
 	for(list<int>::iterator fac = ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->Getside()-1].begin(); fac != ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->Getside()-1].end(); ++fac)
@@ -2671,7 +2679,7 @@ void AAIExecute::CheckFactories()
 
 void AAIExecute::CheckRecon()
 {
-	float urgency = 0.02f + 0.5f / ((float)(2 * ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_STATIC_SENSOR)) + 1));
+	float urgency = 0.02f + 0.5f / ((float)(2 * ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_SENSOR)) + 1));
 
 	if(this->urgency[STATIONARY_RECON] < urgency)
 		this->urgency[STATIONARY_RECON] = urgency;
@@ -2813,7 +2821,7 @@ void AAIExecute::CheckConstruction()
 	}
 }
 
-bool AAIExecute::AssistConstructionOfCategory(UnitCategory category, int /*importance*/)
+bool AAIExecute::AssistConstructionOfCategory(const AAIUnitCategory& category)
 {
 	AAIConstructor *builder, *assistant;
 
@@ -2825,7 +2833,7 @@ bool AAIExecute::AssistConstructionOfCategory(UnitCategory category, int /*impor
 			builder = nullptr;
 
 		if(   (builder != nullptr) 
-		   && (ai->Getbt()->units_static[builder->m_constructedDefId.id].category == category) 
+		   && (builder->GetCategoryOfConstructedUnit() == category)
 		   && (builder->assistants.size() < cfg->MAX_ASSISTANTS) )
 		{
 			assistant = ai->Getut()->FindClosestAssistant(builder->GetBuildPos(), 5, true);
@@ -2944,7 +2952,7 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 
 	// decrease number of units of that category in the target sector
 	if(validSector)
-		ai->Getmap()->sector[x][y].RemoveBuildingType(unitDefId.id);
+		ai->Getmap()->sector[x][y].RemoveBuilding(category);
 
 	// free metalspot if mex was odered to be built
 	if( (category.isMetalExtractor() == true) && (build_pos.x > 0) )
@@ -3028,7 +3036,7 @@ void AAIExecute::AddStartFactory()
 			my_rating = ai->Getbt()->GetFactoryRating(*fac);
 
 			//! @todo: Rework fatcory selection
-			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_STATIC_CONSTRUCTOR));
+			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR));
 			my_rating *= (1.0f + costStatistics.GetNormalizedDeviationFromMin( ai->Getbt()->s_buildTree.getTotalCost(UnitDefId(*fac)) ) );
 
 			if(my_rating > best_rating)

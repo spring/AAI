@@ -81,7 +81,7 @@ public:
 	const float getMaxSpeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; };
 
 	//! @brief Returns the list of units of the given category for given side
-	const std::list<int>& getUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.getCategoryIndex()]; };
+	const std::list<int>& getUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; };
 
 	//! @brief Returns the list of units of the given combat category for given side
 	const std::list<int>& getUnitsInCombatCategory(const AAICombatCategory& category, int side) const { return m_unitsInCombatCategory[side-1][category.GetCategoryIndex()]; };

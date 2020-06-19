@@ -72,8 +72,15 @@ AAI::~AAI()
 
 	Log("Linking buildtask to builder failed counter: %u\n", execute->GetLinkingBuildTaskToBuilderFailedCounter());
 
-	/*Log("Unit category active / under construction / requested\n");
-	for(int i = 0; i < uni; ++i)
+	Log("Unit category active / under construction / requested\n");
+	for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.IsLast() == false; category.Next())
+	{
+		Log("%u: %i / %i / %i\n", static_cast<uint32_t>(category.getUnitCategory()), 
+									ut->GetNumberOfActiveUnitsOfCategory(category), 
+									ut->GetNumberOfUnitsUnderConstructionOfCategory(category), 
+									ut->GetNumberOfRequestedUnitsOfCategory(category));
+	}
+	/*for(int i = 0; i < uni; ++i)
 	{
 		Log("%-20s: %i / %i / %i\n", bt->GetCategoryString2((UnitCategory)i), ut->activeUnits[i], ut->futureUnits[i], ut->requestedUnits[i]);
 	}*/
@@ -327,8 +334,8 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	if(m_initialized == false)
 	{
 		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
-		ut->UnitRequested(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_COMMANDER));
-		ut->UnitFinished(AAIUnitCategory(EUnitCategory::UNIT_CATEGORY_COMMANDER));
+		ut->UnitRequested(AAIUnitCategory(EUnitCategory::COMMANDER));
+		ut->UnitFinished(AAIUnitCategory(EUnitCategory::COMMANDER));
 
 		ut->futureBuilders += 1;
 
@@ -596,7 +603,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		{
 			// decrease number of units of that category in the target sector
 			if (validSector)
-				map->sector[x][y].RemoveBuildingType(def->id);
+				map->sector[x][y].RemoveBuilding(category);
 
 			// check if building belongs to one of this groups
 			if (category.isStaticDefence() == true)

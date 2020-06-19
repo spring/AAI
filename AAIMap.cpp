@@ -220,6 +220,7 @@ void AAIMap::Init()
 	// for log file
 	ai->Log("Map: %s\n",ai->Getcb()->GetMapName());
 	ai->Log("Maptype: %s\n", GetMapTypeTextString(map_type));
+	ai->Log("Land / water ratio: : %f / %f\n", land_ratio, water_ratio);
 	ai->Log("Mapsize is %i x %i\n", ai->Getcb()->GetMapWidth(),ai->Getcb()->GetMapHeight());
 	ai->Log("%i sectors in x direction\n", xSectors);
 	ai->Log("%i sectors in y direction\n", ySectors);
@@ -291,7 +292,7 @@ void AAIMap::ReadMapCacheFile()
 			else
 				map_type = UNKNOWN_MAP;
 
-			ai->LogConsole("%s detected", GetMapTypeTextString(map_type));
+			ai->LogConsole("%s loaded", GetMapTypeTextString(map_type));
 
 			// load water ratio
 			fscanf(file, "%f ", &water_ratio);
@@ -1600,6 +1601,8 @@ void AAIMap::AnalyseMap()
 
 void AAIMap::DetectMapType()
 {
+	ai->Log("Water ratio: %f\n", water_ratio);
+
 	if( (float)max_land_continent_size < 0.5f * (float)max_water_continent_size || water_ratio > 0.80f)
 		map_type = WATER_MAP;
 	else if(water_ratio > 0.25f)
@@ -1610,18 +1613,18 @@ void AAIMap::DetectMapType()
 
 void AAIMap::CalculateWaterRatio()
 {
-	water_ratio = 0;
+	int waterCells = 0;
 
 	for(int y = 0; y < yMapSize; ++y)
 	{
 		for(int x = 0; x < xMapSize; ++x)
 		{
 			if(buildmap[x + y*xMapSize] == 4)
-				++water_ratio;
+				++waterCells;
 		}
 	}
 
-	water_ratio = water_ratio / ((float)(xMapSize*yMapSize));
+	water_ratio = static_cast<float>(waterCells) / static_cast<float>(xMapSize*yMapSize);
 }
 
 void AAIMap::CalculateContinentMaps()
@@ -2254,18 +2257,18 @@ void AAIMap::UpdateEnemyScoutingData()
 					if(def_id)
 					{
 						// add building to sector (and update stat_combat_power if it's a stat defence)
-						if(ai->Getbt()->units_static[def_id].category <= METAL_MAKER)
+						if(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStatic() == true)
 						{
 							++sector->enemy_structures;
 
-							if(ai->Getbt()->units_static[def_id].category == STATIONARY_DEF)
+							if(ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId(def_id)).isStaticDefence() == true)
 							{
 								for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
 									sector->enemy_stat_combat_power[i] += ai->Getbt()->units_static[def_id].efficiency[i];
 							}
 						}
 						// add unit to sector and update mobile_combat_power
-						else if(ai->Getbt()->units_static[def_id].category >= GROUND_ASSAULT)
+						else if(ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId(def_id)).isCombatUnit() == true)
 						{
 							// units that have been scouted long time ago matter less
 							last_seen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(last_updated_map[x + y * xLOSMapSize] - frame)) / 3600.0f  );
@@ -2338,7 +2341,7 @@ AAISector* AAIMap::GetSectorOfPos(float3 *pos)
 
 void AAIMap::AddDefence(float3 *pos, int defence)
 {
-	int range = ai->Getbt()->units_static[defence].range / (SQUARE_SIZE * 4);
+	int range = static_cast<int>( ai->Getbt()->s_buildTree.getMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
 	int cell;
 
 	float power;
@@ -2458,7 +2461,7 @@ void AAIMap::AddDefence(float3 *pos, int defence)
 void AAIMap::RemoveDefence(float3 *pos, int defence)
 {
 	int cell;
-	int range = ai->Getbt()->units_static[defence].range / 32;
+	int range = static_cast<int>( ai->Getbt()->s_buildTree.getMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
 
 	float power;
 	float air_power;
@@ -2580,7 +2583,7 @@ float AAIMap::GetDefenceBuildsite(float3 *best_pos, const UnitDef *def, int xSta
 	else if(category == SUBMARINE_ASSAULT)
 		map = &submarine_defence_map;
 
-	float range =  ai->Getbt()->units_static[def->id].range / 8.0;
+	float range =  ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(def->id)) / 8.0f;
 
 	const std::string filename = cfg->GetFileName(ai, "AAIDebug.txt", "", "", true);
 	FILE* file = fopen(filename.c_str(), "w+");

@@ -37,7 +37,7 @@ AAISector::~AAISector(void)
 	my_combat_units.clear();
 	enemy_combat_units.clear();
 
-	my_buildings.clear();
+	m_ownBuildingsOfCategory.clear();
 
 	combats_learned.clear();
 	combats_this_game.clear();
@@ -108,18 +108,13 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 	my_combat_units.resize(categories, 0);
 	enemy_combat_units.resize(categories + 1, 0);
 
-	my_buildings.resize(METAL_MAKER+1, 0);
+	m_ownBuildingsOfCategory.resize(AAIUnitCategory::getNumberOfUnitCategories(), 0);
 }
 
 void AAISector::AddMetalSpot(AAIMetalSpot *spot)
 {
 	metalSpots.push_back(spot);
 	freeMetalSpots = true;
-}
-
-int AAISector::GetNumberOfMetalSpots()
-{
-	return metalSpots.size();
 }
 
 bool AAISector::SetBase(bool base)
@@ -628,11 +623,6 @@ float AAISector::GetOverallThreat(float learned, float current)
 	return (learned * (attacked_by_learned[0] + attacked_by_learned[1] + attacked_by_learned[2] + attacked_by_learned[3])
 		+ current *	(attacked_by_this_game[0] + attacked_by_this_game[1] + attacked_by_this_game[2] + attacked_by_this_game[3]))
 		/(learned + current);
-}
-
-void AAISector::RemoveBuildingType(int def_id)
-{
-	my_buildings[ai->Getbt()->units_static[def_id].category] -= 1;
 }
 
 float AAISector::GetWaterRatio()
