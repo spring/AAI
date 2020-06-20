@@ -287,9 +287,6 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 			if(    (builder->IsAvailableForConstruction() == true) 
 				&& (ai->Getbt()->s_buildTree.canBuildUnitType(builder->m_myDefId.id, building) == true) )
 			{
-				//if(ai->Getbt()->units_static[building].category == STATIONARY_JAMMER)
-				//	ai->Log("%s can build %s\n", ai->Getbt()->GetUnitDef(builder->def_id-1).humanName.c_str(), ai->Getbt()->GetUnitDef(building-1).humanName.c_str());
-
 				// filter out commander (if not allowed)
 				if(! (!commander &&  ai->Getbt()->IsCommander(builder->m_myDefId.id)) )
 					return builder;

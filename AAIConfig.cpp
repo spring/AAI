@@ -180,7 +180,7 @@ AAIConfig::~AAIConfig(void)
 }
 
 
-std::string AAIConfig::GetFileName(AAI* ai, const std::string& filename, const std::string& prefix, const std::string& suffix, bool write) const
+std::string AAIConfig::GetFileName(springLegacyAI::IAICallback* cb, const std::string& filename, const std::string& prefix, const std::string& suffix, bool write) const
 {
 	std::string name = prefix + MakeFileSystemCompatible(filename) + suffix;
 
@@ -188,9 +188,9 @@ std::string AAIConfig::GetFileName(AAI* ai, const std::string& filename, const s
 	char buffer[2048];
 	STRCPY_T(buffer, sizeof(buffer), name.c_str());
 	if (write) {
-		ai->Getcb()->GetValue(AIVAL_LOCATE_FILE_W, buffer);
+		cb->GetValue(AIVAL_LOCATE_FILE_W, buffer);
 	} else {
-		ai->Getcb()->GetValue(AIVAL_LOCATE_FILE_R, buffer);
+		cb->GetValue(AIVAL_LOCATE_FILE_R, buffer);
 	}
 	name.assign(buffer, sizeof(buffer));
 	return name;
@@ -201,9 +201,9 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 	MAX_UNITS = ai->Getcb()->GetMaxUnits();
 
 	std::list<string> possible_config_filenames;
-	possible_config_filenames.push_back(GetFileName(ai, ai->Getcb()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	possible_config_filenames.push_back(GetFileName(ai, ai->Getcb()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	possible_config_filenames.push_back(GetFileName(ai, ai->Getcb()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai->Getcb(), ai->Getcb()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai->Getcb(), ai->Getcb()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai->Getcb(), ai->Getcb()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
 	FILE* file = NULL;
 	std::string configfile;
 	for(const std::string& filename: possible_config_filenames) {
@@ -443,7 +443,7 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 bool AAIConfig::loadGeneralConfig(AAI& ai)
 {
 	// load general settings
-	const std::string filename = GetFileName(&ai, GENERAL_CFG_FILE, CFG_PATH);
+	const std::string filename = GetFileName(ai.Getcb(), GENERAL_CFG_FILE, CFG_PATH);
 
 	FILE* file = fopen(filename.c_str(), "r");
 
@@ -494,30 +494,30 @@ const UnitDef* AAIConfig::GetUnitDef(AAI* ai, const std::string& name)
 	return res;
 }
 
-std::string AAIConfig::getUniqueName(AAI* ai, bool game, bool gamehash, bool map, bool maphash) const
+std::string AAIConfig::getUniqueName(springLegacyAI::IAICallback* cb, bool game, bool gamehash, bool map, bool maphash) const
 {
 	std::string res;
 	if (map) {
 		if (!res.empty())
 			res += "-";
-		std::string mapName = MakeFileSystemCompatible(ai->Getcb()->GetMapName());
+		std::string mapName = MakeFileSystemCompatible(cb->GetMapName());
 		mapName.resize(mapName.size() - 4); // cut off extension
 		res += mapName;
 	}
 	if (maphash) {
 		if (!res.empty())
 			res += "-";
-		res += IntToString(ai->Getcb()->GetMapHash(), "%x");
+		res += IntToString(cb->GetMapHash(), "%x");
 	}
 	if (game) {
 		if (!res.empty())
 			res += "_";
-		res += MakeFileSystemCompatible(ai->Getcb()->GetModHumanName());
+		res += MakeFileSystemCompatible(cb->GetModHumanName());
 	}
 	if (gamehash) {
 		if (!res.empty())
 			res += "-";
-		res += IntToString(ai->Getcb()->GetModHash(), "%x");
+		res += IntToString(cb->GetModHash(), "%x");
 	}
 	return res;
 }

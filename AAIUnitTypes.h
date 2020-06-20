@@ -97,6 +97,9 @@ public:
 	
 	bool isMobileSupport()     const { return (m_unitCategory == EUnitCategory::MOBILE_SUPPORT) ? true : false; };
 
+	bool isBuilding()          const { return      (static_cast<uint32_t>(m_unitCategory) >= static_cast<uint32_t>(EUnitCategory::STATIC_DEFENCE) )
+												&& (static_cast<uint32_t>(m_unitCategory) <= static_cast<uint32_t>(EUnitCategory::METAL_MAKER) ); };
+
 	bool isCombatUnit()        const { return      (static_cast<uint32_t>(m_unitCategory) >= static_cast<uint32_t>(EUnitCategory::GROUND_COMBAT) )
 												&& (static_cast<uint32_t>(m_unitCategory) <= static_cast<uint32_t>(EUnitCategory::SEA_COMBAT) ); };
 

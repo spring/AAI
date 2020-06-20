@@ -461,7 +461,7 @@ void AAIMap::ReadMapCacheFile()
 
 void AAIMap::ReadContinentFile()
 {
-	const std::string filename = cfg->GetFileName(ai, cfg->getUniqueName(ai, true, true, true, true), MAP_CACHE_PATH, "_continent.dat", true);
+	const std::string filename = cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), true, true, true, true), MAP_CACHE_PATH, "_continent.dat", true);
 	FILE* file = fopen(filename.c_str(), "r");
 
 	if(file != NULL)
@@ -523,7 +523,7 @@ void AAIMap::ReadContinentFile()
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 	// save movement maps
-	const std::string movementfile = cfg->GetFileName(ai, cfg->getUniqueName(ai, true, false, true, false), MAP_CACHE_PATH, "_movement.dat", true);
+	const std::string movementfile = cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), true, false, true, false), MAP_CACHE_PATH, "_movement.dat", true);
 	file = fopen(movementfile.c_str(), "w+");
 
 	fprintf(file, "%s\n",  CONTINENT_DATA_VERSION);
@@ -553,12 +553,12 @@ void AAIMap::ReadContinentFile()
 
 std::string AAIMap::LocateMapLearnFile() const
 {
-	return cfg->GetFileName(ai, cfg->getUniqueName(ai, true, true, true, true), MAP_LEARN_PATH, "_maplearn.dat", true);
+	return cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), true, true, true, true), MAP_LEARN_PATH, "_maplearn.dat", true);
 }
 
 std::string AAIMap::LocateMapCacheFile() const
 {
-	return cfg->GetFileName(ai, cfg->getUniqueName(ai, false, false, true, true), MAP_LEARN_PATH, "_mapcache.dat", true);
+	return cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), false, false, true, true), MAP_LEARN_PATH, "_mapcache.dat", true);
 }
 
 void AAIMap::readMapLearnFile()
@@ -2085,7 +2085,6 @@ void AAIMap::SearchMetalSpots()
 void AAIMap::UpdateRecon()
 {
 	const UnitDef *def;
-	UnitCategory cat;
 	float3 pos;
 
 	int frame = ai->Getcb()->GetCurrentFrame();
@@ -2136,17 +2135,17 @@ void AAIMap::UpdateRecon()
 			// make sure unit is within the map (e.g. no aircraft that has flown outside of the map)
 			if(x_pos >= 0 && x_pos < xLOSMapSize && y_pos >= 0 && y_pos < yLOSMapSize)
 			{
-				cat = ai->Getbt()->units_static[def->id].category;
+				const AAIUnitCategory& category = ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId(def->id));
 
 				// add buildings/combat units to scout map
-				if(cat >= STATIONARY_DEF && cat <= SUBMARINE_ASSAULT)
+				if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
 				{
 					scout_map[x_pos + y_pos * xLOSMapSize] = def->id;
 					++sector_in_los_with_enemies[(losMapRes * x_pos) / xSectorSizeMap + (xSectors + 1) * ((losMapRes * y_pos) / ySectorSizeMap) ];
 				}
 
-				if(cat >= GROUND_ASSAULT && cat <= SUBMARINE_ASSAULT)
-					++enemy_combat_units_spotted[cat - GROUND_ASSAULT];
+				if(category.isCombatUnit() == true)
+					++enemy_combat_units_spotted[ai->Getbt()->units_static[def->id].category - GROUND_ASSAULT];
 			}
 		}
 		else // unit on radar only
@@ -2189,9 +2188,9 @@ void AAIMap::UpdateRecon()
 	{
 		// get unit def & category
 		def = ai->Getcb()->GetUnitDef(units_in_los[i]);
-		cat = ai->Getbt()->units_static[def->id].category;
+		const AAIUnitCategory& category = ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId(def->id));
 
-		if(cat >= STATIONARY_DEF && cat <= SUBMARINE_ASSAULT)
+		if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
 		{
 			pos = ai->Getcb()->GetUnitPos(units_in_los[i]);
 
@@ -2201,21 +2200,21 @@ void AAIMap::UpdateRecon()
 			if(x >= 0 && y >= 0 && x < xSectors && y < ySectors)
 			{
 				// add building to sector (and update stat_combat_power if it's a stat defence)
-				if(cat <= METAL_MAKER)
+				if(category.isBuilding() == true)
 				{
 					if(ai->Getcb()->GetUnitTeam(units_in_los[i]) == my_team)
 						++sector[x][y].own_structures;
 					else
 						++sector[x][y].allied_structures;
 
-					if(cat == STATIONARY_DEF)
+					if(category.isStaticDefence() == true)
 					{
 						for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
 							sector[x][y].my_stat_combat_power[i] += ai->Getbt()->units_static[def->id].efficiency[i];
 					}
 				}
 				// add unit to sector and update mobile_combat_power
-				else if(cat >= GROUND_ASSAULT)
+				else
 				{
 					++sector[x][y].my_combat_units[ai->Getbt()->units_static[def->id].category - GROUND_ASSAULT];
 
@@ -2444,7 +2443,7 @@ void AAIMap::AddDefence(float3 *pos, int defence)
 		}
 	}
 
-	const std::string filename = cfg->GetFileName(ai, "AAIDefMap.txt", "", "", true);
+	const std::string filename = cfg->GetFileName(ai->Getcb(), "AAIDefMap.txt", "", "", true);
 	FILE* file = fopen(filename.c_str(), "w+");
 	for(int y = 0; y < yDefMapSize; ++y)
 	{
@@ -2585,7 +2584,7 @@ float AAIMap::GetDefenceBuildsite(float3 *best_pos, const UnitDef *def, int xSta
 
 	float range =  ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(def->id)) / 8.0f;
 
-	const std::string filename = cfg->GetFileName(ai, "AAIDebug.txt", "", "", true);
+	const std::string filename = cfg->GetFileName(ai->Getcb(), "AAIDebug.txt", "", "", true);
 	FILE* file = fopen(filename.c_str(), "w+");
 	fprintf(file, "Search area: (%i, %i) x (%i, %i)\n", xStart, yStart, xEnd, yEnd);
 	fprintf(file, "Range: %g\n", range);

@@ -2165,7 +2165,7 @@ void AAIBuildTable::UpdateMinMaxAvgEfficiency()
 
 std::string AAIBuildTable::GetBuildCacheFileName()
 {
-	return cfg->GetFileName(ai, cfg->getUniqueName(ai, true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
+	return cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
 }
 
 
@@ -2390,7 +2390,7 @@ void AAIBuildTable::DebugPrint()
 	// for debugging
 	UnitType unitType;
 	// this size equals the one used in "AIAICallback::GetValue(AIVAL_LOCATE_FILE_..."
-	const std::string filename = cfg->GetFileName(ai, cfg->getUniqueName(ai, true, true, true, true), MOD_LEARN_PATH, "_buildtable.txt", true);
+	const std::string filename = cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), true, true, true, true), MOD_LEARN_PATH, "_buildtable.txt", true);
 
 	FILE *file = fopen(filename.c_str(), "w");
 

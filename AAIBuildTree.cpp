@@ -8,6 +8,7 @@
 // -------------------------------------------------------------------------
 
 #include "System/SafeUtil.h"
+#include "aidef.h"
 #include "AAIBuildTree.h"
 #include "AAIConfig.h"
 
@@ -170,8 +171,8 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 	//-----------------------------------------------------------------------------------------------------------------
 	// print info to file for debug purposes
 	//-----------------------------------------------------------------------------------------------------------------
-	std::string filename("buildtree.txt");
 
+	std::string filename = cfg->GetFileName(cb, cfg->getUniqueName(cb, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
 	printSummaryToFile(filename, unitDefs);
 
     return true;
@@ -183,15 +184,16 @@ void AAIBuildTree::printSummaryToFile(const std::string& filename, const std::ve
 
 	if(file != nullptr)
 	{
-		fprintf(file, "Number of unit types: %i\n", unitDefs.size()-1);
+		fprintf(file, "Number of different unit types: %i\n", unitDefs.size()-1);
 
 		fprintf(file, "Detected start units (aka commanders):\n");
 		for(int side = 1; side <= m_numberOfSides; ++side)
 		{
-			fprintf(file, " %s\n", unitDefs[ m_startUnitsOfSide[side] ]->name.c_str());
+			fprintf(file, "%s (%s)  ", unitDefs[ m_startUnitsOfSide[side] ]->humanName.c_str(), unitDefs[ m_startUnitsOfSide[side] ]->name.c_str());
 		}
+		fprintf(file, "\n");
 
-		fprintf(file, "\nUnit Side\n");
+		fprintf(file, "\nUnit List (human/internal name, side, category)\n");
 		for(int id = 1; id < unitDefs.size(); ++id)
 		{
 			/*fprintf(file, "%s %s %i %f %u %i\n", m_unitTypeProperties[id].m_name.c_str(), 
@@ -200,9 +202,13 @@ void AAIBuildTree::printSummaryToFile(const std::string& filename, const std::ve
 													m_unitTypeProperties[id].m_maxRange,
 													static_cast<uint32_t>(m_unitTypeProperties[id].m_movementType.getMovementType()),
 													static_cast<int>(m_unitTypeProperties[id].m_movementType.cannotMoveToOtherContinents()) );*/
+			/*
 			fprintf(file, "%s %s %u\n", m_unitTypeProperties[id].m_name.c_str(), 
 										unitDefs[id]->name.c_str(),
 										static_cast<uint32_t>(m_unitTypeProperties[id].m_unitCategory.getUnitCategory()));
+			*/
+
+			fprintf(file, "ID: %-3i %-40s %-16s %-1i %-2u\n", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), getSideOfUnitType(UnitDefId(id)), static_cast<uint32_t>(getUnitCategory(UnitDefId(id)).getUnitCategory()) );
 		}
 
 		fprintf(file, "\n\nUnits in each category:\n");
