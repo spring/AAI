@@ -2135,7 +2135,7 @@ void AAIMap::UpdateRecon()
 			// make sure unit is within the map (e.g. no aircraft that has flown outside of the map)
 			if(x_pos >= 0 && x_pos < xLOSMapSize && y_pos >= 0 && y_pos < yLOSMapSize)
 			{
-				const AAIUnitCategory& category = ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId(def->id));
+				const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 				// add buildings/combat units to scout map
 				if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
@@ -2188,7 +2188,7 @@ void AAIMap::UpdateRecon()
 	{
 		// get unit def & category
 		def = ai->Getcb()->GetUnitDef(units_in_los[i]);
-		const AAIUnitCategory& category = ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId(def->id));
+		const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 		if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
 		{
@@ -2256,18 +2256,18 @@ void AAIMap::UpdateEnemyScoutingData()
 					if(def_id)
 					{
 						// add building to sector (and update stat_combat_power if it's a stat defence)
-						if(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStatic() == true)
+						if(ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(def_id)).isStatic() == true)
 						{
 							++sector->enemy_structures;
 
-							if(ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId(def_id)).isStaticDefence() == true)
+							if(ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def_id)).isStaticDefence() == true)
 							{
 								for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
 									sector->enemy_stat_combat_power[i] += ai->Getbt()->units_static[def_id].efficiency[i];
 							}
 						}
 						// add unit to sector and update mobile_combat_power
-						else if(ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId(def_id)).isCombatUnit() == true)
+						else if(ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def_id)).isCombatUnit() == true)
 						{
 							// units that have been scouted long time ago matter less
 							last_seen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(last_updated_map[x + y * xLOSMapSize] - frame)) / 3600.0f  );
@@ -2340,7 +2340,7 @@ AAISector* AAIMap::GetSectorOfPos(float3 *pos)
 
 void AAIMap::AddDefence(float3 *pos, int defence)
 {
-	int range = static_cast<int>( ai->Getbt()->s_buildTree.getMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
+	int range = static_cast<int>( ai->Getbt()->s_buildTree.GetMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
 	int cell;
 
 	float power;
@@ -2460,7 +2460,7 @@ void AAIMap::AddDefence(float3 *pos, int defence)
 void AAIMap::RemoveDefence(float3 *pos, int defence)
 {
 	int cell;
-	int range = static_cast<int>( ai->Getbt()->s_buildTree.getMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
+	int range = static_cast<int>( ai->Getbt()->s_buildTree.GetMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
 
 	float power;
 	float air_power;
@@ -2582,7 +2582,7 @@ float AAIMap::GetDefenceBuildsite(float3 *best_pos, const UnitDef *def, int xSta
 	else if(category == SUBMARINE_ASSAULT)
 		map = &submarine_defence_map;
 
-	float range =  ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(def->id)) / 8.0f;
+	float range =  ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
 
 	const std::string filename = cfg->GetFileName(ai->Getcb(), "AAIDebug.txt", "", "", true);
 	FILE* file = fopen(filename.c_str(), "w+");

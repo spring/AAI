@@ -134,7 +134,7 @@ void AAIAirForceManager::AddTarget(int unit_id, int def_id)
 
 			targets[i].pos = ai->Getcb()->GetUnitPos(unit_id);
 			targets[i].def_id = def_id;
-			targets[i].cost = ai->Getbt()->s_buildTree.getTotalCost(UnitDefId(def_id));
+			targets[i].cost = ai->Getbt()->s_buildTree.GetTotalCost(UnitDefId(def_id));
 			targets[i].health = ai->Getcb()->GetUnitHealth(unit_id);
 
 			ai->Getut()->units[unit_id].status = BOMB_TARGET;

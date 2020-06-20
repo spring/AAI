@@ -38,7 +38,7 @@ AAIBuildTree::~AAIBuildTree(void)
 	m_startUnitsOfSide.clear();
 }
 
-bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
+bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 {
 	// prevent buildtree from beeing initialized several times
 	if(m_initialized == true)
@@ -104,7 +104,7 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 	for(std::list<int>::iterator id = rootUnits.begin(); id != rootUnits.end(); ++id)
 	{
 		++m_numberOfSides;
-		assignSideToUnitType(m_numberOfSides, UnitDefId(*id) );
+		AssignSideToUnitType(m_numberOfSides, UnitDefId(*id) );
 		m_startUnitsOfSide[m_numberOfSides] = *id;
 	}
 
@@ -128,10 +128,10 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 		m_unitTypeProperties[id].m_maxSpeed  = unitDefs[id]->speed;
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
 		
-		m_unitTypeProperties[id].m_movementType.setMovementType( determineMovementType(unitDefs[id]) );
+		m_unitTypeProperties[id].m_movementType.setMovementType( DetermineMovementType(unitDefs[id]) );
 
 		// set unit category and add to corresponding unit list (if unit is not neutral)
-		AAIUnitCategory unitCategory( determineUnitCategory(unitDefs[id]) );
+		AAIUnitCategory unitCategory( DetermineUnitCategory(unitDefs[id]) );
 		m_unitTypeProperties[id].m_unitCategory = unitCategory;
 
 		if(m_sideOfUnitType[id] > 0)
@@ -154,7 +154,7 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_SUBMERGED) ].push_back(id);
 		}
 
-		m_unitTypeProperties[id].m_range = determineRange(unitDefs[id], unitCategory);
+		m_unitTypeProperties[id].m_range = DetermineRange(unitDefs[id], unitCategory);
     }
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -173,12 +173,12 @@ bool AAIBuildTree::generate(springLegacyAI::IAICallback* cb)
 	//-----------------------------------------------------------------------------------------------------------------
 
 	std::string filename = cfg->GetFileName(cb, cfg->getUniqueName(cb, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
-	printSummaryToFile(filename, unitDefs);
+	PrintSummaryToFile(filename, unitDefs);
 
     return true;
 }
 
-void AAIBuildTree::printSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const
+void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const
 {
 	FILE* file = fopen(filename.c_str(), "w+");
 
@@ -196,19 +196,7 @@ void AAIBuildTree::printSummaryToFile(const std::string& filename, const std::ve
 		fprintf(file, "\nUnit List (human/internal name, side, category)\n");
 		for(int id = 1; id < unitDefs.size(); ++id)
 		{
-			/*fprintf(file, "%s %s %i %f %u %i\n", m_unitTypeProperties[id].m_name.c_str(), 
-													unitDefs[id]->name.c_str(), 
-													m_sideOfUnitType[id], 
-													m_unitTypeProperties[id].m_maxRange,
-													static_cast<uint32_t>(m_unitTypeProperties[id].m_movementType.getMovementType()),
-													static_cast<int>(m_unitTypeProperties[id].m_movementType.cannotMoveToOtherContinents()) );*/
-			/*
-			fprintf(file, "%s %s %u\n", m_unitTypeProperties[id].m_name.c_str(), 
-										unitDefs[id]->name.c_str(),
-										static_cast<uint32_t>(m_unitTypeProperties[id].m_unitCategory.getUnitCategory()));
-			*/
-
-			fprintf(file, "ID: %-3i %-40s %-16s %-1i %-2u\n", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), getSideOfUnitType(UnitDefId(id)), static_cast<uint32_t>(getUnitCategory(UnitDefId(id)).getUnitCategory()) );
+			fprintf(file, "ID: %-3i %-40s %-16s %-1i %-2u\n", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), GetSideOfUnitType(UnitDefId(id)), static_cast<uint32_t>(GetUnitCategory(UnitDefId(id)).getUnitCategory()) );
 		}
 
 		fprintf(file, "\n\nUnits in each category:\n");
@@ -239,7 +227,7 @@ void AAIBuildTree::printSummaryToFile(const std::string& filename, const std::ve
 	}
 }
 
-void AAIBuildTree::assignSideToUnitType(int side, UnitDefId unitDefId)
+void AAIBuildTree::AssignSideToUnitType(int side, UnitDefId unitDefId)
 {
 	// avoid "visiting" unit types multiple times (if units can be constructed by more than one other unit)
 	if( m_sideOfUnitType[unitDefId.id] == 0)
@@ -250,12 +238,12 @@ void AAIBuildTree::assignSideToUnitType(int side, UnitDefId unitDefId)
 		// continue with unit types constructed by given unit type
 		for( std::list<UnitDefId>::iterator id = m_unitTypeCanConstructLists[unitDefId.id].begin(); id != m_unitTypeCanConstructLists[unitDefId.id].end(); ++id)
 		{
-			assignSideToUnitType(side, *id);
+			AssignSideToUnitType(side, *id);
 		}
 	}
 }
 
-float AAIBuildTree::determineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory)
+float AAIBuildTree::DetermineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory)
 {
 	float range = 0.0f;
 
@@ -289,7 +277,7 @@ float AAIBuildTree::determineRange(const springLegacyAI::UnitDef* unitDef, const
 	return range;
 }
 
-EMovementType AAIBuildTree::determineMovementType(const springLegacyAI::UnitDef* unitDef) const
+EMovementType AAIBuildTree::DetermineMovementType(const springLegacyAI::UnitDef* unitDef) const
 {
     EMovementType moveType = EMovementType::MOVEMENT_TYPE_UNKNOWN;
 
@@ -340,7 +328,7 @@ EMovementType AAIBuildTree::determineMovementType(const springLegacyAI::UnitDef*
     return moveType;
 }
 
-EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef* unitDef) const
+EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef* unitDef) const
 {
 	if(m_sideOfUnitType[unitDef->id] == 0)
 		return EUnitCategory::UNKNOWN;
@@ -388,7 +376,7 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 			}
 			//else
 			{
-				if( getMaxRange( UnitDefId(unitDef->id) ) < cfg->STATIONARY_ARTY_RANGE)
+				if( GetMaxRange( UnitDefId(unitDef->id) ) < cfg->STATIONARY_ARTY_RANGE)
 				{
 					return EUnitCategory::STATIC_DEFENCE;
 				}
@@ -418,7 +406,7 @@ EUnitCategory AAIBuildTree::determineUnitCategory(const springLegacyAI::UnitDef*
 	// --------------- units ------------------------------------------------------------------------------------------
 	else
 	{
-		if( isStartingUnit(unitDef->id) == true )
+		if( IsStartingUnit(unitDef->id) == true )
 		{
 			return EUnitCategory::COMMANDER;
 		}
@@ -574,7 +562,7 @@ float AAIBuildTree::GetMaxDamage(const springLegacyAI::UnitDef* unitDef) const
 	return false;
 }*/
 
-bool AAIBuildTree::canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const
+bool AAIBuildTree::CanBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const
 {
     // look in build options of builder for unit type
     for(std::list<UnitDefId>::const_iterator id = m_unitTypeCanConstructLists[unitDefIdBuilder.id].begin(); id != m_unitTypeCanConstructLists[unitDefIdBuilder.id].end(); ++id)
@@ -587,7 +575,7 @@ bool AAIBuildTree::canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDe
     return false;
 }
 
-bool AAIBuildTree::isStartingUnit(UnitDefId unitDefId) const
+bool AAIBuildTree::IsStartingUnit(UnitDefId unitDefId) const
 {
     if(m_initialized == false)
         return false;

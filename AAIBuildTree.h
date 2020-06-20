@@ -30,80 +30,77 @@ public:
 	~AAIBuildTree(void);
 
 	//! @brief Generates buildtree for current game/mod
-	bool generate(springLegacyAI::IAICallback* cb);
-
-	//! Returns the number of unit types
-	unsigned int getNumberOfUnitTypes() const { return m_unitTypeProperties.size(); };
+	bool Generate(springLegacyAI::IAICallback* cb);
 
 	//! @brief Returns whether given the given unit type can be constructed by the given constructor unit type
-	bool canBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const;
+	bool CanBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const;
 
 	//! @brief Return side of given unit type (0 if not initialized)
-	int getSideOfUnitType(UnitDefId unitDefId) const { return m_initialized ? m_sideOfUnitType[unitDefId.id] : 0; };
+	int GetSideOfUnitType(UnitDefId unitDefId) const { return m_initialized ? m_sideOfUnitType[unitDefId.id] : 0; };
 
 	//! @brief Returns the list of units that can construct the given unit.
-	const std::list<UnitDefId>& getConstructedByList(UnitDefId unitDefId) const { return m_unitTypeCanBeConstructedtByLists[unitDefId.id]; };
+	const std::list<UnitDefId>& GetConstructedByList(UnitDefId unitDefId) const { return m_unitTypeCanBeConstructedtByLists[unitDefId.id]; };
 
 	//! @brief Returns the list of units that can be construct by the given unit.
-	const std::list<UnitDefId>& getCanConstructList(UnitDefId unitDefId) const { return m_unitTypeCanConstructLists[unitDefId.id]; };
+	const std::list<UnitDefId>& GetCanConstructList(UnitDefId unitDefId) const { return m_unitTypeCanConstructLists[unitDefId.id]; };
 
 	//! @brief Returns the number of sides
-	int getNumberOfSides() const { return m_numberOfSides; };
+	int GetNumberOfSides() const { return m_numberOfSides; };
 
 	//! @brief Returns whether a given unit type is a starting unit for one side
-	bool isStartingUnit(UnitDefId unitDefId) const;
+	bool IsStartingUnit(UnitDefId unitDefId) const;
 
 	//! @brief Returns start units (probably not needed anymore when refactoring AAIBuildTable is finished)
-	UnitDefId getStartUnit(int side) const { return m_initialized ? UnitDefId(m_startUnitsOfSide[side]) : UnitDefId(0); };
+	UnitDefId GetStartUnit(int side) const { return m_initialized ? UnitDefId(m_startUnitsOfSide[side]) : UnitDefId(0); };
 
 	//! @brief Returns the unit type properties of the given unit type
-	const UnitTypeProperties& getUnitTypeProperties(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id]; };
+	const UnitTypeProperties& GetUnitTypeProperties(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id]; };
 
 	//! @brief Return the total cost of the given unit type
-	const float getTotalCost(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_totalCost; };
+	const float GetTotalCost(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_totalCost; };
 
 	//! @brief Return the buildtime of the given unit type
-	const float getBuildtime(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_buildtime; };
+	const float GetBuildtime(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_buildtime; };
 
 	//! @brief Return the maximum weapon range (0.0f if unarmed)
-	const float getMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
+	const float GetMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
 
 	//! @brief Returns the buildspeed for static and mobile constructors, range otherwise (buildspeed is stored in range variable)
-	const float getBuildspeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
+	const float GetBuildspeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
 
 	//! @brief Returns the category that the given unit belongs to
-	const AAIUnitCategory& getUnitCategory(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_unitCategory; };
+	const AAIUnitCategory& GetUnitCategory(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_unitCategory; };
 
 	//! @brief Returns movement type of given unit type
-	const AAIMovementType& getMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].m_movementType; };
+	const AAIMovementType& GetMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].m_movementType; };
 
 	//! @brief Return the maximum speed
-	const float getMaxSpeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; };
+	const float GetMaxSpeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; };
 
 	//! @brief Returns the list of units of the given category for given side
-	const std::list<int>& getUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; };
+	const std::list<int>& GetUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; };
 
 	//! @brief Returns the list of units of the given combat category for given side
-	const std::list<int>& getUnitsInCombatCategory(const AAICombatCategory& category, int side) const { return m_unitsInCombatCategory[side-1][category.GetCategoryIndex()]; };
+	const std::list<int>& GetUnitsInCombatCategory(const AAICombatCategory& category, int side) const { return m_unitsInCombatCategory[side-1][category.GetCategoryIndex()]; };
 
 	//! @brief Returns the unit category statistics for given side
-	const AAIUnitStatistics& getUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; };
+	const AAIUnitStatistics& GetUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; };
 
 private:
 	//! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
-	void assignSideToUnitType(int side, UnitDefId unitDefId);
+	void AssignSideToUnitType(int side, UnitDefId unitDefId);
 
 	//! @brief helper function to determine the range (dependent on which category the unit type belongs to)
-	float determineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory);
+	float DetermineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory);
 	
 	//! @brief Returns movement type of given unit definition
-	EMovementType determineMovementType(const springLegacyAI::UnitDef* unitDef) const;
+	EMovementType DetermineMovementType(const springLegacyAI::UnitDef* unitDef) const;
 
 	//! @brief Returns Unit Category for given unit definition
-	EUnitCategory determineUnitCategory(const springLegacyAI::UnitDef* unitDef) const;
+	EUnitCategory DetermineUnitCategory(const springLegacyAI::UnitDef* unitDef) const;
 
 	//! @brief Prints summary of newly created buildtree
-	void printSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const;
+	void PrintSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const;
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// helper functions for determineUnitCategory(...)

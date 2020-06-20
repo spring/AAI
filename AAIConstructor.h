@@ -122,7 +122,7 @@ public:
 	const float3& GetBuildPos() const { return m_buildPos; };
 
 	//! @brief Returns the catgegory of the unit that is currently being constructed (unknown if none)
-	const AAIUnitCategory& GetCategoryOfConstructedUnit() const { return ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId); };
+	const AAIUnitCategory& GetCategoryOfConstructedUnit() const { return ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId); };
 
 	//! Unit id of the construction unit
 	UnitId    m_myUnitId;

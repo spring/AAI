@@ -158,9 +158,9 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 		{
 			const float3& buildPos = ai->Getut()->units[*i].cons->GetBuildPos();
 
-			if(ai->Getbt()->s_buildTree.getUnitTypeProperties(unitDefId).m_unitCategory.isStaticDefence() == true)
+			if(ai->Getbt()->s_buildTree.GetUnitTypeProperties(unitDefId).m_unitCategory.isStaticDefence() == true)
 			{
-				ai->Log("Builtask for %s: %f %f %f %f\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(unitDefId).m_name.c_str(),
+				ai->Log("Builtask for %s: %f %f %f %f\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(),
 					buildPos.x, pos->x, buildPos.z, pos->z);
 			}
 
@@ -177,7 +177,7 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 	if(builderFound == false)
 	{
 		++m_linkingBuildTaskToBuilderFailed;
-		ai->Log("Failed to link buildtask for %s to builder\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(unitDefId).m_name.c_str() );
+		ai->Log("Failed to link buildtask for %s to builder\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
 	}
 }
 
@@ -193,14 +193,14 @@ bool AAIExecute::InitBuildingAt(const UnitDef *def, float3 *pos, bool water)
 	UnitDefId unitDefId(def->id);
 
 	// update defence map (if necessary)
-	if(ai->Getbt()->s_buildTree.getUnitCategory(unitDefId).isStaticDefence() == true)
+	if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence() == true)
 		ai->Getmap()->AddDefence(pos, def->id);
 
 	// drop bad sectors (should only happen when defending mexes at the edge of the map)
 	if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
 	{
 		// increase number of units of that category in the target sector
-		ai->Getmap()->sector[x][y].AddBuilding(ai->Getbt()->s_buildTree.getUnitCategory(unitDefId));
+		ai->Getmap()->sector[x][y].AddBuilding(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId));
 
 		return true;
 	}
@@ -244,7 +244,7 @@ void AAIExecute::AddUnitToGroup(int unit_id, int def_id, UnitCategory category)
 
 	// determine continent if necessary
 	int continent_id = -1;
-	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(def_id);
+	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.GetMovementType(def_id);
 
 	if( moveType.cannotMoveToOtherContinents() == true )
 	{
@@ -389,7 +389,7 @@ float3 AAIExecute::GetUnitBuildsite(int builder, int unit)
 
 	for(list<AAISector*>::iterator s = ai->Getbrain()->sectors[1].begin(); s != ai->Getbrain()->sectors[1].end(); ++s)
 	{
-		bool water = ai->Getbt()->s_buildTree.getMovementType(UnitDefId(unit)).isSeaUnit();
+		bool water = ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(unit)).isSeaUnit();
 
 		pos = (*s)->GetBuildsite(unit, water);
 
@@ -448,7 +448,7 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgen
 
 	float my_rating, best_rating = 0.0f;
 
-	for(std::list<UnitDefId>::const_iterator fac = ai->Getbt()->s_buildTree.getConstructedByList(unitDefId).begin(); fac != ai->Getbt()->s_buildTree.getConstructedByList(unitDefId).end(); ++fac)
+	for(std::list<UnitDefId>::const_iterator fac = ai->Getbt()->s_buildTree.GetConstructedByList(unitDefId).begin(); fac != ai->Getbt()->s_buildTree.GetConstructedByList(unitDefId).end(); ++fac)
 	{
 		if(ai->Getbt()->units_dynamic[(*fac).id].active > 0)
 		{
@@ -460,7 +460,7 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgen
 
 				// @todo rework criterion to reflect available buildspace instead of maptype
 				if(     (ai->Getmap()->map_type == WATER_MAP) 
-				    && !(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(*fac)).isStaticSea()  == true) )
+				    && !(ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(*fac)).isStaticSea()  == true) )
 					my_rating /= 10.0f;
 			}
 			else
@@ -805,8 +805,8 @@ bool AAIExecute::BuildPowerPlant()
 			if(builder && builder->GetCategoryOfConstructedUnit().isPowerPlant() == true)
 			{
 				// dont build further power plants if already building an expensive plant
-				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::POWER_PLANT));
-				if(ai->Getbt()->s_buildTree.getTotalCost(builder->m_constructedDefId) > costStatistics.GetAvgValue() )
+				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.GetUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::POWER_PLANT));
+				if(ai->Getbt()->s_buildTree.GetTotalCost(builder->m_constructedDefId) > costStatistics.GetAvgValue() )
 					return true;
 
 				// try to assist
@@ -1385,13 +1385,13 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(UnitCategory category, AAI
 	// dont start construction of further defences if expensive defences are already under construction in this sector
 	for(list<AAIBuildTask*>::iterator task = ai->Getbuild_tasks().begin(); task != ai->Getbuild_tasks().end(); ++task)
 	{
-		if(ai->Getbt()->s_buildTree.getUnitCategory(UnitDefId((*task)->def_id)).isStaticDefence() == true)
+		if(ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId((*task)->def_id)).isStaticDefence() == true)
 		{
 			if(dest->PosInSector(&(*task)->build_pos))
 			{
-				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::STATIC_DEFENCE));
+				const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.GetUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::STATIC_DEFENCE));
 
-				if( ai->Getbt()->s_buildTree.getTotalCost(UnitDefId((*task)->def_id)) > 0.7f * costStatistics.GetAvgValue() )
+				if( ai->Getbt()->s_buildTree.GetTotalCost(UnitDefId((*task)->def_id)) > 0.7f * costStatistics.GetAvgValue() )
 					return BUILDORDER_SUCCESFUL;
 			}
 		}
@@ -1650,11 +1650,11 @@ bool AAIExecute::BuildArty()
 			my_pos = ZeroVector;
 
 			if(ground_arty && (*sector)->water_ratio < 0.9f)
-				my_pos = (*sector)->GetRadarArtyBuildsite(ground_arty, ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(ground_arty))/4.0f, false);
+				my_pos = (*sector)->GetRadarArtyBuildsite(ground_arty, ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(ground_arty))/4.0f, false);
 
 			if(my_pos.x <= 0 && sea_arty && (*sector)->water_ratio > 0.1f)
 			{
-				my_pos = (*sector)->GetRadarArtyBuildsite(sea_arty,  ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(sea_arty))/4.0f, true);
+				my_pos = (*sector)->GetRadarArtyBuildsite(sea_arty,  ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(sea_arty))/4.0f, true);
 
 				if(my_pos.x > 0)
 					ground_arty = sea_arty;
@@ -1718,7 +1718,7 @@ bool AAIExecute::BuildFactory()
 			my_rating *= (1 + sqrt(2.0 + (float) GetBuildqueueOfFactory(*fac)->size()));
 
 			if(ai->Getut()->activeFactories < 1)
-				my_rating /= ai->Getbt()->s_buildTree.getTotalCost(UnitDefId(*fac));
+				my_rating /= ai->Getbt()->s_buildTree.GetTotalCost(UnitDefId(*fac));
 
 			// skip factories that could not be built
 			if(ai->Getbt()->units_static[*fac].efficiency[4] > 1)
@@ -1743,7 +1743,7 @@ bool AAIExecute::BuildFactory()
 		bool water = false;
 
 		// land
-		if(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(building)).isStaticLand() == true)
+		if(ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(building)).isStaticLand() == true)
 		{
 			water = false;
 
@@ -1772,7 +1772,7 @@ bool AAIExecute::BuildFactory()
 
 		// try to build on water if land has not been possible
 		if(    (pos.x <= 0.0f) 
-			&& (ai->Getbt()->s_buildTree.getMovementType(UnitDefId(building)).isStaticSea() == true) )
+			&& (ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(building)).isStaticSea() == true) )
 		{
 			water = true;
 
@@ -1837,13 +1837,13 @@ bool AAIExecute::BuildFactory()
 			bool expanded = false;
 
 			// no suitable buildsite found
-			if(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(building)).isStaticLand() == true)
+			if(ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(building)).isStaticLand() == true)
 			{
 				expanded = ai->Getbrain()->ExpandBase(LAND_SECTOR);
 				ai->Log("Base expanded by BuildFactory()\n");
 			}
 
-			if(!expanded && ai->Getbt()->s_buildTree.getMovementType(UnitDefId(building)).isStaticSea() == true)
+			if(!expanded && ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(building)).isStaticSea() == true)
 			{
 				ai->Getbrain()->ExpandBase(WATER_SECTOR);
 				ai->Log("Base expanded by BuildFactory() (water sector)\n");
@@ -1927,11 +1927,11 @@ bool AAIExecute::BuildRadar()
 				my_pos = ZeroVector;
 
 				if(ground_radar && (*sector)->water_ratio < 0.9f)
-					my_pos = (*sector)->GetRadarArtyBuildsite(ground_radar,  ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(ground_radar)), false);
+					my_pos = (*sector)->GetRadarArtyBuildsite(ground_radar,  ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(ground_radar)), false);
 
 				if(my_pos.x <= 0 && sea_radar && (*sector)->water_ratio > 0.1f)
 				{
-					my_pos = (*sector)->GetRadarArtyBuildsite(sea_radar, ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(sea_radar)), true);
+					my_pos = (*sector)->GetRadarArtyBuildsite(sea_radar, ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(sea_radar)), true);
 
 					if(my_pos.x > 0)
 						ground_radar = sea_radar;
@@ -2519,16 +2519,16 @@ void AAIExecute::CheckRadarUpgrade()
 	{
 		bool upgradeRadar(false);
 		
-		if(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(*sensor)).isStaticLand() == true )	// land recon
+		if(ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(*sensor)).isStaticLand() == true )	// land recon
 		{
-			if( (landRadar.isValid() == true) &&  (ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(*sensor)) < ai->Getbt()->s_buildTree.getMaxRange(landRadar)) )
+			if( (landRadar.isValid() == true) &&  (ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(*sensor)) < ai->Getbt()->s_buildTree.GetMaxRange(landRadar)) )
 			{
 				upgradeRadar = true;
 			}
 		}
 		else	// water radar
 		{
-			if( (waterRadar.isValid() == true) && (ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(*sensor)) < ai->Getbt()->s_buildTree.getMaxRange(waterRadar)) )
+			if( (waterRadar.isValid() == true) && (ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(*sensor)) < ai->Getbt()->s_buildTree.GetMaxRange(waterRadar)) )
 			{
 				upgradeRadar = true;
 			}
@@ -2940,7 +2940,7 @@ bool AAIExecute::defend_vs_submarine(AAISector *left, AAISector *right)
 void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 {
 	const UnitDef *def = &ai->Getbt()->GetUnitDef(unitDefId.id);
-	const AAIUnitCategory category = ai->Getbt()->s_buildTree.getUnitCategory(unitDefId);
+	const AAIUnitCategory category = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
 
 	int x = build_pos.x/ai->Getmap()->xSectorSize;
 	int y = build_pos.z/ai->Getmap()->ySectorSize;
@@ -3015,12 +3015,12 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 			futureRequestedMetal = 0;
 
 		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.getMovementType(unitDefId).isStaticSea(), true);
+		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.GetMovementType(unitDefId).isStaticSea(), true);
 	}
 	else // normal building
 	{
 		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.getMovementType(unitDefId).isStaticSea(), false);
+		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.GetMovementType(unitDefId).isStaticSea(), false);
 	}
 }
 
@@ -3036,8 +3036,8 @@ void AAIExecute::AddStartFactory()
 			my_rating = ai->Getbt()->GetFactoryRating(*fac);
 
 			//! @todo: Rework fatcory selection
-			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR));
-			my_rating *= (1.0f + costStatistics.GetNormalizedDeviationFromMin( ai->Getbt()->s_buildTree.getTotalCost(UnitDefId(*fac)) ) );
+			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.GetUnitStatistics(ai->Getside()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR));
+			my_rating *= (1.0f + costStatistics.GetNormalizedDeviationFromMin( ai->Getbt()->s_buildTree.GetTotalCost(UnitDefId(*fac)) ) );
 
 			if(my_rating > best_rating)
 			{
@@ -3052,7 +3052,7 @@ void AAIExecute::AddStartFactory()
 		ai->Getbt()->units_dynamic[best_factory].requested += 1;
 		urgency[STATIONARY_CONSTRUCTOR] = 3.0f;
 
-		ai->Log("%s requested\n", ai->Getbt()->s_buildTree.getUnitTypeProperties(UnitDefId(best_factory)).m_name.c_str());
+		ai->Log("%s requested\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(UnitDefId(best_factory)).m_name.c_str());
 
 		ai->Getbt()->ConstructorRequested(UnitDefId(best_factory));
 	}
@@ -3117,7 +3117,7 @@ float3 AAIExecute::determineSafePos(UnitDefId unitDefId, float3 unit_pos)
 	float3 best_pos = ZeroVector;
 	float my_rating, best_rating = -10000.0f;
 
-	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(unitDefId);
+	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.GetMovementType(unitDefId);
 
 	if( moveType.cannotMoveToOtherContinents() )
 	{
@@ -3223,7 +3223,7 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 
 void AAIExecute::CheckFallBack(int unit_id, int def_id)
 {
-	float max_weapon_range = ai->Getbt()->s_buildTree.getMaxRange(UnitDefId(def_id));
+	float max_weapon_range = ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(def_id));
 
 	if(max_weapon_range > cfg->MIN_FALLBACK_RANGE && ai->Getbt()->GetUnitDef(def_id).turnRate >= cfg->MIN_FALLBACK_TURNRATE)
 	{

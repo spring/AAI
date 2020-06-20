@@ -62,7 +62,7 @@ void AAIBuildTask::BuilderDestroyed()
 void AAIBuildTask::BuildtaskFailed()
 {
 	// cleanup buildmap etc.
-	if(ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStatic() == true)
+	if(ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(def_id)).isStatic() == true)
 		ai->Getexecute()->ConstructionFailed(build_pos, def_id);
 
 	// tell builder to stop construction (and release assisters) (if still alive)

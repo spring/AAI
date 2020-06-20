@@ -161,7 +161,7 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 	AAISector *scout_sector = 0, *sector;
 
 	const UnitDef *def = ai->Getcb()->GetUnitDef(scout);
-	const AAIMovementType& scoutMoveType = ai->Getbt()->s_buildTree.getMovementType( UnitDefId(def->id) );
+	const AAIMovementType& scoutMoveType = ai->Getbt()->s_buildTree.GetMovementType( UnitDefId(def->id) );
 
 	float3 pos = ai->Getcb()->GetUnitPos(scout);
 
@@ -851,10 +851,10 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 	{
 		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable > 0)
 		{
-			const AAIUnitCategory& category = ai->Getbt()->s_buildTree.getUnitCategory(unitDefId);
-			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.getUnitStatistics(ai->Getside()).GetUnitCostStatistics(category);
+			const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
+			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.GetUnitStatistics(ai->Getside()).GetUnitCostStatistics(category);
 
-			if(ai->Getbt()->s_buildTree.getTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
+			if(ai->Getbt()->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
 			{
 				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 3, urgent))
 				{
@@ -862,7 +862,7 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 					ai->Getut()->UnitRequested(category, 3);
 				}
 			}
-			else if(ai->Getbt()->s_buildTree.getTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
+			else if(ai->Getbt()->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
 			{
 				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 2, urgent))
 					ai->Getbt()->units_dynamic[unitDefId.id].requested += 2;

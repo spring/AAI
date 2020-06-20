@@ -65,10 +65,10 @@ void AAIConstructor::Idle()
 			{
 				//ai->Getbt()->units_dynamic[construction_def_id].active -= 1;
 				//assert(ai->Getbt()->units_dynamic[construction_def_id].active >= 0);
-				ai->Getut()->UnitRequestFailed(ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId));
+				ai->Getut()->UnitRequestFailed(ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId));
 
 				// clear up buildmap etc. (make sure conctructor wanted to build a building and not a unit)
-				if( ai->Getbt()->s_buildTree.getMovementType(m_constructedDefId).isStatic() == true )
+				if( ai->Getbt()->s_buildTree.GetMovementType(m_constructedDefId).isStatic() == true )
 					ai->Getexecute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
 
 				// free builder
@@ -101,7 +101,7 @@ void AAIConstructor::Update()
 			UnitDefId constructedUnitDefId(*m_buildqueue->begin());
 
 			// check if mobile or stationary builder
-			if(ai->Getbt()->s_buildTree.getMovementType(m_myDefId).isStatic() == true )  
+			if(ai->Getbt()->s_buildTree.GetMovementType(m_myDefId).isStatic() == true )  
 			{
 				// give build order
 				Command c(-constructedUnitDefId.id);
@@ -131,8 +131,8 @@ void AAIConstructor::Update()
 					assert(ai->Getbt()->IsValidUnitDefID(constructedUnitDefId.id));
 					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
 
-					ai->Getut()->UnitRequested(ai->Getbt()->s_buildTree.getUnitCategory(constructedUnitDefId)); // request must be called before create to keep unit counters correct
-					ai->Getut()->UnitCreated(ai->Getbt()->s_buildTree.getUnitCategory(constructedUnitDefId));
+					ai->Getut()->UnitRequested(ai->Getbt()->s_buildTree.GetUnitCategory(constructedUnitDefId)); // request must be called before create to keep unit counters correct
+					ai->Getut()->UnitCreated(ai->Getbt()->s_buildTree.GetUnitCategory(constructedUnitDefId));
 
 					m_buildqueue->pop_front();
 				}
@@ -230,10 +230,10 @@ void AAIConstructor::CheckAssistance()
 				assist = true;
 			else if(m_constructedDefId.isValid() == true) 
 			{
-				const float buildspeed( ai->Getbt()->s_buildTree.getBuildspeed(m_myDefId) ); 
+				const float buildspeed( ai->Getbt()->s_buildTree.GetBuildspeed(m_myDefId) ); 
 				if (buildspeed > 0.0f) 
 				{
-					const float buildtime = ai->Getbt()->s_buildTree.getBuildtime(m_constructedDefId) / buildspeed;
+					const float buildtime = ai->Getbt()->s_buildTree.GetBuildtime(m_constructedDefId) / buildspeed;
 
 					if (buildtime > static_cast<float>(cfg->MIN_ASSISTANCE_BUILDTIME))
 						assist = true;
@@ -265,20 +265,20 @@ void AAIConstructor::CheckAssistance()
 		// prevent assisting when low on ressources
 		if(ai->Getexecute()->averageMetalSurplus < 0.1)
 		{
-			if(ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId).isMetalMaker() == true)
+			if(ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId).isMetalMaker() == true)
 			{
 				if(ai->Getexecute()->averageEnergySurplus < 0.5 * ai->Getbt()->GetUnitDef(m_constructedDefId.id).energyUpkeep)
 					return;
 			}
-			else if(   (ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId).isMetalExtractor() == false) 
-			        && (ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId).isPowerPlant() == false ) )
+			else if(   (ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId).isMetalExtractor() == false) 
+			        && (ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId).isPowerPlant() == false ) )
 				return;
 		}
 
-		const float buildspeed( ai->Getbt()->s_buildTree.getBuildspeed(m_myDefId) ); 
+		const float buildspeed( ai->Getbt()->s_buildTree.GetBuildspeed(m_myDefId) ); 
 		if (buildspeed > 0.0f)
 		{
-			const float buildtime = ai->Getbt()->s_buildTree.getBuildtime(m_constructedDefId) / buildspeed;
+			const float buildtime = ai->Getbt()->s_buildTree.GetBuildtime(m_constructedDefId) / buildspeed;
 
 			if((buildtime > static_cast<float>(cfg->MIN_ASSISTANCE_BUILDTIME)) && (assistants.size() < cfg->MAX_ASSISTANTS))
 			{
@@ -353,7 +353,7 @@ void AAIConstructor::GiveConstructionOrder(int id_building, float3 pos, bool wat
 		// increase number of active units of that type/category
 		ai->Getbt()->units_dynamic[def->id].requested += 1;
 
-		ai->Getut()->UnitRequested(ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId));
+		ai->Getut()->UnitRequested(ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId));
 
 		if(ai->Getbt()->IsFactory(id_building))
 			ai->Getut()->futureFactories += 1;
@@ -408,10 +408,10 @@ void AAIConstructor::CheckIfConstructionFailed()
 void AAIConstructor::ConstructionFailed()
 {
 	--ai->Getbt()->units_dynamic[m_constructedDefId.id].requested;
-	ai->Getut()->UnitRequestFailed(ai->Getbt()->s_buildTree.getUnitCategory(m_constructedDefId));
+	ai->Getut()->UnitRequestFailed(ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId));
 
 	// clear up buildmap etc.
-	if(ai->Getbt()->s_buildTree.getMovementType(m_constructedDefId).isStatic() == true)
+	if(ai->Getbt()->s_buildTree.GetMovementType(m_constructedDefId).isStatic() == true)
 		ai->Getexecute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
 
 	// tells the builder construction has finished

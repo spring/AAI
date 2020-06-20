@@ -128,7 +128,7 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 		++activeBuilders;
 	}
 
-	if( (IsFactory(unitDefId) == true) && (ai->Getbt()->s_buildTree.getMovementType(unitDefId).isStatic() == true) )
+	if( (IsFactory(unitDefId) == true) && (ai->Getbt()->s_buildTree.GetMovementType(unitDefId).isStatic() == true) )
 	{
 		--futureFactories;
 		++activeFactories;
@@ -144,7 +144,7 @@ void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 	if(IsBuilder(UnitDefId(def_id)) == true)
 		activeBuilders -= 1;
 
-	if( (IsFactory(UnitDefId(def_id)) == true) && (ai->Getbt()->s_buildTree.getMovementType(UnitDefId(def_id)).isStatic() == true) )
+	if( (IsFactory(UnitDefId(def_id)) == true) && (ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(def_id)).isStatic() == true) )
 		activeFactories -= 1;
 
 	// decrease number of available builders for all buildoptions of the builder
@@ -285,7 +285,7 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 
 			// find unit that can directly build that building
 			if(    (builder->IsAvailableForConstruction() == true) 
-				&& (ai->Getbt()->s_buildTree.canBuildUnitType(builder->m_myDefId.id, building) == true) )
+				&& (ai->Getbt()->s_buildTree.CanBuildUnitType(builder->m_myDefId.id, building) == true) )
 			{
 				// filter out commander (if not allowed)
 				if(! (!commander &&  ai->Getbt()->IsCommander(builder->m_myDefId.id)) )
@@ -318,11 +318,11 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool
 
 			// find idle or assisting builder, who can build this building
 			if(    (builder->IsAvailableForConstruction() == true) 
-				&& ( ai->Getbt()->s_buildTree.canBuildUnitType(builder->m_myDefId.id, building) == true) )
+				&& ( ai->Getbt()->s_buildTree.CanBuildUnitType(builder->m_myDefId.id, building) == true) )
 			{
 				builder_pos = ai->Getcb()->GetUnitPos(builder->m_myUnitId.id);
 
-				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(builder->m_myDefId);
+				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.GetMovementType(builder->m_myDefId);
 
 				// check continent if necessary
 				if( moveType.cannotMoveToOtherContinents() )
@@ -378,7 +378,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 			{
 				assistant_pos = ai->Getcb()->GetUnitPos(assistant->m_myUnitId.id);
 
-				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.getMovementType(assistant->m_myDefId.id);
+				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.GetMovementType(assistant->m_myDefId.id);
 
 				// check continent if necessary
 				if( moveType.cannotMoveToOtherContinents() )
