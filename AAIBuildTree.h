@@ -86,11 +86,14 @@ public:
 	//! @brief Returns the unit category statistics for given side
 	const AAIUnitStatistics& GetUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; };
 
+	//! @brief Returns the corresponding human readable name of the given category
+	const std::string& GetCategoryName(const AAIUnitCategory& category) const { return m_unitCategoryNames[category.GetArrayIndex()]; };
+
 private:
 	//! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
 	void AssignSideToUnitType(int side, UnitDefId unitDefId);
 
-	//! @brief helper function to determine the range (dependent on which category the unit type belongs to)
+	//! @brief helper function to determine the range / buildspeed (dependent on which category the unit type belongs to)
 	float DetermineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory);
 	
 	//! @brief Returns movement type of given unit definition
@@ -146,6 +149,9 @@ private:
 
 	//! For every side, min/max/avg values for various data (e.g. cost) for every unit category
 	std::vector< AAIUnitStatistics >              m_unitCategoryStatisticsOfSide;
+
+	//! For each unit category, a human readable description of it
+	std::vector< std::string >                    m_unitCategoryNames;
 };
 
 #endif

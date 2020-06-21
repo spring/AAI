@@ -26,6 +26,27 @@ AAIBuildTree::AAIBuildTree() :
 	m_initialized(false),
 	m_numberOfSides(0)
 {
+	m_unitCategoryNames.resize(AAIUnitCategory::getNumberOfUnitCategories());
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::UNKNOWN).GetArrayIndex()].append("Unknown");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_DEFENCE).GetArrayIndex()].append("Static Defence");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_ARTILLERY).GetArrayIndex()].append("Static Artillery");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STORAGE).GetArrayIndex()].append("Storage");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR).GetArrayIndex()].append("Static Constructor");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_SUPPORT).GetArrayIndex()].append("Static Support");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_SENSOR).GetArrayIndex()].append("Static Sensor");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()].append("Power Plant");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR).GetArrayIndex()].append("Metal Extractor");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::METAL_MAKER).GetArrayIndex()].append("Metal Maker");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::COMMANDER).GetArrayIndex()].append("Commander");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].append("Ground Combat");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].append("Air Combat");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].append("Hover Combat");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::SEA_COMBAT).GetArrayIndex()].append("Sea Combat");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::MOBILE_ARTILLERY).GetArrayIndex()].append("Mobile Artillery");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::SCOUT).GetArrayIndex()].append("Scout");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::TRANSPORT).GetArrayIndex()].append("Transport");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::MOBILE_CONSTRUCTOR).GetArrayIndex()].append("Mobile Constructor");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::MOBILE_SUPPORT).GetArrayIndex()].append("Mobile Support");
 }
 
 AAIBuildTree::~AAIBuildTree(void)
@@ -36,6 +57,7 @@ AAIBuildTree::~AAIBuildTree(void)
 	m_unitTypeProperties.clear();
 	m_sideOfUnitType.clear();
 	m_startUnitsOfSide.clear();
+	m_unitCategoryNames.clear();
 }
 
 bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
@@ -196,22 +218,21 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 		fprintf(file, "\nUnit List (human/internal name, side, category)\n");
 		for(int id = 1; id < unitDefs.size(); ++id)
 		{
-			fprintf(file, "ID: %-3i %-40s %-16s %-1i %-2u\n", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), GetSideOfUnitType(UnitDefId(id)), static_cast<uint32_t>(GetUnitCategory(UnitDefId(id)).getUnitCategory()) );
+			fprintf(file, "ID: %-3i %-40s %-16s %-1i %-15s\n", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), GetSideOfUnitType(UnitDefId(id)), GetCategoryName(GetUnitCategory(UnitDefId(id))).c_str() );
 		}
 
-		fprintf(file, "\n\nUnits in each category:\n");
-
-		for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.IsLast() == false; category.Next())
+		for(int side = 0; side < m_numberOfSides; ++side)
 		{
-			fprintf(file, "Unit category %u:\n", static_cast<uint32_t>(category.getUnitCategory()) );
-
-			for(int side = 0; side < m_numberOfSides; ++side)
+			fprintf(file, "\n\n####### Side %i (%s) #######", side+1, cfg->SIDE_NAMES[side].c_str() );
+			for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.IsLast() == false; category.Next())
 			{
+				fprintf(file, "\n%s:\n", GetCategoryName(category).c_str() );
+		
 				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetUnitCostStatistics(category);
 				const StatisticalData& buildtime = m_unitCategoryStatisticsOfSide[side].GetUnitBuildtimeStatistics(category);
 				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetUnitPrimaryAbilityStatistics(category);
 
-				fprintf(file, "Side %s - Min/max/avg cost: %f/%f/%f, Min/max/avg buildtime: %f/%f/%f Min/max/avg range: %f/%f/%f\n", cfg->SIDE_NAMES[side].c_str(),
+				fprintf(file, "Min/max/avg cost: %f/%f/%f, Min/max/avg buildtime: %f/%f/%f Min/max/avg range/buildtime: %f/%f/%f\n",
 								cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
 								buildtime.GetMinValue(), buildtime.GetMaxValue(), buildtime.GetAvgValue(),
 								range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue()); 
@@ -223,6 +244,7 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 				fprintf(file, "\n");
 			}
 		}
+
 		fclose(file);
 	}
 }
@@ -394,7 +416,7 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 		{
 			return EUnitCategory::STATIC_SUPPORT;
 		}
-		else if(unitDef->metalMake > 0.0f) //! @todo Does not work - investigate later
+		else if( (unitDef->metalMake > 0.0f) || (std::find(cfg->METAL_MAKERS.begin(), cfg->METAL_MAKERS.end(), unitDef->id) != cfg->METAL_MAKERS.end()) ) //! @todo Does not work - investigate later
 		{
 			return EUnitCategory::METAL_MAKER;
 		}
