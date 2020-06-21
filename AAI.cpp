@@ -73,7 +73,7 @@ AAI::~AAI()
 	Log("Linking buildtask to builder failed counter: %u\n", execute->GetLinkingBuildTaskToBuilderFailedCounter());
 
 	Log("Unit category active / under construction / requested\n");
-	for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.IsLast() == false; category.Next())
+	for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.End() == false; category.Next())
 	{
 		Log("%u: %i / %i / %i\n", static_cast<uint32_t>(category.getUnitCategory()), 
 									ut->GetNumberOfActiveUnitsOfCategory(category), 
@@ -225,9 +225,6 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*/)
 {
 	AAI_SCOPED_TIMER("UnitDamaged")
-	const UnitDef* def;
-	const UnitDef* att_def;
-	UnitCategory att_cat, cat;
 
 	// filter out commander
 	if (ut->cmdr != -1)
@@ -236,17 +233,16 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 			brain->DefendCommander(attacker);
 	}
 
-	def = cb->GetUnitDef(damaged);
+	const UnitDef* attackedDef = cb->GetUnitDef(damaged);
 
-	if (def)
-		cat =  bt->units_static[def->id].category;
-	else
-		cat = UNKNOWN;
+	if(attackedDef != nullptr)
+	{
+		const AAIUnitCategory& category =  bt->s_buildTree.GetUnitCategory(UnitDefId(attackedDef->id));
 
-	// assault grups may be ordered to retreat
-	// (range check prevents a NaN)
-	if (cat >= GROUND_ASSAULT && cat <= SUBMARINE_ASSAULT && bt->s_buildTree.GetMaxRange(UnitDefId(def->id)) > 0.0f)
-			execute->CheckFallBack(damaged, def->id);
+		// assault grups may be ordered to retreat
+		if (category.isCombatUnit() == true)
+			execute->CheckFallBack(damaged, attackedDef->id);
+	}
 
 	// known attacker
 	if (attacker >= 0)
@@ -255,16 +251,15 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 		if (cb->GetUnitTeam(attacker) == cb->GetMyTeam())
 			return;
 
-		att_def = cb->GetUnitDef(attacker);
+		const UnitDef* attackerDef = cb->GetUnitDef(attacker);
 
-		if (att_def)
+		if (attackerDef != nullptr)
 		{
-			
-			att_cat = bt->units_static[att_def->id].category;
+			const AAIUnitCategory& category =  bt->s_buildTree.GetUnitCategory(UnitDefId(attackerDef->id));
 
 			// retreat builders
 			if (ut->IsBuilder(UnitId(damaged)) == true)
-				ut->units[damaged].cons->Retreat(att_cat);
+				ut->units[damaged].cons->Retreat(category);
 			else
 			{
 				//if (att_cat >= GROUND_ASSAULT && att_cat <= SUBMARINE_ASSAULT)
@@ -274,10 +269,10 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 
 				if (sector && !am->SufficientDefencePowerAt(sector, 1.2f))
 				{
-					const AAIMovementType& attackerMoveType = bt->s_buildTree.GetMovementType(UnitDefId(att_def->id));
+					const AAIMovementType& attackerMoveType = bt->s_buildTree.GetMovementType(UnitDefId(attackerDef->id));
 
 					// building has been attacked
-					if (cat <= METAL_MAKER)
+					if (category.isBuilding() == true)
 						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 115);
 					// builder
 					else if ( ut->IsBuilder(UnitId(damaged)) == true )
@@ -292,17 +287,12 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 	// unknown attacker
 	else
 	{
-		// set default attacker
-		float3 pos = cb->GetUnitPos(damaged);
-
-		if (pos.y > 0)
-			att_cat = GROUND_ASSAULT;
-		else
-			att_cat = SEA_ASSAULT;
-
 		// retreat builders
 		if (ut->IsBuilder(UnitId(damaged)) == true)
-			ut->units[damaged].cons->Retreat(att_cat);
+		{
+			ut->units[damaged].cons->Retreat(EUnitCategory::UNKNOWN);
+		}
+			
 
 		// building has been attacked
 		//if (cat <= METAL_MAKER)

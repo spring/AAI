@@ -2679,7 +2679,13 @@ void AAIExecute::CheckFactories()
 
 void AAIExecute::CheckRecon()
 {
-	float urgency = 0.02f + 0.5f / ((float)(2 * ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_SENSOR)) + 1));
+	float urgency;
+	
+	// do not build radar before at least one factory is finished.
+	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STATIC_CONSTRUCTOR) < 1)
+		urgency = 0.0f;
+	else
+		urgency = 0.02f + 0.5f / ((float)(2 * ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_SENSOR)) + 1));
 
 	if(this->urgency[STATIONARY_RECON] < urgency)
 		this->urgency[STATIONARY_RECON] = urgency;

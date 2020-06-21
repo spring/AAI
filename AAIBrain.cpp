@@ -178,7 +178,7 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 			    && (scoutMoveType.isIncludedIn(sector->m_suitableMovementTypes) == true) )
 			{
 				if(enemy_pressure_estimation > 0.01f && sector->distance_to_base < 2)
-					my_rating = sector->importance_this_game * sector->last_scout * (1.0f + sector->enemy_combat_units[5]);
+					my_rating = sector->importance_this_game * sector->last_scout * (1.0f + sector->GetTotalEnemyCombatUnits());
 				else
 					my_rating = sector->importance_this_game * sector->last_scout;
 
@@ -718,10 +718,10 @@ void AAIBrain::BuildUnits()
 		// choose unit category dependend on map type
 		if(ai->Getmap()->map_type == LAND_MAP)
 		{
-			AAICombatCategory unitCategory(ECombatUnitCategory::COMBAT_CATEGORY_GROUND);
+			AAICombatCategory unitCategory(ETargetTypeCategory::SURFACE);
 		
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && gamePhase > 0)
-				unitCategory.setCategory(ECombatUnitCategory::COMBAT_CATEGORY_AIR);
+				unitCategory.setCategory(ETargetTypeCategory::AIR);
 
 			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
 		}
@@ -729,13 +729,13 @@ void AAIBrain::BuildUnits()
 		{
 			//! @todo Add selection of Submarines
 			int groundRatio = static_cast<int>(100.0f * ai->Getmap()->land_ratio);
-			AAICombatCategory unitCategory(ECombatUnitCategory::COMBAT_CATEGORY_GROUND);
+			AAICombatCategory unitCategory(ETargetTypeCategory::SURFACE);
 
 			if(rand()%100 < groundRatio)
-				unitCategory.setCategory(ECombatUnitCategory::COMBAT_CATEGORY_FLOATER);
+				unitCategory.setCategory(ETargetTypeCategory::FLOATER);
 
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && gamePhase > 0)
-				unitCategory.setCategory(ECombatUnitCategory::COMBAT_CATEGORY_AIR);
+				unitCategory.setCategory(ETargetTypeCategory::AIR);
 			
 
 			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
@@ -743,10 +743,10 @@ void AAIBrain::BuildUnits()
 		else if(ai->Getmap()->map_type == WATER_MAP)
 		{
 			//! @todo Add selection of Submarines
-			AAICombatCategory unitCategory(ECombatUnitCategory::COMBAT_CATEGORY_FLOATER);
+			AAICombatCategory unitCategory(ETargetTypeCategory::FLOATER);
 
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && gamePhase > 0)
-				unitCategory.setCategory(ECombatUnitCategory::COMBAT_CATEGORY_AIR);
+				unitCategory.setCategory(ETargetTypeCategory::AIR);
 
 			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
 		}
@@ -899,9 +899,10 @@ int AAIBrain::GetGamePeriod()
 bool AAIBrain::IsSafeSector(AAISector *sector)
 {
 	// TODO: improve criteria
-	return (sector->lost_units[MOBILE_CONSTRUCTOR-COMMANDER] < 0.5
-		&& sector->enemy_combat_units[5] < 0.1 && sector->enemy_structures < 0.01
-		&& sector->enemies_on_radar == 0);
+	return (   (sector->lost_units[MOBILE_CONSTRUCTOR-COMMANDER] < 0.5f)
+			&& (sector->GetTotalEnemyCombatUnits() < 0.1f) 
+			&& (sector->enemy_structures < 0.01f)
+			&& (sector->enemies_on_radar == 0) );
 }
 
 float AAIBrain::GetAttacksBy(int combat_category, int game_period)
@@ -915,10 +916,10 @@ void AAIBrain::UpdatePressureByEnemy()
 
 	// check base and neighbouring sectors for enemies
 	for(list<AAISector*>::iterator s = sectors[0].begin(); s != sectors[0].end(); ++s)
-		enemy_pressure_estimation += 0.1f * (*s)->enemy_combat_units[5];
+		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
 
 	for(list<AAISector*>::iterator s = sectors[1].begin(); s != sectors[1].end(); ++s)
-		enemy_pressure_estimation += 0.1f * (*s)->enemy_combat_units[5];
+		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
 
 	if(enemy_pressure_estimation > 1.0f)
 		enemy_pressure_estimation = 1.0f;

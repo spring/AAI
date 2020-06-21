@@ -2230,20 +2230,15 @@ void AAIMap::UpdateRecon()
 
 void AAIMap::UpdateEnemyScoutingData()
 {
-	int def_id;
-	int frame = ai->Getcb()->GetCurrentFrame();
-	float last_seen;
-	AAISector *sector;
-
 	// map of known enemy buildings has been updated -> update sector data
 	for(int y = 0; y < ySectors; ++y)
 	{
 		for(int x = 0; x < xSectors; ++x)
 		{
-			sector = &this->sector[x][y];
+			AAISector* sector = &this->sector[x][y];
 			sector->enemy_structures = 0;
 
-			fill(sector->enemy_combat_units.begin(), sector->enemy_combat_units.end(), 0);
+			sector->ResetSpottedEnemiesData();
 			fill(sector->enemy_stat_combat_power.begin(), sector->enemy_stat_combat_power.end(), 0);
 			fill(sector->enemy_mobile_combat_power.begin(), sector->enemy_mobile_combat_power.end(), 0);
 
@@ -2251,32 +2246,33 @@ void AAIMap::UpdateEnemyScoutingData()
 			{
 				for(int x = sector->x * xSectorSizeMap/losMapRes; x < (sector->x + 1) * xSectorSizeMap/losMapRes; ++x)
 				{
-					def_id = scout_map[x + y * xLOSMapSize];
+					const UnitDefId unitDefId( static_cast<int>(scout_map[x + y * xLOSMapSize]) );
 
-					if(def_id)
+					if(unitDefId.isValid() == true)
 					{
 						// add building to sector (and update stat_combat_power if it's a stat defence)
-						if(ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(def_id)).isStatic() == true)
+						if(ai->Getbt()->s_buildTree.GetMovementType(unitDefId).isStatic() == true)
 						{
 							++sector->enemy_structures;
 
-							if(ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def_id)).isStaticDefence() == true)
+							if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence() == true)
 							{
 								for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-									sector->enemy_stat_combat_power[i] += ai->Getbt()->units_static[def_id].efficiency[i];
+									sector->enemy_stat_combat_power[i] += ai->Getbt()->units_static[unitDefId.id].efficiency[i];
 							}
 						}
 						// add unit to sector and update mobile_combat_power
-						else if(ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def_id)).isCombatUnit() == true)
+						else if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isCombatUnit() == true)
 						{
 							// units that have been scouted long time ago matter less
-							last_seen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(last_updated_map[x + y * xLOSMapSize] - frame)) / 3600.0f  );
+							const int frame = ai->Getcb()->GetCurrentFrame();
+							const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(last_updated_map[x + y * xLOSMapSize] - frame)) / 3600.0f  );
+							const AAICombatUnitCategory category( ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId) );
 
-							sector->enemy_combat_units[ai->Getbt()->units_static[def_id].category - GROUND_ASSAULT] += last_seen;
-							sector->enemy_combat_units[5] += last_seen;
+							sector->AddEnemyCombatUnit(category, lastSeen);
 
 							for(int i = 0; i < AAIBuildTable::combat_categories; ++i)
-								sector->enemy_mobile_combat_power[i] += last_seen * ai->Getbt()->units_static[def_id].efficiency[i];
+								sector->enemy_mobile_combat_power[i] += lastSeen * ai->Getbt()->units_static[unitDefId.id].efficiency[i];
 						}
 					}
 				}

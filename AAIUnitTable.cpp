@@ -40,9 +40,9 @@ AAIUnitTable::AAIUnitTable(AAI *ai)
 	}
 
 
-	m_activeUnitsOfCategory.resize(AAIUnitCategory::getNumberOfUnitCategories(), 0);
-	m_underConstructionUnitsOfCategory.resize(AAIUnitCategory::getNumberOfUnitCategories(), 0);
-	m_requestedUnitsOfCategory.resize(AAIUnitCategory::getNumberOfUnitCategories(), 0);
+	m_activeUnitsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
+	m_underConstructionUnitsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
+	m_requestedUnitsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
 
 	activeBuilders = futureBuilders = 0;
 	activeFactories = futureFactories = 0;

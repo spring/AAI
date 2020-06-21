@@ -11,15 +11,15 @@
 
 AAIUnitStatistics::AAIUnitStatistics() 
 {
-	m_unitCostStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
-	m_unitBuildtimeStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
-	m_unitPrimaryAbilityStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
-	m_unitSecondaryAbilityStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
+	m_unitCostStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
+	m_unitBuildtimeStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
+	m_unitPrimaryAbilityStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
+	m_unitSecondaryAbilityStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
 
-	m_combatCostStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
-	m_combatBuildtimeStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
-	m_combatRangeStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
-	m_combatSpeedStatistics.resize( AAIUnitCategory::getNumberOfUnitCategories() );
+	m_combatCostStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
+	m_combatBuildtimeStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
+	m_combatRangeStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
+	m_combatSpeedStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
 };
 
 AAIUnitStatistics::~AAIUnitStatistics()
@@ -40,7 +40,7 @@ void AAIUnitStatistics::Init(const std::vector<UnitTypeProperties>& unitProperti
 	//-----------------------------------------------------------------------------------------------------------------
 	// calculate unit category statistics
 	//-----------------------------------------------------------------------------------------------------------------
-	for(uint32_t cat = 0; cat < AAIUnitCategory::getNumberOfUnitCategories(); ++cat) 
+	for(uint32_t cat = 0; cat < AAIUnitCategory::numberOfUnitCategories; ++cat) 
 	{
 		for(std::list<int>::const_iterator id = unitsInCategory[cat].begin(); id != unitsInCategory[cat].end(); ++id)
 		{
@@ -60,7 +60,7 @@ void AAIUnitStatistics::Init(const std::vector<UnitTypeProperties>& unitProperti
 	//-----------------------------------------------------------------------------------------------------------------
 	// calculate combat category statistics
 	//-----------------------------------------------------------------------------------------------------------------
-	for(uint32_t cat = 0; cat < AAICombatCategory::GetNumberOfCombatCategories(); ++cat) 
+	for(uint32_t cat = 0; cat < AAICombatCategory::numberOfCombatCategories; ++cat) 
 	{
 		for(std::list<int>::const_iterator id = unitsInCombatCategory[cat].begin(); id != unitsInCombatCategory[cat].end(); ++id)
 		{

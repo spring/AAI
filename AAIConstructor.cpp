@@ -493,7 +493,7 @@ void AAIConstructor::Killed()
 	m_activity.SetActivity(EConstructorActivity::DESTROYED);
 }
 
-void AAIConstructor::Retreat(UnitCategory attacked_by)
+void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
 {
 	if(m_activity.IsDestroyed() == false)
 	{
@@ -503,7 +503,7 @@ void AAIConstructor::Retreat(UnitCategory attacked_by)
 		int y = pos.z / ai->Getmap()->ySectorSize;
 
 		// attacked by scout
-		if(attacked_by == SCOUT)
+		if(attackedByCategory.isScout() == true)
 		{
 			// dont flee from scouts in your own base
 			if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)

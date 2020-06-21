@@ -26,7 +26,7 @@ AAIBuildTree::AAIBuildTree() :
 	m_initialized(false),
 	m_numberOfSides(0)
 {
-	m_unitCategoryNames.resize(AAIUnitCategory::getNumberOfUnitCategories());
+	m_unitCategoryNames.resize(AAIUnitCategory::numberOfUnitCategories);
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::UNKNOWN).GetArrayIndex()].append("Unknown");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_DEFENCE).GetArrayIndex()].append("Static Defence");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_ARTILLERY).GetArrayIndex()].append("Static Artillery");
@@ -42,6 +42,7 @@ AAIBuildTree::AAIBuildTree() :
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].append("Air Combat");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].append("Hover Combat");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::SEA_COMBAT).GetArrayIndex()].append("Sea Combat");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT).GetArrayIndex()].append("Submarine Combat");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::MOBILE_ARTILLERY).GetArrayIndex()].append("Mobile Artillery");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::SCOUT).GetArrayIndex()].append("Scout");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::TRANSPORT).GetArrayIndex()].append("Transport");
@@ -135,8 +136,8 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 
 	for(int side = 0; side < m_numberOfSides; ++side)
 	{
-		m_unitsInCategory[side].resize( AAIUnitCategory::getNumberOfUnitCategories() ); 
-		m_unitsInCombatCategory[side].resize( AAICombatCategory::GetNumberOfCombatCategories() );
+		m_unitsInCategory[side].resize( AAIUnitCategory::numberOfUnitCategories ); 
+		m_unitsInCombatCategory[side].resize( AAICombatCategory::numberOfCombatCategories );
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -162,18 +163,18 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		}
 
 		if(unitCategory.isGroundCombat() == true)
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_GROUND) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::SURFACE) ].push_back(id);
 		else if(unitCategory.isAirCombat() == true)
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_AIR) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::AIR) ].push_back(id);
 		else if(unitCategory.isHoverCombat() == true)
 		{
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_GROUND) ].push_back(id);
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_FLOATER) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::SURFACE) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::FLOATER) ].push_back(id);
 		}
 		else if(unitCategory.isSeaCombat() == true)
 		{
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_FLOATER) ].push_back(id);
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetCategoryIndex(ECombatUnitCategory::COMBAT_CATEGORY_SUBMERGED) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::FLOATER) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::SUBMERGED) ].push_back(id);
 		}
 
 		m_unitTypeProperties[id].m_range = DetermineRange(unitDefs[id], unitCategory);
@@ -224,7 +225,7 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 		for(int side = 0; side < m_numberOfSides; ++side)
 		{
 			fprintf(file, "\n\n####### Side %i (%s) #######", side+1, cfg->SIDE_NAMES[side].c_str() );
-			for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.IsLast() == false; category.Next())
+			for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.End() == false; category.Next())
 			{
 				fprintf(file, "\n%s:\n", GetCategoryName(category).c_str() );
 		

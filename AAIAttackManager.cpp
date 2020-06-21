@@ -343,18 +343,20 @@ bool AAIAttackManager::SufficientCombatPowerAt(AAISector *dest, set<AAIGroup*> *
 			available_combat_cat[i] = 0;
 
 		// get total att power
-		for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
+		for(AAICombatUnitCategory category(AAICombatUnitCategory::firstCombatUnitCategory); category.End() == false; category.Next())
 		{
 			// skip if no enemy units of that category present
-			if(dest->enemy_combat_units[i] > 0)
+			const float enemyUnits = dest->GetNumberOfEnemyCombatUnits(category);
+			if(enemyUnits > 0.0f)
 			{
+				const int i = category.GetArrayIndex();
 				// filter out air in normal mods
 				if(i != 1 || cfg->AIR_ONLY_MOD)
 				{
 					for(set<AAIGroup*>::iterator group = combat_groups->begin(); group != combat_groups->end(); ++group)
-						my_power += (*group)->GetCombatPowerVsCategory(i) * dest->enemy_combat_units[i];
+						my_power += (*group)->GetCombatPowerVsCategory(i) * enemyUnits;
 
-					total_units +=  dest->enemy_combat_units[i];
+					total_units +=  enemyUnits;
 				}
 			}
 		}
@@ -399,13 +401,15 @@ bool AAIAttackManager::SufficientDefencePowerAt(AAISector *dest, float aggressiv
 	float enemies = 0;
 
 	// get defence power
-	for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
+	for(AAICombatUnitCategory category(AAICombatUnitCategory::firstCombatUnitCategory); category.End() == false; category.Next())
 	{
 		// only check if enemies of that category present
-		if(dest->enemy_combat_units[i] > 0)
+		const float enemyCombatUnits = dest->GetNumberOfEnemyCombatUnits(category);
+		if( enemyCombatUnits> 0.0f)
 		{
-			enemies += dest->enemy_combat_units[i];
-			my_power += dest->my_stat_combat_power[i] * dest->enemy_combat_units[i];
+			
+			enemies += enemyCombatUnits;
+			my_power += dest->my_stat_combat_power[category.GetArrayIndex()] * enemyCombatUnits;
 		}
 	}
 

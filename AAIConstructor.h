@@ -115,8 +115,8 @@ public:
 
 	void Killed();
 
-	// moves mobile constructors to safe sectors
-	void Retreat(UnitCategory attacked_by);
+	//! @brief Retreats mobile constructors to safe sectors (do not in rertreat in own base when attacked by scouts or air)
+	void Retreat(const AAIUnitCategory& attackedByCategory);
 
 	//! @brief Return the position where a building has been placed
 	const float3& GetBuildPos() const { return m_buildPos; };

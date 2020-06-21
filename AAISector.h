@@ -18,6 +18,7 @@
 
 #include <list>
 #include <vector>
+#include <numeric>
 using namespace std;
 
 class AAI;
@@ -58,6 +59,17 @@ public:
 
 	//! @brief Returns the number of buildings of the given category in this sector
 	int GetNumberOfBuildings(const AAIUnitCategory& category) const { return m_ownBuildingsOfCategory[category.GetArrayIndex()]; };
+
+	//! @brief Resets the number of spotted enemy units
+	void ResetSpottedEnemiesData() { std::fill(m_enemyCombatUnits.begin(), m_enemyCombatUnits.end(), 0.0f); }; 
+
+	//! @brief Return the total number of enemy combat units
+	float GetTotalEnemyCombatUnits() const { return std::accumulate(m_enemyCombatUnits.begin(), m_enemyCombatUnits.end(), 0.0f); };
+
+	void AddEnemyCombatUnit(const AAICombatUnitCategory& category, float value)  { m_enemyCombatUnits[category.GetArrayIndex()] += value; };
+
+	//! @brief Returns number of enemy units of given category spotted in this sector (float as number decreases over time if sector is not scouted)
+	float GetNumberOfEnemyCombatUnits(const AAICombatUnitCategory& category) const  { return m_enemyCombatUnits[category.GetArrayIndex()]; };
 
 	void Update();
 
@@ -182,7 +194,6 @@ public:
 
 	// combat units in the sector
 	vector<short> my_combat_units;
-	vector<float> enemy_combat_units; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine, 5 total
 
 	int enemies_on_radar;
 
@@ -227,8 +238,11 @@ private:
 
 	AAI *ai;
 
-	//! number of own buildings of each category in the sector
+	//! Number of own buildings of each category in the sector
 	std::vector<int> m_ownBuildingsOfCategory;
+
+	//! Number of spotted enemy combat units (float values as number decays over time)
+	std::vector<float> m_enemyCombatUnits; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine
 };
 
 #endif
