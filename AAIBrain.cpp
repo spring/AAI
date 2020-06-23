@@ -48,8 +48,6 @@ AAISector* AAIBrain::GetAttackDest(bool land, bool water)
 	float best_rating = 0.0f, my_rating = 0.0f;
 	AAISector *dest = 0, *sector;
 
-	//int side = ai->Getside()-1;
-
 	float ground =  1.0f;
 	float air = 1.0f;
 	float hover = 1.0f;
@@ -102,8 +100,6 @@ AAISector* AAIBrain::GetNextAttackDest(AAISector *current_sector, bool land, boo
 {
 	float best_rating = 0, my_rating, dist;
 	AAISector *dest = 0, *sector;
-
-	//int side = ai->Getside()-1;
 
 	float ground = 1.0f;
 	float air = 1.0f;
@@ -607,52 +603,56 @@ void AAIBrain::UpdateDefenceCapabilities()
 	*/
 }
 
-void AAIBrain::AddDefenceCapabilities(int def_id, UnitCategory category)
+void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 {
 	if(cfg->AIR_ONLY_MOD)
 	{
-		defence_power_vs[0] += ai->Getbt()->units_static[def_id].efficiency[0];
-		defence_power_vs[1] += ai->Getbt()->units_static[def_id].efficiency[1];
-		defence_power_vs[2] += ai->Getbt()->units_static[def_id].efficiency[2];
-		defence_power_vs[3] += ai->Getbt()->units_static[def_id].efficiency[3];
+		defence_power_vs[0] += ai->Getbt()->units_static[unitDefId.id].efficiency[0];
+		defence_power_vs[1] += ai->Getbt()->units_static[unitDefId.id].efficiency[1];
+		defence_power_vs[2] += ai->Getbt()->units_static[unitDefId.id].efficiency[2];
+		defence_power_vs[3] += ai->Getbt()->units_static[unitDefId.id].efficiency[3];
 	}
 	else
 	{
-		if(ai->Getbt()->GetUnitType(def_id) == ASSAULT_UNIT)
+		if(ai->Getbt()->GetUnitType(unitDefId.id) == ASSAULT_UNIT)
 		{
-			if(category == GROUND_ASSAULT)
+			const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
+
+			switch (category.getUnitCategory())
 			{
-				defence_power_vs[0] += ai->Getbt()->units_static[def_id].efficiency[0];
-				defence_power_vs[2] += ai->Getbt()->units_static[def_id].efficiency[2];
-			}
-			else if(category == HOVER_ASSAULT)
-			{
-				defence_power_vs[0] += ai->Getbt()->units_static[def_id].efficiency[0];
-				defence_power_vs[2] += ai->Getbt()->units_static[def_id].efficiency[2];
-				defence_power_vs[3] += ai->Getbt()->units_static[def_id].efficiency[3];
-			}
-			else if(category == SEA_ASSAULT)
-			{
-				defence_power_vs[2] += ai->Getbt()->units_static[def_id].efficiency[2];
-				defence_power_vs[3] += ai->Getbt()->units_static[def_id].efficiency[3];
-				defence_power_vs[4] += ai->Getbt()->units_static[def_id].efficiency[4];
-			}
-			else if(category == SUBMARINE_ASSAULT)
-			{
-				defence_power_vs[3] += ai->Getbt()->units_static[def_id].efficiency[3];
-				defence_power_vs[4] += ai->Getbt()->units_static[def_id].efficiency[4];
+				case EUnitCategory::GROUND_COMBAT:
+				{
+					defence_power_vs[0] += ai->Getbt()->units_static[unitDefId.id].efficiency[0];
+					defence_power_vs[2] += ai->Getbt()->units_static[unitDefId.id].efficiency[2];
+					break;
+				}
+				case EUnitCategory::HOVER_COMBAT:
+				{
+					defence_power_vs[0] += ai->Getbt()->units_static[unitDefId.id].efficiency[0];
+					defence_power_vs[2] += ai->Getbt()->units_static[unitDefId.id].efficiency[2];
+					defence_power_vs[3] += ai->Getbt()->units_static[unitDefId.id].efficiency[3];
+					break;
+				}
+				case EUnitCategory::SEA_COMBAT:
+				{
+					defence_power_vs[2] += ai->Getbt()->units_static[unitDefId.id].efficiency[2];
+					defence_power_vs[3] += ai->Getbt()->units_static[unitDefId.id].efficiency[3];
+					defence_power_vs[4] += ai->Getbt()->units_static[unitDefId.id].efficiency[4];
+					break;
+				}
+				case EUnitCategory::SUBMARINE_COMBAT:
+				{
+					defence_power_vs[3] += ai->Getbt()->units_static[unitDefId.id].efficiency[3];
+					defence_power_vs[4] += ai->Getbt()->units_static[unitDefId.id].efficiency[4];
+				}
+				default:
+					break;
 			}
 		}
-		else if(ai->Getbt()->GetUnitType(def_id) == ANTI_AIR_UNIT)
-			defence_power_vs[1] += ai->Getbt()->units_static[def_id].efficiency[1];
+		else if(ai->Getbt()->GetUnitType(unitDefId.id) == ANTI_AIR_UNIT)
+			defence_power_vs[1] += ai->Getbt()->units_static[unitDefId.id].efficiency[1];
 	}
 }
-
-/*
-void AAIBrain::SubtractDefenceCapabilities(int def_id, UnitCategory category)
-{
-}
-*/
 
 float AAIBrain::Affordable()
 {

@@ -54,13 +54,11 @@ public:
 	// recalculates def capabilities of all units
 	void UpdateDefenceCapabilities();
 
-	// adds/subtracts def. cap. for a single unit
-	void AddDefenceCapabilities(int def_id, UnitCategory category);
-//	void SubtractDefenceCapabilities(int def_id, UnitCategory category);
+	//! @brief Adds the combat power of the given unit type to the global defence capabilities 
+	void AddDefenceCapabilities(UnitDefId unitDefId);
 
 	// returns pos where scout schould be sent to
 	void GetNewScoutDest(float3 *dest, int scout);
-
 
 	// adds new sectors to base
 	bool ExpandBase(SectorType sectorType);

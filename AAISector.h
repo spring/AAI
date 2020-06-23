@@ -105,8 +105,8 @@ public:
 	// returns combat power of units in that and neighbouring sectors vs combat cat
 	float GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance);
 
-	// updates threat map
-	void UpdateThreatValues(UnitCategory unit, UnitCategory attacker);
+	//! @brief Updates threat map storing where own buildings/units got killed
+	void UpdateThreatValues(const AAIUnitCategory& destroyedCategory, const AAIUnitCategory& attackerCategory);
 
 	// returns lost units in that sector
 	float GetLostUnits(float ground, float air, float hover, float sea, float submarine);

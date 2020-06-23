@@ -656,10 +656,10 @@ float AAISector::GetFlatRatio()
 	return flat_ratio;
 }
 
-void AAISector::UpdateThreatValues(UnitCategory unit, UnitCategory attacker)
+void AAISector::UpdateThreatValues(const AAIUnitCategory& destroyedCategory, const AAIUnitCategory& attackerCategory)
 {
 	// if lost unit is a building, increase attacked_by
-	if(unit <= METAL_MAKER)
+	if(destroyedCategory.isBuilding() == true)
 	{
 		float change;
 
@@ -668,32 +668,22 @@ void AAISector::UpdateThreatValues(UnitCategory unit, UnitCategory attacker)
 		else
 			change = 1;
 
-		// determine type of attacker
-		if(attacker == AIR_ASSAULT)
-			attacked_by_this_game[1] += change;
-		else if(attacker == GROUND_ASSAULT)
-			attacked_by_this_game[0] += change;
-		else if(attacker == HOVER_ASSAULT)
-			attacked_by_this_game[2] += change;
-		else if(attacker == SEA_ASSAULT)
-			attacked_by_this_game[3] += change;
-		else if(attacker == SUBMARINE_ASSAULT)
-			attacked_by_this_game[4] += change;
+		if(attackerCategory.isCombatUnit() == true)
+		{
+			AAICombatUnitCategory category(attackerCategory);
+			attacked_by_this_game[category.GetArrayIndex()] += change;
+		}
 	}
 	else // unit was lost
 	{
-		if(attacker == AIR_ASSAULT)
-			++combats_this_game[1];
-		else if(attacker == GROUND_ASSAULT)
-			++combats_this_game[0];
-		else if(attacker == HOVER_ASSAULT)
-			++combats_this_game[2];
-		else if(attacker == SEA_ASSAULT)
-			++combats_this_game[3];
-		else if(attacker == SUBMARINE_ASSAULT)
-			++combats_this_game[4];
+		if(attackerCategory.isCombatUnit() == true)
+		{
+			AAICombatUnitCategory category(attackerCategory);
+			combats_this_game[category.GetArrayIndex()] += 1.0f;
+		}
 
-		++lost_units[unit-COMMANDER];
+		//! @todo Re-enable this!
+		//++lost_units[unit-COMMANDER];
 	}
 }
 

@@ -233,7 +233,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 			brain->DefendCommander(attacker);
 	}
 
-	const UnitDef* attackedDef = cb->GetUnitDef(damaged);
+	const springLegacyAI::UnitDef* attackedDef = cb->GetUnitDef(damaged);
 
 	if(attackedDef != nullptr)
 	{
@@ -251,7 +251,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 		if (cb->GetUnitTeam(attacker) == cb->GetMyTeam())
 			return;
 
-		const UnitDef* attackerDef = cb->GetUnitDef(attacker);
+		const springLegacyAI::UnitDef* attackerDef = cb->GetUnitDef(attacker);
 
 		if (attackerDef != nullptr)
 		{
@@ -309,7 +309,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		return;
 
 	// get unit's id
-	const UnitDef* def = cb->GetUnitDef(unit);
+	const springLegacyAI::UnitDef* def = cb->GetUnitDef(unit);
 	const AAIUnitCategory& category = bt->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 	ut->UnitCreated(category);
@@ -390,8 +390,10 @@ void AAI::UnitFinished(int unit)
     }
 
 	// get unit's id
-	const UnitDef* def = cb->GetUnitDef(unit);
-	const AAIUnitCategory& category = bt->s_buildTree.GetUnitCategory(UnitDefId(def->id));
+	const springLegacyAI::UnitDef* def = cb->GetUnitDef(unit);
+	UnitDefId unitDefId(def->id);
+
+	const AAIUnitCategory& category = bt->s_buildTree.GetUnitCategory(unitDefId);
 
 	ut->UnitFinished(category);
 
@@ -399,7 +401,7 @@ void AAI::UnitFinished(int unit)
 	bt->units_dynamic[def->id].active += 1;
 
 	// building was completed
-	if (bt->s_buildTree.GetMovementType(UnitDefId(def->id)).isStatic() == true)
+	if (bt->s_buildTree.GetMovementType(unitDefId).isStatic() == true)
 	{
 		// delete buildtask
 		for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
@@ -465,7 +467,7 @@ void AAI::UnitFinished(int unit)
 		{
 			execute->AddUnitToGroup(unit, def->id, bt->units_static[def->id].category);
 
-			brain->AddDefenceCapabilities(def->id, bt->units_static[def->id].category);
+			brain->AddDefenceCapabilities(unitDefId);
 
 			ut->SetUnitStatus(unit, HEADING_TO_RALLYPOINT);
 		}
@@ -497,7 +499,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 {
 	AAI_SCOPED_TIMER("UnitDestroyed")
 	// get unit's id
-	const UnitDef* def = cb->GetUnitDef(unit);
+	const springLegacyAI::UnitDef* def = cb->GetUnitDef(unit);
 
 	float3 pos = cb->GetUnitPos(unit);
 	int x = pos.x/map->xSectorSize;
@@ -512,10 +514,10 @@ void AAI::UnitDestroyed(int unit, int attacker)
 	// update threat map
 	if (attacker && validSector)
 	{
-		const UnitDef* att_def = cb->GetUnitDef(attacker);
+		const springLegacyAI::UnitDef* att_def = cb->GetUnitDef(attacker);
 
 		if (att_def)
-			map->sector[x][y].UpdateThreatValues(bt->units_static[def->id].category, bt->units_static[att_def->id].category);
+			map->sector[x][y].UpdateThreatValues(bt->s_buildTree.GetUnitCategory(UnitDefId(def->id)), bt->s_buildTree.GetUnitCategory(UnitDefId(att_def->id)) );
 	}
 
 	// unfinished unit has been killed
@@ -570,7 +572,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		// update buildtable
 		if (attacker)
 		{
-			const UnitDef* def_att = cb->GetUnitDef(attacker);
+			const springLegacyAI::UnitDef* def_att = cb->GetUnitDef(attacker);
 
 			if (def_att)
 			{

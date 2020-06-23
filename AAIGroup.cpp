@@ -205,21 +205,22 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 
 			if(attacker)
 			{
-				const UnitDef *def = ai->Getcb()->GetUnitDef(attacker);
+				const springLegacyAI::UnitDef *def = ai->Getcb()->GetUnitDef(attacker);
 
 				if(def && !cfg->AIR_ONLY_MOD)
 				{
-					UnitCategory category = ai->Getbt()->units_static[def->id].category;
+					UnitDefId attackerUnitDefId(def->id);
+					const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(attackerUnitDefId);
 
-					if(category == STATIONARY_DEF)
-						ai->Getaf()->CheckTarget(attacker, def);
-					else if(category == GROUND_ASSAULT && ai->Getbt()->units_static[def->id].efficiency[0] > cfg->MIN_AIR_SUPPORT_EFFICIENCY)
-						ai->Getaf()->CheckTarget(attacker, def);
-					else if(category == SEA_ASSAULT && ai->Getbt()->units_static[def->id].efficiency[3] > cfg->MIN_AIR_SUPPORT_EFFICIENCY)
-						ai->Getaf()->CheckTarget(attacker, def);
-					else if(category == HOVER_ASSAULT && ai->Getbt()->units_static[def->id].efficiency[2] > cfg->MIN_AIR_SUPPORT_EFFICIENCY)
-						ai->Getaf()->CheckTarget(attacker, def);
-					else if(category == AIR_ASSAULT)
+					if(category.isStaticDefence() == true)
+						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
+					else if( (category.isGroundCombat() == true) && (ai->Getbt()->units_static[def->id].efficiency[0] > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
+					else if( (category.isSeaCombat() == true)    && (ai->Getbt()->units_static[def->id].efficiency[3] > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
+					else if( (category.isHoverCombat() == true)  && (ai->Getbt()->units_static[def->id].efficiency[2] > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
+					else if(category.isAirCombat() == true)
 					{
 						float3 enemy_pos = ai->Getcb()->GetUnitPos(attacker);
 

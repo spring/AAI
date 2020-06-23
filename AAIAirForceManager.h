@@ -13,6 +13,7 @@
 #include <vector>
 #include "System/float3.h"
 #include "aidef.h"
+#include "AAIUnitTypes.h"
 
 namespace springLegacyAI {
 	struct UnitDef;
@@ -38,8 +39,8 @@ public:
 	AAIAirForceManager(AAI *ai);
 	~AAIAirForceManager(void);
 
-	// checks if a certain unit is worth attacking it and tries to order air units to do it (units, stationary defences)
-	void CheckTarget(int unit, const UnitDef *def);
+	//! @brief Checks if a certain unit is worth attacking and if yes tries to order air units to do it
+	void CheckTarget(const UnitId& unitId, const AAIUnitCategory& category, float health);
 
 	// removes target from bombing target list
 	void RemoveTarget(int unit_id);

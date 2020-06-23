@@ -43,16 +43,16 @@ AAIAirForceManager::~AAIAirForceManager(void)
 
 }
 
-void AAIAirForceManager::CheckTarget(int unit_id, const UnitDef *def)
+void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory& category, float health)
 {
 	// do not attack own units
-	if(my_team != ai->Getcb()->GetUnitTeam(unit_id))
+	if(my_team != ai->Getcb()->GetUnitTeam(unitId.id))
 	{
-		float3 pos = ai->Getcb()->GetUnitPos(unit_id);
+		float3 pos = ai->Getcb()->GetUnitPos(unitId.id);
 
 		// calculate in which sector unit is located
-		int x = pos.x/ai->Getmap()->xSectorSize;
-		int y = pos.z/ai->Getmap()->ySectorSize;
+		const int x = pos.x/ai->Getmap()->xSectorSize;
+		const int y = pos.z/ai->Getmap()->ySectorSize;
 
 		// check if unit is within the map
 		if(x >= 0 && x < ai->Getmap()->xSectors && y >= 0 && y < ai->Getmap()->ySectors)
@@ -61,40 +61,38 @@ void AAIAirForceManager::CheckTarget(int unit_id, const UnitDef *def)
 			if(ai->Getmap()->sector[x][y].lost_units[AIR_ASSAULT-COMMANDER] >= cfg->MAX_AIR_GROUP_SIZE && ai->Getgroup_list()[AIR_ASSAULT].size() < 5)
 				return;
 
-			AAIGroup *group;
+			AAIGroup *group(nullptr);
 			int max_groups;
 
-			UnitCategory category = ai->Getbt()->units_static[def->id].category;
-
-			if(ai->Getbt()->GetUnitDef(def->id).health > 8000)
+			if(health > 8000)
 				max_groups = 3;
-			else if(ai->Getbt()->GetUnitDef(def->id).health > 4000)
+			else if(health > 4000)
 				max_groups = 2;
 			else
 				max_groups = 1;
 
 			for(int i = 0; i < max_groups; ++i)
 			{
-				if(category == AIR_ASSAULT)
+				if(category.isAirCombat() == true)
 				{
 					group = GetAirGroup(100.0, ANTI_AIR_UNIT);
 
 					if(group)
 						group->DefendAirSpace(&pos);
 				}
-				else if(category <= METAL_MAKER)
+				else if(category.isBuilding() == true)
 				{
 					group = GetAirGroup(100.0, BOMBER_UNIT);
 
 					if(group)
-						group->BombTarget(unit_id, &pos);
+						group->BombTarget(unitId.id, &pos);
 				}
 				else
 				{
 					group = GetAirGroup(100.0, ASSAULT_UNIT);
 
 					if(group)
-						group->AirRaidUnit(unit_id);
+						group->AirRaidUnit(unitId.id);
 				}
 			}
 		}
