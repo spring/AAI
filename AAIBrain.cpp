@@ -700,13 +700,13 @@ void AAIBrain::BuildUnits()
 	}
 								 
 
-	CombatVsCriteria combatCriteria;
-	combatCriteria.efficiencyVsGround    = urgency[0];
-	combatCriteria.efficiencyVsAir       = urgency[1];
-	combatCriteria.efficiencyVsHover     = urgency[2];
-	combatCriteria.efficiencyVsSea       = urgency[3];
-	combatCriteria.efficiencyVsSubmarine = urgency[4];
-	combatCriteria.efficiencyVSBuildings = urgency[0] + urgency[3];
+	CombatPower combatCriteria;
+	combatCriteria.vsGround    = urgency[0];
+	combatCriteria.vsAir       = urgency[1];
+	combatCriteria.vsHover     = urgency[2];
+	combatCriteria.vsSea       = urgency[3];
+	combatCriteria.vsSubmarine = urgency[4];
+	combatCriteria.vsBuildings = urgency[0] + urgency[3];
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Order building of units according to determined threat/own defence capabilities
@@ -792,7 +792,7 @@ void AAIBrain::BuildUnits()
 	}*/
 }
 
-void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatVsCriteria& combatCriteria, bool urgent)
+void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatPower& combatCriteria, bool urgent)
 {
 	UnitSelectionCriteria unitCriteria;
 	unitCriteria.speed      = 0.25f;

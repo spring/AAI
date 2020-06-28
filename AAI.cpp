@@ -103,9 +103,14 @@ AAI::~AAI()
 	for(list<int>::iterator fac = bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].end(); ++fac)
 		Log("%-24s: %i\n", bt->s_buildTree.GetUnitTypeProperties(UnitDefId(*fac)).m_name.c_str(), bt->units_dynamic[*fac].requested);
 
+	
+	/*CombatPower combatPowerWeights(0.0f);
+	bt->DetermineCombatPowerWeights(combatPowerWeights, map->map_type);
 	Log("Factory ratings:\n");
 	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac)
+	{
 		Log("%-24s: %f\n", bt->s_buildTree.GetUnitTypeProperties(UnitDefId(*fac)).m_name.c_str(), bt->GetFactoryRating(*fac));
+	}*/
 
 	// delete buildtasks
 	for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)

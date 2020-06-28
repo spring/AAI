@@ -46,32 +46,42 @@ struct UnitTypeStatic
 };
 
 //! Criteria (combat efficiency vs specific kind of target type) used for selection of units
-class CombatVsCriteria
+class CombatPower
 {
 public:
-	CombatVsCriteria() {};
+	CombatPower() {};
 
-	CombatVsCriteria(float initialValue) 
+	CombatPower(float initialValue) 
 	{
-		efficiencyVsGround    = initialValue;
-		efficiencyVsAir       = initialValue;
-		efficiencyVsHover     = initialValue;
-		efficiencyVsSea       = initialValue;
-		efficiencyVsSubmarine = initialValue;
-		efficiencyVSBuildings = initialValue;
-	};
+		vsGround    = initialValue;
+		vsAir       = initialValue;
+		vsHover     = initialValue;
+		vsSea       = initialValue;
+		vsSubmarine = initialValue;
+		vsBuildings = initialValue;
+	}
 
-	float GetSumOfWeigths() const
+	float CalculateSum() const
 	{
-		return efficiencyVsGround + efficiencyVsAir + efficiencyVsHover + efficiencyVsSea + efficiencyVsSubmarine + efficiencyVSBuildings;
-	};
+		return vsGround + vsAir + vsHover + vsSea + vsSubmarine + vsBuildings;
+	}
 
-	float efficiencyVsGround;
-	float efficiencyVsAir;
-	float efficiencyVsHover;
-	float efficiencyVsSea;
-	float efficiencyVsSubmarine;
-	float efficiencyVSBuildings;
+	float CalculateWeightedSum(const CombatPower& weights) const
+	{
+		return 	  (weights.vsGround    * vsGround)
+				+ (weights.vsAir       * vsAir)
+				+ (weights.vsHover     * vsHover)
+		     	+ (weights.vsSea       * vsSea)
+				+ (weights.vsSubmarine * vsSubmarine)
+				+ (weights.vsBuildings * vsBuildings);
+	}
+
+	float vsGround;
+	float vsAir;
+	float vsHover;
+	float vsSea;
+	float vsSubmarine;
+	float vsBuildings;
 };
 
 //! Criteria used for selection of units
@@ -84,6 +94,17 @@ struct UnitSelectionCriteria
 	float range;	  //! max range for combat units/artillery, los for scouts
 };
 
+//! Data used to calculate rating of factories
+class FactoryRatingInputData
+{
+public:
+	FactoryRatingInputData() : factoryDefId(), combatPowerRating(0.0f), canConstructBuilder(false), canConstructScout(false) { }
+
+	UnitDefId   factoryDefId;
+	float       combatPowerRating;
+	bool        canConstructBuilder;
+	bool        canConstructScout;
+};
 
 class AAIBuildTable
 {
@@ -115,6 +136,23 @@ public:
 	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
 	void UnfinishedConstructorKilled(UnitDefId constructor);
 
+	//! @brief Determines the first type of factory to be built and orders its contsruction (selected factory is returned)
+	UnitDefId RequestInitialFactory(int side, MapType mapType);
+
+	//! @brief Determines the weight factor for every combat unit category based on map type and how often AI had been attacked by 
+	//!        this category in the first phase of the game in the past
+	void DetermineCombatPowerWeights(CombatPower& combatPowerWeights, const MapType mapType) const;
+
+	//! @brief Updates counters/buildqueue if a buildorder for a certain factory has been given
+	void ConstructionOrderForFactoryGiven(const UnitDefId& factoryDefId)
+	{
+		units_dynamic[factoryDefId.id].requested -= 1;
+		m_factoryBuildqueue.remove(factoryDefId);
+	}
+	
+	//! @brief Returns the list containing which factories shall be built next
+	const std::list<UnitDefId>& GetFactoryBuildqueue() const { return m_factoryBuildqueue; }
+
 	// ******************************************************************************************************
 	// the following functions are used to determine units that suit a certain purpose
 	// if water == true, only water based units/buildings will be returned
@@ -130,7 +168,7 @@ public:
 	int GetBiggestMex();
 
 	// return defence buildings to counter a certain category
-	int DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, const CombatVsCriteria& combatCriteria, double urgency, double range, int randomness, bool water, bool canBuild) const;
+	int DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, const CombatPower& combatCriteria, double urgency, double range, int randomness, bool water, bool canBuild) const;
 
 	// returns a cheap defence building (= avg_cost taken
 	int GetCheapDefenceBuilding(int side, double efficiency, double combat_power, double cost, double urgency, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, bool water);
@@ -145,7 +183,7 @@ public:
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
 
 	//! @brief Seletcs a combat unit of specified category according to given criteria
-	UnitDefId SelectCombatUnit(int side, const AAICombatCategory& category, const CombatVsCriteria& combatCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild);
+	UnitDefId SelectCombatUnit(int side, const AAICombatCategory& category, const CombatPower& combatCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild);
 
 	// returns a random unit from the list
 	int GetRandomUnit(list<int> unit_list);
@@ -169,8 +207,6 @@ public:
 
 	// tries to build an assistant for the specified kind of unit
 	void AddAssistant(uint32_t allowedMovementTypes, bool canBuild);
-
-	float GetFactoryRating(int def_id);
 
 	// updates unit table
 	void UpdateTable(const UnitDef* def_killer, int killer, const UnitDef *def_killed, int killed);
@@ -316,10 +352,16 @@ private:
 
 	bool LoadBuildTable();
 
-	//! @brief Calculates the combat statistics needed for unit selection
-	void CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const CombatVsCriteria& combatCriteria, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
+	//! @brief Calculates the rating of the given factory for the given map type
+	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const CombatPower& combatPowerWeights, const MapType mapType) const;
 
-	AAI * ai;
+	//! @brief Calculates the combat statistics needed for unit selection
+	void CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const CombatPower& combatCriteria, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
+
+	//! A list containing the next factories that shall be built
+	std::list<UnitDefId> m_factoryBuildqueue;
+
+	AAI *ai;
 
 	// all the unit defs, FIXME: this can't be made static as spring seems to free the memory returned by GetUnitDefList()
 	std::vector<const UnitDef*> unitList;

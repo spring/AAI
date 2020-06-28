@@ -1481,28 +1481,28 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 	}
 	
 
-	CombatVsCriteria criteria(0.0f);
+	CombatPower criteria(0.0f);
 
 	switch(category.getUnitCategory())
 	{
 		case EUnitCategory::GROUND_COMBAT:
-			criteria.efficiencyVsGround    = 2.0f;
+			criteria.vsGround    = 2.0f;
 			break;
 		case EUnitCategory::AIR_COMBAT:
-			criteria.efficiencyVsAir       = 2.0f;
+			criteria.vsAir       = 2.0f;
 			break;
 		case EUnitCategory::HOVER_COMBAT:
-			criteria.efficiencyVsGround    = 0.5f;
-			criteria.efficiencyVsHover     = 2.0f;
-			criteria.efficiencyVsSea       = 0.5f;
+			criteria.vsGround    = 0.5f;
+			criteria.vsHover     = 2.0f;
+			criteria.vsSea       = 0.5f;
 			break;
 		case EUnitCategory::SEA_COMBAT:
-			criteria.efficiencyVsSea       = 1.5f;
-			criteria.efficiencyVsSubmarine = 0.5f;
+			criteria.vsSea       = 1.5f;
+			criteria.vsSubmarine = 0.5f;
 			break;
 		case EUnitCategory::SUBMARINE_COMBAT:
-			criteria.efficiencyVsSea       = 0.5f;
-			criteria.efficiencyVsSubmarine = 1.5f;
+			criteria.vsSea       = 0.5f;
+			criteria.vsSubmarine = 1.5f;
 			break;		
 	}
 
@@ -1715,180 +1715,106 @@ bool AAIExecute::BuildFactory()
 	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(staticConstructor) > 0)
 		return true;
 
-	AAIConstructor *builder = 0, *temp_builder;
-	float3 pos = ZeroVector;
-	float best_rating = 0, my_rating;
-	int building = 0, factory_types_requested = 0;
+	auto factory = ai->Getbt()->GetFactoryBuildqueue().begin();
 
-	// go through list of factories, build cheapest requested factory first
-	for(list<int>::iterator fac = ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].begin(); fac != ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].end(); ++fac)
+	while( factory != ai->Getbt()->GetFactoryBuildqueue().end() )
 	{
-		if(ai->Getbt()->units_dynamic[*fac].requested > 0)
+		// find suitable builder
+		AAIConstructor* builder = ai->Getut()->FindBuilder(factory->id, true);
+	
+		if(builder == nullptr)
 		{
-			++factory_types_requested;
-
-			const float activeFacsOfType = ai->Getbt()->units_dynamic[*fac].active;
-
-			my_rating = ai->Getbt()->GetFactoryRating(*fac) / pow(activeFacsOfType + 1.0f, 2.0f);
-			my_rating *= (1 + sqrt(2.0 + (float) GetBuildqueueOfFactory(*fac)->size()));
-
-			if(ai->Getut()->activeFactories < 1)
-				my_rating /= ai->Getbt()->s_buildTree.GetTotalCost(UnitDefId(*fac));
-
-			// skip factories that could not be built
-			if(ai->Getbt()->units_static[*fac].efficiency[4] > 1)
+			// try construction of next factory in queue if there is no active builder (i.e. potential builders not just currently busy)
+			if( ai->Getbt()->units_dynamic[factory->id].constructorsAvailable <= 0) 
 			{
-				my_rating = 0;
-				ai->Getbt()->units_static[*fac].efficiency[4] = 0;
-			}
-
-			// only check building if a suitable builder is available
-			temp_builder = ai->Getut()->FindBuilder(*fac, true);
-
-			if(temp_builder && my_rating > best_rating)
-			{
-				best_rating = my_rating;
-				building = *fac;
-			}
-		}
-	}
-
-	if(building)
-	{
-		bool water = false;
-
-		// land
-		if(ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(building)).isStaticLand() == true)
-		{
-			water = false;
-
-			ai->Getbrain()->sectors[0].sort(suitable_for_ground_factory);
-
-			// find buildpos
-			for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
-			{
-				pos = (*sector)->GetRandomBuildsite(building, 20, false);
-
-				if(pos.x > 0)
-					break;
-			}
-
-			if(pos.x <= 0)
-			{
-				for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
-				{
-					pos = (*sector)->GetBuildsite(building, false);
-
-					if(pos.x > 0)
-						break;
-				}
-			}
-		}
-
-		// try to build on water if land has not been possible
-		if(    (pos.x <= 0.0f) 
-			&& (ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(building)).isStaticSea() == true) )
-		{
-			water = true;
-
-			ai->Getbrain()->sectors[0].sort(suitable_for_sea_factory);
-
-			// find buildpos
-			for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
-			{
-				if((*sector)->ConnectedToOcean())
-				{
-					pos = (*sector)->GetRandomBuildsite(building, 20, true);
-
-					if(pos.x > 0)
-						break;
-				}
-			}
-
-			if(pos.x <= 0)
-			{
-				for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
-				{
-					if((*sector)->ConnectedToOcean())
-					{
-						pos = (*sector)->GetBuildsite(building, true);
-
-						if(pos.x > 0)
-							break;
-					}
-				}
-			}
-		}
-
-		if(pos.x > 0)
-		{
-			float min_dist;
-
-			builder = ai->Getut()->FindClosestBuilder(building, &pos, true, &min_dist);
-
-			if(builder)
-			{
-				ai->Getbt()->units_dynamic[building].requested -= 1;
-
-				// give build order
-				builder->GiveConstructionOrder(building, pos, water);
-
-				// add average ressource usage
-				futureRequestedMetal += ai->Getbt()->units_static[building].efficiency[0];
-				futureRequestedEnergy += ai->Getbt()->units_static[building].efficiency[1];
-
-				return true;
+				++factory;
+				continue;
 			}
 			else
 			{
-				if(ai->Getbt()->units_dynamic[building].constructorsRequested + ai->Getbt()->units_dynamic[building].constructorsAvailable <= 0)
-					ai->Getbt()->BuildBuilderFor(UnitDefId(building));
+				// keep factory at highest urgency if the construction failed due to (temporarily) unavailable builder
+				return false;
+			}
+		}
+
+		const bool isSeaFactory( ai->Getbt()->s_buildTree.GetMovementType(*factory).isStaticSea() );
+	
+		if(isSeaFactory)
+			ai->Getbrain()->sectors[0].sort(suitable_for_sea_factory);
+		else
+			ai->Getbrain()->sectors[0].sort(suitable_for_ground_factory);
+
+		// find buildpos
+		const std::list<AAISector*>& baseSectorsList = ai->Getbrain()->sectors[0];
+		float3 buildpos;
+
+		for(auto sector = baseSectorsList.begin(); sector != baseSectorsList.end(); ++sector)
+		{
+			// try random buildpos first
+			buildpos = (*sector)->GetRandomBuildsite(factory->id, 20, isSeaFactory);
+
+			if(buildpos.x > 0)
+				break;
+			else
+			{
+				// search systematically for buildpos (i.e. search returns a buildpos if one is available in the sector)
+				buildpos = (*sector)->GetBuildsite(factory->id, isSeaFactory);
+
+				if(buildpos.x > 0)
+					break;
+			}
+		}
+
+		if(buildpos.x > 0)
+		{
+			// buildpos found -> l
+			float min_dist;
+			builder = ai->Getut()->FindClosestBuilder(factory->id, &buildpos, true, &min_dist);
+
+			if(builder != nullptr)
+			{
+				// give build order
+				builder->GiveConstructionOrder(factory->id, buildpos, isSeaFactory);
+
+				// add average ressource usage
+				futureRequestedMetal  += ai->Getbt()->units_static[factory->id].efficiency[0];
+				futureRequestedEnergy += ai->Getbt()->units_static[factory->id].efficiency[1];
+
+				ai->Getbt()->ConstructionOrderForFactoryGiven(*factory);
+				return true;
+			}
+			else 
+			{
+				if(ai->Getbt()->units_dynamic[factory->id].constructorsRequested + ai->Getbt()->units_dynamic[factory->id].constructorsAvailable <= 0)
+					ai->Getbt()->BuildBuilderFor(*factory);
 
 				return false;
 			}
 		}
 		else
 		{
+			// no buildpos found in whole base -> expand base
 			bool expanded = false;
 
 			// no suitable buildsite found
-			if(ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(building)).isStaticLand() == true)
+			if(isSeaFactory)
+			{
+				ai->Getbrain()->ExpandBase(WATER_SECTOR);
+				ai->Log("Base expanded by BuildFactory() (water sector)\n");
+			}
+			else
 			{
 				expanded = ai->Getbrain()->ExpandBase(LAND_SECTOR);
 				ai->Log("Base expanded by BuildFactory()\n");
 			}
 
-			if(!expanded && ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(building)).isStaticSea() == true)
-			{
-				ai->Getbrain()->ExpandBase(WATER_SECTOR);
-				ai->Log("Base expanded by BuildFactory() (water sector)\n");
-			}
-
-			// could not build due to lack of suitable buildpos
-			++ai->Getbt()->units_static[building].efficiency[4];
-
-			if(ai->Getbt()->units_static[building].efficiency[4] > 1)
-				return true;
-			else
-				return false;
-		}
-	}
-	else
-	{
-		// keep factory at highest urgency if the construction failed due to (temporarily) unavailable builder
-		if(factory_types_requested > 0)
 			return false;
+		}
 	}
 
 	return true;
 }
 
-/*
-void AAIExecute::BuildUnit(UnitCategory category, float speed, float cost, float range, float power, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, float eff, bool urgent)
-{
-
-}
-*/
 
 bool AAIExecute::BuildRadar()
 {
@@ -3052,35 +2978,16 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 
 void AAIExecute::AddStartFactory()
 {
-	float best_rating = 0, my_rating;
-	int best_factory = 0;
+	UnitDefId factoryDefId = ai->Getbt()->RequestInitialFactory(ai->GetSide(), ai->Getmap()->map_type);
 
-	for(list<int>::iterator fac = ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].begin(); fac != ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].end(); ++fac)
+	if(factoryDefId.isValid())
 	{
-		if(ai->Getbt()->units_dynamic[*fac].constructorsAvailable > 0)
-		{
-			my_rating = ai->Getbt()->GetFactoryRating(*fac);
-
-			//! @todo: Rework fatcory selection
-			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR));
-			my_rating *= (1.0f + costStatistics.GetNormalizedDeviationFromMin( ai->Getbt()->s_buildTree.GetTotalCost(UnitDefId(*fac)) ) );
-
-			if(my_rating > best_rating)
-			{
-				best_rating = my_rating;
-				best_factory = *fac;
-			}
-		}
-	}
-
-	if(best_factory)
-	{
-		ai->Getbt()->units_dynamic[best_factory].requested += 1;
 		urgency[STATIONARY_CONSTRUCTOR] = 3.0f;
-
-		ai->Log("%s requested\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(UnitDefId(best_factory)).m_name.c_str());
-
-		ai->Getbt()->ConstructorRequested(UnitDefId(best_factory));
+		ai->Log("%s selected as initial factory\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(factoryDefId).m_name.c_str());	
+	}
+	else
+	{
+		ai->Log("ERROR: Selection of first factory to be built failed!\nCheck if start unit is able to build factories.");
 	}
 }
 

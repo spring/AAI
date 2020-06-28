@@ -300,7 +300,7 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool commander, float *min_dist)
 {
 	float my_dist;
-	AAIConstructor *best_builder = 0, *builder;
+	AAIConstructor *best_builder = nullptr, *builder;
 	float3 builder_pos;
 	bool suitable;
 

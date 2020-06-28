@@ -16,13 +16,15 @@ typedef unsigned int   uint32_t;
 class UnitDefId
 {
 public:
-	UnitDefId() : id(0) { };
+	UnitDefId() : id(0) { }
 
-	UnitDefId(int unitDefId) : id(unitDefId) { };
+	UnitDefId(int unitDefId) : id(unitDefId) { }
 
-	bool isValid() const { return (id > 0) ? true : false; };
+	bool operator==(const UnitDefId& rhs) const { return (id == rhs.id); }
 
-	void invalidate() { id = 0; };
+	bool isValid() const { return (id > 0) ? true : false; }
+
+	void invalidate() { id = 0; }
 
 	int id;
 };
@@ -46,13 +48,13 @@ enum class EMovementType : uint32_t
 class AAIMovementType
 {
 public:
-	AAIMovementType() : m_movementType(EMovementType::MOVEMENT_TYPE_UNKNOWN) {};
+	AAIMovementType() : m_movementType(EMovementType::MOVEMENT_TYPE_UNKNOWN) {}
 
 	//! @brief Sets the given elementary movement type to the movement type bitmask
-	void setMovementType(EMovementType moveType) { m_movementType = moveType; };
+	void setMovementType(EMovementType moveType) { m_movementType = moveType; }
 
 	//! @brief Getter function to access unit type.
-	EMovementType getMovementType() const { return m_movementType; };
+	EMovementType getMovementType() const { return m_movementType; }
 
 	//! @brief Returns whether unit movement is limited to its continent (e.g. ground or sea units vs.
 	//!        amphibious, hover, or air units - see AAIMap for more info on continents)
@@ -63,7 +65,7 @@ public:
 											+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
 
 		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & continentBitMask );
-	};
+	}
 
 	//! @brief Returns whether unit type is capable to move on land tiles (ground, amphibious or hover)
 	bool canMoveOnLand() const 
@@ -84,7 +86,7 @@ public:
 											+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
 
 		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & canMoveSeaBitmask );
-	};
+	}
 
 	//! @brief Returns whether unit type is static (i.e. a building)
 	bool isStatic() const 
@@ -94,7 +96,7 @@ public:
 										+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_SUBMERGED);
 
 		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & staticBitmask );
-	};
+	}
 
 	//! @brief Returns whether unit type is static on ground (i.e. a land based building)
 	bool isStaticLand() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_STATIC_LAND); };
@@ -105,15 +107,15 @@ public:
 		const uint32_t staticSeaBitmask =     static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_FLOATER)
 											+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_SUBMERGED);
 		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & staticSeaBitmask ); 
-	};
+	}
 
-	bool isGround() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_GROUND); };
+	bool isGround() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_GROUND); }
 
-	bool isHover() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_HOVER); };
+	bool isHover() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_HOVER); }
 
-	bool isAir() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AIR); };
+	bool isAir() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AIR); }
 
-	bool isAmphibious() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AMPHIBIOUS); };
+	bool isAmphibious() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AMPHIBIOUS); }
 
 	//! @brief Returns whether unit type can only move on sea (i.e. a floating or submerged unit)
 	bool isSeaUnit() const 
@@ -121,10 +123,10 @@ public:
 		const uint32_t seaUnitBitmask =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER)
 										+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
 		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & seaUnitBitmask ); 
-	};
+	}
 
 	//! @brief Returns whether this movement type is included in the given movement type bitmask.
-	bool isIncludedIn(uint32_t moveTypesBitmask) const { return static_cast<bool>( static_cast<uint32_t>(m_movementType) & moveTypesBitmask); };
+	bool isIncludedIn(uint32_t moveTypesBitmask) const { return static_cast<bool>( static_cast<uint32_t>(m_movementType) & moveTypesBitmask); }
 
 private:
 	//! Movement type

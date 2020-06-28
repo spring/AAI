@@ -123,7 +123,7 @@ private:
 	// returns true if sector is considered to be safe
 	bool IsSafeSector(AAISector *sector);
 
-	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatVsCriteria& combatCriteria, bool urgent);
+	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatPower& combatCriteria, bool urgent);
 
 	bool SectorInList(list<AAISector*> mylist, AAISector *sector);
 	list<AAISector*> GetSectors();

@@ -309,6 +309,15 @@ void AAIBuildTable::Init()
 						fixed_eff[i][4] = eff;
 						fixed_eff[i][5] = eff;
 					}
+					else if(category.isSubmarineCombat() == true)
+					{
+						units_static[i].efficiency[3] = eff;
+						units_static[i].efficiency[4] = eff;
+						units_static[i].efficiency[5] = eff;
+						fixed_eff[i][3] = eff;
+						fixed_eff[i][4] = eff;
+						fixed_eff[i][5] = eff;
+					}
 					else if(category.isStaticDefence() == true)
 					{
 						if(s_buildTree.GetMovementType(UnitDefId(i)).isStaticLand() == true)
@@ -1518,7 +1527,194 @@ int AAIBuildTable::GetMetalMaker(int side, float cost, float efficiency, float m
 	return best_maker;
 }
 
-int AAIBuildTable::DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, const CombatVsCriteria& combatCriteria, double urgency, double range, int randomness, bool water, bool canBuild) const
+UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
+{
+	//-----------------------------------------------------------------------------------------------------------------
+	// create list with all factories that can be built (i.e. can be constructed by the start unit)
+	//-----------------------------------------------------------------------------------------------------------------
+	
+	std::list<FactoryRatingInputData> factoryList;
+	float maxCombatRating(0.1f); // prevent division by zero - if factory builds suitable combat units value will be much higher
+	CombatPower combatPowerWeights(0.0f);
+	DetermineCombatPowerWeights(combatPowerWeights, mapType);
+
+	for(auto factory = units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); factory != units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++factory)
+	{
+		if(units_dynamic[*factory].constructorsAvailable > 0)
+		{
+			FactoryRatingInputData data;
+			CalculateFactoryRating(data, UnitDefId(*factory), combatPowerWeights, mapType);
+			factoryList.push_back(data);
+
+			if(data.combatPowerRating > maxCombatRating)
+				maxCombatRating = data.combatPowerRating;
+		}
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// calculate final ratings and select highest rated factory
+	//-----------------------------------------------------------------------------------------------------------------
+	
+	float bestRating(0.0f);
+	UnitDefId selectedFactoryDefId;
+
+	const StatisticalData& costStatistics = s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
+
+	//ai->Log("Combat power weights: ground %f   air %f   hover %f   sea %f   submarine %f\n", 
+			combatPowerWeights.vsGround, combatPowerWeights.vsAir, combatPowerWeights.vsHover, 
+			combatPowerWeights.vsSea, combatPowerWeights.vsSubmarine);
+	//ai->Log("Factory ratings (max combat power rating %f):", maxCombatRating);
+
+	for(auto factory = factoryList.begin(); factory != factoryList.end(); ++factory)
+	{
+		float myRating =  0.4f * costStatistics.GetNormalizedDeviationFromMax(s_buildTree.GetTotalCost(factory->factoryDefId))
+		                + 0.8f * (maxCombatRating - factory->combatPowerRating) / maxCombatRating;  
+
+		if(factory->canConstructBuilder)
+			myRating += 0.2f;
+
+		if(factory->canConstructScout)
+			myRating += 0.4f;
+
+		//ai->Log(" %s %f %f", s_buildTree.GetUnitTypeProperties(factory->factoryDefId).m_name.c_str(), myRating, factory->combatPowerRating);
+	
+		if(myRating > bestRating)
+		{
+			bestRating = myRating;
+			selectedFactoryDefId = factory->factoryDefId;
+		}
+	}
+
+	//ai->Log("\n");
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// order construction
+	//-----------------------------------------------------------------------------------------------------------------
+
+	if(selectedFactoryDefId.isValid())
+	{
+		units_dynamic[selectedFactoryDefId.id].requested += 1;
+		m_factoryBuildqueue.push_front(selectedFactoryDefId);
+		ConstructorRequested(selectedFactoryDefId);
+	}
+
+	return selectedFactoryDefId;
+}
+
+void AAIBuildTable::DetermineCombatPowerWeights(CombatPower& combatPowerWeights, const MapType mapType) const
+{
+	combatPowerWeights.vsAir       = 0.5f + (attacked_by_category_learned[mapType][0][1] + attacked_by_category_learned[mapType][1][1]);
+	combatPowerWeights.vsHover     = 0.5f + (attacked_by_category_learned[mapType][0][2] + attacked_by_category_learned[mapType][1][2]);
+
+	switch(mapType)
+	{
+		case LAND_MAP:
+			combatPowerWeights.vsGround    = 0.5f + (attacked_by_category_learned[mapType][0][0] + attacked_by_category_learned[mapType][1][0]);
+			break;
+		case LAND_WATER_MAP:
+			combatPowerWeights.vsGround    = 0.5f + (attacked_by_category_learned[mapType][0][0] + attacked_by_category_learned[mapType][1][0]);
+			combatPowerWeights.vsSea       = 0.5f + (attacked_by_category_learned[mapType][0][3] + attacked_by_category_learned[mapType][1][3]);
+			combatPowerWeights.vsSubmarine = 0.5f + (attacked_by_category_learned[mapType][0][4] + attacked_by_category_learned[mapType][1][4]);
+			break;
+		case WATER_MAP:
+			combatPowerWeights.vsSea       = 0.5f + (attacked_by_category_learned[mapType][0][3] + attacked_by_category_learned[mapType][1][3]);
+			combatPowerWeights.vsSubmarine = 0.5f + (attacked_by_category_learned[mapType][0][4] + attacked_by_category_learned[mapType][1][4]);
+			break;
+	}
+}
+
+void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const CombatPower& combatPowerWeights, const MapType mapType) const
+{
+	ratingData.canConstructBuilder = false;
+	ratingData.canConstructScout   = false;
+	ratingData.factoryDefId        = factoryDefId;
+
+	CombatPower combatPowerOfConstructedUnits(0.0f);
+	int         combatUnits(0);
+
+	const bool considerLand  = (mapType == LAND_WATER_MAP) || (mapType == LAND_MAP);
+	const bool considerWater = (mapType == LAND_WATER_MAP) || (mapType == WATER_MAP);
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// go through buildoptions to determine input values for calculation of factory rating
+	//-----------------------------------------------------------------------------------------------------------------
+
+	for(auto unit = s_buildTree.GetCanConstructList(factoryDefId).begin(); unit != s_buildTree.GetCanConstructList(factoryDefId).end(); ++unit)
+	{
+		switch(s_buildTree.GetUnitCategory(*unit).getUnitCategory())
+		{
+			case EUnitCategory::GROUND_COMBAT:
+				combatPowerOfConstructedUnits.vsGround += units_static[(*unit).id].efficiency[0];
+				combatPowerOfConstructedUnits.vsAir    += units_static[(*unit).id].efficiency[1];
+				combatPowerOfConstructedUnits.vsHover  += units_static[(*unit).id].efficiency[2];
+				++combatUnits;
+				break;
+			case EUnitCategory::AIR_COMBAT:     // same calculation as for hover
+			case EUnitCategory::HOVER_COMBAT:
+				combatPowerOfConstructedUnits.vsGround += units_static[(*unit).id].efficiency[0];
+				combatPowerOfConstructedUnits.vsAir    += units_static[(*unit).id].efficiency[1];
+				combatPowerOfConstructedUnits.vsHover  += units_static[(*unit).id].efficiency[2];
+				combatPowerOfConstructedUnits.vsSea    += units_static[(*unit).id].efficiency[3];
+				++combatUnits;
+				break;
+			case EUnitCategory::SEA_COMBAT:
+				combatPowerOfConstructedUnits.vsAir       += units_static[(*unit).id].efficiency[1];
+				combatPowerOfConstructedUnits.vsHover     += units_static[(*unit).id].efficiency[2];
+				combatPowerOfConstructedUnits.vsSea       += units_static[(*unit).id].efficiency[3];
+				combatPowerOfConstructedUnits.vsSubmarine += units_static[(*unit).id].efficiency[4];
+				++combatUnits;
+				break;
+			case EUnitCategory::SUBMARINE_COMBAT:
+				combatPowerOfConstructedUnits.vsSea       += units_static[(*unit).id].efficiency[3];
+				combatPowerOfConstructedUnits.vsSubmarine += units_static[(*unit).id].efficiency[4];
+				++combatUnits;
+				break;
+			case EUnitCategory::MOBILE_CONSTRUCTOR:
+				if( s_buildTree.GetMovementType(*unit).isSeaUnit() )
+				{
+					if(considerWater)
+						ratingData.canConstructBuilder = true;
+				}
+				else if(s_buildTree.GetMovementType(*unit).isGround() )
+				{
+					if(considerLand)
+						ratingData.canConstructBuilder = true;
+				}
+				else // always consider hover, air, or amphibious
+				{
+					ratingData.canConstructBuilder = true;
+				}
+				break;
+			case EUnitCategory::SCOUT:
+				if( s_buildTree.GetMovementType(*unit).isSeaUnit() )
+				{
+					if(considerWater)
+						ratingData.canConstructScout = true;
+				}
+				else if(s_buildTree.GetMovementType(*unit).isGround() )
+				{
+					if(considerLand)
+						ratingData.canConstructScout = true;
+				}
+				else // always consider hover, air, or amphibious
+				{
+					ratingData.canConstructScout = true;
+				}
+				break;
+		}
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// calculate rating
+	//-----------------------------------------------------------------------------------------------------------------
+	if(combatUnits > 0)
+	{
+		ratingData.combatPowerRating = combatPowerOfConstructedUnits.CalculateWeightedSum(combatPowerWeights);
+		ratingData.combatPowerRating /= static_cast<float>(combatUnits);
+	}
+}
+
+int AAIBuildTable::DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, const CombatPower& combatCriteria, double urgency, double range, int randomness, bool water, bool canBuild) const
 {
 	// get data needed for selection
 	/*AAIUnitCategory category(EUnitCategory::GROUND_COMBAT);
@@ -1591,7 +1787,7 @@ int AAIBuildTable::DetermineStaticDefence(int side, double efficiency, double co
 
 	double my_power;
 
-	float total_eff = combatCriteria.GetSumOfWeigths();
+	float total_eff = combatCriteria.CalculateSum();
 	float max_eff_selection = 0;
 	float max_power = 0.0f;
 
@@ -1605,11 +1801,11 @@ int AAIBuildTable::DetermineStaticDefence(int side, double efficiency, double co
 			unit = &units_static[*defence];
 
 			// calculate eff.
-			my_power = combatCriteria.efficiencyVsGround    * unit->efficiency[0] / max_eff[side][5][0] 
-					 + combatCriteria.efficiencyVsAir       * unit->efficiency[1] / max_eff[side][5][1]
-					 + combatCriteria.efficiencyVsHover     * unit->efficiency[2] / max_eff[side][5][2] 
-					 + combatCriteria.efficiencyVsSea       * unit->efficiency[3] / max_eff[side][5][3]
-					 + combatCriteria.efficiencyVsSubmarine * unit->efficiency[4] / max_eff[side][5][4];
+			my_power = combatCriteria.vsGround    * unit->efficiency[0] / max_eff[side][5][0] 
+					 + combatCriteria.vsAir       * unit->efficiency[1] / max_eff[side][5][1]
+					 + combatCriteria.vsHover     * unit->efficiency[2] / max_eff[side][5][2] 
+					 + combatCriteria.vsSea       * unit->efficiency[3] / max_eff[side][5][3]
+					 + combatCriteria.vsSubmarine * unit->efficiency[4] / max_eff[side][5][4];
 			my_power /= total_eff;
 
 			// store result
@@ -1978,7 +2174,7 @@ int AAIBuildTable::GetRandomUnit(list<int> unit_list)
 	return best_unit;
 }
 
-void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const CombatVsCriteria& combatCriteria, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
+void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const CombatPower& combatCriteria, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
 {
 	int i = 0;
 	for(std::list<int>::const_iterator id = unitList.begin(); id != unitList.end(); ++id)
@@ -1986,12 +2182,12 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList,
 		const UnitTypeStatic *unit = &units_static[*id];
 		const UnitTypeProperties& unitData = s_buildTree.GetUnitTypeProperties(UnitDefId(*id));
 
-		float combatPower =	  combatCriteria.efficiencyVsGround    * unit->efficiency[0] 
-							+ combatCriteria.efficiencyVsAir       * unit->efficiency[1] 
-							+ combatCriteria.efficiencyVsHover     * unit->efficiency[2]
-							+ combatCriteria.efficiencyVsSea       * unit->efficiency[3] 
-							+ combatCriteria.efficiencyVsSubmarine * unit->efficiency[4] 
-							+ combatCriteria.efficiencyVSBuildings * unit->efficiency[5];
+		float combatPower =	  combatCriteria.vsGround    * unit->efficiency[0] 
+							+ combatCriteria.vsAir       * unit->efficiency[1] 
+							+ combatCriteria.vsHover     * unit->efficiency[2]
+							+ combatCriteria.vsSea       * unit->efficiency[3] 
+							+ combatCriteria.vsSubmarine * unit->efficiency[4] 
+							+ combatCriteria.vsBuildings * unit->efficiency[5];
 		float combatEff = combatPower / unitData.m_totalCost;
 
 		combatPowerStat.AddValue(combatPower);
@@ -2005,7 +2201,7 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList,
 	combatEfficiencyStat.Finalize();
 }
 
-UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& category, const CombatVsCriteria& combatCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild)
+UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& category, const CombatPower& combatCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild)
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// get data needed for selection
@@ -2429,156 +2625,6 @@ float AAIBuildTable::GetMaxDamage(int unit_id)
 	return max_damage;
 }
 
-float AAIBuildTable::GetFactoryRating(int def_id)
-{
-	// check if value already chached
-	if(units_static[def_id].efficiency[5] != -1)
-		return units_static[def_id].efficiency[5];
-
-	// calculate rating and cache result
-	bool builder = false;
-	bool scout = false;
-	float rating = 1.0f;
-	float combat_units = 0;
-	float ground = 0.1f + 0.01f * (attacked_by_category_learned[ai->Getmap()->map_type][0][0] + attacked_by_category_learned[ai->Getmap()->map_type][1][0] + attacked_by_category_learned[ai->Getmap()->map_type][2][0]);
-	float air = 0.1f + 0.01f * (attacked_by_category_learned[ai->Getmap()->map_type][0][1] + attacked_by_category_learned[ai->Getmap()->map_type][1][1] + attacked_by_category_learned[ai->Getmap()->map_type][2][1]);
-	float hover = 0.1f + 0.01f * (attacked_by_category_learned[ai->Getmap()->map_type][0][2] + attacked_by_category_learned[ai->Getmap()->map_type][1][2] + attacked_by_category_learned[ai->Getmap()->map_type][2][2]);
-	float sea = 0.1f + 0.01f * (attacked_by_category_learned[ai->Getmap()->map_type][0][3] + attacked_by_category_learned[ai->Getmap()->map_type][1][3] + attacked_by_category_learned[ai->Getmap()->map_type][2][3]);
-	float submarine = 0.1f + 0.01f * (attacked_by_category_learned[ai->Getmap()->map_type][0][4] + attacked_by_category_learned[ai->Getmap()->map_type][1][4] + attacked_by_category_learned[ai->Getmap()->map_type][2][4]);
-
-	if(cfg->AIR_ONLY_MOD)
-	{
-		for(std::list<UnitDefId>::const_iterator unit = s_buildTree.GetCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.GetCanConstructList(UnitDefId(def_id)).end(); ++unit)
-		{
-			if(    (s_buildTree.GetUnitCategory(*unit).isGroundCombat() == true)
-				|| (s_buildTree.GetUnitCategory(*unit).isHoverCombat()  == true)
-				|| (s_buildTree.GetUnitCategory(*unit).isAirCombat()    == true)
-				|| (s_buildTree.GetUnitCategory(*unit).isSeaCombat()    == true) )
-			{
-				rating += ground * units_static[(*unit).id].efficiency[0] + air * units_static[(*unit).id].efficiency[1] + hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3];
-				combat_units += 1;
-			}
-		}
-	}
-	else if(ai->Getmap()->map_type == LAND_MAP)
-	{
-		for(std::list<UnitDefId>::const_iterator unit = s_buildTree.GetCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.GetCanConstructList(UnitDefId(def_id)).end(); ++unit)
-		{
-			if(    (s_buildTree.GetUnitCategory(*unit).isGroundCombat() == true)
-			    || (s_buildTree.GetUnitCategory(*unit).isHoverCombat() == true) )
-			{
-				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[(*unit).id].efficiency[1];
-				else
-					rating += 0.5f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2]);
-
-				combat_units += 1;
-			}
-			else if(s_buildTree.GetUnitCategory(*unit).isAirCombat() == true)
-			{
-				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[(*unit).id].efficiency[1];
-				else
-					rating += 0.5f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2]);
-
-				combat_units += 1;
-			}
-		}
-	}
-	else if(ai->Getmap()->map_type == LAND_WATER_MAP)
-	{
-		for(std::list<UnitDefId>::const_iterator unit = s_buildTree.GetCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.GetCanConstructList(UnitDefId(def_id)).end(); ++unit)
-		{
-			if(s_buildTree.GetUnitCategory(*unit).isGroundCombat() == true)
-			{
-				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[(*unit).id].efficiency[1];
-				else
-					rating += 0.5f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2]);
-
-				combat_units += 1;
-			}
-			else if(s_buildTree.GetUnitCategory(*unit).isHoverCombat() == true)
-			{
-				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[(*unit).id].efficiency[1];
-				else
-					rating += 0.33f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3]);
-
-				combat_units += 1;
-			}
-			else if(s_buildTree.GetUnitCategory(*unit).isAirCombat() == true)
-			{
-				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[(*unit).id].efficiency[1];
-				else
-					rating += 0.33f * (ground * units_static[(*unit).id].efficiency[0] + hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3]);
-
-				combat_units += 1;
-			}
-			else if(s_buildTree.GetUnitCategory(*unit).isSeaCombat() == true)
-			{
-				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[(*unit).id].efficiency[1];
-				else
-					rating += 0.33f * (hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3] + submarine * units_static[(*unit).id].efficiency[4]);
-
-				combat_units += 1;
-			}
-		}
-	}
-	else if(ai->Getmap()->map_type == WATER_MAP)
-	{
-		for(std::list<UnitDefId>::const_iterator unit = s_buildTree.GetCanConstructList(UnitDefId(def_id)).begin(); unit != s_buildTree.GetCanConstructList(UnitDefId(def_id)).end(); ++unit)
-		{
-			if(s_buildTree.GetUnitCategory(*unit).isHoverCombat() == true)
-			{
-				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[(*unit).id].efficiency[1];
-				else
-					rating += 0.5f * (hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3]);
-
-				combat_units += 1;
-			}
-			else if(s_buildTree.GetUnitCategory(*unit).isAirCombat() == true)
-			{
-				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[(*unit).id].efficiency[1];
-				else
-					rating += 0.5f * (hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3]);
-
-				combat_units += 1;
-			}
-			else if(s_buildTree.GetUnitCategory(*unit).isSeaCombat() == true) //! @todo handling of submarines
-			{
-				if(units_static[(*unit).id].unit_type == ANTI_AIR_UNIT)
-					rating += air * units_static[(*unit).id].efficiency[1];
-				else
-					rating += 0.33f * (hover * units_static[(*unit).id].efficiency[2] + sea * units_static[(*unit).id].efficiency[3] + submarine * units_static[(*unit).id].efficiency[4]);
-
-				combat_units += 1;
-			}
-		}
-	}
-
-	if(combat_units > 0)
-	{
-		rating /= (combat_units * s_buildTree.GetTotalCost(UnitDefId(def_id)));
-		rating *= fastmath::apxsqrt((float) (4 + combat_units) );
-
-		if(scout)
-			rating += 8.0f;
-
-		units_static[def_id].efficiency[5] = rating;
-		return rating;
-	}
-	else
-	{
-		units_static[def_id].efficiency[5] = 1.0f;
-		return 1.0f;
-	}
-}
-
 void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 {
 	int constructor = 0;
@@ -2646,6 +2692,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 		ConstructorRequested(UnitDefId(constructor));
 
 		units_dynamic[constructor].requested += 1;
+		m_factoryBuildqueue.push_back(UnitDefId(constructor));
 
 		// factory requested
 		if(s_buildTree.GetMovementType(UnitDefId(constructor)).isStatic() == true)
