@@ -46,8 +46,26 @@ struct UnitTypeStatic
 };
 
 //! Criteria (combat efficiency vs specific kind of target type) used for selection of units
-struct CombatVsCriteria
+class CombatVsCriteria
 {
+public:
+	CombatVsCriteria() {};
+
+	CombatVsCriteria(float initialValue) 
+	{
+		efficiencyVsGround    = initialValue;
+		efficiencyVsAir       = initialValue;
+		efficiencyVsHover     = initialValue;
+		efficiencyVsSea       = initialValue;
+		efficiencyVsSubmarine = initialValue;
+		efficiencyVSBuildings = initialValue;
+	};
+
+	float GetSumOfWeigths() const
+	{
+		return efficiencyVsGround + efficiencyVsAir + efficiencyVsHover + efficiencyVsSea + efficiencyVsSubmarine + efficiencyVSBuildings;
+	};
+
 	float efficiencyVsGround;
 	float efficiencyVsAir;
 	float efficiencyVsHover;
@@ -112,7 +130,7 @@ public:
 	int GetBiggestMex();
 
 	// return defence buildings to counter a certain category
-	int DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, double urgency, double range, int randomness, bool water, bool canBuild);
+	int DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, const CombatVsCriteria& combatCriteria, double urgency, double range, int randomness, bool water, bool canBuild) const;
 
 	// returns a cheap defence building (= avg_cost taken
 	int GetCheapDefenceBuilding(int side, double efficiency, double combat_power, double cost, double urgency, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, bool water);
@@ -132,7 +150,7 @@ public:
 	// returns a random unit from the list
 	int GetRandomUnit(list<int> unit_list);
 
-	int GetRandomDefence(int side, UnitCategory category);
+	int GetRandomDefence(int side);
 
 	int GetStationaryArty(int side, float cost, float range, float efficiency, bool water, bool canBuild);
 
@@ -193,8 +211,9 @@ public:
 	bool IsBuilder(int def_id);
 	bool IsFactory(int def_id);
 
-	// returns id of assault category
-	int GetIDOfAssaultCategory(UnitCategory category);
+	//! @brief Returns target type id of given unit category
+	int GetIDOfAssaultCategory(const AAIUnitCategory& category) const;
+
 	UnitCategory GetAssaultCategoryOfID(int id);
 
 
@@ -276,13 +295,12 @@ public:
 	vector<UnitTypeDynamic> units_dynamic;
 
 	// for internal use
-	const char* GetCategoryString(int def_id);
 	const char* GetCategoryString2(UnitCategory category);
 
 	// all assault unit categories
-	list<UnitCategory> assault_categories;
+	std::list<UnitCategory> assault_categories;
 
-	const UnitDef& GetUnitDef(int i) { assert(IsValidUnitDefID(i));	return *unitList[i];}
+	const UnitDef& GetUnitDef(int i) const { assert(IsValidUnitDefID(i));	return *unitList[i]; };
 	bool IsValidUnitDefID(int i) { return (i>=0) && (i<=unitList.size()); }
 
 private:
@@ -297,8 +315,6 @@ private:
 	bool MemberOf(int unit_id, list<int> unit_list);
 
 	bool LoadBuildTable();
-
-	void DebugPrint();
 
 	//! @brief Calculates the combat statistics needed for unit selection
 	void CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const CombatVsCriteria& combatCriteria, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);

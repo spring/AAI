@@ -39,7 +39,7 @@ public:
 	AAIAirForceManager(AAI *ai);
 	~AAIAirForceManager(void);
 
-	//! @brief Checks if a certain unit is worth attacking and if yes tries to order air units to do it
+	//! @brief Checks if a certain unit is worth attacking it and tries to order air units to do it
 	void CheckTarget(const UnitId& unitId, const AAIUnitCategory& category, float health);
 
 	// removes target from bombing target list

@@ -80,7 +80,8 @@ public:
 	float3 GetBuildsite(int building, bool water = false);
 
 	// returns a buildsite for a defence building
-	float3 GetDefenceBuildsite(int building, UnitCategory category, float terrain_modifier, bool water);
+	float3 GetDefenceBuildsite(UnitDefId buildingDefId, const AAIUnitCategory& category, float terrainModifier, bool water) const ;
+
 	float3 GetRandomBuildsite(int building, int tries, bool water = false);
 	float3 GetCenterBuildsite(int building, bool water = false);
 	float3 GetRadarArtyBuildsite(int building, float range, bool water);
@@ -106,14 +107,16 @@ public:
 	float GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance);
 
 	//! @brief Updates threat map storing where own buildings/units got killed
-	void UpdateThreatValues(const AAIUnitCategory& destroyedCategory, const AAIUnitCategory& attackerCategory);
+	void UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerDefId);
 
-	// returns lost units in that sector
-	float GetLostUnits(float ground, float air, float hover, float sea, float submarine);
+	//! @brief Returns lost units in that sector
+	float GetLostUnits() const { return (m_lostUnits + m_lostAirUnits); }
+
+	//! @brief Returns lost airunits in that sector
+	float GetLostAirUnits() const { return m_lostAirUnits; }
 
 	// returns center of the sector
 	float3 GetCenter();
-
 
 	//! @brief Searches for a free position in sector (regardless of continent). Position stored in pos (ZeroVector if none found)
 	//!        Returns whether search has been successful.
@@ -123,8 +126,8 @@ public:
 	//!        Returns whether search has been successful.
 	bool determineMovePosOnContinent(float3 *pos, int continent);
 
-	// returns true is pos is within sector
-	bool PosInSector(float3 *pos);
+	//! @brief Returns true if pos lies within this sector
+	bool PosInSector(const float3& pos) const;
 
 	// get water/flat ground ratio
 	float GetWaterRatio();
@@ -189,9 +192,6 @@ public:
 	vector<float> combats_this_game;
 	vector<float> combats_learned;
 
-	// how many units of certain type recently lost in that sector
-	vector<float> lost_units;
-
 	// combat units in the sector
 	vector<short> my_combat_units;
 
@@ -243,6 +243,12 @@ private:
 
 	//! Number of spotted enemy combat units (float values as number decays over time)
 	std::vector<float> m_enemyCombatUnits; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine
+
+	//! How many non air units have recently been lost in that sector (float as the number decays over time)
+	float m_lostUnits;
+
+	//! How many air units have recently been lost in that sector (float as the number decays over time)
+	float m_lostAirUnits;
 };
 
 #endif

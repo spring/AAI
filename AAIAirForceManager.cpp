@@ -35,7 +35,7 @@ AAIAirForceManager::AAIAirForceManager(AAI *ai)
 	for(int i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
 		targets[i].unit_id = -1;
 
-	air_groups = &ai->Getgroup_list()[AIR_ASSAULT];
+	air_groups = &ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()];
 }
 
 AAIAirForceManager::~AAIAirForceManager(void)
@@ -58,7 +58,7 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 		if(x >= 0 && x < ai->Getmap()->xSectors && y >= 0 && y < ai->Getmap()->ySectors)
 		{
 			// check for anti air defences if low on units
-			if(ai->Getmap()->sector[x][y].lost_units[AIR_ASSAULT-COMMANDER] >= cfg->MAX_AIR_GROUP_SIZE && ai->Getgroup_list()[AIR_ASSAULT].size() < 5)
+			if( (ai->Getmap()->sector[x][y].GetLostAirUnits() > 2.5f) && (ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size() < 5) )
 				return;
 
 			AAIGroup *group(nullptr);

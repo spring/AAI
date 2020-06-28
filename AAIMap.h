@@ -12,6 +12,7 @@
 
 #include "aidef.h"
 #include "AAITypes.h"
+#include "AAIUnitTypes.h"
 #include "System/float3.h"
 
 #include <vector>
@@ -42,14 +43,18 @@ public:
 	~AAIMap(void);
 
 	void Init();
-	void Pos2FinalBuildPos(float3 *pos, const UnitDef *def);
 
-	// returns id of continent the cell belongs to
-	int GetContinentID(int x, int y);
-	int GetContinentID(float3 *pos);
+	//! @brief Converts given position to final building position for the given unit type
+	void Pos2FinalBuildPos(float3 *pos, const UnitDef *def) const;
 
-	// returns true if pos is located on s small continent (= pond or island)
-	bool LocatedOnSmallContinent(float3 *pos);
+	//! @brief Returns the id of continent the cell belongs to
+	int GetContinentID(int x, int y) const;
+
+	//! @brief Returns the id of continent the given position belongs to
+	int GetContinentID(const float3& pos) const;
+
+	//! @brief Returns whether the position is located on a small continent (meant to detect "ponds" or "small islands")
+	bool LocatedOnSmallContinent(const float3& pos) { return (continents[GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); };
 
 	//! @brief Returns continent id with respect to the unit's movement type (e.g. ground (=non amphibious) unit being in shallow water will return id of nearest land continent)
 	int getSmartContinentID(float3 *pos, const AAIMovementType& moveType) const;
@@ -72,7 +77,7 @@ public:
 	float3 GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, float range, bool water);
 
 	// return rating of a the best buidliste fpr a def. building vs category within specified rect (and stores pos in pointer)
-	float GetDefenceBuildsite(float3 *best_pos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, UnitCategory category,  float terrain_modifier, bool water);
+	float GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAIUnitCategory& category, float terrainModifier, bool water) const;
 
 	float3 GetClosestBuildsite(const UnitDef *def, float3 pos, int max_distance, bool water);
 
@@ -94,9 +99,6 @@ public:
 	// adds/removes a defence buidling to the defence map
 	void AddDefence(float3 *pos, int defence);
 	void RemoveDefence(float3 *pos, int defence);
-
-	// updates number of lost units in sector
-	void UnitKilledAt(float3 *pos, UnitCategory category);
 
 	// sectors
 	vector<vector<AAISector> > sector;
@@ -185,7 +187,7 @@ private:
 	void ReadMapCacheFile();
 
 	// returns true if buildmap allows construction
-	bool CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water = false);
+	bool CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water = false) const;
 
 	// return next cell in direction with a certain value
 	int GetNextX(int direction, int xPos, int yPos, int value);	// 0 means left, other right; returns -1 if not found
@@ -203,16 +205,18 @@ private:
 	// prevents ai from building too many buildings in a row
 	void CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool water);
 
-	// returns footprint size of a building
-	void GetSize(const UnitDef *def, int *xSize, int *ySize);
-	// returns distance to closest edge of the map (in build_map coordinates)
-	int GetEdgeDistance(int xPos, int yPos);
+	//! @brief Returns the size which shall be blocked for this building (building size + exit for factories)
+	void GetSize(const UnitDef *def, int *xSize, int *ySize) const;
+
+	//! @brief Returns distance to closest edge of the map (in build_map coordinates)
+	int GetEdgeDistance(int xPos, int yPos) const;
+
 	// true if x/y are a valid sector
 	bool ValidSector(int x, int y);
 	// sets cells of the builmap to value
 	bool SetBuildMap(int xPos, int yPos, int xSize, int ySize, int value, int ignore_value = -1);
 
-	void BuildMapPos2Pos(float3 *pos, const UnitDef* def);
+	void BuildMapPos2Pos(float3 *pos, const UnitDef* def) const;
 
 	std::string LocateMapLearnFile() const;
 	std::string LocateMapCacheFile() const;

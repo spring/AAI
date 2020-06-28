@@ -19,7 +19,7 @@ namespace springLegacyAI {
 }
 using namespace springLegacyAI;
 
-enum BuildOrderStatus {BUILDORDER_FAILED, BUILDORDER_NOBUILDPOS, BUILDORDER_NOBUILDER, BUILDORDER_SUCCESFUL};
+enum BuildOrderStatus {BUILDORDER_FAILED, BUILDORDER_NOBUILDPOS, BUILDORDER_NOBUILDER, BUILDORDER_SUCCESSFUL};
 
 class AAI;
 class AAIBuildTable;
@@ -44,7 +44,8 @@ public:
 
 	void MoveUnitTo(int unit, float3 *position);
 
-	void AddUnitToGroup(int unit_id, int def_id, UnitCategory category);
+	//! @brief Add the given unit to an existing group (or create new one if necessary)
+	void AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId);
 
 	void BuildScouts();
 
@@ -165,9 +166,9 @@ private:
 
 	int numOfFactories;
 
-	// tries to build a defence building vs category in the specified sector
-	// returns BUILDORDER_SUCCESFUL if succesful
-	BuildOrderStatus BuildStationaryDefenceVS(UnitCategory category, AAISector *dest);
+	//! @brief Tries to build a defence building vs category in the specified sector
+	//!        returns BUILDORDER_SUCCESSFUL if successful
+	BuildOrderStatus BuildStationaryDefenceVS(const AAIUnitCategory& category, const AAISector *dest);
 
 	//! @brief Returns true if a construction unit was ordered to assist construction of a building of givn category
 	bool AssistConstructionOfCategory(const AAIUnitCategory& category);
@@ -215,7 +216,8 @@ private:
 	float metalSurplus[8];
 	float energySurplus[8];
 	AAISector *next_defence;
-	UnitCategory def_category;
+
+	AAIUnitCategory m_nextDefenceVsCategory;
 
 	int issued_orders;
 

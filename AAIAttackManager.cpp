@@ -57,7 +57,7 @@ void AAIAttackManager::Update()
 		// check if sector cleared
 		if((*a)->dest)
 		{
-			if((*a)->dest->enemy_structures <= 0)
+			if((*a)->dest->enemy_structures <= 0.0f)
 				GetNextDest(*a);
 		}
 	}
@@ -75,12 +75,13 @@ void AAIAttackManager::LaunchAttack()
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	int total_combat_groups = 0;
 
-	for(list<UnitCategory>::iterator category = ai->Getbt()->assault_categories.begin(); category != ai->Getbt()->assault_categories.end(); ++category)
+	for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 	{
-		for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[*category].begin(); group != ai->Getgroup_list()[*category].end(); ++group)
+		for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[category->GetArrayIndex()].begin(); group != ai->Getgroup_list()[category->GetArrayIndex()].end(); ++group)
 		{
 			if( (*group)->AvailableForAttack() )
 			{
+				
 				if( (*group)->m_moveType.cannotMoveToOtherContinents() )
 				{
 					if((*group)->group_unit_type == ASSAULT_UNIT)
@@ -112,14 +113,14 @@ void AAIAttackManager::LaunchAttack()
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// calculate max attack power for each continent
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	fill(attack_power_global.begin(), attack_power_global.end(), 0.0f);
+	std::fill(attack_power_global.begin(), attack_power_global.end(), 0.0f);
 
 	for(list<AAIGroup*>::iterator group = available_combat_groups_global.begin(); group != available_combat_groups_global.end(); ++group)
 		(*group)->GetCombatPower( &attack_power_global );
 
 	for(size_t continent = 0; continent < available_combat_groups_continent.size(); ++continent)
 	{
-		fill(attack_power_continent[continent].begin(), attack_power_continent[continent].end(), 0.0f);
+		std::fill(attack_power_continent[continent].begin(), attack_power_continent[continent].end(), 0.0f);
 
 		for(list<AAIGroup*>::iterator group = available_combat_groups_continent[continent].begin(); group != available_combat_groups_continent[continent].end(); ++group)
 			(*group)->GetCombatPower( &(attack_power_continent[continent]) );
@@ -132,7 +133,7 @@ void AAIAttackManager::LaunchAttack()
 	{
 		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
 		{
-			float lost_units = ai->Getmap()->sector[x][y].GetLostUnits(1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+			float lost_units = ai->Getmap()->sector[x][y].GetLostUnits();
 
 			if(lost_units > max_lost_units)
 				max_lost_units = lost_units;
@@ -148,6 +149,7 @@ void AAIAttackManager::LaunchAttack()
 	AAISector* sector;
 	AAISector* dest = NULL;
 
+	ai->Log("Checking sectors for attack:");
 	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
 	{
 		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
@@ -156,8 +158,8 @@ void AAIAttackManager::LaunchAttack()
 
 			float my_rating;
 
-			// max_lost_units check to prevent SIGFPE, later on
-			if(sector->distance_to_base == 0 || sector->enemy_structures < 0.0001 || max_lost_units <= 0.0f)
+			ai->Log(" %f", sector->enemy_structures);
+			if((sector->distance_to_base == 0) || (sector->enemy_structures < 0.0001f) )
 				my_rating = 0.0f;
 			else
 			{
@@ -172,7 +174,12 @@ void AAIAttackManager::LaunchAttack()
 					att_power = attack_power_global[5] + attack_power_continent[sector->continent][5];
 				}
 
-				my_rating = (1.0f - sector->GetLostUnits(1.0f, 1.0f, 1.0f, 1.0f, 1.0f) / max_lost_units) * sector->enemy_structures * att_power / ( def_power * (float)(2 + sector->distance_to_base) );
+				float lostUnits = 1.0f;
+
+				if(max_lost_units > 1.0f)
+					lostUnits = 2.0f - (sector->GetLostUnits() / max_lost_units);
+
+				my_rating = lostUnits * sector->enemy_structures * att_power / ( def_power * (float)(2 + sector->distance_to_base) );
 
 				//if(SufficientAttackPowerVS(dest, &combat_available, 2))
 			}
@@ -184,6 +191,7 @@ void AAIAttackManager::LaunchAttack()
 			}
 		}
 	}
+	ai->Log("\nBest rating: %f\n", best_rating);
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// order attack
@@ -191,6 +199,8 @@ void AAIAttackManager::LaunchAttack()
 
 	if(dest)
 	{
+		//ai->Getcb()->AddNotification(dest->GetCenter(), float3(1.0f, 0.5f, 0.5f), 1.0f);
+
 		AAIAttack *attack = new AAIAttack(ai);
 		attacks.push_back(attack);
 

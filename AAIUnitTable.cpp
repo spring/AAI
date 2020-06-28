@@ -272,7 +272,6 @@ void AAIUnitTable::RemoveStationaryArty(int unit_id)
 
 AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 {
-	//ai->Log("constructor for %s\n", ai->Getbt()->GetCategoryString(building));
 	AAIConstructor *builder;
 
 	// look for idle builder
@@ -305,7 +304,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool
 	float3 builder_pos;
 	bool suitable;
 
-	int continent = ai->Getmap()->GetContinentID(pos);
+	int continent = ai->Getmap()->GetContinentID(*pos);
 	*min_dist = 100000.0f;
 
 	// look for idle builder
@@ -327,7 +326,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, float3 *pos, bool
 				// check continent if necessary
 				if( moveType.cannotMoveToOtherContinents() )
 				{
-					if(ai->Getmap()->GetContinentID(&builder_pos) == continent)
+					if(ai->Getmap()->GetContinentID(builder_pos) == continent)
 						suitable = true;
 					else
 						suitable = false;
@@ -363,7 +362,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 	float3 assistant_pos;
 	bool suitable;
 
-	int continent = ai->Getmap()->GetContinentID(&pos);
+	int continent = ai->Getmap()->GetContinentID(pos);
 
 	// find idle builder
 	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
@@ -383,7 +382,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 				// check continent if necessary
 				if( moveType.cannotMoveToOtherContinents() )
 				{
-					if(ai->Getmap()->GetContinentID(&assistant_pos) == continent)
+					if(ai->Getmap()->GetContinentID(assistant_pos) == continent)
 						suitable = true;
 					else
 						suitable = false;

@@ -711,7 +711,7 @@ void AAIMap::Pos2BuildMapPos(float3 *pos, const UnitDef* def)
 		pos->x = pos->z = 0;
 }
 
-void AAIMap::BuildMapPos2Pos(float3 *pos, const UnitDef *def)
+void AAIMap::BuildMapPos2Pos(float3 *pos, const UnitDef *def) const
 {
 	// shift to middlepoint
 	pos->x += def->xsize/2;
@@ -722,7 +722,7 @@ void AAIMap::BuildMapPos2Pos(float3 *pos, const UnitDef *def)
 	pos->z *= SQUARE_SIZE;
 }
 
-void AAIMap::Pos2FinalBuildPos(float3 *pos, const UnitDef* def)
+void AAIMap::Pos2FinalBuildPos(float3 *pos, const UnitDef* def) const
 {
 	if(def->xsize&2) // check if xsize is a multiple of 4
 		pos->x=floor((pos->x)/(SQUARE_SIZE*2))*SQUARE_SIZE*2+8;
@@ -1115,9 +1115,9 @@ float3 AAIMap::GetClosestBuildsite(const UnitDef *def, float3 pos, int max_dista
 	return GetCenterBuildsite(def, xStart, xEnd, yStart, yEnd, water);
 }
 
-bool AAIMap::CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water)
+bool AAIMap::CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water) const
 {
-	if(xPos+xSize <= xMapSize && yPos+ySize <= yMapSize)
+	if( (xPos+xSize <= xMapSize) && (yPos+ySize <= yMapSize) )
 	{
 		// check if all squares the building needs are empty
 		for(int x = xPos; x < xSize+xPos; ++x)
@@ -1470,7 +1470,7 @@ int AAIMap::GetNextY(int direction, int xPos, int yPos, int value)
 	return y;
 }
 
-void AAIMap::GetSize(const UnitDef *def, int *xSize, int *ySize)
+void AAIMap::GetSize(const UnitDef *def, int *xSize, int *ySize) const
 {
 	// calculate size of building
 	*xSize = def->xsize;
@@ -2236,11 +2236,11 @@ void AAIMap::UpdateEnemyScoutingData()
 		for(int x = 0; x < xSectors; ++x)
 		{
 			AAISector* sector = &this->sector[x][y];
-			sector->enemy_structures = 0;
+			sector->enemy_structures = 0.0f;
 
 			sector->ResetSpottedEnemiesData();
-			fill(sector->enemy_stat_combat_power.begin(), sector->enemy_stat_combat_power.end(), 0);
-			fill(sector->enemy_mobile_combat_power.begin(), sector->enemy_mobile_combat_power.end(), 0);
+			fill(sector->enemy_stat_combat_power.begin(), sector->enemy_stat_combat_power.end(), 0.0f);
+			fill(sector->enemy_mobile_combat_power.begin(), sector->enemy_mobile_combat_power.end(), 0.0f);
 
 			for(int y = sector->y * ySectorSizeMap/losMapRes; y < (sector->y + 1) * ySectorSizeMap/losMapRes; ++y)
 			{
@@ -2553,29 +2553,27 @@ void AAIMap::RemoveDefence(float3 *pos, int defence)
 	}
 }
 
-float AAIMap::GetDefenceBuildsite(float3 *best_pos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, UnitCategory category, float terrain_modifier, bool water)
+float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAIUnitCategory& category, float terrainModifier, bool water) const
 {
-	float3 pos;
-	*best_pos = ZeroVector;
+	*buildPos = ZeroVector;
 	float my_rating, best_rating = -100000;
-	int edge_distance;
 
 	// get required cell-size of the building
 	int xSize, ySize, xPos, yPos, cell;
 	GetSize(def, &xSize, &ySize);
 
-	vector<float> *map = &defence_map;
+	const std::vector<float> *map = &defence_map;
 
 	if(cfg->AIR_ONLY_MOD)
 	{
-		if(category == AIR_ASSAULT || category == HOVER_ASSAULT)
+		if(category.isAirCombat() || category.isHoverCombat())
 			map = &air_defence_map;
-		else if(category == SEA_ASSAULT)
+		else if(category.isSeaCombat())
 			map = &submarine_defence_map;
 	}
-	else if(category == AIR_ASSAULT)
+	else if(category.isAirCombat() )
 		map = &air_defence_map;
-	else if(category == SUBMARINE_ASSAULT)
+	else if(category.isSubmarineCombat() )
 		map = &submarine_defence_map;
 
 	float range =  ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
@@ -2593,14 +2591,13 @@ float AAIMap::GetDefenceBuildsite(float3 *best_pos, const UnitDef *def, int xSta
 			// check if buildmap allows construction
 			if(CanBuildAt(xPos, yPos, xSize, ySize, water))
 			{
-
 				cell = (xPos/4 + xDefMapSize * yPos/4);
 
-				my_rating = terrain_modifier * plateau_map[cell] - (*map)[cell] + 0.5f *  (float)(rand()%10);
+				my_rating = terrainModifier * plateau_map[cell] - (*map)[cell] + 0.5f *  (float)(rand()%10);
 				//my_rating = - (*map)[cell];
 
 				// determine minimum distance from buildpos to the edges of the map
-				edge_distance = GetEdgeDistance(xPos, yPos);
+				const int edge_distance = GetEdgeDistance(xPos, yPos);
 
 				fprintf(file, "Pos: (%i,%i) -> Def map cell %i -> rating: %i  , edge_dist: %i\n",xPos, yPos, cell, (int)my_rating, edge_distance);
 
@@ -2610,8 +2607,9 @@ float AAIMap::GetDefenceBuildsite(float3 *best_pos, const UnitDef *def, int xSta
 
 				if(my_rating > best_rating)
 				{
-					pos.x = xPos;
-					pos.z = yPos;
+					float3 pos;
+					pos.x = static_cast<float>(xPos);
+					pos.z = static_cast<float>(yPos);
 
 					// buildmap allows construction, now check if otherwise blocked
 					BuildMapPos2Pos(&pos, def);
@@ -2619,7 +2617,7 @@ float AAIMap::GetDefenceBuildsite(float3 *best_pos, const UnitDef *def, int xSta
 
 					if(ai->Getcb()->CanBuildAt(def, pos))
 					{
-						*best_pos = pos;
+						*buildPos = pos;
 						best_rating = my_rating;
 					}
 				}
@@ -2632,15 +2630,15 @@ float AAIMap::GetDefenceBuildsite(float3 *best_pos, const UnitDef *def, int xSta
 	return best_rating;
 }
 
-int AAIMap::GetContinentID(int x, int y)
+int AAIMap::GetContinentID(int x, int y) const
 {
 	return continent_map[(y/4) * xContMapSize + x / 4];
 }
 
-int AAIMap::GetContinentID(float3 *pos)
+int AAIMap::GetContinentID(const float3& pos) const
 {
-	int x = pos->x / 32;
-	int y = pos->z / 32;
+	int x = static_cast<int>(pos.x) / 32;
+	int y = static_cast<int>(pos.z) / 32;
 
 	// check if pos inside of the map
 	if(x < 0)
@@ -2737,23 +2735,7 @@ uint32_t AAIMap::getSuitableMovementTypes(MapType mapType) const
 	return suitableMovementTypes;
 }
 
-
-bool AAIMap::LocatedOnSmallContinent(float3 *pos)
-{
-	return continents[GetContinentID(pos)].size < 0.25f * (avg_land_continent_size + avg_water_continent_size);
-}
-
-
-void AAIMap::UnitKilledAt(float3 *pos, UnitCategory category)
-{
-	int x = pos->x / xSectorSize;
-	int y = pos->z / ySectorSize;
-
-	if(sector[x][y].distance_to_base > 0)
-		sector[x][y].lost_units[category-COMMANDER] += 1;
-}
-
-int AAIMap::GetEdgeDistance(int xPos, int yPos)
+int AAIMap::GetEdgeDistance(int xPos, int yPos) const
 {
 	int edge_distance = xPos;
 

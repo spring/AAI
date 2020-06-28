@@ -75,7 +75,7 @@ public:
 	IAICallback* Getcb() { return cb; }
 	IGlobalAICallback* Getaicb() { return aicb; }
 
-	int Getside()
+	int GetSide() const
 	{
 		assert(side>=0);
 		assert(side<=2);

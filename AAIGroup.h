@@ -14,6 +14,7 @@
 #include "Sim/Units/CommandAI/Command.h"
 #include "aidef.h"
 #include "AAITypes.h"
+#include "AAIUnitTypes.h"
 
 enum GroupTask {GROUP_IDLE, GROUP_ATTACKING, GROUP_DEFENDING, GROUP_PATROLING, GROUP_BOMBING, GROUP_RETREATING};
 
@@ -35,10 +36,10 @@ class AAISector;
 class AAIGroup
 {
 public:
-	AAIGroup(AAI* ai, const UnitDef *def, UnitType unit_type, int continent_id);
+	AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId);
 	~AAIGroup(void);
 
-	bool AddUnit(int unit_id, int def_id, UnitType type, int continent_id);
+	bool AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId);
 
 	bool RemoveUnit(int unit, int attacker);
 
@@ -95,7 +96,8 @@ public:
 
 	GroupTask task;
 
-	UnitCategory category;
+	AAIUnitCategory category;
+
 	int combat_category;
 
 	UnitType group_unit_type;
@@ -117,7 +119,9 @@ private:
 	bool SufficientAttackPower();
 	int lastCommandFrame;
 	Command lastCommand;
-	int speed_group;
+
+	//! The type of units in this group
+	UnitDefId m_groupDefId;
 
 	AAI* ai;
 	AAISector *target_sector;

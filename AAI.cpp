@@ -75,21 +75,17 @@ AAI::~AAI()
 	Log("Unit category active / under construction / requested\n");
 	for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.End() == false; category.Next())
 	{
-		Log("%u: %i / %i / %i\n", static_cast<uint32_t>(category.getUnitCategory()), 
-									ut->GetNumberOfActiveUnitsOfCategory(category), 
-									ut->GetNumberOfUnitsUnderConstructionOfCategory(category), 
-									ut->GetNumberOfRequestedUnitsOfCategory(category));
+		Log("%s: %i / %i / %i\n", bt->s_buildTree.GetCategoryName(category).c_str(), 
+								ut->GetNumberOfActiveUnitsOfCategory(category), 
+								ut->GetNumberOfUnitsUnderConstructionOfCategory(category), 
+								ut->GetNumberOfRequestedUnitsOfCategory(category));
 	}
-	/*for(int i = 0; i < uni; ++i)
-	{
-		Log("%-20s: %i / %i / %i\n", bt->GetCategoryString2((UnitCategory)i), ut->activeUnits[i], ut->futureUnits[i], ut->requestedUnits[i]);
-	}*/
 
-	Log("\nGround Groups:    " _STPF_ "\n", group_list[GROUND_ASSAULT].size());
-	Log("\nAir Groups:       " _STPF_ "\n", group_list[AIR_ASSAULT].size());
-	Log("\nHover Groups:     " _STPF_ "\n", group_list[HOVER_ASSAULT].size());
-	Log("\nSea Groups:       " _STPF_ "\n", group_list[SEA_ASSAULT].size());
-	Log("\nSubmarine Groups: " _STPF_ "\n\n", group_list[SUBMARINE_ASSAULT].size());
+	Log("\nGround Groups:    " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].size());
+	Log("\nAir Groups:       " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size());
+	Log("\nHover Groups:     " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].size());
+	Log("\nSea Groups:       " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::SEA_COMBAT).GetArrayIndex()].size());
+	Log("\nSubmarine Groups: " _STPF_ "\n\n", group_list[AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT).GetArrayIndex()].size());
 
 	Log("Future metal/energy request: %i / %i\n", (int)execute->futureRequestedMetal, (int)execute->futureRequestedEnergy);
 	Log("Future metal/energy supply:  %i / %i\n\n", (int)execute->futureAvailableMetal, (int)execute->futureAvailableEnergy);
@@ -125,16 +121,15 @@ AAI::~AAI()
 	spring::SafeDelete(af);
 
 	// delete unit groups
-	for(int i = 0; i <= MOBILE_CONSTRUCTOR; i++)
+	for(auto groupList = group_list.begin(); groupList != group_list.end(); ++groupList)
 	{
-		for(list<AAIGroup*>::iterator group = group_list[i].begin(); group != group_list[i].end(); ++group)
+		for(std::list<AAIGroup*>::iterator group = groupList->begin(); group != groupList->end(); ++group)
 		{
 			(*group)->attack = 0;
 			delete (*group);
 		}
-		group_list[i].clear();
+		groupList->clear();
 	}
-
 
 	spring::SafeDelete(brain);
 	spring::SafeDelete(execute);
@@ -310,7 +305,8 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 
 	// get unit's id
 	const springLegacyAI::UnitDef* def = cb->GetUnitDef(unit);
-	const AAIUnitCategory& category = bt->s_buildTree.GetUnitCategory(UnitDefId(def->id));
+	UnitDefId unitDefId(def->id);
+	const AAIUnitCategory& category = bt->s_buildTree.GetUnitCategory(unitDefId);
 
 	ut->UnitCreated(category);
 
@@ -318,7 +314,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	bt->units_dynamic[def->id].under_construction += 1;
 
 	// add to unittable
-	ut->AddUnit(unit, def->id);
+	ut->AddUnit(unit, unitDefId.id);
 
 	// get commander a startup
 	if(m_initialized == false)
@@ -330,7 +326,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		ut->futureBuilders += 1;
 
 		// set side
-		side = bt->s_buildTree.GetSideOfUnitType( UnitDefId(def->id)) ;
+		side = bt->s_buildTree.GetSideOfUnitType( unitDefId) ;
 
 		execute->InitAI(unit, def);
 
@@ -465,7 +461,7 @@ void AAI::UnitFinished(int unit)
 		// unit
 		if (category.isCombatUnit() == true)
 		{
-			execute->AddUnitToGroup(unit, def->id, bt->units_static[def->id].category);
+			execute->AddUnitToGroup(unit, unitDefId);
 
 			brain->AddDefenceCapabilities(unitDefId);
 
@@ -517,7 +513,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		const springLegacyAI::UnitDef* att_def = cb->GetUnitDef(attacker);
 
 		if (att_def)
-			map->sector[x][y].UpdateThreatValues(bt->s_buildTree.GetUnitCategory(UnitDefId(def->id)), bt->s_buildTree.GetUnitCategory(UnitDefId(att_def->id)) );
+			map->sector[x][y].UpdateThreatValues(UnitDefId(def->id), UnitDefId(att_def->id));
 	}
 
 	// unfinished unit has been killed
@@ -576,8 +572,8 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 			if (def_att)
 			{
-				int killer = bt->GetIDOfAssaultCategory(bt->units_static[def_att->id].category);
-				int killed = bt->GetIDOfAssaultCategory(bt->units_static[def->id].category);
+				const int killer = bt->GetIDOfAssaultCategory( bt->s_buildTree.GetUnitCategory(UnitDefId(def_att->id)) );
+				const int killed = bt->GetIDOfAssaultCategory( bt->s_buildTree.GetUnitCategory(UnitDefId(def->id)) );
 
 				// check if valid id
 				if (killer != -1)
@@ -779,8 +775,8 @@ void AAI::EnemyDestroyed(int enemy, int attacker)
 			// unit was destroyed
 			if (def)
 			{
-				const int killer = bt->GetIDOfAssaultCategory(bt->units_static[def_att->id].category);
-				const int killed = bt->GetIDOfAssaultCategory(bt->units_static[def->id].category);
+				const int killer = bt->GetIDOfAssaultCategory( bt->s_buildTree.GetUnitCategory(UnitDefId(def_att->id)) );
+				const int killed = bt->GetIDOfAssaultCategory( bt->s_buildTree.GetUnitCategory(UnitDefId(def->id)) );
 
 				if (killer != -1 && killed != -1)
 					bt->UpdateTable(def_att, killer, def, killed);

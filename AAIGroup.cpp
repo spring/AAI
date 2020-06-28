@@ -25,23 +25,24 @@
 using namespace springLegacyAI;
 
 
-AAIGroup::AAIGroup(AAI *ai, const UnitDef *def, UnitType unit_type, int continent_id):
-	rally_point(ZeroVector)
+AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
+	rally_point(ZeroVector),
+	m_groupDefId(unitDefId)
 {
 	this->ai = ai;
 
-	attack = 0;
+	attack = nullptr;
 
-	category = ai->Getbt()->units_static[def->id].category;
+	category = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
 	combat_category = ai->Getbt()->GetIDOfAssaultCategory(category);
 
 	// set unit type of group
-	group_unit_type = unit_type;
+	group_unit_type = ai->Getbt()->GetUnitType(unitDefId.id);
 
 	// set movement type of group (filter out add. movement info like underwater, floater, etc.)
-	m_moveType = ai->Getbt()->s_buildTree.GetMovementType( UnitDefId(def->id) );
+	m_moveType = ai->Getbt()->s_buildTree.GetMovementType( unitDefId );
 
-	continent = continent_id;
+	continent = continentId;
 
 	// now we know type and category, determine max group size
 	if(cfg->AIR_ONLY_MOD)
@@ -52,13 +53,13 @@ AAIGroup::AAIGroup(AAI *ai, const UnitDef *def, UnitType unit_type, int continen
 			maxSize = cfg->MAX_ANTI_AIR_GROUP_SIZE;
 	else
 	{
-		if(category >= GROUND_ARTY && category <= HOVER_ARTY)
+		if(category.isMobileArtillery())
 			maxSize = cfg->MAX_ARTY_GROUP_SIZE;
-		else if(category == AIR_ASSAULT)
+		else if(category.isAirCombat())
 			maxSize = cfg->MAX_AIR_GROUP_SIZE;
-		else if(category == SEA_ASSAULT)
+		else if(category.isSeaCombat())
 			maxSize = cfg->MAX_NAVAL_GROUP_SIZE;
-		else if(category == SUBMARINE_ASSAULT)
+		else if(category.isSubmarineCombat())
 			maxSize = cfg->MAX_SUBMARINE_GROUP_SIZE;
 		else
 			maxSize = cfg->MAX_GROUP_SIZE;
@@ -77,29 +78,7 @@ AAIGroup::AAIGroup(AAI *ai, const UnitDef *def, UnitType unit_type, int continen
 	// get a rally point
 	GetNewRallyPoint();
 
-	// get speed group (if necessary)
-	if(cfg->AIR_ONLY_MOD)
-	{
-		if(category == AIR_ASSAULT)
-		{
-			speed_group = floor((ai->Getbt()->GetUnitDef(def->id).speed - ai->Getbt()->min_speed[1][ai->Getside()-1])/ai->Getbt()->group_speed[1][ai->Getside()-1]);
-		}
-		else
-			speed_group = 0;
-	}
-	else
-	{
-		if(category == GROUND_ASSAULT)
-			speed_group = floor((ai->Getbt()->GetUnitDef(def->id).speed - ai->Getbt()->min_speed[0][ai->Getside()-1])/ai->Getbt()->group_speed[0][ai->Getside()-1]);
-		else if(category == SEA_ASSAULT)
-			speed_group = floor((ai->Getbt()->GetUnitDef(def->id).speed - ai->Getbt()->min_speed[3][ai->Getside()-1])/ai->Getbt()->group_speed[3][ai->Getside()-1]);
-		else
-			speed_group = 0;
-	}
-
-	avg_speed = ai->Getbt()->GetUnitDef(def->id).speed;
-
-	//ai->Log("Creating new group - max size: %i   move type: %i   speed group: %i   continent: %i\n", maxSize, group_movement_type, speed_group, continent);
+	ai->Log("Creating new group - max size: %i   unit type: %s   continent: %i\n", maxSize, ai->Getbt()->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str(), continent);
 }
 
 AAIGroup::~AAIGroup(void)
@@ -120,31 +99,15 @@ AAIGroup::~AAIGroup(void)
 	}
 }
 
-bool AAIGroup::AddUnit(int unit_id, int def_id, UnitType type, int continent_id)
+bool AAIGroup::AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId)
 {
 	// for continent bound units: check if unit is on the same continent as the group
-	if(continent_id == -1 || continent_id == continent)
+	if( (continentId == -1) || (continentId == continent) )
 	{
 		//check if type match && current size
-		if(type == group_unit_type && units.size() < maxSize && !attack && (task == GROUP_IDLE || task == GROUP_RETREATING))
+		if( (m_groupDefId.id == unitDefId.id) && (units.size() < maxSize) && !attack && (task == GROUP_IDLE || task == GROUP_RETREATING))
 		{
-			// check if speed group is matching
-			if(cfg->AIR_ONLY_MOD)
-			{
-				if(category == AIR_ASSAULT && speed_group != floor((ai->Getbt()->GetUnitDef(def_id).speed - ai->Getbt()->min_speed[1][ai->Getside()-1])/ai->Getbt()->group_speed[1][ai->Getside()-1]))
-					return false;
-			}
-			else
-			{
-				if(category == GROUND_ASSAULT && speed_group != floor((ai->Getbt()->GetUnitDef(def_id).speed - ai->Getbt()->min_speed[0][ai->Getside()-1])/ai->Getbt()->group_speed[0][ai->Getside()-1]))
-					return false;
-
-				if(category == SEA_ASSAULT && speed_group != floor((ai->Getbt()->GetUnitDef(def_id).speed - ai->Getbt()->min_speed[3][ai->Getside()-1])/ai->Getbt()->group_speed[3][ai->Getside()-1]))
-					return false;
-			}
-
-			units.push_back(int2(unit_id, def_id));
-
+			units.push_back(int2(unitId.id, unitDefId.id));
 			++size;
 
 			// send unit to rally point of the group
@@ -153,11 +116,11 @@ bool AAIGroup::AddUnit(int unit_id, int def_id, UnitType type, int continent_id)
 				Command c(CMD_MOVE);
 				c.PushPos(rally_point);
 
-				if(category != AIR_ASSAULT)
+				if(category.isAirCombat() == false)
 					c.SetOpts(c.GetOpts() | SHIFT_KEY);
 
 				//ai->Getcb()->GiveOrder(unit_id, &c);
-				ai->Getexecute()->GiveOrder(&c, unit_id, "Group::AddUnit");
+				ai->Getexecute()->GiveOrder(&c, unitId.id, "Group::AddUnit");
 			}
 
 			return true;
@@ -262,7 +225,7 @@ void AAIGroup::Update()
 	// attacking groups recheck target
 	if(task == GROUP_ATTACKING && target_sector)
 	{
-		if(target_sector->enemy_structures == 0)
+		if(target_sector->enemy_structures <= 0.001f)
 		{
 			task = GROUP_IDLE;
 			target_sector = 0;
@@ -341,7 +304,7 @@ void AAIGroup::TargetUnitKilled()
 	if(!cfg->AIR_ONLY_MOD)
 	{
 		// air groups retreat to rally point
-		if(category == AIR_ASSAULT)
+		if(category.isAirCombat())
 		{
 			Command c(CMD_MOVE);
 			c.PushPos(rally_point);
@@ -362,11 +325,11 @@ void AAIGroup::AttackSector(AAISector *dest, float importance)
 	int group_x = pos.x/ai->Getmap()->xSectorSize;
 	int group_y = pos.z/ai->Getmap()->ySectorSize;
 
-	c.SetParam(0, (dest->left + dest->right)/2);
-	c.SetParam(2, (dest->bottom + dest->top)/2);
+	c.SetParam(0, (dest->left + dest->right)/2.0f);
+	c.SetParam(2, (dest->bottom + dest->top)/2.0f);
 
 	// choose location that way that attacking units must cross the entire sector
-	if(dest->x > group_x)
+	/*if(dest->x > group_x)
 		c.SetParam(0, (dest->left + 7 * dest->right)/8);
 	else if(dest->x < group_x)
 		c.SetParam(0, (7 * dest->left + dest->right)/8);
@@ -374,11 +337,11 @@ void AAIGroup::AttackSector(AAISector *dest, float importance)
 		c.SetParam(0, (dest->left + dest->right)/2);
 
 	if(dest->y > group_y)
-		c.SetParam(2, (7 * dest->bottom + dest->top)/8);
+		c.SetParam(2, (7.0f * dest->bottom + dest->top)/8);
 	else if(dest->y < group_y)
-		c.SetParam(2, (dest->bottom + 7 * dest->top)/8);
+		c.SetParam(2, (dest->bottom + 7.0f * dest->top)/8);
 	else
-		c.SetParam(2, (dest->bottom + dest->top)/2);
+		c.SetParam(2, (dest->bottom + dest->top)/2);*/
 
 	c.SetParam(1, ai->Getcb()->GetElevation(c.GetParam(0), c.GetParam(2)));
 
@@ -438,24 +401,8 @@ int AAIGroup::GetRandomUnit()
 
 bool AAIGroup::SufficientAttackPower()
 {
-	/*else if(units.size() > 0)
-	{
-		// group not full, check combat eff. of units
-		float avg_combat_power = 0;
-
-		for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
-			avg_combat_power += ai->Getbt()->units_static[unit->y].efficiency[5];
-
-		avg_combat_power /= units.size();
-
-		if(units.size() > maxSize/2.0f && avg_combat_power > ai->Getbt()->avg_eff[ai->Getbt()->GetIDOfAssaultCategory(category)][5])
-			return true;
-		else if(units.size() >= maxSize/3.0f &&  avg_combat_power > 1.5 * ai->Getbt()->avg_eff[ai->Getbt()->GetIDOfAssaultCategory(category)][5])
-			return true;
-	}
-
-	return false;*/
-
+	return true; 
+	//! @todo Check if this criteria are really sensible
 	if(units.size() >= maxSize - 1)
 		return true;
 
@@ -463,7 +410,7 @@ bool AAIGroup::SufficientAttackPower()
 	{
 		float avg_combat_power = 0;
 
-		if(category == GROUND_ASSAULT)
+		if(category.isGroundCombat())
 		{
 			float ground = 1.0f;
 			float hover = 0.2f;
@@ -471,10 +418,10 @@ bool AAIGroup::SufficientAttackPower()
 			for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
 				avg_combat_power += ground * ai->Getbt()->units_static[unit->y].efficiency[0] + hover * ai->Getbt()->units_static[unit->y].efficiency[2];
 
-			if( avg_combat_power > (ground * ai->Getbt()->avg_eff[ai->Getside()-1][0][0] + hover * ai->Getbt()->avg_eff[ai->Getside()-1][0][2]) * (float)units.size() )
+			if( avg_combat_power > (ground * ai->Getbt()->avg_eff[ai->GetSide()-1][0][0] + hover * ai->Getbt()->avg_eff[ai->GetSide()-1][0][2]) * (float)units.size() )
 				return true;
 		}
-		else if(category == HOVER_ASSAULT)
+		else if(category.isHoverCombat())
 		{
 			float ground = 1.0f;
 			float hover = 0.2f;
@@ -483,10 +430,10 @@ bool AAIGroup::SufficientAttackPower()
 			for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
 				avg_combat_power += ground * ai->Getbt()->units_static[unit->y].efficiency[0] + hover * ai->Getbt()->units_static[unit->y].efficiency[2] + sea * ai->Getbt()->units_static[unit->y].efficiency[3];
 
-			if( avg_combat_power > (ground * ai->Getbt()->avg_eff[ai->Getside()-1][2][0] + hover * ai->Getbt()->avg_eff[ai->Getside()-1][2][2] + sea * ai->Getbt()->avg_eff[ai->Getside()-1][2][3]) * (float)units.size() )
+			if( avg_combat_power > (ground * ai->Getbt()->avg_eff[ai->GetSide()-1][2][0] + hover * ai->Getbt()->avg_eff[ai->GetSide()-1][2][2] + sea * ai->Getbt()->avg_eff[ai->GetSide()-1][2][3]) * (float)units.size() )
 				return true;
 		}
-		else if(category == SEA_ASSAULT)
+		else if(category.isSeaCombat())
 		{
 			float hover = 0.3f;
 			float sea = 1.0f;
@@ -495,10 +442,10 @@ bool AAIGroup::SufficientAttackPower()
 			for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
 				avg_combat_power += hover * ai->Getbt()->units_static[unit->y].efficiency[2] + sea * ai->Getbt()->units_static[unit->y].efficiency[3] + submarine * ai->Getbt()->units_static[unit->y].efficiency[4];
 
-			if( avg_combat_power > (hover * ai->Getbt()->avg_eff[ai->Getside()-1][3][2] + sea * ai->Getbt()->avg_eff[ai->Getside()-1][3][3] + submarine * ai->Getbt()->avg_eff[ai->Getside()-1][3][4]) * (float)units.size() )
+			if( avg_combat_power > (hover * ai->Getbt()->avg_eff[ai->GetSide()-1][3][2] + sea * ai->Getbt()->avg_eff[ai->GetSide()-1][3][3] + submarine * ai->Getbt()->avg_eff[ai->GetSide()-1][3][4]) * (float)units.size() )
 				return true;
 		}
-		else if(category == SUBMARINE_ASSAULT)
+		else if(category.isSubmarineCombat())
 		{
 			float sea = 1.0f;
 			float submarine = 0.8f;
@@ -506,7 +453,7 @@ bool AAIGroup::SufficientAttackPower()
 			for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
 				avg_combat_power += sea * ai->Getbt()->units_static[unit->y].efficiency[3] + submarine * ai->Getbt()->units_static[unit->y].efficiency[4];
 
-			if( avg_combat_power > (sea * ai->Getbt()->avg_eff[ai->Getside()-1][4][3] + submarine * ai->Getbt()->avg_eff[ai->Getside()-1][4][4]) * (float)units.size() )
+			if( avg_combat_power > (sea * ai->Getbt()->avg_eff[ai->GetSide()-1][4][3] + submarine * ai->Getbt()->avg_eff[ai->GetSide()-1][4][4]) * (float)units.size() )
 				return true;
 		}
 	}
@@ -517,7 +464,8 @@ bool AAIGroup::SufficientAttackPower()
 		for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
 			avg_combat_power += ai->Getbt()->units_static[unit->y].efficiency[1];
 
-		if(avg_combat_power > ai->Getbt()->avg_eff[ai->Getside()-1][category][1] * (float)units.size())
+		//! @todo check this
+		//if(avg_combat_power > ai->Getbt()->avg_eff[ai->GetSide()-1][category][1] * (float)units.size())
 			return true;
 	}
 
@@ -533,13 +481,17 @@ bool AAIGroup::AvailableForAttack()
 			if(SufficientAttackPower())
 				return true;
 			else
+			{
 				return false;
+			}
 		}
 		else
 			return true;
 	}
 	else
+	{
 		return false;
+	}
 }
 
 void AAIGroup::UnitIdle(int unit)
@@ -548,7 +500,7 @@ void AAIGroup::UnitIdle(int unit)
 		return;
 
 	// special behaviour of aircraft in non air only mods
-	if(category == AIR_ASSAULT && task != GROUP_IDLE && !cfg->AIR_ONLY_MOD)
+	if(category.isAirCombat() && (task != GROUP_IDLE) && !cfg->AIR_ONLY_MOD)
 	{
 		Command c(CMD_MOVE);
 		c.PushPos(rally_point);
@@ -568,7 +520,7 @@ void AAIGroup::UnitIdle(int unit)
 		if(temp == target_sector || !target_sector)
 		{
 			// combat groups
-			if(group_unit_type == ASSAULT_UNIT && attack->dest->enemy_structures <= 0)
+			if(group_unit_type == ASSAULT_UNIT && attack->dest->enemy_structures <= 0.0f)
 			{
 				ai->Getam()->GetNextDest(attack);
 				return;

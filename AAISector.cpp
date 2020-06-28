@@ -42,8 +42,6 @@ AAISector::~AAISector(void)
 
 	combats_learned.clear();
 	combats_this_game.clear();
-
-	lost_units.clear();
 }
 
 void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bottom)
@@ -71,8 +69,8 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 	if(ai->Getmap()->ySectors - y < map_border_dist)
 		map_border_dist = ai->Getmap()->ySectors - y;
 
-	float3 center = GetCenter();
-	continent = ai->Getmap()->GetContinentID(&center);
+	const float3 center = GetCenter();
+	continent = ai->Getmap()->GetContinentID(center);
 
 	// init all kind of stuff
 	freeMetalSpots = false;
@@ -82,10 +80,10 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 	rally_points = 0;
 
 	// nothing sighted in that sector
-	enemy_structures = 0;
+	enemy_structures = 0.0f;
 	enemies_on_radar = 0;
-	own_structures = 0;
-	allied_structures = 0;
+	own_structures = 0.0f;
+	allied_structures = 0.0f;
 	failed_defences = 0;
 
 	int categories = ai->Getbt()->assault_categories.size();
@@ -97,8 +95,6 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 
 	attacked_by_this_game.resize(categories, 0);
 	attacked_by_learned.resize(categories, 0);
-
-	lost_units.resize((int)MOBILE_CONSTRUCTOR-(int)COMMANDER+1.0);
 
 	my_stat_combat_power.resize(categories, 0);
 	enemy_stat_combat_power.resize(categories, 0);
@@ -167,8 +163,8 @@ void AAISector::Update()
 	// decrease values (so the ai "forgets" values from time to time)...
 	//ground_threat *= 0.995;
 	//air_threat *= 0.995;
-	for(int i = 0; i < MOBILE_CONSTRUCTOR-COMMANDER; ++i)
-		lost_units[i] *= 0.92f;
+	m_lostUnits    *= 0.92f;
+	m_lostAirUnits *= 0.92f;
 }
 
 AAIMetalSpot* AAISector::GetFreeMetalSpot()
@@ -264,11 +260,10 @@ float3 AAISector::GetBuildsite(int building, bool water)
 	return ai->Getmap()->GetBuildSiteInRect(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, water);
 }
 
-float3 AAISector::GetDefenceBuildsite(int building, UnitCategory category, float terrain_modifier, bool water)
+float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAIUnitCategory& category, float terrainModifier, bool water) const
 {
 	float3 best_pos = ZeroVector, pos;
-	const UnitDef *def = &ai->Getbt()->GetUnitDef(building);
-
+	
 	int my_team = ai->Getcb()->GetMyAllyTeam();
 
 	float my_rating, best_rating = -10000;
@@ -276,7 +271,7 @@ float3 AAISector::GetDefenceBuildsite(int building, UnitCategory category, float
 	list<Direction> directions;
 
 	// get possible directions
-	if(category == AIR_ASSAULT && !cfg->AIR_ONLY_MOD)
+	if(category.isAirCombat() && !cfg->AIR_ONLY_MOD)
 	{
 		directions.push_back(CENTER);
 	}
@@ -347,7 +342,8 @@ float3 AAISector::GetDefenceBuildsite(int building, UnitCategory category, float
 		}
 
 		//
-		my_rating = ai->Getmap()->GetDefenceBuildsite(&pos, def, xStart, xEnd, yStart, yEnd, category, terrain_modifier, water);
+		const UnitDef *def = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+		my_rating = ai->Getmap()->GetDefenceBuildsite(&pos, def, xStart, xEnd, yStart, yEnd, category, terrainModifier, water);
 
 		if(my_rating > best_rating)
 		{
@@ -613,13 +609,6 @@ float AAISector::GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_
 	return result;
 }
 
-float AAISector::GetLostUnits(float ground, float air, float hover, float sea, float submarine)
-{
-	return (ground * lost_units[GROUND_ASSAULT-COMMANDER] + air * lost_units[AIR_ASSAULT-COMMANDER]
-		  + hover * lost_units[HOVER_ASSAULT-COMMANDER] + sea * lost_units[SEA_ASSAULT-COMMANDER]
-		  + submarine * lost_units[SUBMARINE_ASSAULT-COMMANDER]);
-}
-
 float AAISector::GetOverallThreat(float learned, float current)
 {
 	return (learned * (attacked_by_learned[0] + attacked_by_learned[1] + attacked_by_learned[2] + attacked_by_learned[3])
@@ -656,22 +645,19 @@ float AAISector::GetFlatRatio()
 	return flat_ratio;
 }
 
-void AAISector::UpdateThreatValues(const AAIUnitCategory& destroyedCategory, const AAIUnitCategory& attackerCategory)
+void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerDefId)
 {
+	const AAIUnitCategory& destroyedCategory = ai->Getbt()->s_buildTree.GetUnitCategory(destroyedDefId);
+	const AAIUnitCategory& attackerCategory  = ai->Getbt()->s_buildTree.GetUnitCategory(attackerDefId);
+
 	// if lost unit is a building, increase attacked_by
 	if(destroyedCategory.isBuilding() == true)
 	{
-		float change;
-
-		if(this->interior)
-			change = 0.3f;
-		else
-			change = 1;
-
 		if(attackerCategory.isCombatUnit() == true)
 		{
+			const float increment = interior ? 0.3f : 1.0f;
 			AAICombatUnitCategory category(attackerCategory);
-			attacked_by_this_game[category.GetArrayIndex()] += change;
+			attacked_by_this_game[category.GetArrayIndex()] += increment;
 		}
 	}
 	else // unit was lost
@@ -682,16 +668,16 @@ void AAISector::UpdateThreatValues(const AAIUnitCategory& destroyedCategory, con
 			combats_this_game[category.GetArrayIndex()] += 1.0f;
 		}
 
-		//! @todo Re-enable this!
-		//++lost_units[unit-COMMANDER];
+		if(ai->Getbt()->s_buildTree.GetMovementType(destroyedDefId).isAir())
+			m_lostAirUnits += 1.0f;
+		else
+			m_lostUnits += 1.0f;
 	}
 }
 
-bool AAISector::PosInSector(float3 *pos)
+bool AAISector::PosInSector(const float3& pos) const
 {
-	if(pos->x < left || pos->x > right)
-		return false;
-	else if(pos->z < top || pos->z > bottom)
+	if( (pos.x < left) || (pos.x > right) || (pos.z < top) || (pos.z > bottom) )
 		return false;
 	else
 		return true;
@@ -777,7 +763,7 @@ bool AAISector::determineMovePosOnContinent(float3 *pos, int continent)
 		if(ai->Getmap()->buildmap[x + y * ai->Getmap()->xMapSize] != 1)
 		{
 			//check continent
-			if(ai->Getmap()->GetContinentID(pos) == continent)
+			if(ai->Getmap()->GetContinentID(*pos) == continent)
 				return true;
 		}
 	}
@@ -796,7 +782,7 @@ bool AAISector::determineMovePosOnContinent(float3 *pos, int continent)
 
 			if(ai->Getmap()->buildmap[x + y * ai->Getmap()->xMapSize] != 1)
 			{
-				if(ai->Getmap()->GetContinentID(pos) == continent)
+				if(ai->Getmap()->GetContinentID(*pos) == continent)
 					return true;
 			}
 		}

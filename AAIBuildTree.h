@@ -36,58 +36,61 @@ public:
 	bool CanBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const;
 
 	//! @brief Return side of given unit type (0 if not initialized)
-	int GetSideOfUnitType(UnitDefId unitDefId) const { return m_initialized ? m_sideOfUnitType[unitDefId.id] : 0; };
+	int GetSideOfUnitType(UnitDefId unitDefId) const { return m_initialized ? m_sideOfUnitType[unitDefId.id] : 0; }
 
 	//! @brief Returns the list of units that can construct the given unit.
-	const std::list<UnitDefId>& GetConstructedByList(UnitDefId unitDefId) const { return m_unitTypeCanBeConstructedtByLists[unitDefId.id]; };
+	const std::list<UnitDefId>& GetConstructedByList(UnitDefId unitDefId) const { return m_unitTypeCanBeConstructedtByLists[unitDefId.id]; }
 
 	//! @brief Returns the list of units that can be construct by the given unit.
-	const std::list<UnitDefId>& GetCanConstructList(UnitDefId unitDefId) const { return m_unitTypeCanConstructLists[unitDefId.id]; };
+	const std::list<UnitDefId>& GetCanConstructList(UnitDefId unitDefId) const { return m_unitTypeCanConstructLists[unitDefId.id]; }
 
 	//! @brief Returns the number of sides
-	int GetNumberOfSides() const { return m_numberOfSides; };
+	int GetNumberOfSides() const { return m_numberOfSides; }
 
 	//! @brief Returns whether a given unit type is a starting unit for one side
 	bool IsStartingUnit(UnitDefId unitDefId) const;
 
 	//! @brief Returns start units (probably not needed anymore when refactoring AAIBuildTable is finished)
-	UnitDefId GetStartUnit(int side) const { return m_initialized ? UnitDefId(m_startUnitsOfSide[side]) : UnitDefId(0); };
+	UnitDefId GetStartUnit(int side) const { return m_initialized ? UnitDefId(m_startUnitsOfSide[side]) : UnitDefId(0); }
 
 	//! @brief Returns the unit type properties of the given unit type
-	const UnitTypeProperties& GetUnitTypeProperties(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id]; };
+	const UnitTypeProperties& GetUnitTypeProperties(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id]; }
 
 	//! @brief Return the total cost of the given unit type
-	const float GetTotalCost(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_totalCost; };
+	const float GetTotalCost(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_totalCost; }
 
 	//! @brief Return the buildtime of the given unit type
-	const float GetBuildtime(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_buildtime; };
+	const float GetBuildtime(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_buildtime; }
 
 	//! @brief Return the maximum weapon range (0.0f if unarmed)
-	const float GetMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
+	const float GetMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; }
 
 	//! @brief Returns the buildspeed for static and mobile constructors, range otherwise (buildspeed is stored in range variable)
-	const float GetBuildspeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; };
+	const float GetBuildspeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_range; }
 
 	//! @brief Returns the category that the given unit belongs to
-	const AAIUnitCategory& GetUnitCategory(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_unitCategory; };
+	const AAIUnitCategory& GetUnitCategory(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_unitCategory; }
 
 	//! @brief Returns movement type of given unit type
-	const AAIMovementType& GetMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].m_movementType; };
+	const AAIMovementType& GetMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].m_movementType; }
 
 	//! @brief Return the maximum speed
-	const float GetMaxSpeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; };
+	const float GetMaxSpeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; }
 
 	//! @brief Returns the list of units of the given category for given side
-	const std::list<int>& GetUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; };
+	const std::list<int>& GetUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; }
 
 	//! @brief Returns the list of units of the given combat category for given side
-	const std::list<int>& GetUnitsInCombatCategory(const AAICombatCategory& category, int side) const { return m_unitsInCombatCategory[side-1][category.GetArrayIndex()]; };
+	const std::list<int>& GetUnitsInCombatCategory(const AAICombatCategory& category, int side) const { return m_unitsInCombatCategory[side-1][category.GetArrayIndex()]; }
 
 	//! @brief Returns the unit category statistics for given side
-	const AAIUnitStatistics& GetUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; };
+	const AAIUnitStatistics& GetUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; }
 
 	//! @brief Returns the corresponding human readable name of the given category
-	const std::string& GetCategoryName(const AAIUnitCategory& category) const { return m_unitCategoryNames[category.GetArrayIndex()]; };
+	const std::string& GetCategoryName(const AAIUnitCategory& category) const { return m_unitCategoryNames[category.GetArrayIndex()]; }
+
+	//! @brief Returns a list containing all unit categories of combat units
+	const std::list<AAIUnitCategory>& GetCombatUnitCatgegories() const { return m_combatUnitCategories; }
 
 private:
 	//! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
@@ -144,8 +147,11 @@ private:
 	//! For every side (not neutral), a list of units that belong to a certain category (order: m_unitsInCategory[side][category])
 	std::vector< std::vector< std::list<int> > >  m_unitsInCategory;
 
-	//! For every side (not neutral), a list of units that belong to a certain combat category (order: m_unitsInCategory[side][category])
+	//! For every side (not neutral), a list of units that belong to a certain combat category (order: m_unitsInCombatCategory[side][category])
 	std::vector< std::vector< std::list<int> > >  m_unitsInCombatCategory;
+
+	//! A list containing all catgeories of combat units
+	std::list< AAIUnitCategory >                  m_combatUnitCategories;
 
 	//! For every side, min/max/avg values for various data (e.g. cost) for every unit category
 	std::vector< AAIUnitStatistics >              m_unitCategoryStatisticsOfSide;

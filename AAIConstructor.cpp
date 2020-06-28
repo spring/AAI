@@ -472,10 +472,6 @@ void AAIConstructor::Killed()
 	// of building hasnt been started
 	if(m_activity.IsHeadingToBuildsite() == true)
 	{
-		//if buildling has not begun yet, decrease some values
-		// killed on the way to the buildsite
-		ai->Getmap()->UnitKilledAt(&m_buildPos, MOBILE_CONSTRUCTOR);
-
 		// clear up buildmap etc.
 		ConstructionFailed();
 	}

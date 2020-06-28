@@ -88,6 +88,8 @@ public:
 
 	bool isSeaCombat()         const { return (m_unitCategory == EUnitCategory::SEA_COMBAT) ? true : false; };
 
+	bool isSubmarineCombat()   const { return (m_unitCategory == EUnitCategory::SUBMARINE_COMBAT) ? true : false; };
+
 	bool isMobileArtillery()   const { return (m_unitCategory == EUnitCategory::MOBILE_ARTILLERY) ? true : false; };
 	
 	bool isScout()             const { return (m_unitCategory == EUnitCategory::SCOUT) ? true : false; };

@@ -63,25 +63,25 @@ AAISector* AAIBrain::GetAttackDest(bool land, bool water)
 		{
 			sector = &ai->Getmap()->sector[x][y];
 
-			if(sector->distance_to_base == 0 || sector->enemy_structures == 0)
-					my_rating = 0;
+			if(sector->distance_to_base == 0 || sector->enemy_structures == 0.0f)
+					my_rating = 0.0f;
 			else
 			{
-				if(land && sector->water_ratio < 0.4)
+				if(land && sector->water_ratio < 0.4f)
 				{
 					def_power = sector->GetEnemyDefencePower(ground, air, hover, sea, submarine);
 
 					if(def_power) {
 						my_rating = sector->enemy_structures / sector->GetEnemyDefencePower(ground, air, hover, sea, submarine);
 					} else {
-						my_rating = sector->enemy_structures / (2 * sector->GetEnemyDefencePower(ground, air, hover, sea, submarine) + pow(sector->GetLostUnits(ground, air, hover, sea, submarine) + 1, 1.5f) + 1);
+						my_rating = sector->enemy_structures / (2.0f * sector->GetEnemyDefencePower(ground, air, hover, sea, submarine) + pow(sector->GetLostUnits() + 1.0f, 1.5f) + 1.0f);
 					}
-					my_rating /= (8 + sector->distance_to_base);
+					my_rating /= static_cast<float>(5 + sector->distance_to_base);
 				}
 				else if(water && sector->water_ratio > 0.6)
 				{
-					my_rating = sector->enemy_structures / (2 * sector->GetEnemyDefencePower(ground, air, hover, sea, submarine) + pow(sector->GetLostUnits(ground, air, hover, sea, submarine) + 1, 1.5f) + 1);
-					my_rating /= (8 + sector->distance_to_base);
+					my_rating = sector->enemy_structures / (2.0f * sector->GetEnemyDefencePower(ground, air, hover, sea, submarine) + pow(sector->GetLostUnits() + 1.0f, 1.5f) + 1.0f);
+					my_rating /= static_cast<float>(5 + sector->distance_to_base);
 				}
 			}
 
@@ -122,7 +122,7 @@ AAISector* AAIBrain::GetNextAttackDest(AAISector *current_sector, bool land, boo
 				{
 					dist = sqrt( pow((float)sector->x - current_sector->x, 2) + pow((float)sector->y - current_sector->y , 2) );
 
-					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(ground, air, hover, sea, submarine), 2.0f) + pow(sector->GetLostUnits(ground, air, hover, sea, submarine) + 1, 1.5f));
+					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(ground, air, hover, sea, submarine), 2.0f) + pow(sector->GetLostUnits() + 1.0f, 1.5f));
 					my_rating /= (1.0f + dist);
 
 				}
@@ -130,7 +130,7 @@ AAISector* AAIBrain::GetNextAttackDest(AAISector *current_sector, bool land, boo
 				{
 					dist = sqrt( pow((float)(sector->x - current_sector->x), 2) + pow((float)(sector->y - current_sector->y), 2) );
 
-					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(ground, air, hover, sea, submarine), 2.0f) + pow(sector->GetLostUnits(ground, air, hover, sea, submarine) + 1, 1.5f));
+					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(ground, air, hover, sea, submarine), 2.0f) + pow(sector->GetLostUnits() + 1.0f, 1.5f));
 					my_rating /= (1.0f + dist);
 				}
 				else
@@ -546,9 +546,9 @@ void AAIBrain::UpdateDefenceCapabilities()
 
 	if(cfg->AIR_ONLY_MOD)
 	{
-		for(list<UnitCategory>::iterator category = ai->Getbt()->assault_categories.begin(); category != ai->Getbt()->assault_categories.end(); ++category)
+		for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
-			for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[*category].begin(); group != ai->Getgroup_list()[*category].end(); ++group)
+			for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[category->GetArrayIndex()].begin(); group != ai->Getgroup_list()[category->GetArrayIndex()].end(); ++group)
 			{
 				defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(0);
 				defence_power_vs[1] += (*group)->GetCombatPowerVsCategory(1);
@@ -560,34 +560,33 @@ void AAIBrain::UpdateDefenceCapabilities()
 	else
 	{
 		// anti air power
-		for(list<UnitCategory>::iterator category = ai->Getbt()->assault_categories.begin(); category != ai->Getbt()->assault_categories.end(); ++category)
+		for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
-			for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[*category].begin(); group != ai->Getgroup_list()[*category].end(); ++group)
+			for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[category->GetArrayIndex()].begin(); group != ai->Getgroup_list()[category->GetArrayIndex()].end(); ++group)
 			{
 				if((*group)->group_unit_type == ASSAULT_UNIT)
 				{
-					if((*group)->category == GROUND_ASSAULT)
+					switch((*group)->category.getUnitCategory())
 					{
-						defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(0);
-						defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(2);
-					}
-					else if((*group)->category == HOVER_ASSAULT)
-					{
-						defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(0);
-						defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(2);
-						defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(3);
-					}
-					else if((*group)->category == SEA_ASSAULT)
-					{
-						defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(2);
-						defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(3);
-						defence_power_vs[4] += (*group)->GetCombatPowerVsCategory(4);
-					}
-					else if((*group)->category == SUBMARINE_ASSAULT)
-					{
-						defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(3);
-						defence_power_vs[4] += (*group)->GetCombatPowerVsCategory(4);
-					}
+						case EUnitCategory::GROUND_COMBAT:
+							defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(0);
+							defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(2);
+							break;
+						case EUnitCategory::HOVER_COMBAT:
+							defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(0);
+							defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(2);
+							defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(3);
+							break;
+						case EUnitCategory::SEA_COMBAT:
+							defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(2);
+							defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(3);
+							defence_power_vs[4] += (*group)->GetCombatPowerVsCategory(4);
+							break;
+						case EUnitCategory::SUBMARINE_COMBAT:
+							defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(3);
+							defence_power_vs[4] += (*group)->GetCombatPowerVsCategory(4);
+							break;
+					}	
 				}
 				else if((*group)->group_unit_type == ANTI_AIR_UNIT)
 					defence_power_vs[1] += (*group)->GetCombatPowerVsCategory(1);
@@ -837,14 +836,14 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 			unitCriteria.power = 2.0f;
 	}
 
-	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->Getside(), unitCategory, combatCriteria, unitCriteria, 6, false);
+	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatCriteria, unitCriteria, 6, false);
 
 	if( (unitDefId.isValid() == true) && (ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0) )
 	{
 		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
 			ai->Getbt()->BuildFactoryFor(unitDefId.id);
 
-		unitDefId = ai->Getbt()->SelectCombatUnit(ai->Getside(), unitCategory, combatCriteria, unitCriteria, 6, true);
+		unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatCriteria, unitCriteria, 6, true);
 	}
 
 	if(unitDefId.isValid() == true)
@@ -852,7 +851,7 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable > 0)
 		{
 			const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
-			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.GetUnitStatistics(ai->Getside()).GetUnitCostStatistics(category);
+			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
 
 			if(ai->Getbt()->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
 			{
@@ -899,7 +898,7 @@ int AAIBrain::GetGamePeriod()
 bool AAIBrain::IsSafeSector(AAISector *sector)
 {
 	// TODO: improve criteria
-	return (   (sector->lost_units[MOBILE_CONSTRUCTOR-COMMANDER] < 0.5f)
+	return (   (sector->GetLostUnits() < 0.5f)
 			&& (sector->GetTotalEnemyCombatUnits() < 0.1f) 
 			&& (sector->enemy_structures < 0.01f)
 			&& (sector->enemies_on_radar == 0) );
