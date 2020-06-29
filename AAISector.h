@@ -192,9 +192,6 @@ public:
 	vector<float> combats_this_game;
 	vector<float> combats_learned;
 
-	// combat units in the sector
-	vector<short> my_combat_units;
-
 	int enemies_on_radar;
 
 	// stores combat power of all stationary defs/combat unit vs different categories

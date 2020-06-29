@@ -34,8 +34,6 @@ AAISector::~AAISector(void)
 	my_mobile_combat_power.clear();
 	enemy_mobile_combat_power.clear();
 
-	my_combat_units.clear();
-
 	m_enemyCombatUnits.clear();
 
 	m_ownBuildingsOfCategory.clear();
@@ -101,8 +99,6 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 
 	my_mobile_combat_power.resize(categories+1, 0);
 	enemy_mobile_combat_power.resize(categories+1, 0);
-
-	my_combat_units.resize(categories, 0);
 
 	m_enemyCombatUnits.resize(AAICombatUnitCategory::numberOfCombatUnitCategories, 0.0f);
 

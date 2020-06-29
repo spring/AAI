@@ -153,7 +153,7 @@ private:
 	vector<unsigned short> sector_in_los_with_enemies;
 
 	// temp for scouting
-	vector<unsigned short> enemy_combat_units_spotted;
+	std::vector<int> m_spottedEnemyCombatUnits;
 
 	bool initialized;
 	// krogothe's metal spot finder

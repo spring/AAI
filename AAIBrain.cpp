@@ -508,7 +508,7 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 	return false;
 }
 
-void AAIBrain::UpdateMaxCombatUnitsSpotted(vector<unsigned short>& units_spotted)
+void AAIBrain::UpdateMaxCombatUnitsSpotted(const std::vector<int>& spottedCombatUnits)
 {
 	for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
 	{
@@ -516,8 +516,8 @@ void AAIBrain::UpdateMaxCombatUnitsSpotted(vector<unsigned short>& units_spotted
 		max_combat_units_spotted[i] *= 0.996f;
 
 		// check for new max values
-		if((float)units_spotted[i] > max_combat_units_spotted[i])
-			max_combat_units_spotted[i] = (float)units_spotted[i];
+		if((float)spottedCombatUnits[i] > max_combat_units_spotted[i])
+			max_combat_units_spotted[i] = (float)spottedCombatUnits[i];
 	}
 }
 

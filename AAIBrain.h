@@ -44,8 +44,8 @@ public:
 	// recalculates the center of the base
 	void UpdateBaseCenter();
 
-	// updates max units spotted
-	void UpdateMaxCombatUnitsSpotted(vector<unsigned short>& units_spotted);
+	//! @brief Updates the maximum number of spotted combat units for each category (old max values decrease over time)
+	void UpdateMaxCombatUnitsSpotted(const std::vector<int>& spottedCombatUnits);
 
 	void UpdateAttackedByValues();
 

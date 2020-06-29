@@ -121,7 +121,7 @@ AAIMap::~AAIMap(void)
 	sector_in_los_with_enemies.clear();
 
 	units_in_los.clear();
-	enemy_combat_units_spotted.clear();
+	m_spottedEnemyCombatUnits.clear();
 }
 
 void AAIMap::Init()
@@ -208,7 +208,7 @@ void AAIMap::Init()
 
 	units_in_los.resize(cfg->MAX_UNITS, 0);
 
-	enemy_combat_units_spotted.resize(AAIBuildTable::ass_categories, 0);
+	m_spottedEnemyCombatUnits.resize(AAICombatUnitCategory::numberOfCombatUnitCategories, 0);
 
 	// create defence
 	defence_map.resize(xDefMapSize*yDefMapSize, 0);
@@ -2091,7 +2091,7 @@ void AAIMap::UpdateRecon()
 
 	fill(sector_in_los.begin(), sector_in_los.end(), 0);
 	fill(sector_in_los_with_enemies.begin(), sector_in_los_with_enemies.end(), 0);
-	fill(enemy_combat_units_spotted.begin(), enemy_combat_units_spotted.end(), 0);
+	fill(m_spottedEnemyCombatUnits.begin(), m_spottedEnemyCombatUnits.end(), 0);
 
 	//
 	// reset scouted buildings for all cells within current los
@@ -2145,7 +2145,7 @@ void AAIMap::UpdateRecon()
 				}
 
 				if(category.isCombatUnit() == true)
-					++enemy_combat_units_spotted[ai->Getbt()->units_static[def->id].category - GROUND_ASSAULT];
+					m_spottedEnemyCombatUnits[ AAICombatUnitCategory(category).GetArrayIndex() ] += 1;
 			}
 		}
 		else // unit on radar only
@@ -2171,9 +2171,8 @@ void AAIMap::UpdateRecon()
 				sector[x][y].own_structures = 0;
 				sector[x][y].allied_structures = 0;
 
-				fill(sector[x][y].my_combat_units.begin(), sector[x][y].my_combat_units.end(), 0);
 				fill(sector[x][y].my_mobile_combat_power.begin(), sector[x][y].my_mobile_combat_power.end(), 0);
-				fill(sector[x][y].my_stat_combat_power.begin(), sector[x][y].my_stat_combat_power.end(), 0);
+				fill(sector[x][y].my_stat_combat_power.begin(),   sector[x][y].my_stat_combat_power.end(),   0);
 			}
 		}
 	}
@@ -2216,8 +2215,6 @@ void AAIMap::UpdateRecon()
 				// add unit to sector and update mobile_combat_power
 				else
 				{
-					++sector[x][y].my_combat_units[ai->Getbt()->units_static[def->id].category - GROUND_ASSAULT];
-
 					for(int i = 0; i < AAIBuildTable::combat_categories; ++i)
 						sector[x][y].my_mobile_combat_power[i] += ai->Getbt()->units_static[def->id].efficiency[i];
 				}
@@ -2225,7 +2222,7 @@ void AAIMap::UpdateRecon()
 		}
 	}
 
-	ai->Getbrain()->UpdateMaxCombatUnitsSpotted(enemy_combat_units_spotted);
+	ai->Getbrain()->UpdateMaxCombatUnitsSpotted(m_spottedEnemyCombatUnits);
 }
 
 void AAIMap::UpdateEnemyScoutingData()

@@ -139,22 +139,22 @@ enum class ECombatUnitCategory : int
 class AAICombatUnitCategory
 {
 public:
-	AAICombatUnitCategory() : m_combatUnitCategory(ECombatUnitCategory::UNKNOWN) {};
+	AAICombatUnitCategory() : m_combatUnitCategory(ECombatUnitCategory::UNKNOWN) {}
 
-	AAICombatUnitCategory(ECombatUnitCategory category) : m_combatUnitCategory(category) {};
+	AAICombatUnitCategory(ECombatUnitCategory category) : m_combatUnitCategory(category) {}
 
-	AAICombatUnitCategory(const AAIUnitCategory& category) : m_combatUnitCategory( static_cast<ECombatUnitCategory>(category.GetArrayIndex() - static_cast<int>(EUnitCategory::GROUND_COMBAT)) ) {};
+	AAICombatUnitCategory(const AAIUnitCategory& category) : m_combatUnitCategory( static_cast<ECombatUnitCategory>(category.GetArrayIndex() - static_cast<int>(EUnitCategory::GROUND_COMBAT)) ) {}
 
 	static const int numberOfCombatUnitCategories = static_cast<int>(ECombatUnitCategory::NUMBER_OF_CATEGORIES);
 
 	static const ECombatUnitCategory firstCombatUnitCategory = ECombatUnitCategory::GROUND_COMBAT;
 
-	void Next() { m_combatUnitCategory = static_cast<ECombatUnitCategory>( static_cast<int>(m_combatUnitCategory) + 1 ); };
+	void Next() { m_combatUnitCategory = static_cast<ECombatUnitCategory>( static_cast<int>(m_combatUnitCategory) + 1 ); }
 
-	bool End() const { return (m_combatUnitCategory == ECombatUnitCategory::NUMBER_OF_CATEGORIES); };
+	bool End() const { return (m_combatUnitCategory == ECombatUnitCategory::NUMBER_OF_CATEGORIES); }
 
 	//! Returns index to access arrays storing combat unit data, i.e. ranging from 0 to numberOfCombatUnitCategories-1
-	int GetArrayIndex() const {return static_cast<int>(m_combatUnitCategory); };
+	int GetArrayIndex() const {return static_cast<int>(m_combatUnitCategory); }
 
 private:
 	//! The unit category

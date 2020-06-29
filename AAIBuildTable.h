@@ -40,8 +40,6 @@ struct UnitTypeStatic
 {
 	vector<float> efficiency;		// 0 -> ground assault, 1 -> air assault, 2 -> hover assault
 									// 3 -> sea assault, 4 -> submarine , 5 -> stat. defences
-	UnitCategory category;
-
 	unsigned int unit_type;
 };
 
