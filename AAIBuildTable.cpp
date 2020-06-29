@@ -33,10 +33,6 @@ vector<vector<float>> AAIBuildTable::max_value;
 vector<vector<float>> AAIBuildTable::min_cost;
 vector<vector<float>> AAIBuildTable::min_buildtime;
 vector<vector<float>> AAIBuildTable::min_value;
-vector<vector<float>> AAIBuildTable::avg_speed;
-vector<vector<float>> AAIBuildTable::min_speed;
-vector<vector<float>> AAIBuildTable::max_speed;
-vector<vector<float>> AAIBuildTable::group_speed;
 vector< vector< vector<float> > > AAIBuildTable::attacked_by_category_learned;
 vector< vector<float> > AAIBuildTable::attacked_by_category_current;
 vector<UnitTypeStatic> AAIBuildTable::units_static;
@@ -133,22 +129,9 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 			max_builder_buildspeed[s] = -1;
 		}*/
 
-		// set up speed and attacked_by table
-		avg_speed.resize(combat_categories);
-		max_speed.resize(combat_categories);
-		min_speed.resize(combat_categories);
-		group_speed.resize(combat_categories);
-
+		// set up attacked_by table
 		attacked_by_category_current.resize(cfg->GAME_PERIODS, vector<float>(combat_categories, 0));
 		attacked_by_category_learned.resize(3,  vector< vector<float> >(cfg->GAME_PERIODS, vector<float>(combat_categories, 0)));
-
-		for(int i = 0; i < combat_categories; ++i)
-		{
-			avg_speed[i].resize(numOfSides);
-			max_speed[i].resize(numOfSides);
-			min_speed[i].resize(numOfSides);
-			group_speed[i].resize(numOfSides);
-		}
 
 		// init eff stats
 		avg_eff.resize(numOfSides, vector< vector<float> >(combat_categories, vector<float>(combat_categories, 1.0f)));
@@ -178,11 +161,6 @@ AAIBuildTable::~AAIBuildTable(void)
 		/*spring::SafeDeleteArray(max_builder_buildtime);
 		spring::SafeDeleteArray(max_builder_cost);
 		spring::SafeDeleteArray(max_builder_buildspeed);*/
-
-		avg_speed.clear();
-		max_speed.clear();
-		min_speed.clear();
-		group_speed.clear();
 
 		attacked_by_category_learned.clear();
 		attacked_by_category_current.clear();
@@ -1138,10 +1116,7 @@ void AAIBuildTable::PrecacheStats()
 			max_value[MOBILE_CONSTRUCTOR][s] = -1;
 		}
 
-
 		// precache unit speed and weapons range
-		int cat;
-
 		for(list<UnitCategory>::iterator category = assault_categories.begin(); category != assault_categories.end(); ++category)
 		{
 			// precache range
@@ -1171,69 +1146,6 @@ void AAIBuildTable::PrecacheStats()
 				min_value[*category][s] = -1;
 				avg_value[*category][s] = -1;
 				max_value[*category][s] = -1;
-			}
-
-			// precache speed
-			switch(*category)
-			{
-				case GROUND_ASSAULT:
-				{
-					cat = 0;
-					break;
-				}
-				case AIR_ASSAULT:
-				{
-					cat = 1;
-					break;
-				}
-				case HOVER_ASSAULT:
-				{
-					cat = 2;
-					break;
-				}
-				case SEA_ASSAULT:
-				{
-					cat = 0;
-					break;
-				}
-				case SUBMARINE_ASSAULT:
-				{
-					cat = 0;
-					break;
-				}
-			}
-
-			if(cat != -1)
-			{
-				if(units_of_category[*category][s].size() > 0)
-				{
-					min_speed[cat][s] = 10000;
-					max_speed[cat][s] = 0;
-					group_speed[cat][s] = 0;
-					avg_speed[cat][s] = 0;
-
-					for(list<int>::iterator unit = units_of_category[*category][s].begin(); unit != units_of_category[*category][s].end(); ++unit)
-					{
-						avg_speed[cat][s] += GetUnitDef(*unit).speed;
-
-						if(GetUnitDef(*unit).speed < min_speed[cat][s])
-							min_speed[cat][s] = GetUnitDef(*unit).speed;
-
-						if(GetUnitDef(*unit).speed > max_speed[cat][s])
-							max_speed[cat][s] = GetUnitDef(*unit).speed;
-					}
-
-					avg_speed[cat][s] /= (float)units_of_category[*category][s].size();
-
-					group_speed[cat][s] = (1 + max_speed[cat][s] - min_speed[cat][s]) / ((float)cfg->UNIT_SPEED_SUBGROUPS);
-				}
-				else
-				{
-					min_speed[cat][s] = -1;
-					max_speed[cat][s] = -1;
-					group_speed[cat][s] = -1;
-					avg_speed[cat][s] = -1;
-				}
 			}
 		}
 	}
@@ -1560,9 +1472,7 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
 
 	const StatisticalData& costStatistics = s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
 
-	//ai->Log("Combat power weights: ground %f   air %f   hover %f   sea %f   submarine %f\n", 
-			combatPowerWeights.vsGround, combatPowerWeights.vsAir, combatPowerWeights.vsHover, 
-			combatPowerWeights.vsSea, combatPowerWeights.vsSubmarine);
+	//ai->Log("Combat power weights: ground %f   air %f   hover %f   sea %f   submarine %f\n", combatPowerWeights.vsGround, combatPowerWeights.vsAir, combatPowerWeights.vsHover, combatPowerWeights.vsSea, combatPowerWeights.vsSubmarine);
 	//ai->Log("Factory ratings (max combat power rating %f):", maxCombatRating);
 
 	for(auto factory = factoryList.begin(); factory != factoryList.end(); ++factory)
@@ -2485,16 +2395,6 @@ bool AAIBuildTable::LoadBuildTable()
 						&max_buildtime[cat][s], &min_buildtime[cat][s], &avg_buildtime[cat][s],
 						&max_value[cat][s], &min_value[cat][s], &avg_value[cat][s]);
 				}
-
-				// load cached speed stats
-				for(int cat = 0; cat < combat_categories; ++cat)
-				{
-					fscanf(load_file, "%f %f %f %f \n", &min_speed[cat][s], &max_speed[cat][s], &group_speed[cat][s], &avg_speed[cat][s]);
-				}
-
-				// update group speed (in case UNIT_SPEED_SUBGROUPS changed)
-				for(int cat = 0; cat < combat_categories; ++cat)
-					group_speed[cat][s] = (1 + max_speed[cat][s] - min_speed[cat][s]) / ((float)cfg->UNIT_SPEED_SUBGROUPS);
 			}
 
 			fclose(load_file);
@@ -2590,14 +2490,6 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 						max_cost[cat][s], min_cost[cat][s], avg_cost[cat][s],
 						max_buildtime[cat][s], min_buildtime[cat][s], avg_buildtime[cat][s],
 						max_value[cat][s], min_value[cat][s], avg_value[cat][s]);
-
-			fprintf(save_file, "\n");
-		}
-
-		// save cached speed stats
-		for(int cat = 0; cat < combat_categories; ++cat)
-		{
-			fprintf(save_file, "%f %f %f %f \n", min_speed[cat][s], max_speed[cat][s], group_speed[cat][s], avg_speed[cat][s]);
 
 			fprintf(save_file, "\n");
 		}

@@ -277,11 +277,6 @@ public:
 	static vector<vector<float>> min_buildtime;
 	static vector<vector<float>> min_value;
 
-	static vector<vector<float>> avg_speed;
-	static vector<vector<float>> min_speed;
-	static vector<vector<float>> max_speed;
-	static vector<vector<float>> group_speed;
-
 	// combat categories that attacked AI in certain game period attacked_by_category_learned[map_type][period][cat]
 	static vector< vector< vector<float> > > attacked_by_category_learned;
 
