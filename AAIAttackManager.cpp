@@ -86,11 +86,11 @@ void AAIAttackManager::LaunchAttack()
 				{
 					if((*group)->group_unit_type == ASSAULT_UNIT)
 					{
-						available_combat_groups_continent[(*group)->continent].push_back(*group);
+						available_combat_groups_continent[(*group)->GetContinentId()].push_back(*group);
 						++total_combat_groups;
 					}
 					else
-						available_aa_groups_continent[(*group)->continent].push_back(*group);
+						available_aa_groups_continent[(*group)->GetContinentId()].push_back(*group);
 				}
 				else
 				{
@@ -146,31 +146,30 @@ void AAIAttackManager::LaunchAttack()
 	float def_power;
 	float att_power;
 	float best_rating = 0.0f;
-	AAISector* sector;
-	AAISector* dest = NULL;
+	AAISector* dest = nullptr;
 
-	ai->Log("Checking sectors for attack:");
 	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
 	{
 		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
 		{
-			sector = &ai->Getmap()->sector[x][y];
+			AAISector* sector = &ai->Getmap()->sector[x][y];
 
 			float my_rating;
 
-			ai->Log(" %f", sector->enemy_structures);
 			if((sector->distance_to_base == 0) || (sector->enemy_structures < 0.0001f) )
 				my_rating = 0.0f;
 			else
 			{
 				if(ai->Getmap()->continents[sector->continent].water)
 				{
-					def_power = sector->GetEnemyDefencePower(0.0f, 0.0f, 0.5f, 1.0f, 1.0f) + 0.01;
+					CombatPower weights(0.0f, 0.0f, 0.5f, 1.0f, 0.5f);
+					def_power = 0.01f + sector->GetEnemyDefencePower(weights);
 					att_power = attack_power_global[5] + attack_power_continent[sector->continent][5];
 				}
 				else
 				{
-					def_power = sector->GetEnemyDefencePower(1.0f, 0.0f, 0.5f, 0.0f, 0.0f) + 0.01;
+					CombatPower weights(1.0f, 0.0f, 0.3f, 0.0f, 0.0f);
+					def_power = 0.01f + sector->GetEnemyDefencePower(weights);
 					att_power = attack_power_global[5] + attack_power_continent[sector->continent][5];
 				}
 
@@ -191,7 +190,6 @@ void AAIAttackManager::LaunchAttack()
 			}
 		}
 	}
-	ai->Log("\nBest rating: %f\n", best_rating);
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// order attack
@@ -340,7 +338,7 @@ bool AAIAttackManager::SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *
 	return false;
 }
 
-bool AAIAttackManager::SufficientCombatPowerAt(AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness)
+bool AAIAttackManager::SufficientCombatPowerAt(const AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness)
 {
 	if(dest && !combat_groups->empty())
 	{

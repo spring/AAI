@@ -46,7 +46,7 @@ bool AAIAttack::Failed()
 		{
 			// check if sufficient power to combat enemy units
 			float3 pos = (*combat_groups.begin())->GetGroupPos();
-			AAISector *sector = ai->Getmap()->GetSectorOfPos(&pos);
+			AAISector *sector = ai->Getmap()->GetSectorOfPos(pos);
 
 			if(sector && ai->Getam()->SufficientCombatPowerAt(sector, &combat_groups, 2))
 				return false;
@@ -63,7 +63,7 @@ void AAIAttack::StopAttack()
 		// get rally point somewhere between current pos an base
 		(*group)->GetNewRallyPoint();
 
-		(*group)->Retreat(&(*group)->rally_point);
+		(*group)->RetreatToRallyPoint();
 		(*group)->attack = 0;
 	}
 
@@ -72,7 +72,7 @@ void AAIAttack::StopAttack()
 		// get rally point somewhere between current pos an base
 		(*group)->GetNewRallyPoint();
 
-		(*group)->Retreat(&(*group)->rally_point);
+		(*group)->RetreatToRallyPoint();
 		(*group)->attack = 0;
 	}
 

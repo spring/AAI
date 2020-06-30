@@ -63,7 +63,7 @@ public:
 	uint32_t getSuitableMovementTypesForMap() const { return getSuitableMovementTypes(map_type); };
 
 	// returns sector (0 if out of sector map -> e.g. aircraft flying outside of the map) of a position
-	AAISector* GetSectorOfPos(float3 *pos);
+	AAISector* GetSectorOfPos(const float3& pos);
 
 	float GetEdgeDistance(float3 *pos);
 

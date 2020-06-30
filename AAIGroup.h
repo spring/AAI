@@ -50,8 +50,11 @@ public:
 	// defend unit vs enemy (0; zerovector if enemy unknown)
 	void Defend(int unit, float3 *enemy_pos, int importance);
 
-	// retreat combat groups to pos
-	void Retreat(float3 *pos);
+	//! @brief Retreat to rally point
+	void RetreatToRallyPoint()  { Retreat(m_rallyPoint); }
+
+	//! @brief Retreat units in group to given position
+	void Retreat(const float3& pos);
 
 	// bombs target (only for bomber groups)
 	void BombTarget(int target_id, float3 *target_pos);
@@ -79,6 +82,9 @@ public:
 	float GetCombatPowerVsCategory(int assault_cat_id);
 
 	void GetCombatPower(vector<float> *combat_power);
+
+	//! @brief Return the id of the continent the units of this group are stationed on (-1 for non-continent bound movement types)
+	int GetContinentId() const { return m_continentId; }
 
 	float3 GetGroupPos();
 
@@ -108,12 +114,6 @@ public:
 	// attack the group takes part in
 	AAIAttack *attack;
 
-	// rally point of the group, ZeroVector if none...
-	float3 rally_point;
-
-	// id of the continent the units of this group are stationed on (only matters if units of group cannot move to another continent)
-	int continent;
-
 private:
 	// returns true if group is strong enough to attack
 	bool SufficientAttackPower();
@@ -124,8 +124,14 @@ private:
 	UnitDefId m_groupDefId;
 
 	AAI* ai;
+
 	AAISector *target_sector;
 
+	//! Rally point of the group, ZeroVector if none.
+	float3 m_rallyPoint;
+
+	//! Id of the continent the units of this group are stationed on (only matters if units of group cannot move to another continent)
+	int m_continentId;
 };
 
 #endif

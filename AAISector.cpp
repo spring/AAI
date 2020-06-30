@@ -533,13 +533,13 @@ float AAISector::GetMyDefencePower(float ground, float air, float hover, float s
 	return (ground * my_stat_combat_power[0] + air * my_stat_combat_power[1] + hover * my_stat_combat_power[2] + sea * my_stat_combat_power[3] + submarine * my_stat_combat_power[4]);
 }
 
-float AAISector::GetEnemyDefencePower(float ground, float air, float hover, float sea, float submarine)
+float AAISector::GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const
 {
-	return (ground * (enemy_stat_combat_power[0] + enemy_mobile_combat_power[0])
-		+ air * (enemy_stat_combat_power[1] + enemy_mobile_combat_power[1])
-		+ hover * (enemy_stat_combat_power[2] + enemy_mobile_combat_power[2])
-		+ sea * (enemy_stat_combat_power[3] + enemy_mobile_combat_power[3])
-		+ submarine * (enemy_stat_combat_power[4] + enemy_mobile_combat_power[4]) );
+	return (combatCategoryWeigths.vsGround  * (enemy_stat_combat_power[0] + enemy_mobile_combat_power[0])
+		+ combatCategoryWeigths.vsAir       * (enemy_stat_combat_power[1] + enemy_mobile_combat_power[1])
+		+ combatCategoryWeigths.vsHover     * (enemy_stat_combat_power[2] + enemy_mobile_combat_power[2])
+		+ combatCategoryWeigths.vsSea       * (enemy_stat_combat_power[3] + enemy_mobile_combat_power[3])
+		+ combatCategoryWeigths.vsSubmarine * (enemy_stat_combat_power[4] + enemy_mobile_combat_power[4]) );
 }
 
 float AAISector::GetMyDefencePowerAgainstAssaultCategory(int assault_category)
@@ -585,7 +585,7 @@ float AAISector::getEnemyThreatToMovementType(const AAIMovementType& movementTyp
 	}
 }
 
-float AAISector::GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance)
+float AAISector::GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance) const
 {
 	float result = enemy_mobile_combat_power[combat_category];
 

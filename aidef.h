@@ -52,6 +52,42 @@ public:
 	float amount;
 };
 
+
+//! Criteria (combat efficiency vs specific kind of target type) used for selection of units
+class CombatPower
+{
+public:
+	CombatPower() {}
+
+	CombatPower(float initialValue) :
+			vsGround(initialValue), vsAir(initialValue), vsHover(initialValue), vsSea(initialValue), vsSubmarine(initialValue), vsBuildings(initialValue) {}
+
+	CombatPower(float ground, float air, float hover, float sea, float submarine, float buildings = 0.0f) :
+			vsGround(ground), vsAir(air), vsHover(hover), vsSea(sea), vsSubmarine(submarine), vsBuildings(buildings) {}
+
+	float CalculateSum() const
+	{
+		return vsGround + vsAir + vsHover + vsSea + vsSubmarine + vsBuildings;
+	}
+
+	float CalculateWeightedSum(const CombatPower& weights) const
+	{
+		return 	  (weights.vsGround    * vsGround)
+				+ (weights.vsAir       * vsAir)
+				+ (weights.vsHover     * vsHover)
+		     	+ (weights.vsSea       * vsSea)
+				+ (weights.vsSubmarine * vsSubmarine)
+				+ (weights.vsBuildings * vsBuildings);
+	}
+
+	float vsGround;
+	float vsAir;
+	float vsHover;
+	float vsSea;
+	float vsSubmarine;
+	float vsBuildings;
+};
+
 // unit types (for bitfield)
 #define UNIT_TYPE_BUILDER (unsigned int) 1
 #define UNIT_TYPE_FACTORY (unsigned int) 2

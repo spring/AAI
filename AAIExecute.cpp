@@ -3003,7 +3003,7 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(UnitType group_type, float3 *pos
 		{
 			if((*group)->group_unit_type == group_type && !(*group)->attack)
 			{
-				if((*group)->continent == -1 || (*group)->continent == continent)
+				if((*group)->GetContinentId() == -1 || (*group)->GetContinentId() == continent)
 				{
 					if((*group)->task == GROUP_IDLE) // || (*group)->task_importance < importance)
 					{

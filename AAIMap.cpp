@@ -2084,9 +2084,6 @@ void AAIMap::SearchMetalSpots()
 
 void AAIMap::UpdateRecon()
 {
-	const UnitDef *def;
-	float3 pos;
-
 	int frame = ai->Getcb()->GetCurrentFrame();
 
 	fill(sector_in_los.begin(), sector_in_los.end(), 0);
@@ -2102,7 +2099,7 @@ void AAIMap::UpdateRecon()
 	{
 		for(int x = 0; x < xLOSMapSize; ++x)
 		{
-			if(los_map[x + y * xLOSMapSize])
+			if(los_map[x + y * xLOSMapSize] > 0)
 			{
 				scout_map[x + y * xLOSMapSize] = 0;
 				last_updated_map[x + y * xLOSMapSize] = frame;
@@ -2124,8 +2121,8 @@ void AAIMap::UpdateRecon()
 
 	for(int i = 0; i < number_of_units; ++i)
 	{
-		//pos = ai->Getcb()->GetUnitPos(units_in_los[i]);
-		def = ai->Getcb()->GetUnitDef(units_in_los[i]);
+		float3 pos = ai->Getcb()->GetUnitPos(units_in_los[i]);
+		const UnitDef* def = ai->Getcb()->GetUnitDef(units_in_los[i]);
 
 		if(def) // unit is within los
 		{
@@ -2150,8 +2147,6 @@ void AAIMap::UpdateRecon()
 		}
 		else // unit on radar only
 		{
-			pos = ai->Getcb()->GetUnitPos(units_in_los[i]);
-
 			x_pos = pos.x/xSectorSize;
 			y_pos = pos.z/ySectorSize;
 
@@ -2186,12 +2181,12 @@ void AAIMap::UpdateRecon()
 	for(int i = 0; i < number_of_units; ++i)
 	{
 		// get unit def & category
-		def = ai->Getcb()->GetUnitDef(units_in_los[i]);
+		const UnitDef* def = ai->Getcb()->GetUnitDef(units_in_los[i]);
 		const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 		if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
 		{
-			pos = ai->Getcb()->GetUnitPos(units_in_los[i]);
+			float3 pos = ai->Getcb()->GetUnitPos(units_in_los[i]);
 
 			x = pos.x/xSectorSize;
 			y = pos.z/ySectorSize;
@@ -2250,7 +2245,7 @@ void AAIMap::UpdateEnemyScoutingData()
 						// add building to sector (and update stat_combat_power if it's a stat defence)
 						if(ai->Getbt()->s_buildTree.GetMovementType(unitDefId).isStatic() == true)
 						{
-							++sector->enemy_structures;
+							sector->enemy_structures += 1.0f;
 
 							if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence() == true)
 							{
@@ -2320,10 +2315,10 @@ bool AAIMap::ValidSector(int x, int y)
 		return false;
 }
 
-AAISector* AAIMap::GetSectorOfPos(float3 *pos)
+AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 {
-	int x = pos->x/xSectorSize;
-	int y = pos->z/ySectorSize;
+	int x = pos.x/xSectorSize;
+	int y = pos.z/ySectorSize;
 
 	if(ValidSector(x,y))
 		return &(sector[x][y]);

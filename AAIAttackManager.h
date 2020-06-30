@@ -34,7 +34,7 @@ public:
 	void CheckAttack(AAIAttack *attack);
 
 	// true if units have sufficient combat power to face mobile units in dest
-	bool SufficientCombatPowerAt(AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness);
+	bool SufficientCombatPowerAt(const AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness);
 
 	// true if combat groups have suffiecient attack power to face stationary defences
 	bool SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness);

@@ -46,49 +46,43 @@ AAIBrain::~AAIBrain(void)
 AAISector* AAIBrain::GetAttackDest(bool land, bool water)
 {
 	float best_rating = 0.0f, my_rating = 0.0f;
-	AAISector *dest = 0, *sector;
+	AAISector *dest = 0;
 
-	float ground =  1.0f;
-	float air = 1.0f;
-	float hover = 1.0f;
-	float sea = 1.0f;
-	float submarine = 1.0f;
-
-	float def_power;
+	CombatPower defencePowerWeightsLand(1.0f, 0.0f, 0.3f, 0.0f, 0.0f);
+	CombatPower defencePowerWeightsSea(0.0f, 0.0f, 0.5f, 1.0f, 0.5f);
 
 	// TODO: improve destination sector selection
 	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
 	{
 		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
 		{
-			sector = &ai->Getmap()->sector[x][y];
+			AAISector* sector = &ai->Getmap()->sector[x][y];
 
-			if(sector->distance_to_base == 0 || sector->enemy_structures == 0.0f)
-					my_rating = 0.0f;
-			else
+			const bool checkSector = (land && sector->water_ratio > 0.6f) || (water && sector->water_ratio < 0.4f);
+
+			if( checkSector && (sector->distance_to_base > 0) && (sector->enemy_structures > 0.1f) )
 			{
-				if(land && sector->water_ratio < 0.4f)
-				{
-					def_power = sector->GetEnemyDefencePower(ground, air, hover, sea, submarine);
+				const CombatPower& defencePowerweights = sector->water_ratio < 0.6f ? defencePowerWeightsLand : defencePowerWeightsSea;
 
-					if(def_power) {
-						my_rating = sector->enemy_structures / sector->GetEnemyDefencePower(ground, air, hover, sea, submarine);
-					} else {
-						my_rating = sector->enemy_structures / (2.0f * sector->GetEnemyDefencePower(ground, air, hover, sea, submarine) + pow(sector->GetLostUnits() + 1.0f, 1.5f) + 1.0f);
-					}
-					my_rating /= static_cast<float>(5 + sector->distance_to_base);
-				}
-				else if(water && sector->water_ratio > 0.6)
-				{
-					my_rating = sector->enemy_structures / (2.0f * sector->GetEnemyDefencePower(ground, air, hover, sea, submarine) + pow(sector->GetLostUnits() + 1.0f, 1.5f) + 1.0f);
-					my_rating /= static_cast<float>(5 + sector->distance_to_base);
-				}
-			}
+				float defencePower = sector->GetEnemyDefencePower(defencePowerweights);
 
-			if(my_rating > best_rating)
-			{
-				dest = sector;
-				best_rating = my_rating;
+				float myRating;
+
+				if(defencePower > 0.1f) 
+				{
+					myRating = sector->enemy_structures / defencePower;
+				} 
+				else 
+				{
+					myRating = sector->enemy_structures / pow(sector->GetLostUnits() + 1.0f, 1.5f);
+				}
+				myRating /= static_cast<float>(5 + sector->distance_to_base);
+				
+				if(myRating > best_rating)
+				{
+					dest = sector;
+					best_rating = myRating;
+				}
 			}
 		}
 	}
@@ -101,11 +95,8 @@ AAISector* AAIBrain::GetNextAttackDest(AAISector *current_sector, bool land, boo
 	float best_rating = 0, my_rating, dist;
 	AAISector *dest = 0, *sector;
 
-	float ground = 1.0f;
-	float air = 1.0f;
-	float hover = 1.0f;
-	float sea = 1.0f;
-	float submarine = 1.0f;
+	CombatPower defencePowerWeightsLand(1.0f, 0.0f, 0.3f, 0.0f, 0.0f);
+	CombatPower defencePowerWeightsSea(0.0f, 0.0f, 0.5f, 1.0f, 0.5f);
 
 	// TODO: improve destination sector selection
 	for(int x = 0; x < ai->Getmap()->xSectors; x++)
@@ -122,7 +113,7 @@ AAISector* AAIBrain::GetNextAttackDest(AAISector *current_sector, bool land, boo
 				{
 					dist = sqrt( pow((float)sector->x - current_sector->x, 2) + pow((float)sector->y - current_sector->y , 2) );
 
-					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(ground, air, hover, sea, submarine), 2.0f) + pow(sector->GetLostUnits() + 1.0f, 1.5f));
+					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(defencePowerWeightsLand), 2.0f) + pow(sector->GetLostUnits() + 1.0f, 1.5f));
 					my_rating /= (1.0f + dist);
 
 				}
@@ -130,7 +121,7 @@ AAISector* AAIBrain::GetNextAttackDest(AAISector *current_sector, bool land, boo
 				{
 					dist = sqrt( pow((float)(sector->x - current_sector->x), 2) + pow((float)(sector->y - current_sector->y), 2) );
 
-					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(ground, air, hover, sea, submarine), 2.0f) + pow(sector->GetLostUnits() + 1.0f, 1.5f));
+					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(defencePowerWeightsSea), 2.0f) + pow(sector->GetLostUnits() + 1.0f, 1.5f));
 					my_rating /= (1.0f + dist);
 				}
 				else

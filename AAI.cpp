@@ -265,7 +265,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 				//if (att_cat >= GROUND_ASSAULT && att_cat <= SUBMARINE_ASSAULT)
 
 				float3 pos = cb->GetUnitPos(attacker);
-				AAISector *sector = map->GetSectorOfPos(&pos);
+				AAISector *sector = map->GetSectorOfPos(pos);
 
 				if (sector && !am->SufficientDefencePowerAt(sector, 1.2f))
 				{

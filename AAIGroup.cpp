@@ -26,8 +26,9 @@ using namespace springLegacyAI;
 
 
 AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
-	rally_point(ZeroVector),
-	m_groupDefId(unitDefId)
+	m_groupDefId(unitDefId),
+	m_rallyPoint(ZeroVector),
+	m_continentId(continentId)
 {
 	this->ai = ai;
 
@@ -41,8 +42,6 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 
 	// set movement type of group (filter out add. movement info like underwater, floater, etc.)
 	m_moveType = ai->Getbt()->s_buildTree.GetMovementType( unitDefId );
-
-	continent = continentId;
 
 	// now we know type and category, determine max group size
 	if(cfg->AIR_ONLY_MOD)
@@ -78,7 +77,7 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 	// get a rally point
 	GetNewRallyPoint();
 
-	ai->Log("Creating new group - max size: %i   unit type: %s   continent: %i\n", maxSize, ai->Getbt()->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str(), continent);
+	ai->Log("Creating new group - max size: %i   unit type: %s   continent: %i\n", maxSize, ai->Getbt()->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str(), m_continentId);
 }
 
 AAIGroup::~AAIGroup(void)
@@ -91,9 +90,9 @@ AAIGroup::~AAIGroup(void)
 
 	units.clear();
 
-	if(rally_point.x > 0)
+	if(m_rallyPoint.x > 0)
 	{
-		AAISector *sector = ai->Getmap()->GetSectorOfPos(&rally_point);
+		AAISector *sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
 
 		--sector->rally_points;
 	}
@@ -102,7 +101,7 @@ AAIGroup::~AAIGroup(void)
 bool AAIGroup::AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId)
 {
 	// for continent bound units: check if unit is on the same continent as the group
-	if( (continentId == -1) || (continentId == continent) )
+	if(continentId == m_continentId)
 	{
 		//check if type match && current size
 		if( (m_groupDefId.id == unitDefId.id) && (units.size() < maxSize) && !attack && (task == GROUP_IDLE || task == GROUP_RETREATING))
@@ -111,10 +110,10 @@ bool AAIGroup::AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId)
 			++size;
 
 			// send unit to rally point of the group
-			if(rally_point.x > 0)
+			if(m_rallyPoint.x > 0)
 			{
 				Command c(CMD_MOVE);
-				c.PushPos(rally_point);
+				c.PushPos(m_rallyPoint);
 
 				if(category.isAirCombat() == false)
 					c.SetOpts(c.GetOpts() | SHIFT_KEY);
@@ -307,7 +306,7 @@ void AAIGroup::TargetUnitKilled()
 		if(category.isAirCombat())
 		{
 			Command c(CMD_MOVE);
-			c.PushPos(rally_point);
+			c.PushPos(m_rallyPoint);
 
 			GiveOrder(&c, 90, MOVING, "Group::TargetUnitKilled");
 		}
@@ -325,11 +324,11 @@ void AAIGroup::AttackSector(AAISector *dest, float importance)
 	int group_x = pos.x/ai->Getmap()->xSectorSize;
 	int group_y = pos.z/ai->Getmap()->ySectorSize;
 
-	c.SetParam(0, (dest->left + dest->right)/2.0f);
-	c.SetParam(2, (dest->bottom + dest->top)/2.0f);
+	c.SetParam(0, 0.5f * (dest->left   + dest->right));
+	c.SetParam(2, 0.5f * (dest->bottom + dest->top)  );
 
 	// choose location that way that attacking units must cross the entire sector
-	/*if(dest->x > group_x)
+	if(dest->x > group_x)
 		c.SetParam(0, (dest->left + 7 * dest->right)/8);
 	else if(dest->x < group_x)
 		c.SetParam(0, (7 * dest->left + dest->right)/8);
@@ -341,7 +340,7 @@ void AAIGroup::AttackSector(AAISector *dest, float importance)
 	else if(dest->y < group_y)
 		c.SetParam(2, (dest->bottom + 7.0f * dest->top)/8);
 	else
-		c.SetParam(2, (dest->bottom + dest->top)/2);*/
+		c.SetParam(2, (dest->bottom + dest->top)/2);
 
 	c.SetParam(1, ai->Getcb()->GetElevation(c.GetParam(0), c.GetParam(2)));
 
@@ -362,7 +361,7 @@ void AAIGroup::Defend(int unit, float3 *enemy_pos, int importance)
 
 		GiveOrder(&cmd, importance, DEFENDING, "Group::Defend");
 
-		target_sector = ai->Getmap()->GetSectorOfPos(enemy_pos);
+		target_sector = ai->Getmap()->GetSectorOfPos(*enemy_pos);
 	}
 	else
 	{
@@ -372,18 +371,18 @@ void AAIGroup::Defend(int unit, float3 *enemy_pos, int importance)
 
 		float3 pos = ai->Getcb()->GetUnitPos(unit);
 
-		target_sector = ai->Getmap()->GetSectorOfPos(&pos);
+		target_sector = ai->Getmap()->GetSectorOfPos(pos);
 	}
 
 	task = GROUP_DEFENDING;
 }
 
-void AAIGroup::Retreat(float3 *pos)
+void AAIGroup::Retreat(const float3& pos)
 {
 	this->task = GROUP_RETREATING;
 
 	Command c(CMD_MOVE);
-	c.PushPos(*pos);
+	c.PushPos(pos);
 
 	GiveOrder(&c, 105, MOVING, "Group::Retreat");
 
@@ -503,7 +502,7 @@ void AAIGroup::UnitIdle(int unit)
 	if(category.isAirCombat() && (task != GROUP_IDLE) && !cfg->AIR_ONLY_MOD)
 	{
 		Command c(CMD_MOVE);
-		c.PushPos(rally_point);
+		c.PushPos(m_rallyPoint);
 
 		GiveOrder(&c, 100, MOVING, "Group::Idle_a");
 
@@ -515,7 +514,7 @@ void AAIGroup::UnitIdle(int unit)
 		//check if idle unit is in target sector
 		float3 pos = ai->Getcb()->GetUnitPos(unit);
 
-		AAISector *temp = ai->Getmap()->GetSectorOfPos(&pos);
+		const AAISector *temp = ai->Getmap()->GetSectorOfPos(pos);
 
 		if(temp == target_sector || !target_sector)
 		{
@@ -587,7 +586,7 @@ void AAIGroup::UnitIdle(int unit)
 		//check if retreating units is in target sector
 		float3 pos = ai->Getcb()->GetUnitPos(unit);
 
-		AAISector *temp = ai->Getmap()->GetSectorOfPos(&pos);
+		AAISector *temp = ai->Getmap()->GetSectorOfPos(pos);
 
 		if(temp == target_sector || !target_sector)
 			task = GROUP_IDLE;
@@ -597,7 +596,7 @@ void AAIGroup::UnitIdle(int unit)
 		//check if retreating units is in target sector
 		float3 pos = ai->Getcb()->GetUnitPos(unit);
 
-		AAISector *temp = ai->Getmap()->GetSectorOfPos(&pos);
+		AAISector *temp = ai->Getmap()->GetSectorOfPos(pos);
 
 		if(temp == target_sector || !target_sector)
 			task = GROUP_IDLE;
@@ -640,7 +639,7 @@ void AAIGroup::AirRaidUnit(int unit_id)
 
 void AAIGroup::UpdateRallyPoint()
 {
-	AAISector *sector = ai->Getmap()->GetSectorOfPos(&rally_point);
+	AAISector *sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
 
 	// check if rally point lies within base (e.g. AAI has expanded its base after rally point had been set)
 	if(sector->distance_to_base <= 0)
@@ -656,26 +655,26 @@ void AAIGroup::GetNewRallyPoint()
 	AAISector *sector;
 
 	// delete old rally point (if there is any)
-	if(rally_point.x > 0)
+	if(m_rallyPoint.x > 0)
 	{
-		sector = ai->Getmap()->GetSectorOfPos(&rally_point);
+		sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
 
 		--sector->rally_points;
 	}
 
-	bool rallyPointFound = ai->Getexecute()->searchForRallyPoint(rally_point, m_moveType, continent, 1, 1);
+	bool rallyPointFound = ai->Getexecute()->searchForRallyPoint(m_rallyPoint, m_moveType, m_continentId, 1, 1);
 
 	if(rallyPointFound == true)
 	{
 		//add new rally point to sector
-		sector = ai->Getmap()->GetSectorOfPos(&rally_point);
+		sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
 		++sector->rally_points;
 
 		// send idle groups to new rally point
 		if(task == GROUP_IDLE)
 		{
 			Command c(CMD_MOVE);
-			c.PushPos(rally_point);
+			c.PushPos(m_rallyPoint);
 
 			GiveOrder(&c, 90, HEADING_TO_RALLYPOINT, "Group::RallyPoint");
 		}

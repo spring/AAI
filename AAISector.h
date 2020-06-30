@@ -96,7 +96,8 @@ public:
 	float GetThreatBy(UnitCategory category, float learned, float current);
 	float GetThreatByID(int combat_cat_id, float learned, float current);
 
-	float GetEnemyDefencePower(float ground, float air, float hover, float sea, float submarine);
+	//! @brief Get total (mobile + static) defence power of enemy (according to spotted units)
+	float GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const;
 
 	float GetMyDefencePowerAgainstAssaultCategory(int assault_category);
 
@@ -104,7 +105,7 @@ public:
 	float getEnemyThreatToMovementType(const AAIMovementType& movementType) const;
 
 	// returns combat power of units in that and neighbouring sectors vs combat cat
-	float GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance);
+	float GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance) const;
 
 	//! @brief Updates threat map storing where own buildings/units got killed
 	void UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerDefId);

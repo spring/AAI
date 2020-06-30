@@ -43,45 +43,6 @@ struct UnitTypeStatic
 	unsigned int unit_type;
 };
 
-//! Criteria (combat efficiency vs specific kind of target type) used for selection of units
-class CombatPower
-{
-public:
-	CombatPower() {};
-
-	CombatPower(float initialValue) 
-	{
-		vsGround    = initialValue;
-		vsAir       = initialValue;
-		vsHover     = initialValue;
-		vsSea       = initialValue;
-		vsSubmarine = initialValue;
-		vsBuildings = initialValue;
-	}
-
-	float CalculateSum() const
-	{
-		return vsGround + vsAir + vsHover + vsSea + vsSubmarine + vsBuildings;
-	}
-
-	float CalculateWeightedSum(const CombatPower& weights) const
-	{
-		return 	  (weights.vsGround    * vsGround)
-				+ (weights.vsAir       * vsAir)
-				+ (weights.vsHover     * vsHover)
-		     	+ (weights.vsSea       * vsSea)
-				+ (weights.vsSubmarine * vsSubmarine)
-				+ (weights.vsBuildings * vsBuildings);
-	}
-
-	float vsGround;
-	float vsAir;
-	float vsHover;
-	float vsSea;
-	float vsSubmarine;
-	float vsBuildings;
-};
-
 //! Criteria used for selection of units
 struct UnitSelectionCriteria
 {

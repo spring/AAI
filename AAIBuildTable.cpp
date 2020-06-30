@@ -1396,7 +1396,7 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
 	const StatisticalData& costStatistics = s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
 
 	//ai->Log("Combat power weights: ground %f   air %f   hover %f   sea %f   submarine %f\n", combatPowerWeights.vsGround, combatPowerWeights.vsAir, combatPowerWeights.vsHover, combatPowerWeights.vsSea, combatPowerWeights.vsSubmarine);
-	//ai->Log("Factory ratings (max combat power rating %f):", maxCombatRating);
+	//ai->Log("Factory ratings (max combat power rating %f):", combatPowerRatingStatistics.GetMaxValue());
 
 	for(auto factory = factoryList.begin(); factory != factoryList.end(); ++factory)
 	{

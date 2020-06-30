@@ -31,7 +31,7 @@ public:
 		
 		m_avgValue += value;
 		++m_dataPoints;
-	};
+	}
 
 	//! Calculates avg value (assumes update() has been called before)
 	void Finalize()
@@ -49,9 +49,9 @@ public:
 	}
 
 	// getter functions
-	float GetMinValue() const { return m_minValue; };
-	float GetMaxValue() const { return m_maxValue; };
-	float GetAvgValue() const { return m_avgValue; };
+	float GetMinValue() const { return m_minValue; }
+	float GetMaxValue() const { return m_maxValue; }
+	float GetAvgValue() const { return m_avgValue; }
 
 	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
 	float GetNormalizedDeviationFromMax(float value) const
@@ -60,7 +60,7 @@ public:
 			return (m_maxValue - value) / m_valueRange;
 		else
 			return 0.0f;
-	};
+	}
 
 	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
 	float GetNormalizedDeviationFromMin(float value) const
@@ -69,7 +69,7 @@ public:
 			return (value - m_minValue) / m_valueRange;
 		else
 			return 0.0f;
-	};
+	}
 
 private:
 	float m_minValue;
