@@ -253,11 +253,11 @@ void AAIBuildTable::Init()
 					}
 					if(category.isAirCombat() == true)
 					{
-						units_static[i].efficiency[0] = eff;
+						units_static[i].efficiency[0] = 0.5f * eff;
 						units_static[i].efficiency[1] = eff;
-						units_static[i].efficiency[2] = eff;
-						units_static[i].efficiency[3] = eff;
-						units_static[i].efficiency[5] = eff;
+						units_static[i].efficiency[2] = 0.5f * eff;
+						units_static[i].efficiency[3] = 0.5f * eff;
+						units_static[i].efficiency[5] = 0.5f * eff;
 						fixed_eff[i][0] = eff;
 						fixed_eff[i][1] = eff;
 						fixed_eff[i][2] = eff;
@@ -1365,11 +1365,12 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
 	//-----------------------------------------------------------------------------------------------------------------
 	// create list with all factories that can be built (i.e. can be constructed by the start unit)
 	//-----------------------------------------------------------------------------------------------------------------
-	
+
 	std::list<FactoryRatingInputData> factoryList;
-	float maxCombatRating(0.1f); // prevent division by zero - if factory builds suitable combat units value will be much higher
 	CombatPower combatPowerWeights(0.0f);
 	DetermineCombatPowerWeights(combatPowerWeights, mapType);
+
+	StatisticalData combatPowerRatingStatistics;
 
 	for(auto factory = units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); factory != units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++factory)
 	{
@@ -1379,10 +1380,11 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
 			CalculateFactoryRating(data, UnitDefId(*factory), combatPowerWeights, mapType);
 			factoryList.push_back(data);
 
-			if(data.combatPowerRating > maxCombatRating)
-				maxCombatRating = data.combatPowerRating;
+			combatPowerRatingStatistics.AddValue(data.combatPowerRating);
 		}
 	}
+
+	combatPowerRatingStatistics.Finalize();
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// calculate final ratings and select highest rated factory
@@ -1398,8 +1400,8 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
 
 	for(auto factory = factoryList.begin(); factory != factoryList.end(); ++factory)
 	{
-		float myRating =  0.4f * costStatistics.GetNormalizedDeviationFromMax(s_buildTree.GetTotalCost(factory->factoryDefId))
-		                + 0.8f * (maxCombatRating - factory->combatPowerRating) / maxCombatRating;  
+		float myRating =  0.5f * costStatistics.GetNormalizedDeviationFromMax(s_buildTree.GetTotalCost(factory->factoryDefId))
+		                + 1.0f * combatPowerRatingStatistics.GetNormalizedDeviationFromMin(factory->combatPowerRating);  
 
 		if(factory->canConstructBuilder)
 			myRating += 0.2f;
