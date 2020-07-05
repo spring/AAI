@@ -78,7 +78,7 @@ public:
 	const float GetMaxSpeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; }
 
 	//! @brief Returns the list of units of the given category for given side
-	const std::list<int>& GetUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; }
+	const std::list<UnitDefId>& GetUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; }
 
 	//! @brief Returns the list of units of the given combat category for given side
 	const std::list<int>& GetUnitsInCombatCategory(const AAICombatCategory& category, int side) const { return m_unitsInCombatCategory[side-1][category.GetArrayIndex()]; }
@@ -97,7 +97,7 @@ private:
 	void AssignSideToUnitType(int side, UnitDefId unitDefId);
 
 	//! @brief helper function to determine the range / buildspeed (dependent on which category the unit type belongs to)
-	float DetermineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory);
+	float DetermineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory) const;
 	
 	//! @brief Returns movement type of given unit definition
 	EMovementType DetermineMovementType(const springLegacyAI::UnitDef* unitDef) const;
@@ -145,7 +145,7 @@ private:
 	int                                           m_numberOfSides;
 
 	//! For every side (not neutral), a list of units that belong to a certain category (order: m_unitsInCategory[side][category])
-	std::vector< std::vector< std::list<int> > >  m_unitsInCategory;
+	std::vector< std::vector< std::list<UnitDefId> > >  m_unitsInCategory;
 
 	//! For every side (not neutral), a list of units that belong to a certain combat category (order: m_unitsInCombatCategory[side][category])
 	std::vector< std::vector< std::list<int> > >  m_unitsInCombatCategory;

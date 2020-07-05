@@ -35,19 +35,19 @@ AAIUnitStatistics::~AAIUnitStatistics()
 	m_combatSpeedStatistics.clear();
 };
 
-void AAIUnitStatistics::Init(const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<int> >& unitsInCategory, const std::vector< std::list<int> >& unitsInCombatCategory)
+void AAIUnitStatistics::Init(const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<UnitDefId> >& unitsInCategory, const std::vector< std::list<int> >& unitsInCombatCategory)
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// calculate unit category statistics
 	//-----------------------------------------------------------------------------------------------------------------
 	for(uint32_t cat = 0; cat < AAIUnitCategory::numberOfUnitCategories; ++cat) 
 	{
-		for(std::list<int>::const_iterator id = unitsInCategory[cat].begin(); id != unitsInCategory[cat].end(); ++id)
+		for(auto defId = unitsInCategory[cat].begin(); defId != unitsInCategory[cat].end(); ++defId)
 		{
-			m_unitBuildtimeStatistics[cat].AddValue( unitProperties[*id].m_buildtime );
-			m_unitCostStatistics[cat].AddValue( unitProperties[*id].m_totalCost );
-			m_unitPrimaryAbilityStatistics[cat].AddValue( unitProperties[*id].m_range );
-			m_unitSecondaryAbilityStatistics[cat].AddValue( unitProperties[*id].m_maxSpeed );
+			m_unitBuildtimeStatistics[cat].AddValue( unitProperties[defId->id].m_buildtime );
+			m_unitCostStatistics[cat].AddValue( unitProperties[defId->id].m_totalCost );
+			m_unitPrimaryAbilityStatistics[cat].AddValue( unitProperties[defId->id].m_range );
+			m_unitSecondaryAbilityStatistics[cat].AddValue( unitProperties[defId->id].m_maxSpeed );
 		}
 
 		// calculate average values after last value has been added

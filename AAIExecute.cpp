@@ -510,22 +510,24 @@ void AAIExecute::InitBuildques()
 	// determine number of factories first
 	numOfFactories = 0;
 
+	int side = ai->GetSide();
+
 	// stationary factories
-	for(list<int>::iterator cons = ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].begin(); cons != ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].end(); ++cons)
+	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[*cons].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
 			++numOfFactories;
 	}
 	// and look for all mobile factories
-	for(list<int>::iterator cons = ai->Getbt()->units_of_category[MOBILE_CONSTRUCTOR][ai->GetSide()-1].begin(); cons != ai->Getbt()->units_of_category[MOBILE_CONSTRUCTOR][ai->GetSide()-1].end(); ++cons)
+	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[*cons].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
 			++numOfFactories;
 	}
 	// and add com
-	for(list<int>::iterator cons = ai->Getbt()->units_of_category[COMMANDER][ai->GetSide()-1].begin(); cons != ai->Getbt()->units_of_category[COMMANDER][ai->GetSide()-1].end(); ++cons)
+	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[*cons].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
 			++numOfFactories;
 	}
 
@@ -538,29 +540,29 @@ void AAIExecute::InitBuildques()
 
 	int i = 0;
 
-	for(list<int>::iterator cons = ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].begin(); cons != ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].end(); ++cons)
+	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[*cons].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
 		{
-			factory_table[i] = *cons;
+			factory_table[i] = cons->id;
 			++i;
 		}
 	}
 
-	for(list<int>::iterator cons = ai->Getbt()->units_of_category[MOBILE_CONSTRUCTOR][ai->GetSide()-1].begin(); cons != ai->Getbt()->units_of_category[MOBILE_CONSTRUCTOR][ai->GetSide()-1].end(); ++cons)
+	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[*cons].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
 		{
-			factory_table[i] = *cons;
+			factory_table[i] = cons->id;
 			++i;
 		}
 	}
 
-	for(list<int>::iterator cons = ai->Getbt()->units_of_category[COMMANDER][ai->GetSide()-1].begin(); cons != ai->Getbt()->units_of_category[COMMANDER][ai->GetSide()-1].end(); ++cons)
+	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[*cons].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
 		{
-			factory_table[i] = *cons;
+			factory_table[i] = cons->id;
 			++i;
 		}
 	}
@@ -616,39 +618,38 @@ bool AAIExecute::BuildExtractor()
 {
 	AAIConstructor *builder, *land_builder = 0, *water_builder = 0;
 	float3 pos;
-	int land_mex = 0, water_mex = 0;
 	float min_dist;
 
 	float cost = 0.25f + ai->Getbrain()->Affordable() / 6.0f;
 	float efficiency = 6.0 / (cost + 0.75f);
 
+	UnitDefId landExtractor;
+	UnitDefId seaExtractor;
+
 	// check if metal map
 	if(ai->Getmap()->metalMap)
 	{
 		// get id of an extractor and look for suitable builder
-		land_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, efficiency, false, false, false);
+		landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, false);
 
-		if(land_mex && ai->Getbt()->units_dynamic[land_mex].constructorsAvailable <= 0 && ai->Getbt()->units_dynamic[land_mex].constructorsRequested <= 0)
+		if(landExtractor.isValid())
 		{
-			ai->Getbt()->BuildBuilderFor(UnitDefId(land_mex));
-			land_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, efficiency, false, false, true);
-		}
+			land_builder  = ai->Getut()->FindBuilder(landExtractor.id, true);
 
-		land_builder = ai->Getut()->FindBuilder(land_mex, true);
+			if(land_builder)
+			{
+				pos = GetBuildsite(land_builder->m_myUnitId.id, landExtractor.id, EXTRACTOR);
 
-		if(land_builder)
-		{
-			pos = GetBuildsite(land_builder->m_myUnitId.id, land_mex, EXTRACTOR);
+				if(pos.x != 0)
+					land_builder->GiveConstructionOrder(landExtractor.id, pos, false);
 
-			if(pos.x != 0)
-				land_builder->GiveConstructionOrder(land_mex, pos, false);
-
-			return true;
-		}
-		else
-		{
-			ai->Getbt()->BuildBuilderFor(UnitDefId(land_mex));
-			return false;
+				return true;
+			}
+			else
+			{
+				ai->Getbt()->BuildBuilderFor(landExtractor);
+				return false;
+			}
 		}
 	}
 
@@ -657,28 +658,18 @@ bool AAIExecute::BuildExtractor()
 	// select a land/water mex
 	if(ai->Getmap()->land_metal_spots > 0)
 	{
-		land_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, efficiency, false, false, false);
+		landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, false);
 
-		if(land_mex && ai->Getbt()->units_dynamic[land_mex].constructorsAvailable + ai->Getbt()->units_dynamic[land_mex].constructorsRequested <= 0)
-		{
-			ai->Getbt()->BuildBuilderFor(UnitDefId(land_mex));
-			land_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, efficiency, false, false, true);
-		}
-
-		land_builder = ai->Getut()->FindBuilder(land_mex, true);
+		if(landExtractor.isValid())
+			land_builder = ai->Getut()->FindBuilder(landExtractor.id, true);
 	}
 
 	if(ai->Getmap()->water_metal_spots > 0)
 	{
-		water_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, efficiency, false, true, false);
+		seaExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, true);
 
-		if(water_mex && ai->Getbt()->units_dynamic[water_mex].constructorsAvailable + ai->Getbt()->units_dynamic[water_mex].constructorsRequested <= 0)
-		{
-			ai->Getbt()->BuildBuilderFor(UnitDefId(water_mex));
-			water_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, efficiency, false, true, true);
-		}
-
-		water_builder = ai->Getut()->FindBuilder(water_mex, true);
+		if(seaExtractor.isValid())
+			water_builder = ai->Getut()->FindBuilder(seaExtractor.id, true);
 	}
 
 	// check if there is any builder for at least one of the selected extractors available
@@ -718,7 +709,7 @@ bool AAIExecute::BuildExtractor()
 						{
 							free_spot_found = true;
 
-							builder = ai->Getut()->FindClosestBuilder(land_mex, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
+							builder = ai->Getut()->FindClosestBuilder(landExtractor.id, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
 
 							if(builder)
 							{
@@ -733,7 +724,7 @@ bool AAIExecute::BuildExtractor()
 						{
 							free_spot_found = true;
 
-							builder = ai->Getut()->FindClosestBuilder(water_mex, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
+							builder = ai->Getut()->FindClosestBuilder(seaExtractor.id, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
 
 							if(builder)
 							{
@@ -776,9 +767,9 @@ bool AAIExecute::BuildExtractor()
 	if(best >= 0)
 	{
 		if(spots[best]->pos.y < 0)
-			builders[best]->GiveConstructionOrder(water_mex, spots[best]->pos, true);
+			builders[best]->GiveConstructionOrder(seaExtractor.id, spots[best]->pos, true);
 		else
-			builders[best]->GiveConstructionOrder(land_mex, spots[best]->pos, false);
+			builders[best]->GiveConstructionOrder(landExtractor.id, spots[best]->pos, false);
 
 		spots[best]->occupied = true;
 
@@ -2373,88 +2364,62 @@ void AAIExecute::CheckMexUpgrade()
 		return;
 
 	float cost = 0.25f + ai->Getbrain()->Affordable() / 8.0f;
-	float eff = 6.0f / (cost + 0.75f);
-
-	const UnitDef *my_def;
-	const UnitDef *land_def = 0;
-	const UnitDef *water_def = 0;
-
-	float gain, highest_gain = 0;
-	AAIMetalSpot *best_spot = 0;
+	float eff  = 6.0f / (cost + 0.75f);
 
 	int my_team = ai->Getcb()->GetMyTeam();
 
-	int land_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, eff, false, false, false);
+	UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, eff, false, false);
+	UnitDefId seaExtractor  = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, eff, false, true);
 
-	if(land_mex && ai->Getbt()->units_dynamic[land_mex].constructorsAvailable + ai->Getbt()->units_dynamic[land_mex].constructorsRequested <= 0)
-	{
-		ai->Getbt()->BuildBuilderFor(UnitDefId(land_mex));
+	float landExtractedMetal = 0.0f;
+	float seaExtractedMetal  = 0.0f;
 
-		land_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, eff, false, false, true);
-	}
+	if(landExtractor.isValid())
+		landExtractedMetal = ai->Getbt()->s_buildTree.GetMaxRange(landExtractor);
 
-	int water_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, eff, false, true, false);
+	if(seaExtractor.isValid())
+		seaExtractedMetal = ai->Getbt()->s_buildTree.GetMaxRange(seaExtractor);
 
-	if(water_mex && ai->Getbt()->units_dynamic[water_mex].constructorsAvailable + ai->Getbt()->units_dynamic[water_mex].constructorsRequested  <= 0)
-	{
-		ai->Getbt()->BuildBuilderFor(UnitDefId(water_mex));
-
-		water_mex = ai->Getbt()->GetMex(ai->GetSide(), cost, eff, false, true, true);
-	}
-
-	if(land_mex)
-		land_def = &ai->Getbt()->GetUnitDef(land_mex);
-
-	if(water_mex)
-		water_def = &ai->Getbt()->GetUnitDef(water_mex);
+	float maxExtractedMetalGain(0.0f);
+	AAIMetalSpot *selectedMetalSpot = nullptr;
 
 	// check extractor upgrades
 	for(int dist = 0; dist < 2; ++dist)
 	{
-		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
+		for(auto sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
 		{
-			for(list<AAIMetalSpot*>::iterator spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
+			for(auto spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
 			{
 				// quit when finding empty spots
-				if(!(*spot)->occupied && ((*sector)->enemy_structures <= 0.0f ) && ((*sector)->GetLostUnits() < 0.2f) )
+				if(!(*spot)->occupied && ((*sector)->enemy_structures <= 0.0f) && ((*sector)->GetLostUnits() < 0.2f) )
 					return;
 
 				if((*spot)->extractor_def > 0 && (*spot)->extractor > -1 && (*spot)->extractor < cfg->MAX_UNITS
 					&& ai->Getcb()->GetUnitTeam((*spot)->extractor) == my_team)	// only upgrade own extractors
 				{
-					my_def = &ai->Getbt()->GetUnitDef((*spot)->extractor_def);
+					float extractedMetalGain;
 
-					if(my_def->minWaterDepth <= 0 && land_def)	// land mex
-					{
-						gain = land_def->extractsMetal - my_def->extractsMetal;
-
-						if(gain > 0.0001f && gain > highest_gain)
-						{
-							highest_gain = gain;
-							best_spot = *spot;
-						}
-					}
+					if(ai->Getbt()->s_buildTree.GetMovementType( UnitDefId((*spot)->extractor_def) ).isStaticLand() )	// land mex
+						extractedMetalGain = landExtractedMetal - ai->Getbt()->s_buildTree.GetMaxRange( UnitDefId((*spot)->extractor_def) );
 					else	// water mex
-					{
-						gain = water_def->extractsMetal - my_def->extractsMetal;
+						extractedMetalGain = seaExtractedMetal  - ai->Getbt()->s_buildTree.GetMaxRange( UnitDefId((*spot)->extractor_def) );
 
-						if(gain > 0.0001f && gain > highest_gain)
-						{
-							highest_gain = gain;
-							best_spot = *spot;
-						}
+					if(extractedMetalGain > 0.0001f && extractedMetalGain > maxExtractedMetalGain)
+					{
+						maxExtractedMetalGain = extractedMetalGain;
+						selectedMetalSpot = *spot;
 					}
 				}
 			}
 		}
 	}
 
-	if(best_spot)
+	if(selectedMetalSpot)
 	{
-		AAIConstructor *builder = ai->Getut()->FindClosestAssistant(best_spot->pos, 10, true);
+		AAIConstructor *builder = ai->Getut()->FindClosestAssistant(selectedMetalSpot->pos, 10, true);
 
 		if(builder)
-			builder->GiveReclaimOrder(best_spot->extractor);
+			builder->GiveReclaimOrder(selectedMetalSpot->extractor);
 	}
 }
 
@@ -2613,9 +2578,9 @@ void AAIExecute::CheckFactories()
 	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR)) > 0)
 		return;
 
-	for(list<int>::iterator fac = ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].begin(); fac != ai->Getbt()->units_of_category[STATIONARY_CONSTRUCTOR][ai->GetSide()-1].end(); ++fac)
+	for(auto fac = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()).begin(); fac != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()).end(); ++fac)
 	{
-		if(ai->Getbt()->units_dynamic[*fac].requested > 0)
+		if(ai->Getbt()->units_dynamic[fac->id].requested > 0)
 		{
 			// at least one requested factory has not been built yet
 			float urgency;

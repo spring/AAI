@@ -96,21 +96,12 @@ AAI::~AAI()
 	Log("Unit production rate: %i\n\n", execute->unitProductionRate);
 
 	Log("Requested constructors:\n");
-	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac) {
-		assert((*fac)   < bt->units_dynamic.size());
-		Log("%-24s: %i\n", bt->s_buildTree.GetUnitTypeProperties(UnitDefId(*fac)).m_name.c_str(), bt->units_dynamic[*fac].requested);
-	}
-	for(list<int>::iterator fac = bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].end(); ++fac)
-		Log("%-24s: %i\n", bt->s_buildTree.GetUnitTypeProperties(UnitDefId(*fac)).m_name.c_str(), bt->units_dynamic[*fac].requested);
-
-	
-	/*CombatPower combatPowerWeights(0.0f);
-	bt->DetermineCombatPowerWeights(combatPowerWeights, map->map_type);
-	Log("Factory ratings:\n");
-	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac)
+	for(auto fac = bt->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); fac != bt->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++fac)
 	{
-		Log("%-24s: %f\n", bt->s_buildTree.GetUnitTypeProperties(UnitDefId(*fac)).m_name.c_str(), bt->GetFactoryRating(*fac));
-	}*/
+		Log("%-24s: %i\n", bt->s_buildTree.GetUnitTypeProperties(*fac).m_name.c_str(), bt->units_dynamic[fac->id].requested);
+	}
+	for(auto builder = bt->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).begin(); builder != bt->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).end(); ++builder)
+		Log("%-24s: %i\n", bt->s_buildTree.GetUnitTypeProperties(*builder).m_name.c_str(), bt->units_dynamic[builder->id].requested);
 
 	// delete buildtasks
 	for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
@@ -675,7 +666,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 				// add enemy building to sector
 				if (validSector && map->sector[x][y].distance_to_base > 0)
-					map->sector[x][y].enemy_structures += 5.0f;
+					map->sector[x][y].enemy_structures += 1.0f;
 
 			}
 			// assault units
@@ -820,6 +811,48 @@ void AAI::Update()
 	{
 		AAI_SCOPED_TIMER("Scouting_2")
 		map->UpdateEnemyScoutingData();
+
+		if(m_aaiInstance == 1)
+		{
+			FILE *file = fopen("Scout_debug.txt", "w+");
+
+			fprintf(file, "Enemy Structures:\n");
+			for(int y = 0; y < map->ySectors; ++y)
+			{
+				for(int x = 0; x < map->xSectors; ++x)
+				{
+					fprintf(file, "%f ", map->sector[x][y].enemy_structures);
+					
+				}
+				fprintf(file, "\n");
+			}
+
+			fprintf(file, "Enemy mobile/static combat power:\n");
+			for(int y = 0; y < map->ySectors; ++y)
+			{
+				for(int x = 0; x < map->xSectors; ++x)
+				{
+					fprintf(file, "%-5f/%-5f ", map->sector[x][y].enemy_mobile_combat_power[0], map->sector[x][y].enemy_stat_combat_power[0]);
+					
+				}
+				fprintf(file, "\n");
+			}
+
+			fprintf(file, "Flat ratio/last scout:\n");
+			for(int y = 0; y < map->ySectors; ++y)
+			{
+				for(int x = 0; x < map->xSectors; ++x)
+				{
+					fprintf(file, "%-3f/%-5f ", map->sector[x][y].flat_ratio, map->sector[x][y].last_scout);
+					
+				}
+				fprintf(file, "\n");
+			}
+
+
+		  	fclose(file);
+		}
+
 	}
 
 	// update groups

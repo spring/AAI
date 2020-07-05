@@ -120,8 +120,8 @@ public:
 	// returns power plant
 	int GetPowerPlant(int side, float cost, float urgency, float max_power, float current_energy, bool water, bool geo, bool canBuild);
 
-	// returns a extractor from the list based on certain factors
-	int GetMex(int side, float cost, float effiency, bool armed, bool water, bool canBuild);
+	//! @brief Selects a metal extractor according to given criteria; A builder is requested if none available and a different extractor is chosen.
+	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water);
 
 	// returns mex with the biggest yardmap
 	int GetBiggestMex();
@@ -280,7 +280,6 @@ public:
 	// true if initialized correctly
 	bool initialized;
 
-
 	// AAI unit defs with aai-instance specific information (number of requested, active units, etc.)
 	vector<UnitTypeDynamic> units_dynamic;
 
@@ -305,6 +304,9 @@ private:
 	bool MemberOf(int unit_id, list<int> unit_list);
 
 	bool LoadBuildTable();
+
+	//! @brief Returns an extractor based on the given criteria
+	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool canBuild) const;
 
 	//! @brief Calculates the rating of the given factory for the given map type
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const CombatPower& combatPowerWeights, const MapType mapType) const;

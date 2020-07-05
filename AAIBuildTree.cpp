@@ -165,7 +165,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 
 		if(m_sideOfUnitType[id] > 0)
 		{
-			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.GetArrayIndex() ].push_back(id);
+			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.GetArrayIndex() ].push_back(UnitDefId(id));
 		}
 
 		if(unitCategory.isGroundCombat() == true)
@@ -244,9 +244,9 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 								buildtime.GetMinValue(), buildtime.GetMaxValue(), buildtime.GetAvgValue(),
 								range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue()); 
 				fprintf(file, "Units:");
-				for(std::list<int>::const_iterator id = m_unitsInCategory[side][category.GetArrayIndex()].begin(); id != m_unitsInCategory[side][category.GetArrayIndex()].end(); ++id)
+				for(auto defId = m_unitsInCategory[side][category.GetArrayIndex()].begin(); defId != m_unitsInCategory[side][category.GetArrayIndex()].end(); ++defId)
 				{
-					fprintf(file, "  %s", m_unitTypeProperties[*id].m_name.c_str());
+					fprintf(file, "  %s", m_unitTypeProperties[defId->id].m_name.c_str());
 				}
 				fprintf(file, "\n");
 			}
@@ -272,17 +272,17 @@ void AAIBuildTree::AssignSideToUnitType(int side, UnitDefId unitDefId)
 	}
 }
 
-float AAIBuildTree::DetermineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory)
+float AAIBuildTree::DetermineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory) const
 {
 	float range = 0.0f;
 
-	if(   (unitCategory.isGroundCombat() == true)
-	   || (unitCategory.isHoverCombat() == true)
-	   || (unitCategory.isSeaCombat() == true)
-	   || (unitCategory.isAirCombat() == true)
-	   || (unitCategory.isMobileArtillery() == true)
-	   || (unitCategory.isStaticArtillery() == true)
-	   || (unitCategory.isStaticDefence() == true) )
+	if(   unitCategory.isGroundCombat()
+	   || unitCategory.isHoverCombat()
+	   || unitCategory.isSeaCombat()
+	   || unitCategory.isAirCombat()
+	   || unitCategory.isMobileArtillery()
+	   || unitCategory.isStaticArtillery() 
+	   || unitCategory.isStaticDefence() )
 	{
 		for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDef->weapons.begin(); w != unitDef->weapons.end(); ++w)
 		{
@@ -290,17 +290,21 @@ float AAIBuildTree::DetermineRange(const springLegacyAI::UnitDef* unitDef, const
 				range = (*w).def->range;
 		}
 	}
-	else if(unitCategory.isScout() == true)
+	else if(unitCategory.isScout())
 	{
 		range = unitDef->losRadius;
 	}
-	else if(unitCategory.isStaticSensor() == true)
+	else if(unitCategory.isStaticSensor())
 	{
 		range = static_cast<float>(unitDef->radarRadius) + static_cast<float>(unitDef->sonarRadius) + static_cast<float>(unitDef->seismicRadius);
 	}
-	else if(unitCategory.isStaticConstructor() == true || unitCategory.isMobileConstructor() == true)
+	else if(unitCategory.isStaticConstructor() || unitCategory.isMobileConstructor())
 	{
 		range = unitDef->buildSpeed;
+	}
+	else if(unitCategory.isMetalExtractor())
+	{
+		range = unitDef->extractsMetal;
 	}
 
 	return range;
