@@ -162,6 +162,65 @@ private:
 };
 
 
+//! The type of the unit (may further specifiy the purpose of a unit, e.g. anti ground vs anti air for combat units)
+enum class EUnitType : int
+{
+	UNKNOWN              = 0x0000, //! Unknown unit type, i.e. not set
+	ANTI_SURFACE         = 0x0001, //! Used for combat units/static defences that can fight land/hover/floating units
+	ANTI_AIR             = 0x0002, //! Anti air combat units/static defences
+	ANTI_SUBMERGED       = 0x0004, //! Anti submarine combat units/static defences
+	RADAR                = 0x0008, //! Radar
+	SONAR                = 0x0010, //! Sonar
+	SEISMIC              = 0x0020, //! Seismic detector
+	RADAR_JAMMER         = 0x0040, //! Radar jammer
+	SONAR_JAMMER         = 0x0080, //! Sonar jammer
+};
+
+//! @brief Unit type with convenience functions (works as bitmask)
+class AAIUnitType
+{
+public:
+	AAIUnitType() : m_unitType(static_cast<int>(EUnitType::UNKNOWN)) {}
+
+	//! @brief Sets the given unit type
+	void SetUnitType(EUnitType unitType) { m_unitType = static_cast<int>(unitType);  }
+
+	//! @brief Adds the given unit type 
+	void AddUnitType(EUnitType unitType) { m_unitType |= static_cast<int>(unitType); }
+
+	//! Returns whether given unit type is set
+	bool IsUnitTypeSet(EUnitType unitType) const { return static_cast<bool>(m_unitType & static_cast<int>(unitType)); }
+
+	//! Returns whether unit is considered to be able to fight against surface units (ground, hover, ships)
+	bool IsAntiSurface()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_SURFACE)); }
+
+	//! Returns whether unit is considered to be an anti air unit
+	bool IsAntiAir()         const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_AIR)); }
+
+	//! Returns whether unit is considered to be able to fight submerged units (submarines)
+	bool IsAntiSubmerged()   const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_SUBMERGED)); }
+
+	//! Returns true if radar flag is set
+	bool IsRadar()           const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::RADAR)); }
+
+	//! Returns true if sonar flag is set
+	bool IsSonar()           const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::SONAR)); }
+
+	//! Returns true if seismic detector flag is set
+	bool IsSeismicDetector() const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::SEISMIC)); }
+
+	//! Returns true if radar jammer flag is set
+	bool IsRadarJammer()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::RADAR_JAMMER)); }
+
+	//! Returns true if radar jammer flag is set
+	bool IsSonarJammer()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::SONAR_JAMMER)); }
+
+private:
+	//! Unit type
+	int m_unitType;
+};
+
+
 //! Unit Type properties needed by AAI for internal decision making (i.e. unit type selection)
 struct UnitTypeProperties
 {
@@ -188,7 +247,8 @@ struct UnitTypeProperties
 	//! The category of the unit
 	AAIUnitCategory m_unitCategory;
 
-	//unsigned int unitType;
+	//! The type of the unit (may further specifiy the purpose of a unit, e.g. anti ground vs anti air for combat units)
+	AAIUnitType     m_unitType;
 };
 
 //! The combat category describes what kind of target class a unit belongs to

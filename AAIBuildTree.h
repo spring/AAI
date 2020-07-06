@@ -105,6 +105,9 @@ private:
 	//! @brief Returns Unit Category for given unit definition
 	EUnitCategory DetermineUnitCategory(const springLegacyAI::UnitDef* unitDef) const;
 
+	//! @brief Determines and sets the unit types for the given unit.
+	void UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef);
+
 	//! @brief Prints summary of newly created buildtree
 	void PrintSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const;
 

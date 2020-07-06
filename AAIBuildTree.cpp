@@ -19,6 +19,7 @@
 #include "LegacyCpp/WeaponDef.h"
 
 #include <string>
+#include <unordered_map>
 
 using namespace springLegacyAI;
 
@@ -166,8 +167,11 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		if(m_sideOfUnitType[id] > 0)
 		{
 			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.GetArrayIndex() ].push_back(UnitDefId(id));
+
+			UpdateUnitTypes(id ,unitDefs[id]);
 		}
 
+		// add combat units to combat category lists
 		if(unitCategory.isGroundCombat() == true)
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::SURFACE) ].push_back(id);
 		else if(unitCategory.isAirCombat() == true)
@@ -183,6 +187,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::SUBMERGED) ].push_back(id);
 		}
 
+		// set range (or equivalent unit ability)
 		m_unitTypeProperties[id].m_range = DetermineRange(unitDefs[id], unitCategory);
     }
 
@@ -209,6 +214,17 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 
 void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const
 {
+	const std::unordered_map<EUnitType, std::string> unitTypes {	
+			{EUnitType::ANTI_SURFACE, "anti surface"},
+			{EUnitType::ANTI_AIR, "anti air"},
+			{EUnitType::ANTI_SUBMERGED, "anti submerged"},
+			{EUnitType::RADAR, "radar"},
+			{EUnitType::SONAR, "sonar"},
+			{EUnitType::SEISMIC, "seismic detector"},
+			{EUnitType::RADAR_JAMMER, "radar jammer"},
+			{EUnitType::SONAR_JAMMER, "sonar jammer"} };
+
+
 	FILE* file = fopen(filename.c_str(), "w+");
 
 	if(file != nullptr)
@@ -225,7 +241,17 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 		fprintf(file, "\nUnit List (human/internal name, side, category)\n");
 		for(int id = 1; id < unitDefs.size(); ++id)
 		{
-			fprintf(file, "ID: %-3i %-40s %-16s %-1i %-15s\n", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), GetSideOfUnitType(UnitDefId(id)), GetCategoryName(GetUnitCategory(UnitDefId(id))).c_str() );
+			fprintf(file, "ID: %-3i %-40s %-16s %-1i %-15s", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), GetSideOfUnitType(UnitDefId(id)), GetCategoryName(GetUnitCategory(UnitDefId(id))).c_str() );
+
+			for(auto unitType = unitTypes.begin(); unitType != unitTypes.end(); ++unitType)
+			{
+				if( m_unitTypeProperties[id].m_unitType.IsUnitTypeSet(unitType->first) )
+				{
+					fprintf(file, "  %s", unitType->second.c_str());
+				}
+			}
+
+			fprintf(file, "\n");
 		}
 
 		for(int side = 0; side < m_numberOfSides; ++side)
@@ -359,6 +385,47 @@ EMovementType AAIBuildTree::DetermineMovementType(const springLegacyAI::UnitDef*
     }
 
     return moveType;
+}
+
+void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef)
+{
+	//! @todo Add detection of bassault unit types when combat efficiency is available.
+	if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isAirCombat())
+	{
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_AIR);
+	}
+	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.isGroundCombat()
+	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.isHoverCombat())
+	{
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
+	}
+	else if(    m_unitTypeProperties[unitDefId.id].m_unitCategory.isSeaCombat()
+	         || m_unitTypeProperties[unitDefId.id].m_unitCategory.isSubmarineCombat())
+	{
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SUBMERGED);
+	}
+	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticSensor())
+	{
+		if(unitDef->radarRadius > 0)
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::RADAR);
+
+		if(unitDef->sonarRadius > 0)
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::SONAR);
+
+		if(unitDef->seismicRadius > 0)
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::SEISMIC);
+	}
+	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticSupport())
+	{
+		if(unitDef->jammerRadius > 0)
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::RADAR_JAMMER);
+
+		if(unitDef->sonarJamRadius > 0)
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::SONAR_JAMMER);
+
+	}
 }
 
 EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef* unitDef) const
