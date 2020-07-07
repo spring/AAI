@@ -199,7 +199,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 
 	for(int side = 0; side < m_numberOfSides; ++side)
 	{
-		m_unitCategoryStatisticsOfSide[side].Init(m_unitTypeProperties, m_unitsInCategory[side], m_unitsInCombatCategory[side]);
+		m_unitCategoryStatisticsOfSide[side].Init(unitDefs, m_unitTypeProperties, m_unitsInCategory[side], m_unitsInCombatCategory[side]);
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -265,7 +265,7 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 				const StatisticalData& buildtime = m_unitCategoryStatisticsOfSide[side].GetUnitBuildtimeStatistics(category);
 				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetUnitPrimaryAbilityStatistics(category);
 
-				fprintf(file, "Min/max/avg cost: %f/%f/%f, Min/max/avg buildtime: %f/%f/%f Min/max/avg range/buildtime: %f/%f/%f\n",
+				fprintf(file, "Min/max/avg cost: %f/%f/%f, Min/max/avg buildtime: %f/%f/%f Min/max/avg range/buildspeed: %f/%f/%f\n",
 								cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
 								buildtime.GetMinValue(), buildtime.GetMaxValue(), buildtime.GetAvgValue(),
 								range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue()); 
@@ -275,6 +275,24 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 					fprintf(file, "  %s", m_unitTypeProperties[defId->id].m_name.c_str());
 				}
 				fprintf(file, "\n");
+			}
+
+			{
+				fprintf(file, "\nRadar:\n");
+				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetSensorStatistics().m_radarCosts;
+				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetSensorStatistics().m_radarRanges;
+				fprintf(file, "Min/max/avg cost: %f/%f/%f,   Min/max/avg range: %f/%f/%f\n",
+									cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
+									range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue());
+			}
+
+			{
+				fprintf(file, "\nSonar:\n");
+				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetSensorStatistics().m_sonarCosts;
+				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetSensorStatistics().m_sonarRanges;
+				fprintf(file, "Min/max/avg cost: %f/%f/%f,   Min/max/avg range: %f/%f/%f\n",
+									cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
+									range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue());
 			}
 		}
 

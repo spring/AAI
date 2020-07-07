@@ -1813,90 +1813,64 @@ bool AAIExecute::BuildRadar()
 	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(sensor) > ai->Getbrain()->sectors[0].size())
 		return true;
 
-	int ground_radar = 0;
-	int sea_radar = 0;
-	float3 my_pos, best_pos;
-	float my_rating, best_rating = -1000000;
-	int radar = 0;
 
-	float cost = ai->Getbrain()->Affordable();
-	float range = 10.0 / (cost + 1);
+	float3 bestPosition(ZeroVector);
+	float  bestRating(-100000.0f);
 
-	// get ground radar
-	if(ai->Getmap()->land_ratio > 0.02f)
-	{
-		ground_radar = ai->Getbt()->GetRadar(ai->GetSide(), cost, range, false, false);
+	const float cost = ai->Getbrain()->Affordable();
+	const float range = 10.0 / (cost + 1);
 
-		if(ground_radar && ai->Getbt()->units_dynamic[ground_radar].constructorsAvailable <= 0)
-		{
-			if(ai->Getbt()->units_dynamic[ground_radar].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(UnitDefId(ground_radar));
+	const UnitDefId	landRadar = ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, false);
+	const UnitDefId	seaRadar  = ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, true);
 
-			ground_radar = ai->Getbt()->GetRadar(ai->GetSide(), cost, range, false, true);
-		}
-	}
-
-	// get sea radar
-	if(ai->Getmap()->water_ratio > 0.02f)
-	{
-		sea_radar = ai->Getbt()->GetRadar(ai->GetSide(), cost, range, false, false);
-
-		if(sea_radar && ai->Getbt()->units_dynamic[sea_radar].constructorsAvailable <= 0)
-		{
-			if(ai->Getbt()->units_dynamic[sea_radar].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(UnitDefId(sea_radar));
-
-			sea_radar = ai->Getbt()->GetRadar(ai->GetSide(), cost, range, false, true);
-		}
-	}
-
+	UnitDefId selectedRadar;
+	
 	for(int dist = 0; dist < 2; ++dist)
 	{
-		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
+		for(auto sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
 		{
 			if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_SENSOR) <= 0)
 			{
-				my_pos = ZeroVector;
+				float3 myPosition(ZeroVector);
+				bool   seaPositionFound(false);
 
-				if(ground_radar && (*sector)->water_ratio < 0.9f)
-					my_pos = (*sector)->GetRadarArtyBuildsite(ground_radar,  ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(ground_radar)), false);
+				if( landRadar.isValid() && ((*sector)->water_ratio < 0.9f) )
+					myPosition = (*sector)->GetRadarArtyBuildsite(landRadar.id, ai->Getbt()->s_buildTree.GetMaxRange(landRadar), false);
 
-				if(my_pos.x <= 0 && sea_radar && (*sector)->water_ratio > 0.1f)
+				if( (myPosition.x == 0.0f) && seaRadar.isValid() && ((*sector)->water_ratio > 0.1f) )
 				{
-					my_pos = (*sector)->GetRadarArtyBuildsite(sea_radar, ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(sea_radar)), true);
-
-					if(my_pos.x > 0)
-						ground_radar = sea_radar;
+					myPosition = (*sector)->GetRadarArtyBuildsite(seaRadar.id, ai->Getbt()->s_buildTree.GetMaxRange(seaRadar), true);
+					seaPositionFound = true;
 				}
 
-				if(my_pos.x > 0)
+				if(myPosition.x > 0.0f)
 				{
-					my_rating = - ai->Getmap()->GetEdgeDistance(&my_pos);
+					const float myRating = - ai->Getmap()->GetEdgeDistance(&myPosition);
 
-					if(my_rating > best_rating)
+					if(myRating > bestRating)
 					{
-						radar = ground_radar;
-						best_pos = my_pos;
-						best_rating = my_rating;
+						selectedRadar = seaPositionFound ? seaRadar : landRadar;
+						bestPosition  = myPosition;
+						bestRating    = myRating;
 					}
 				}
 			}
 		}
 	}
 
-	if(radar)
+	if(selectedRadar.isValid())
 	{
 		float min_dist;
-		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(radar, &best_pos, true, &min_dist);
+		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedRadar.id, &bestPosition, true, &min_dist);
 
 		if(builder)
 		{
-			builder->GiveConstructionOrder(radar, best_pos, false);
+			builder->GiveConstructionOrder(selectedRadar.id, bestPosition, false);
 			return true;
 		}
 		else
 		{
-			ai->Getbt()->BuildBuilderFor(UnitDefId(radar));
+			ai->Getbt()->BuildBuilderFor(selectedRadar);
 			return false;
 		}
 	}
@@ -2432,8 +2406,8 @@ void AAIExecute::CheckRadarUpgrade()
 	float cost = ai->Getbrain()->Affordable();
 	float range = 10.0f / (cost + 1.0f);
 
-	UnitDefId landRadar(  ai->Getbt()->GetRadar(ai->GetSide(), cost, range, false, true) );
-	UnitDefId waterRadar( ai->Getbt()->GetRadar(ai->GetSide(), cost, range, true, true) );
+	UnitDefId landRadar(  ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, false) );
+	UnitDefId waterRadar( ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, true) );
 
 	// check radar upgrades
 	for(set<int>::iterator sensor = ai->Getut()->recon.begin(); sensor != ai->Getut()->recon.end(); ++sensor)

@@ -13,6 +13,7 @@
 #include <vector>
 #include <list>
 #include "AAIUnitTypes.h"
+#include "LegacyCpp/UnitDef.h"
 
 //! This class stores the statistical data (min, max, average) for each Unit Category (e.g. build cost)
 class StatisticalData
@@ -83,6 +84,30 @@ private:
 	unsigned int m_dataPoints;
 };
 
+class SensorStatistics
+{
+public:
+	void Init(const std::vector<const springLegacyAI::UnitDef*>& unitDefs, const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<UnitDefId> >& unitsInCategory);
+
+	//! Min,max,avg range for static radars
+	StatisticalData m_radarRanges;
+
+	//! Min,max,avg range for static sonar detectors
+	StatisticalData m_sonarRanges;
+
+	//! Min,max,avg range for static seismic detectors
+	StatisticalData m_seismicRanges;
+
+	//! Min,max,avg range for static radars
+	StatisticalData m_radarCosts;
+
+	//! Min,max,avg range for static sonar detectors
+	StatisticalData m_sonarCosts;
+
+	//! Min,max,avg range for static seismic detectors
+	StatisticalData m_seismicCosts;
+};
+
 class AAIUnitStatistics
 {
 public:
@@ -91,7 +116,7 @@ public:
 	~AAIUnitStatistics();
 
 	//! Calculates values for given input data
-	void Init(const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<UnitDefId> >& unitsInCategory, const std::vector< std::list<int> >& unitsInCombatCategory);
+	void Init(const std::vector<const springLegacyAI::UnitDef*>& unitDefs, const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<UnitDefId> >& unitsInCategory, const std::vector< std::list<int> >& unitsInCombatCategory);
 
 	const StatisticalData& GetUnitCostStatistics(const AAIUnitCategory& category) const { return m_unitCostStatistics[category.GetArrayIndex()]; }
 
@@ -109,6 +134,7 @@ public:
 
 	const StatisticalData& GetCombatSpeedStatistics(const AAICombatCategory& category) const { return m_combatSpeedStatistics[category.GetArrayIndex()]; }
 
+	const SensorStatistics& GetSensorStatistics() const { return m_sensorStatistics; }
 private:
 	//! Min,max,avg cost for every unit category
 	std::vector<StatisticalData> m_unitCostStatistics;
@@ -133,6 +159,9 @@ private:
 
 	//! Min,max,avg speed for every combat unit category
 	std::vector<StatisticalData> m_combatSpeedStatistics;
+
+	//! Statistical data for radar, sonar, and seismic sensores
+	SensorStatistics             m_sensorStatistics;
 };
 
 #endif

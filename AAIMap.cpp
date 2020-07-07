@@ -1895,12 +1895,14 @@ void AAIMap::CalculateContinentMaps()
 // algorithm more or less by krogothe - thx very much
 void AAIMap::SearchMetalSpots()
 {
-	const int unitid = ai->Getbt()->GetBiggestMex()-1; //WTF, why -1?
-	if (unitid <= 0) {
+	const UnitDefId largestExtractor = ai->Getbt()->GetLargestExtractor();
+	if ( largestExtractor.isValid() == false ) 
+	{
 		ai->Log("No metal extractor unit known!");
 		return;
 	}
-	const UnitDef* def = &ai->Getbt()->GetUnitDef(unitid);
+	
+	const UnitDef* def = &ai->Getbt()->GetUnitDef(largestExtractor.id);
 
 	metalMap = false;
 	bool Stopme = false;

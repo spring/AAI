@@ -120,11 +120,11 @@ public:
 	// returns power plant
 	int GetPowerPlant(int side, float cost, float urgency, float max_power, float current_energy, bool water, bool geo, bool canBuild);
 
-	//! @brief Selects a metal extractor according to given criteria; A builder is requested if none available and a different extractor is chosen.
+	//! @brief Selects a metal extractor according to given criteria; a builder is requested if none available and a different extractor is chosen.
 	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water);
 
-	// returns mex with the biggest yardmap
-	int GetBiggestMex();
+	//! @brief Selects a radar according to given criteria; a builder is requested if none available and a different radar is chosen.
+	UnitDefId SelectRadar(int side, float cost, float range, bool water);
 
 	// return defence buildings to counter a certain category
 	int DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, const CombatPower& combatCriteria, double urgency, double range, int randomness, bool water, bool canBuild) const;
@@ -154,8 +154,6 @@ public:
 	//! @brief Determines a scout unit with given properties
 	UnitDefId selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable);
 
-	int GetRadar(int side, float cost, float range, bool water, bool canBuild);
-
 	int GetJammer(int side, float cost, float range, bool water, bool canBuild);
 
 	// checks which factory is needed for a specific unit and orders it to be built
@@ -175,6 +173,9 @@ public:
 
 	// returns max damage of all weapons
 	float GetMaxDamage(int unit_id);
+
+	//! @brief Returns metal extractor with the largest yardmap
+	UnitDefId GetLargestExtractor() const;
 
 	// returns true, if unit is arty
 	bool IsArty(int id);
@@ -307,6 +308,9 @@ private:
 
 	//! @brief Returns an extractor based on the given criteria
 	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool canBuild) const;
+
+	//! @brief Returns a radar according to given criteria
+	UnitDefId SelectRadar(int side, float cost, float range, bool water, bool canBuild) const;
 
 	//! @brief Calculates the rating of the given factory for the given map type
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const CombatPower& combatPowerWeights, const MapType mapType) const;

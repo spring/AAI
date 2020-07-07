@@ -1286,23 +1286,26 @@ UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMe
 	return selectedExtractorDefId.id;
 }
 
-int AAIBuildTable::GetBiggestMex()
+UnitDefId AAIBuildTable::GetLargestExtractor() const
 {
-	int biggest_mex = 0, biggest_yard_map = 0;
+	UnitDefId largestExtractor;
+	int largestYardMap(0);
 
-	for(int s = 0; s < cfg->SIDES; ++s)
+	for(int side = 1; side <= cfg->SIDES; ++side)
 	{
-		for(list<int>::iterator mex = units_of_category[EXTRACTOR][s].begin();  mex != units_of_category[EXTRACTOR][s].end(); ++mex)
+		for(auto extractor = s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).begin(); extractor != s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).end(); ++extractor)
 		{
-			if(GetUnitDef(*mex).xsize * GetUnitDef(*mex).zsize > biggest_yard_map)
+			const int yardMap = GetUnitDef(extractor->id).xsize * GetUnitDef(extractor->id).zsize;
+			
+			if(yardMap > largestYardMap)
 			{
-				biggest_yard_map = GetUnitDef(*mex).xsize * GetUnitDef(*mex).zsize;
-				biggest_mex = *mex;
+				largestYardMap   = yardMap;
+				largestExtractor = *extractor;
 			}
 		}
 	}
 
-	return biggest_mex;
+	return largestExtractor;
 }
 
 int AAIBuildTable::GetStorage(int side, float cost, float metal, float energy, float urgency, bool water, bool canBuild)
@@ -1892,42 +1895,53 @@ int AAIBuildTable::GetStationaryArty(int side, float cost, float range, float ef
 	return best_arty;
 }
 
-int AAIBuildTable::GetRadar(int side, float cost, float range, bool water, bool canBuild)
+UnitDefId AAIBuildTable::SelectRadar(int side, float cost, float range, bool water)
 {
-	int best_radar = 0;
-	float my_rating, best_rating = -10000;
-	side -= 1;
+	UnitDefId radar = SelectRadar(side, cost, range, water, false);
 
-	for(auto sensor = s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SENSOR, side+1).begin(); sensor != s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SENSOR, side+1).end(); ++sensor)
+	if(radar.isValid() && (units_dynamic[radar.id].constructorsAvailable <= 0) )
+	{
+		if(units_dynamic[radar.id].constructorsRequested <= 0)
+			BuildBuilderFor(radar);
+
+		radar = SelectRadar(side, cost, range, water, true);
+	}
+
+	return radar;
+}
+	
+UnitDefId AAIBuildTable::SelectRadar(int side, float cost, float range, bool water, bool canBuild) const
+{
+	UnitDefId selectedRadar;
+	float bestRating(0.0f);
+
+	const StatisticalData& costs  = s_buildTree.GetUnitStatistics(side).GetSensorStatistics().m_radarCosts;
+	const StatisticalData& ranges = s_buildTree.GetUnitStatistics(side).GetSensorStatistics().m_radarRanges;
+
+	for(auto sensor = s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SENSOR, side).begin(); sensor != s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SENSOR, side).end(); ++sensor)
 	{
 		//! @todo replace by checking unit type for radar when implemented.
-		if(GetUnitDef(sensor->id).radarRadius > 0)
+		if( s_buildTree.GetUnitType(sensor->id).IsRadar() )
 		{
-			if(canBuild && units_dynamic[sensor->id].constructorsAvailable <= 0)
-				my_rating = -10000;
-			else if(water && GetUnitDef(sensor->id).minWaterDepth > 0)
-				my_rating = cost * (avg_cost[STATIONARY_RECON][side] - s_buildTree.GetTotalCost(UnitDefId(sensor->id)))/max_cost[STATIONARY_RECON][side]
-						+ range * (GetUnitDef(sensor->id).radarRadius - avg_value[STATIONARY_RECON][side])/max_value[STATIONARY_RECON][side];
-			else if (!water && GetUnitDef(sensor->id).minWaterDepth <= 0)
-				my_rating = cost * (avg_cost[STATIONARY_RECON][side] - s_buildTree.GetTotalCost(UnitDefId(sensor->id)))/max_cost[STATIONARY_RECON][side]
-						+ range * (GetUnitDef(sensor->id).radarRadius - avg_value[STATIONARY_RECON][side])/max_value[STATIONARY_RECON][side];
-			else
-				my_rating = -10000;
-		}
-		else
-			my_rating = 0;
+			const bool constructableCheckPassed = !canBuild || (units_dynamic[sensor->id].constructorsAvailable > 0);
+			const bool landCheckPassed          = !water    && s_buildTree.GetMovementType(sensor->id).isStaticLand();
+			const bool seaCheckPassed           =  water    && s_buildTree.GetMovementType(sensor->id).isStaticSea();
 
-		if(my_rating > best_rating)
-		{
-			if(GetUnitDef(sensor->id).metalCost < cfg->MAX_METAL_COST)
+			if(constructableCheckPassed && landCheckPassed && seaCheckPassed)
 			{
-				best_radar = sensor->id;
-				best_rating = my_rating;
+				const float myRating =   cost * costs.GetNormalizedDeviationFromMax(s_buildTree.GetTotalCost(sensor->id))
+				                       + range * ranges.GetNormalizedDeviationFromMin(s_buildTree.GetMaxRange(sensor->id));
+
+				if(myRating > bestRating)
+				{
+					selectedRadar = *sensor;
+					bestRating    = myRating;
+				}
 			}
 		}
 	}
 
-	return best_radar;
+	return selectedRadar;
 }
 
 int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool canBuild)

@@ -74,6 +74,9 @@ public:
 	//! @brief Returns movement type of given unit type
 	const AAIMovementType& GetMovementType(UnitDefId unitDefId) const  { return m_unitTypeProperties[unitDefId.id].m_movementType; }
 
+	//! @brief Returns the unit type
+	const AAIUnitType& GetUnitType(UnitDefId unitDefId)         const  { return m_unitTypeProperties[unitDefId.id].m_unitType; }
+
 	//! @brief Return the maximum speed
 	const float GetMaxSpeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; }
 
