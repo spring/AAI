@@ -1236,6 +1236,15 @@ int AAIBuildTable::GetPowerPlant(int side, float cost, float urgency, float powe
 	return best_unit;
 }
 
+bool AAIBuildTable::IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const
+{
+	const bool constructablePassed = !mustBeConstructable || (units_dynamic[building.id].constructorsAvailable > 0);
+	const bool landCheckPassed     = !water    && s_buildTree.GetMovementType(building.id).isStaticLand();
+	const bool seaCheckPassed      =  water    && s_buildTree.GetMovementType(building.id).isStaticSea();
+
+	return constructablePassed && (landCheckPassed || seaCheckPassed );
+}
+
 UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water)
 {
 	UnitDefId extractor = SelectExtractor(side, cost, extractedMetal, armed, water, false);
@@ -1249,7 +1258,7 @@ UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMe
 	return extractor;
 }
 
-UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool canBuild) const
+UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool mustBeConstructable) const
 {
 	UnitDefId selectedExtractorDefId;
 	float     bestRating(0.0f);
@@ -1260,11 +1269,8 @@ UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMe
 
 	for(auto extractorDefId = s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).begin(); extractorDefId != s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).end(); ++extractorDefId)
 	{
-		const bool buildableCheckPassed = !canBuild || (units_dynamic[extractorDefId->id].constructorsAvailable > 0);
-	    const bool seaCheckPassed       = !water    || s_buildTree.GetMovementType(*extractorDefId).isStaticSea();
-
 		// check if under water or ground || water = true and building under water
-		if( buildableCheckPassed && seaCheckPassed )
+		if( IsBuildingSelectable(*extractorDefId, water, mustBeConstructable) )
 		{
 			const float metalExtraction = s_buildTree.GetMaxRange( *extractorDefId );
 
@@ -1569,158 +1575,76 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 	}
 }
 
-int AAIBuildTable::DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, const CombatPower& combatCriteria, double urgency, double range, int randomness, bool water, bool canBuild) const
+UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water)
+{
+	UnitDefId selectedDefence = SelectStaticDefence(side, cost, buildtime, combatPower, combatCriteria, range, randomness, false, false);
+
+	if(selectedDefence.isValid() && (units_dynamic[selectedDefence.id].constructorsAvailable <= 0))
+	{
+		if(units_dynamic[selectedDefence.id].constructorsRequested <= 0)
+			BuildBuilderFor(selectedDefence);
+
+		selectedDefence = SelectStaticDefence(side, cost, buildtime, combatPower, combatCriteria, range, randomness, false, true);
+	}
+
+	return selectedDefence;
+}
+
+UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water, bool mustBeConstructable) const
 {
 	// get data needed for selection
-	/*AAIUnitCategory category(EUnitCategory::GROUND_COMBAT);
-	const std::list<int> unitList = s_buildTree.GetUnitsInCategory(category, side);
+	AAIUnitCategory category(EUnitCategory::STATIC_DEFENCE);
+	const std::list<UnitDefId> unitList = s_buildTree.GetUnitsInCategory(category, side);
 
-	const StatisticalData& costStatistics  = s_buildTree.getUnitStatistics(side).GetCostStatistics(category);
-	const StatisticalData& rangeStatistics = s_buildTree.getUnitStatistics(side).GetRangeStatistics(category);
-	const StatisticalData& speedStatistics = s_buildTree.getUnitStatistics(side).GetSpeedStatistics(category);
+	const StatisticalData& costs      = s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(category);
+	const StatisticalData& ranges     = s_buildTree.GetUnitStatistics(side).GetUnitPrimaryAbilityStatistics(category);
+	const StatisticalData& buildtimes = s_buildTree.GetUnitStatistics(side).GetUnitBuildtimeStatistics(category);
 
-	// calculate combat power/efficiency
-	float maxPower       = 0.0f;
-	float maxEfficiency  = 0.0f;
+	// calculate combat power
+	StatisticalData combatPowerStat;		
 
-	StatisticalData combatPowerStat;		// absolute combat power
-	StatisticalData combatEfficiencyStat;	// combat power related to unit cost
-
-	for(std::list<int>::const_iterator id = unitList.begin(); id != unitList.end(); ++id)
+	for(auto defence = unitList.begin(); defence != unitList.end(); ++defence)
 	{
-		const UnitTypeStatic *unit = &units_static[*id];
-		const UnitTypeProperties& unitData = s_buildTree.getUnitTypeProperties(UnitDefId(*id));
+		const UnitTypeStatic *unit = &units_static[defence->id];
 
-		float combatPower = gr_eff * unit->efficiency[0] + air_eff * unit->efficiency[1] + hover_eff * unit->efficiency[2] + stat_eff * unit->efficiency[5];
-		float combatEff = combatPower / unitData.m_totalCost;
-
+		float combatPower = combatCriteria.vsGround    * unit->efficiency[0] + combatCriteria.vsAir * unit->efficiency[1] 
+						  + combatCriteria.vsHover     * unit->efficiency[2] + combatCriteria.vsSea * unit->efficiency[3] 
+						  + combatCriteria.vsSubmarine * unit->efficiency[4];
 		combatPowerStat.AddValue(combatPower);
-		combatEfficiencyStat.AddValue(combatEff);
 	}
 
 	combatPowerStat.Finalize();
-	combatEfficiencyStat.Finalize();
 
-	// begin with selection
-	int selectedUnitType = 0;
-	float bestRating = 0.0f;
+	// start with selection
+	UnitDefId selectedDefence;
+	float bestRating(0.0f);
 
-	for(std::list<int>::const_iterator id = unitList.begin(); id != unitList.end(); ++id)
+	for(auto defence = unitList.begin(); defence != unitList.end(); ++defence)
 	{
-		if(    (canBuild == false)
-			|| ((canBuild == true) && (units_dynamic[*id].constructorsAvailable > 0)) )
+		if( IsBuildingSelectable(*defence, water, mustBeConstructable) )
 		{
-			const UnitTypeStatic *unit = &units_static[*id];
-			const UnitTypeProperties& unitData = s_buildTree.getUnitTypeProperties(UnitDefId(*id));
+			const UnitTypeStatic *unit = &units_static[defence->id];
+			const UnitTypeProperties& unitData = s_buildTree.GetUnitTypeProperties(*defence);
 
-			float combatPower = gr_eff * unit->efficiency[0] + air_eff * unit->efficiency[1] + hover_eff * unit->efficiency[2] + stat_eff * unit->efficiency[5];
-			float combatEff = combatPower / unitData.m_totalCost;
+			float combatPower =   combatCriteria.vsGround * unit->efficiency[0] + combatCriteria.vsAir * unit->efficiency[1] 
+								+ combatCriteria.vsHover * unit->efficiency[2] + combatCriteria.vsSea * unit->efficiency[3] 
+						  		+ combatCriteria.vsSubmarine * unit->efficiency[4];
 
-			float myRating =  cost  * costStatistics.GetNormalizedDeviationFromMax( unitData.m_totalCost )
-							+ range * rangeStatistics.GetNormalizedDeviationFromMin( unitData.m_range )
-							+ speed * speedStatistics.GetNormalizedDeviationFromMin( unitData.m_maxSpeed )
-							+ power * combatPowerStat.GetNormalizedDeviationFromMin( combatPower )
-							+ efficiency * combatEfficiencyStat.GetNormalizedDeviationFromMin( combatEff )
+			float myRating =  cost        * costs.GetNormalizedDeviationFromMax( unitData.m_totalCost )
+							+ buildtime   * buildtimes.GetNormalizedDeviationFromMax( unitData.m_buildtime )
+							+ range       * ranges.GetNormalizedDeviationFromMin( unitData.m_range )
+							+ combatPower * combatPowerStat.GetNormalizedDeviationFromMin( combatPower )
 							+ 0.05f * ((float)(rand()%randomness));
 
 			if(myRating > bestRating)
 			{
 				bestRating = myRating;
-				selectedUnitType = *id;
+				selectedDefence = *defence;
 			}
 		}
 	}
 
-	return selectedUnitType;*/
-
-	--side;
-
-	double best_ranking = -100000, my_ranking;
-	int best_defence = 0;
-
-	UnitTypeStatic *unit;
-
-	double my_power;
-
-	float total_eff = combatCriteria.CalculateSum();
-	float max_eff_selection = 0;
-	float max_power = 0.0f;
-
-	int k = 0;
-
-	// use my_power as temp var
-	for(list<int>::iterator defence = units_of_category[STATIONARY_DEF][side].begin(); defence != units_of_category[STATIONARY_DEF][side].end(); ++defence)
-	{
-		if(!canBuild || units_dynamic[*defence].constructorsAvailable > 0)
-		{
-			unit = &units_static[*defence];
-
-			// calculate eff.
-			my_power = combatCriteria.vsGround    * unit->efficiency[0] / max_eff[side][5][0] 
-					 + combatCriteria.vsAir       * unit->efficiency[1] / max_eff[side][5][1]
-					 + combatCriteria.vsHover     * unit->efficiency[2] / max_eff[side][5][2] 
-					 + combatCriteria.vsSea       * unit->efficiency[3] / max_eff[side][5][3]
-					 + combatCriteria.vsSubmarine * unit->efficiency[4] / max_eff[side][5][4];
-			my_power /= total_eff;
-
-			// store result
-			def_power[side][k] = my_power;
-
-			if(my_power > max_power)
-				max_power = my_power;
-
-			// calculate eff
-			my_power /= s_buildTree.GetTotalCost(UnitDefId(*defence));
-
-			if(my_power > max_eff_selection)
-				max_eff_selection = my_power;
-
-			++k;
-		}
-	}
-
-	// something went wrong
-	if(max_eff_selection <= 0)
-		return 0;
-
-	//ai->Log("\nSelecting defence: eff %f   power %f   urgency %f  range %f\n", efficiency, combat_power, urgency, range);
-
-	// reset counter
-	k = 0;
-
-	// calculate rating
-	for(list<int>::iterator defence = units_of_category[STATIONARY_DEF][side].begin(); defence != units_of_category[STATIONARY_DEF][side].end(); ++defence)
-	{
-		if(canBuild && units_dynamic[*defence].constructorsAvailable <= 0)
-			my_ranking = -100000;
-		else if( (!water && GetUnitDef(*defence).minWaterDepth <= 0) || (water && GetUnitDef(*defence).minWaterDepth > 0) )
-		{
-			UnitDefId defId(*defence);
-			unit = &units_static[*defence];
-
-			my_ranking = efficiency * (def_power[side][k] / s_buildTree.GetTotalCost(defId)) / max_eff_selection
-						+ combat_power * def_power[side][k] / max_power
-						+ range   * s_buildTree.GetMaxRange(defId)  / max_value[STATIONARY_DEF][side]
-						- cost    * s_buildTree.GetTotalCost(defId) / max_cost[STATIONARY_DEF][side]
-						- urgency * s_buildTree.GetBuildtime(defId) / max_buildtime[STATIONARY_DEF][side];
-
-			my_ranking += (0.1 * ((double)(rand()%randomness)));
-
-			//ai->Log("%-20s: %f %f %f %f %f\n", GetUnitDef(unit->id).humanName.c_str(), t1, t2, t3, t4, my_ranking);
-		}
-		else
-			my_ranking = -100000;
-
-		if(my_ranking > best_ranking)
-		{
-			best_ranking = my_ranking;
-			best_defence = *defence;
-		}
-
-		++k;
-	}
-
-	return best_defence;
+	return selectedDefence;
 }
 
 int AAIBuildTable::GetCheapDefenceBuilding(int side, double efficiency, double combat_power, double cost, double urgency, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, bool water)
@@ -1812,28 +1736,6 @@ int AAIBuildTable::GetCheapDefenceBuilding(int side, double efficiency, double c
 	return best_defence;
 }
 
-int AAIBuildTable::GetRandomDefence(int side)
-{
-	float best_rating = 0, my_rating;
-
-	int best_defence = 0;
-
-	for(list<int>::iterator i = units_of_category[STATIONARY_DEF][side-1].begin(); i != units_of_category[STATIONARY_DEF][side-1].end(); ++i)
-	{
-		my_rating = rand()%512;
-
-		if(my_rating >best_rating)
-		{
-			if(GetUnitDef(*i).metalCost < cfg->MAX_METAL_COST)
-			{
-				best_defence = *i;
-				best_rating = my_rating;
-			}
-		}
-	}
-	return best_defence;
-}
-
 int AAIBuildTable::GetAirBase(int side, float /*cost*/, bool water, bool canBuild)
 {
 	float best_ranking = 0, my_ranking;
@@ -1910,7 +1812,7 @@ UnitDefId AAIBuildTable::SelectRadar(int side, float cost, float range, bool wat
 	return radar;
 }
 	
-UnitDefId AAIBuildTable::SelectRadar(int side, float cost, float range, bool water, bool canBuild) const
+UnitDefId AAIBuildTable::SelectRadar(int side, float cost, float range, bool water, bool mustBeConstructable) const
 {
 	UnitDefId selectedRadar;
 	float bestRating(0.0f);
@@ -1923,11 +1825,7 @@ UnitDefId AAIBuildTable::SelectRadar(int side, float cost, float range, bool wat
 		//! @todo replace by checking unit type for radar when implemented.
 		if( s_buildTree.GetUnitType(sensor->id).IsRadar() )
 		{
-			const bool constructableCheckPassed = !canBuild || (units_dynamic[sensor->id].constructorsAvailable > 0);
-			const bool landCheckPassed          = !water    && s_buildTree.GetMovementType(sensor->id).isStaticLand();
-			const bool seaCheckPassed           =  water    && s_buildTree.GetMovementType(sensor->id).isStaticSea();
-
-			if(constructableCheckPassed && landCheckPassed && seaCheckPassed)
+			if(IsBuildingSelectable(*sensor, water, mustBeConstructable))
 			{
 				const float myRating =   cost * costs.GetNormalizedDeviationFromMax(s_buildTree.GetTotalCost(sensor->id))
 				                       + range * ranges.GetNormalizedDeviationFromMin(s_buildTree.GetMaxRange(sensor->id));
@@ -1980,38 +1878,31 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 
 UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable)
 {
-	side -= 1;
-	float highestRanking = -10000.0f;
-	UnitDefId selectedScout(0);
+	float highestRating = 0.0f;
+	UnitDefId selectedScout;
 
-	// prevent division by zero / errors from floating point inaccuracy if min and may value are the same.
-	float losRadiusRange = (max_value[SCOUT][side] - min_value[SCOUT][side]);
-	if(losRadiusRange < 1.0f)
-		losRadiusRange = 1.0f;
+	const StatisticalData& costs       = s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::SCOUT);
+	const StatisticalData& sightRanges = s_buildTree.GetUnitStatistics(side).GetUnitPrimaryAbilityStatistics(EUnitCategory::SCOUT);
 
-	float costRange = (max_cost[SCOUT][side] - min_cost[SCOUT][side]);
-	if(costRange < 1.0f)
-		costRange = 1.0f;
-
-	for(auto scout = s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side+1).begin(); scout != s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side+1).end(); ++scout)
+	for(auto scout = s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side).begin(); scout != s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side).end(); ++scout)
 	{
 		bool movementTypeAllowed     = s_buildTree.GetMovementType(scout->id).isIncludedIn(movementType);
-		bool factoryPrerequisitesMet = (!factoryAvailable || (factoryAvailable && units_dynamic[scout->id].constructorsAvailable > 0));
+		bool factoryPrerequisitesMet = !factoryAvailable || (units_dynamic[scout->id].constructorsAvailable > 0);
 
-		if( (movementTypeAllowed == true) && (factoryPrerequisitesMet == true) )
+		if( movementTypeAllowed && factoryPrerequisitesMet )
 		{
-			float myRanking =     sightRange * ( (GetUnitDef(scout->id).losRadius - min_value[SCOUT][side]) / losRadiusRange)
-								+       cost * ( (max_cost[SCOUT][side]    - s_buildTree.GetTotalCost(UnitDefId(scout->id))) / costRange );
+			float myRating =     sightRange * sightRanges.GetNormalizedDeviationFromMin(s_buildTree.GetMaxRange(*scout))
+							   +       cost * costs.GetNormalizedDeviationFromMax( s_buildTree.GetTotalCost(*scout) );
 
 			if(cloakable && GetUnitDef(scout->id).canCloak)
-				myRanking += 2.0f;
+				myRating += 2.0f;
 
-			myRanking += (0.1f * ((float)(rand()%randomness)));
+			myRating += (0.1f * ((float)(rand()%randomness)));
 
-			if(myRanking > highestRanking)
+			if(myRating > highestRating)
 			{
-				highestRanking = myRanking;
-				selectedScout.id = scout->id;
+				highestRating = myRating;
+				selectedScout = *scout;
 			}
 		}
 	}

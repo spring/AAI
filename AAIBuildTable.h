@@ -126,8 +126,8 @@ public:
 	//! @brief Selects a radar according to given criteria; a builder is requested if none available and a different radar is chosen.
 	UnitDefId SelectRadar(int side, float cost, float range, bool water);
 
-	// return defence buildings to counter a certain category
-	int DetermineStaticDefence(int side, double efficiency, double combat_power, double cost, const CombatPower& combatCriteria, double urgency, double range, int randomness, bool water, bool canBuild) const;
+	//! @brief Selects a static defence according to given criteria; a builder is requested if none available and a different static defence is chosen.
+	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water);
 
 	// returns a cheap defence building (= avg_cost taken
 	int GetCheapDefenceBuilding(int side, double efficiency, double combat_power, double cost, double urgency, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, bool water);
@@ -146,8 +146,6 @@ public:
 
 	// returns a random unit from the list
 	int GetRandomUnit(list<int> unit_list);
-
-	int GetRandomDefence(int side);
 
 	int GetStationaryArty(int side, float cost, float range, float efficiency, bool water, bool canBuild);
 
@@ -306,11 +304,17 @@ private:
 
 	bool LoadBuildTable();
 
+	//! @brief Helper function used for building selection
+	bool IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const;
+
 	//! @brief Returns an extractor based on the given criteria
 	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool canBuild) const;
 
 	//! @brief Returns a radar according to given criteria
 	UnitDefId SelectRadar(int side, float cost, float range, bool water, bool canBuild) const;
+
+	//! @brief Selects a defence building according to given criteria
+	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water, bool constructable) const;
 
 	//! @brief Calculates the rating of the given factory for the given map type
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const CombatPower& combatPowerWeights, const MapType mapType) const;

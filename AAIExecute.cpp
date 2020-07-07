@@ -1399,9 +1399,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 		}
 	}
 
-
 	bool checkWater, checkGround;
-	int building;
 	float3 pos;
 	AAIConstructor *builder;
 
@@ -1434,18 +1432,16 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 	float range = 0.2f + 0.6f / (urgency + 1.0f);
 	float cost = 0.5 + ai->Getbrain()->Affordable()/5.0f;*/
 
-	float range   = 1.0f;
-	float power   = 1.0f;
-	float eff     = 1.0f;
-	float cost    = 1.0f;
-	float urgency = 1.0f;
+	float range       = 0.75f;
+	float combatPower = 1.0f;
+	float cost        = 1.0f;
+	float buildtime   = 1.0f;
 
 	const int staticDefences = dest->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE);
 	if(staticDefences > 2)
 	{
-		urgency = 0.25f;
-		power   = 2.0f;
-		eff     = 2.0f;
+		buildtime   = 0.5f;
+		combatPower = 2.0f;
 
 		int t = rand()%500;
 
@@ -1462,18 +1458,17 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 	}
 	else if(staticDefences > 0)
 	{
-		power   = 1.5f;
-		eff     = 1.5f;
+		cost       = 1.5f;
+		buildtime  = 2.0f;
 	}
 	else // no static defences so far
 	{
-		eff     = 2.0f;
-		urgency = 2.0f;
+		buildtime = 3.0f;
+		cost      = 2.0f;
 	}
 	
 
 	CombatPower criteria(0.0f);
-
 	switch(category.getUnitCategory())
 	{
 		case EUnitCategory::GROUND_COMBAT:
@@ -1499,21 +1494,14 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 
 	if(checkGround)
 	{
-		if(staticDefences > 4 && rand()%cfg->LEARN_RATE == 1)
-			building = ai->Getbt()->GetRandomDefence(ai->GetSide());
-		else
-			building = ai->Getbt()->DetermineStaticDefence(ai->GetSide(), eff, power, cost, criteria, urgency, range, 8, false, false);
+		int randomness(8);
+		if(staticDefences > 4 && (rand()%cfg->LEARN_RATE == 1) ) // select defence more randomly from time to time
+			randomness = 20;
 
-		if(building && ai->Getbt()->units_dynamic[building].constructorsAvailable <= 0)
-		{
-			if(ai->Getbt()->units_dynamic[building].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(UnitDefId(building));
-
-			building = ai->Getbt()->DetermineStaticDefence(ai->GetSide(), eff, power, cost, criteria, urgency, range, 8, false, true);
-		}
+		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, criteria, range, randomness, false);
 
 		// stop building weak defences if urgency is too low (wait for better defences)
-		if(staticDefences > 3)
+		/*if(staticDefences > 3)
 		{
 			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ]  < 0.75f * ai->Getbt()->avg_eff[ai->GetSide()-1][5][  ai->Getbt()->GetIDOfAssaultCategory(category) ] )
 				building = 0;
@@ -1522,25 +1510,26 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 		{
 			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ] < ai->Getbt()->avg_eff[ai->GetSide()-1][5][ ai->Getbt()->GetIDOfAssaultCategory(category) ] )
 				building = 0;
-		}
+		}*/
 
-		if(building)
+		if(selectedDefence.isValid())
 		{
-			pos = dest->GetDefenceBuildsite(building, category, terrain, false);
+			pos = dest->GetDefenceBuildsite(selectedDefence.id, category, terrain, false);
 
 			if(pos.x > 0)
 			{
 				float min_dist;
-				builder = ai->Getut()->FindClosestBuilder(building, &pos, true, &min_dist);
+				builder = ai->Getut()->FindClosestBuilder(selectedDefence.id, &pos, true, &min_dist);
 
 				if(builder)
 				{
-					builder->GiveConstructionOrder(building, pos, false);
+					builder->GiveConstructionOrder(selectedDefence.id, pos, false);
+					ai->Getmap()->AddDefence(&pos, selectedDefence.id);
 					return BUILDORDER_SUCCESSFUL;
 				}
 				else
 				{
-					ai->Getbt()->BuildBuilderFor(UnitDefId(building));
+					ai->Getbt()->BuildBuilderFor(selectedDefence);
 					return BUILDORDER_NOBUILDER;
 				}
 			}
@@ -1551,21 +1540,14 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 
 	if(checkWater)
 	{
-		if((rand()%cfg->LEARN_RATE == 1) && (staticDefences > 4))
-			building = ai->Getbt()->GetRandomDefence(ai->GetSide());
-		else
-			building = ai->Getbt()->DetermineStaticDefence(ai->GetSide(), eff, power, cost, criteria, urgency, 1, 8, true, false);
+		int randomness(8);
+		if(staticDefences > 4 && (rand()%cfg->LEARN_RATE == 1) )// select defence more randomly from time to time
+			randomness = 20;
 
-		if(building && ai->Getbt()->units_dynamic[building].constructorsAvailable <= 0)
-		{
-			if(ai->Getbt()->units_dynamic[building].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(UnitDefId(building));
-
-			building = ai->Getbt()->DetermineStaticDefence(ai->GetSide(), eff, power, cost, criteria, urgency, 1,  8, true, true);
-		}
+		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, criteria, range, randomness, true);
 
 		// stop building of weak defences if urgency is too low (wait for better defences)
-		if(staticDefences > 3)
+		/*if(staticDefences > 3)
 		{
 			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ]  < 0.75f * ai->Getbt()->avg_eff[ai->GetSide()-1][5][  ai->Getbt()->GetIDOfAssaultCategory(category) ] )
 				building = 0;
@@ -1574,29 +1556,26 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 		{
 			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ]  < ai->Getbt()->avg_eff[ai->GetSide()-1][5][  ai->Getbt()->GetIDOfAssaultCategory(category) ] )
 				building = 0;
-		}
+		}*/
 
-		if(building)
+		if(selectedDefence.isValid())
 		{
-			pos = dest->GetDefenceBuildsite(building, category, terrain, true);
+			pos = dest->GetDefenceBuildsite(selectedDefence.id, category, terrain, true);
 
 			if(pos.x > 0)
 			{
 				float min_dist;
-				builder = ai->Getut()->FindClosestBuilder(building, &pos, true, &min_dist);
+				builder = ai->Getut()->FindClosestBuilder(selectedDefence.id, &pos, true, &min_dist);
 
 				if(builder)
 				{
-					builder->GiveConstructionOrder(building, pos, true);
-
-					// add defence to map
-					ai->Getmap()->AddDefence(&pos, building);
-
+					builder->GiveConstructionOrder(selectedDefence.id, pos, true);
+					ai->Getmap()->AddDefence(&pos, selectedDefence.id);
 					return BUILDORDER_SUCCESSFUL;
 				}
 				else
 				{
-					ai->Getbt()->BuildBuilderFor(UnitDefId(building));
+					ai->Getbt()->BuildBuilderFor(selectedDefence);
 					return BUILDORDER_NOBUILDER;
 				}
 			}
