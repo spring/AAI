@@ -1626,14 +1626,14 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildti
 			const UnitTypeStatic *unit = &units_static[defence->id];
 			const UnitTypeProperties& unitData = s_buildTree.GetUnitTypeProperties(*defence);
 
-			float combatPower =   combatCriteria.vsGround * unit->efficiency[0] + combatCriteria.vsAir * unit->efficiency[1] 
-								+ combatCriteria.vsHover * unit->efficiency[2] + combatCriteria.vsSea * unit->efficiency[3] 
-						  		+ combatCriteria.vsSubmarine * unit->efficiency[4];
+			float myCombatPower =   combatCriteria.vsGround * unit->efficiency[0] + combatCriteria.vsAir * unit->efficiency[1] 
+								  + combatCriteria.vsHover  * unit->efficiency[2] + combatCriteria.vsSea * unit->efficiency[3] 
+						  		  + combatCriteria.vsSubmarine * unit->efficiency[4];
 
 			float myRating =  cost        * costs.GetNormalizedDeviationFromMax( unitData.m_totalCost )
 							+ buildtime   * buildtimes.GetNormalizedDeviationFromMax( unitData.m_buildtime )
 							+ range       * ranges.GetNormalizedDeviationFromMin( unitData.m_range )
-							+ combatPower * combatPowerStat.GetNormalizedDeviationFromMin( combatPower )
+							+ combatPower * combatPowerStat.GetNormalizedDeviationFromMin( myCombatPower )
 							+ 0.05f * ((float)(rand()%randomness));
 
 			if(myRating > bestRating)
@@ -1645,95 +1645,6 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildti
 	}
 
 	return selectedDefence;
-}
-
-int AAIBuildTable::GetCheapDefenceBuilding(int side, double efficiency, double combat_power, double cost, double urgency, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, bool water)
-{
-	--side;
-
-	double best_ranking = -100000, my_ranking;
-	int best_defence = 0;
-
-	UnitTypeStatic *unit;
-
-	double my_power;
-
-	double total_eff = ground_eff + air_eff + hover_eff + sea_eff + submarine_eff;
-	double max_eff_selection = 0;
-	double max_power = 0;
-
-	uint32_t buildingTypeBitmask = 0;
-
-	if(water)
-		buildingTypeBitmask =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_FLOATER)
-						      + static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_SUBMERGED);
-	else
-		buildingTypeBitmask =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_LAND);
-
-	int k = 0;
-
-	// use my_power as temp var
-	for(list<int>::iterator defence = units_of_category[STATIONARY_DEF][side].begin(); defence != units_of_category[STATIONARY_DEF][side].end(); ++defence)
-	{
-		if(    (units_dynamic[*defence].constructorsAvailable > 0) 
-			&& (s_buildTree.GetMovementType(UnitDefId(*defence)).isIncludedIn(buildingTypeBitmask) == true) )
-		{
-			unit = &units_static[*defence];
-
-			// calculate eff.
-			my_power = ground_eff * unit->efficiency[0] / avg_eff[side][5][0] + air_eff * unit->efficiency[1] / avg_eff[side][5][1]
-					+ hover_eff * unit->efficiency[2] / avg_eff[side][5][2] + sea_eff * unit->efficiency[3] / avg_eff[side][5][3]
-					+ submarine_eff * unit->efficiency[4] / avg_eff[side][5][4];
-			my_power /= total_eff;
-
-			// store result
-			def_power[side][k] = my_power;
-
-			if(my_power > max_power)
-				max_power = my_power;
-
-			// calculate eff
-			my_power /= s_buildTree.GetTotalCost(UnitDefId(*defence));
-
-			if(my_power > max_eff_selection)
-				max_eff_selection = my_power;
-
-			++k;
-		}
-	}
-
-	// something went wrong
-	if(max_eff_selection <= 0)
-		return 0;
-
-	// reset counter
-	k = 0;
-
-	// calculate rating
-	for(list<int>::iterator defence = units_of_category[STATIONARY_DEF][side].begin(); defence != units_of_category[STATIONARY_DEF][side].end(); ++defence)
-	{
-		if(    (units_dynamic[*defence].constructorsAvailable > 0)
-		    && (s_buildTree.GetMovementType(UnitDefId(*defence)).isIncludedIn(buildingTypeBitmask) == true) )
-		{
-			unit = &units_static[*defence];
-
-			my_ranking = efficiency * (def_power[side][k] / s_buildTree.GetTotalCost(UnitDefId(*defence))) / max_eff_selection
-						+ combat_power * def_power[side][k] / max_power
-						- cost * s_buildTree.GetTotalCost(UnitDefId(*defence)) / avg_cost[STATIONARY_DEF][side]
-						- urgency * GetUnitDef(*defence).buildTime / max_buildtime[STATIONARY_DEF][side];
-
-			if(my_ranking > best_ranking)
-			{
-				best_ranking = my_ranking;
-				best_defence = *defence;
-			}
-
-			++k;
-			//ai->Log("%-20s: %f %f %f %f %f\n", GetUnitDef(unit->id).humanName.c_str(), t1, t2, t3, t4, my_ranking);
-		}
-	}
-
-	return best_defence;
 }
 
 int AAIBuildTable::GetAirBase(int side, float /*cost*/, bool water, bool canBuild)

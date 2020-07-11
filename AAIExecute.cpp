@@ -1432,7 +1432,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 	float range = 0.2f + 0.6f / (urgency + 1.0f);
 	float cost = 0.5 + ai->Getbrain()->Affordable()/5.0f;*/
 
-	float range       = 0.75f;
+	float range       = 0.5f;
 	float combatPower = 1.0f;
 	float cost        = 1.0f;
 	float buildtime   = 1.0f;
@@ -1445,9 +1445,9 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 
 		int t = rand()%500;
 
-		if(t < 70)
+		if(t < 100)
 		{
-			range   = 2.5f;
+			range   = 2.0f;
 			terrain = 10.0f;
 		}
 		else if(t < 200)
@@ -1458,13 +1458,15 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 	}
 	else if(staticDefences > 0)
 	{
-		cost       = 1.5f;
-		buildtime  = 2.0f;
+		buildtime = 2.0f;
+		cost      = 1.5f;
+		range     = 0.2f;
 	}
 	else // no static defences so far
 	{
 		buildtime = 3.0f;
 		cost      = 2.0f;
+		range     = 0.2f;
 	}
 	
 
@@ -1959,31 +1961,29 @@ void AAIExecute::DefendMex(int mex, int def_id)
 			&& (sector->distance_to_base <= cfg->MAX_MEX_DEFENCE_DISTANCE)
 			&& (sector->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < 1) )
 		{
-			int defence = 0;
+			CombatPower combatPowerVs(0.0f);
+			
 			bool water;
 
 			// get defence building dependend on water or land mex
 			if(ai->Getbt()->GetUnitDef(def_id).minWaterDepth > 0)
 			{
 				water = true;
-
-				if(cfg->AIR_ONLY_MOD)
-					defence = ai->Getbt()->GetCheapDefenceBuilding(ai->GetSide(), 1, 2, 1, 1, 1, 0.5, 0, 0, 0, true);
-				else
-					defence = ai->Getbt()->GetCheapDefenceBuilding(ai->GetSide(), 1, 2, 1, 1, 0, 0, 0.5, 1.5, 0.5, true);
+				combatPowerVs.vsHover     = 0.75f;
+				combatPowerVs.vsSea       = 1.0f;
+				combatPowerVs.vsSubmarine = 0.75f;
 			}
 			else
 			{
-				if(cfg->AIR_ONLY_MOD)
-					defence = ai->Getbt()->GetCheapDefenceBuilding(ai->GetSide(), 1, 2, 1, 1, 1, 0.5, 0, 0, 0, false);
-				else
-					defence = ai->Getbt()->GetCheapDefenceBuilding(ai->GetSide(), 1, 2, 1, 1, 1.5, 0, 0.5, 0, 0, false);
-
 				water = false;
+				combatPowerVs.vsGround    = 1.0f;
+				combatPowerVs.vsHover     = 0.5f;
 			}
 
+			UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), 2.0f, 2.0f, 1.0f, combatPowerVs, 0.2f, 1, water); 
+
 			// find closest builder
-			if(defence)
+			if(defence.isValid())
 			{
 				// place defences according to the direction of the main base
 				if(pos.x > base_pos.x + 500)
@@ -2005,7 +2005,7 @@ void AAIExecute::DefendMex(int mex, int def_id)
 					pos.z -= 70;
 
 				// get suitable pos
-				pos = ai->Getcb()->ClosestBuildSite(&ai->Getbt()->GetUnitDef(defence), pos, 1400.0, 2);
+				pos = ai->Getcb()->ClosestBuildSite(&ai->Getbt()->GetUnitDef(defence.id), pos, 1400.0, 2);
 
 				if(pos.x > 0)
 				{
@@ -2013,12 +2013,12 @@ void AAIExecute::DefendMex(int mex, int def_id)
 					float min_dist;
 
 					if(ai->Getbrain()->sectors[0].size() > 2)
-						builder = ai->Getut()->FindClosestBuilder(defence, &pos, false, &min_dist);
+						builder = ai->Getut()->FindClosestBuilder(defence.id, &pos, false, &min_dist);
 					else
-						builder = ai->Getut()->FindClosestBuilder(defence, &pos, true, &min_dist);
+						builder = ai->Getut()->FindClosestBuilder(defence.id, &pos, true, &min_dist);
 
 					if(builder)
-						builder->GiveConstructionOrder(defence, pos, water);
+						builder->GiveConstructionOrder(defence.id, pos, water);
 				}
 			}
 		}

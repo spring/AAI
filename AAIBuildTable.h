@@ -129,9 +129,6 @@ public:
 	//! @brief Selects a static defence according to given criteria; a builder is requested if none available and a different static defence is chosen.
 	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water);
 
-	// returns a cheap defence building (= avg_cost taken
-	int GetCheapDefenceBuilding(int side, double efficiency, double combat_power, double cost, double urgency, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, bool water);
-
 	// returns a metal maker
 	int GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild);
 
