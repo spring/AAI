@@ -19,7 +19,7 @@ namespace springLegacyAI {
 }
 using namespace springLegacyAI;
 
-enum BuildOrderStatus {BUILDORDER_FAILED, BUILDORDER_NOBUILDPOS, BUILDORDER_NOBUILDER, BUILDORDER_SUCCESSFUL};
+enum class BuildOrderStatus : int {BUILDING_INVALID, NO_BUILDSITE_FOUND, NO_BUILDER_AVAILABLE, SUCCESSFUL};
 
 class AAI;
 class AAIBuildTable;
@@ -198,6 +198,9 @@ private:
 	float GetMetalUrgency();
 	float GetEnergyStorageUrgency();
 	float GetMetalStorageUrgency();
+
+	//! @brief Tries to find a suitable buildsite and builder to start the construction of the given building;
+	BuildOrderStatus TryConstructionOf(UnitDefId building, const AAISector* sector);
 
 	bool BuildFactory();
 	bool BuildDefences();

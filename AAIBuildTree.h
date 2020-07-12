@@ -99,8 +99,13 @@ private:
 	//! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
 	void AssignSideToUnitType(int side, UnitDefId unitDefId);
 
-	//! @brief helper function to determine the range / buildspeed (dependent on which category the unit type belongs to)
-	float DetermineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory) const;
+	//! @brief 	Returns the primary ability (weapon range for combat units, artillery, or static defences, los for scout, radar(jammer) range, 
+	//!         buildtime for constructors, metal extraction for extractors, metal storage capacity for storages)
+	float DeterminePrimaryAbility(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory) const;
+	
+	//! @brief 	Returns the secondary ability (movement speed for combat units, artillery, scouts, or mobile constructors, 
+	//!         sonar(jammer) range, energy storage capacity for storages)
+	float DetermineSecondaryAbility(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory) const;
 	
 	//! @brief Returns movement type of given unit definition
 	EMovementType DetermineMovementType(const springLegacyAI::UnitDef* unitDef) const;

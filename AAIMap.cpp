@@ -765,7 +765,7 @@ bool AAIMap::SetBuildMap(int xPos, int yPos, int xSize, int ySize, int value, in
 	return false;
 }
 
-float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, bool water)
+float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, bool water) const
 {
 	float3 pos;
 
@@ -1901,7 +1901,7 @@ void AAIMap::SearchMetalSpots()
 		ai->Log("No metal extractor unit known!");
 		return;
 	}
-	
+
 	const UnitDef* def = &ai->Getbt()->GetUnitDef(largestExtractor.id);
 
 	metalMap = false;

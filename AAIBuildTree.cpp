@@ -155,7 +155,6 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 	{
 		m_unitTypeProperties[id].m_totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / energyToMetalConversionFactor);
 		m_unitTypeProperties[id].m_buildtime = unitDefs[id]->buildTime;
-		m_unitTypeProperties[id].m_maxSpeed  = unitDefs[id]->speed;
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
 		
 		m_unitTypeProperties[id].m_movementType.setMovementType( DetermineMovementType(unitDefs[id]) );
@@ -187,8 +186,9 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::SUBMERGED) ].push_back(id);
 		}
 
-		// set range (or equivalent unit ability)
-		m_unitTypeProperties[id].m_range = DetermineRange(unitDefs[id], unitCategory);
+		// set primary and secondary abilities
+		m_unitTypeProperties[id].m_range     = DeterminePrimaryAbility(unitDefs[id], unitCategory);
+		m_unitTypeProperties[id].m_maxSpeed  = DetermineSecondaryAbility(unitDefs[id], unitCategory);
     }
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -316,43 +316,53 @@ void AAIBuildTree::AssignSideToUnitType(int side, UnitDefId unitDefId)
 	}
 }
 
-float AAIBuildTree::DetermineRange(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory) const
+float AAIBuildTree::DeterminePrimaryAbility(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory) const
 {
-	float range = 0.0f;
+	float primaryAbility(0.0f);
 
-	if(   unitCategory.isGroundCombat()
-	   || unitCategory.isHoverCombat()
-	   || unitCategory.isSeaCombat()
-	   || unitCategory.isAirCombat()
+	if(   unitCategory.isCombatUnit()
 	   || unitCategory.isMobileArtillery()
 	   || unitCategory.isStaticArtillery() 
 	   || unitCategory.isStaticDefence() )
 	{
 		for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDef->weapons.begin(); w != unitDef->weapons.end(); ++w)
 		{
-			if((*w).def->range > range)
-				range = (*w).def->range;
+			if((*w).def->range > primaryAbility)
+				primaryAbility = (*w).def->range;
 		}
 	}
 	else if(unitCategory.isScout())
-	{
-		range = unitDef->losRadius;
-	}
+		primaryAbility = unitDef->losRadius;
 	else if(unitCategory.isStaticSensor())
-	{
-		range = static_cast<float>(unitDef->radarRadius) + static_cast<float>(unitDef->sonarRadius) + static_cast<float>(unitDef->seismicRadius);
-	}
-	else if(unitCategory.isStaticConstructor() || unitCategory.isMobileConstructor())
-	{
-		range = unitDef->buildSpeed;
-	}
+		primaryAbility = static_cast<float>(unitDef->radarRadius);
+	else if(unitCategory.isStaticConstructor() || unitCategory.isMobileConstructor() || unitCategory.isCommander())
+		primaryAbility = unitDef->buildSpeed;
 	else if(unitCategory.isMetalExtractor())
-	{
-		range = unitDef->extractsMetal;
-	}
+		primaryAbility = unitDef->extractsMetal;
+	else if(unitCategory.isStorage())
+		primaryAbility = unitDef->metalStorage;
 
-	return range;
+	return primaryAbility;
 }
+
+float AAIBuildTree::DetermineSecondaryAbility(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory) const
+{
+	float secondaryAbility(0.0f);
+
+	if(   unitCategory.isCombatUnit()
+	   || unitCategory.isMobileArtillery()
+	   || unitCategory.isScout()
+	   || unitCategory.isMobileConstructor()
+	   || unitCategory.isCommander() )
+		secondaryAbility = unitDef->speed;
+	else if(unitCategory.isStaticSensor())
+		secondaryAbility = unitDef->sonarRadius;
+	else if(unitCategory.isStorage())
+		secondaryAbility = unitDef->energyStorage;
+	
+	return secondaryAbility;
+}
+
 
 EMovementType AAIBuildTree::DetermineMovementType(const springLegacyAI::UnitDef* unitDef) const
 {

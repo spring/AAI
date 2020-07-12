@@ -247,11 +247,11 @@ float3 AAISector::GetCenter()
 }*/
 
 
-float3 AAISector::GetBuildsite(int building, bool water)
+float3 AAISector::FindBuildsite(int building, bool water) const
 {
 	int xStart, xEnd, yStart, yEnd;
 
-	GetBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
+	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
 	return ai->Getmap()->GetBuildSiteInRect(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, water);
 }
@@ -355,7 +355,7 @@ float3 AAISector::GetCenterBuildsite(int building, bool water)
 {
 	int xStart, xEnd, yStart, yEnd;
 
-	GetBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
+	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
 	return ai->Getmap()->GetCenterBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, water);
 }
@@ -364,7 +364,7 @@ float3 AAISector::GetRadarArtyBuildsite(int building, float range, bool water)
 {
 	int xStart, xEnd, yStart, yEnd;
 
-	GetBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
+	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
 	return ai->Getmap()->GetRadarArtyBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, range, water);
 }
@@ -379,7 +379,7 @@ float3 AAISector::GetHighestBuildsite(int building)
 
 	int xStart, xEnd, yStart, yEnd;
 
-	GetBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
+	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
 	return ai->Getmap()->GetHighestBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd);
 }
@@ -394,12 +394,12 @@ float3 AAISector::GetRandomBuildsite(int building, int tries, bool water)
 
 	int xStart, xEnd, yStart, yEnd;
 
-	GetBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
+	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
 	return ai->Getmap()->GetRandomBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, tries, water);
 }
 
-void AAISector::GetBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd)
+void AAISector::DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const
 {
 	*xStart = x * ai->Getmap()->xSectorSizeMap;
 	*xEnd = *xStart + ai->Getmap()->xSectorSizeMap;

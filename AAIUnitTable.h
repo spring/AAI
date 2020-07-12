@@ -76,7 +76,7 @@ public:
 	AAIConstructor* FindBuilder(int building, bool commander);
 
 	// finds closest builder and stores its distance to pos in min_dist
-	AAIConstructor* FindClosestBuilder(int building, float3 *pos, bool commander, float *min_dist);
+	AAIConstructor* FindClosestBuilder(int building, const float3 *pos, bool commander, float *min_dist);
 
 	AAIConstructor* FindClosestAssistant(float3 pos, int importance, bool commander);
 

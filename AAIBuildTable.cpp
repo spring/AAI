@@ -1314,37 +1314,51 @@ UnitDefId AAIBuildTable::GetLargestExtractor() const
 	return largestExtractor;
 }
 
-int AAIBuildTable::GetStorage(int side, float cost, float metal, float energy, float urgency, bool water, bool canBuild)
+UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water)
 {
-	int best_storage = 0;
-	float best_rating = 0, my_rating;
+	UnitDefId selectedStorage = SelectStorage(side, cost, buildtime, metal, energy, water, false);
 
-	for(list<int>::iterator storage = units_of_category[STORAGE][side-1].begin(); storage != units_of_category[STORAGE][side-1].end(); ++storage)
+	if(selectedStorage.isValid() && (units_dynamic[selectedStorage.id].constructorsAvailable <= 0))
 	{
-		if(canBuild && units_dynamic[*storage].constructorsAvailable <= 0)
-			my_rating = 0;
-		else if(!water && GetUnitDef(*storage).minWaterDepth <= 0)
-		{
-			my_rating = (metal * GetUnitDef(*storage).metalStorage + energy * GetUnitDef(*storage).energyStorage)
-				/(cost * s_buildTree.GetTotalCost(UnitDefId(*storage)) + urgency * GetUnitDef(*storage).buildTime);
-		}
-		else if(water && GetUnitDef(*storage).minWaterDepth > 0)
-		{
-			my_rating = (metal * GetUnitDef(*storage).metalStorage + energy * GetUnitDef(*storage).energyStorage)
-				/(cost * s_buildTree.GetTotalCost(UnitDefId(*storage)) + urgency * GetUnitDef(*storage).buildTime);
-		}
-		else
-			my_rating = 0;
+		if(units_dynamic[selectedStorage.id].constructorsRequested <= 0)
+			BuildBuilderFor(selectedStorage);
 
+		selectedStorage = SelectStorage(side, cost, buildtime, metal, energy, water, true);
+	}
 
-		if(my_rating > best_rating)
+	return selectedStorage;
+}
+
+UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const
+{
+	const AAIUnitStatistics& unitStatistics  = s_buildTree.GetUnitStatistics(side);
+	const StatisticalData&   costs           = unitStatistics.GetUnitCostStatistics(EUnitCategory::STORAGE);
+	const StatisticalData&   buildtimes      = unitStatistics.GetUnitBuildtimeStatistics(EUnitCategory::STORAGE);
+	const StatisticalData&   metalStored     = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::STORAGE);
+	const StatisticalData&   energyStored    = unitStatistics.GetUnitSecondaryAbilityStatistics(EUnitCategory::STORAGE);
+
+	UnitDefId selectedStorage;
+	float bestRating(0.0f);
+
+	for(auto storage = s_buildTree.GetUnitsInCategory(EUnitCategory::STORAGE, side).begin(); storage != s_buildTree.GetUnitsInCategory(EUnitCategory::STORAGE, side).end(); ++storage)
+	{
+		
+		if( IsBuildingSelectable(storage->id, water, mustBeConstructable) )
 		{
-			best_rating = my_rating;
-			best_storage = *storage;
+			const float myRating =    cost * costs.GetNormalizedDeviationFromMax( s_buildTree.GetTotalCost(*storage) )
+									+ buildtime * buildtimes.GetNormalizedDeviationFromMax( s_buildTree.GetBuildtime(*storage) )
+									+ metal * metalStored.GetNormalizedDeviationFromMin( s_buildTree.GetMaxRange(*storage) )
+									+ energy * energyStored.GetNormalizedDeviationFromMin( s_buildTree.GetMaxSpeed(*storage) );
+
+			if(myRating > bestRating)
+			{
+				bestRating = myRating;
+				selectedStorage = *storage;
+			}
 		}
 	}
 
-	return best_storage;
+	return selectedStorage;
 }
 
 int AAIBuildTable::GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild)

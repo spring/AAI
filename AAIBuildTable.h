@@ -132,13 +132,13 @@ public:
 	// returns a metal maker
 	int GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild);
 
-	// returns a storage
-	int GetStorage(int side, float cost, float metal, float energy, float urgency, bool water, bool canBuild);
+	//! @brief Selects a storage according to given criteria; a builder is requested if none available and a different storage is chosen.
+	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water);
 
 	// return repair pad
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
 
-	//! @brief Seletcs a combat unit of specified category according to given criteria
+	//! @brief Selects a combat unit of specified category according to given criteria
 	UnitDefId SelectCombatUnit(int side, const AAICombatCategory& category, const CombatPower& combatCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild);
 
 	// returns a random unit from the list
@@ -312,6 +312,9 @@ private:
 
 	//! @brief Selects a defence building according to given criteria
 	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water, bool constructable) const;
+
+	//! @brief Selects a storage according to given criteria
+	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;
 
 	//! @brief Calculates the rating of the given factory for the given map type
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const CombatPower& combatPowerWeights, const MapType mapType) const;

@@ -76,8 +76,8 @@ public:
 	// associates an extractor with a metal spot in that sector
 	void AddExtractor(int unit_id, int def_id, float3 *pos);
 
-	// returns buildsite for a unit in that sector (or zerovector if nothing found)
-	float3 GetBuildsite(int building, bool water = false);
+	//! @brief Tries to find a buildsite for a unit in that sector (returns zerovector if no buildsite found)
+	float3 FindBuildsite(int building, bool water = false) const;
 
 	// returns a buildsite for a defence building
 	float3 GetDefenceBuildsite(UnitDefId buildingDefId, const AAIUnitCategory& category, float terrainModifier, bool water) const ;
@@ -231,8 +231,8 @@ private:
 	void SetGridLocation(int x, int y);
 	AAIMetalSpot* GetFreeMetalSpot();
 
-	// gets rectangle for possible buildsite
-	void GetBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd);
+	//! @brief Determines rectangle for possible buildsite
+	void DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const;
 
 	AAI *ai;
 
