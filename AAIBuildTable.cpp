@@ -24,15 +24,9 @@ using namespace springLegacyAI;
 // all the static vars
 vector<vector<list<int>>> AAIBuildTable::units_of_category;
 char AAIBuildTable::buildtable_filename[500];
-vector<vector<float>> AAIBuildTable::avg_cost;
-vector<vector<float>> AAIBuildTable::avg_buildtime;
-vector<vector<float>> AAIBuildTable::avg_value;
 vector<vector<float>> AAIBuildTable::max_cost;
 vector<vector<float>> AAIBuildTable::max_buildtime;
 vector<vector<float>> AAIBuildTable::max_value;
-vector<vector<float>> AAIBuildTable::min_cost;
-vector<vector<float>> AAIBuildTable::min_buildtime;
-vector<vector<float>> AAIBuildTable::min_value;
 vector< vector< vector<float> > > AAIBuildTable::attacked_by_category_learned;
 vector< vector<float> > AAIBuildTable::attacked_by_category_current;
 vector<UnitTypeStatic> AAIBuildTable::units_static;
@@ -76,15 +70,9 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 	// only set up static things if first aai instance is initialized
 	if(ai->getAAIInstance() == 1)
 	{
-		avg_cost.resize(MOBILE_CONSTRUCTOR+1);
-		avg_buildtime.resize(MOBILE_CONSTRUCTOR+1);
-		avg_value.resize(MOBILE_CONSTRUCTOR+1);
 		max_cost.resize(MOBILE_CONSTRUCTOR+1);
 		max_buildtime.resize(MOBILE_CONSTRUCTOR+1);
 		max_value.resize(MOBILE_CONSTRUCTOR+1);
-		min_cost.resize(MOBILE_CONSTRUCTOR+1);
-		min_buildtime.resize(MOBILE_CONSTRUCTOR+1);
-		min_value.resize(MOBILE_CONSTRUCTOR+1);
 		units_of_category.resize(MOBILE_CONSTRUCTOR+1);
 
 		for(int i = 0; i <= MOBILE_CONSTRUCTOR; ++i)
@@ -93,27 +81,15 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 			units_of_category[i].resize(numOfSides);
 
 			// statistical values (mod sepcific)
-			avg_cost[i].resize(numOfSides);
-			avg_buildtime[i].resize(numOfSides);
-			avg_value[i].resize(numOfSides);
 			max_cost[i].resize(numOfSides);
 			max_buildtime[i].resize(numOfSides);
 			max_value[i].resize(numOfSides);
-			min_cost[i].resize(numOfSides);
-			min_buildtime[i].resize(numOfSides);
-			min_value[i].resize(numOfSides);
 
 			for(int s = 0; s < numOfSides; ++s)
 			{
-				avg_cost[i][s] = -1;
-				avg_buildtime[i][s] = -1;
-				avg_value[i][s] = -1;
 				max_cost[i][s] = -1;
 				max_buildtime[i][s] = -1;
 				max_value[i][s] = -1;
-				min_cost[i][s] = -1;
-				min_buildtime[i][s] = -1;
-				min_value[i][s] = -1;
 			}
 		}
 
@@ -148,19 +124,9 @@ AAIBuildTable::~AAIBuildTable(void)
 	{
 		units_of_category.clear();
 
-		avg_cost.clear();
-		avg_buildtime.clear();
-		avg_value.clear();
 		max_cost.clear();
 		max_buildtime.clear();
 		max_value.clear();
-		min_cost.clear();
-		min_buildtime.clear();
-		min_value.clear();
-
-		/*spring::SafeDeleteArray(max_builder_buildtime);
-		spring::SafeDeleteArray(max_builder_cost);
-		spring::SafeDeleteArray(max_builder_buildspeed);*/
 
 		attacked_by_category_learned.clear();
 		attacked_by_category_current.clear();
@@ -762,107 +728,57 @@ void AAIBuildTable::PrecacheStats()
 		for(int i = 1; i <= MOBILE_CONSTRUCTOR; ++i)
 		{
 			// precache costs
-			avg_cost[i][s] = 0;
-			this->min_cost[i][s] = 10000;
 			this->max_cost[i][s] = 0;
 
 			for(list<int>::iterator unit = units_of_category[i][s].begin(); unit != units_of_category[i][s].end(); ++unit)
 			{
-				avg_cost[i][s] += s_buildTree.GetTotalCost(UnitDefId(*unit));
-
 				if(s_buildTree.GetTotalCost(UnitDefId(*unit)) > this->max_cost[i][s])
 					this->max_cost[i][s] = s_buildTree.GetTotalCost(UnitDefId(*unit));
-
-				if(s_buildTree.GetTotalCost(UnitDefId(*unit)) < this->min_cost[i][s] )
-					this->min_cost[i][s] = s_buildTree.GetTotalCost(UnitDefId(*unit));
 			}
 
-			if(units_of_category[i][s].size() > 0)
-				avg_cost[i][s] /= units_of_category[i][s].size();
-			else
-			{
-				avg_cost[i][s] = -1;
-				this->min_cost[i][s] = -1;
-				this->max_cost[i][s] = -1;
-			}
+			if(units_of_category[i][s].size() == 0)
+				this->max_cost[i][s] = -1;	
 
 			// precache buildtime
-			min_buildtime[i][s] = 10000;
-			avg_buildtime[i][s] = 0;
 			max_buildtime[i][s] = 0;
 
 			for(list<int>::iterator unit = units_of_category[i][s].begin(); unit != units_of_category[i][s].end(); ++unit)
 			{
 				buildtime = GetUnitDef(*unit).buildTime;
 
-				avg_buildtime[i][s] += buildtime;
-
 				if(buildtime > max_buildtime[i][s])
 					max_buildtime[i][s] = buildtime;
-
-				if(buildtime < min_buildtime[i][s])
-					min_buildtime[i][s] = buildtime;
 			}
 
-			if(units_of_category[i][s].size() > 0)
-				avg_buildtime[i][s] /= units_of_category[i][s].size();
-			else
+			if(units_of_category[i][s].size() == 0)
 			{
-				avg_buildtime[i][s] = -1;
-				min_buildtime[i][s] = -1;
 				max_buildtime[i][s] = -1;
 			}
 		}
 
 		// precache radar ranges
-		min_value[STATIONARY_RECON][s] = 10000;
-		avg_value[STATIONARY_RECON][s] = 0;
 		max_value[STATIONARY_RECON][s] = 0;
 
 		for(list<int>::iterator unit = units_of_category[STATIONARY_RECON][s].begin(); unit != units_of_category[STATIONARY_RECON][s].end(); ++unit)
 		{
-			avg_value[STATIONARY_RECON][s] += GetUnitDef(*unit).radarRadius;
-
 			if(GetUnitDef(*unit).radarRadius > max_value[STATIONARY_RECON][s])
 				max_value[STATIONARY_RECON][s] = GetUnitDef(*unit).radarRadius;
-
-			if(GetUnitDef(*unit).radarRadius < min_value[STATIONARY_RECON][s])
-				min_value[STATIONARY_RECON][s] = GetUnitDef(*unit).radarRadius;
 		}
 
-		if(units_of_category[STATIONARY_RECON][s].size() > 0)
-			avg_value[STATIONARY_RECON][s] /= units_of_category[STATIONARY_RECON][s].size();
-		else
-		{
-			min_value[STATIONARY_RECON][s] = -1;
-			avg_value[STATIONARY_RECON][s] = -1;
+		if(units_of_category[STATIONARY_RECON][s].size() == 0)
 			max_value[STATIONARY_RECON][s] = -1;
-		}
 
 		// precache jammer ranges
-		min_value[STATIONARY_JAMMER][s] = 10000;
-		avg_value[STATIONARY_JAMMER][s] = 0;
 		max_value[STATIONARY_JAMMER][s] = 0;
 
 		for(list<int>::iterator unit = units_of_category[STATIONARY_JAMMER][s].begin(); unit != units_of_category[STATIONARY_JAMMER][s].end(); ++unit)
 		{
-			avg_value[STATIONARY_JAMMER][s] += GetUnitDef(*unit).jammerRadius;
-
 			if(GetUnitDef(*unit).jammerRadius > max_value[STATIONARY_JAMMER][s])
 				max_value[STATIONARY_JAMMER][s] = GetUnitDef(*unit).jammerRadius;
-
-			if(GetUnitDef(*unit).jammerRadius < min_value[STATIONARY_JAMMER][s])
-				min_value[STATIONARY_JAMMER][s] = GetUnitDef(*unit).jammerRadius;
 		}
 
-		if(units_of_category[STATIONARY_JAMMER][s].size() > 0)
-			avg_value[STATIONARY_JAMMER][s] /= units_of_category[STATIONARY_JAMMER][s].size();
-		else
-		{
-			min_value[STATIONARY_JAMMER][s] = -1;
-			avg_value[STATIONARY_JAMMER][s] = -1;
+		if(units_of_category[STATIONARY_JAMMER][s].size() == 0)
 			max_value[STATIONARY_JAMMER][s] = -1;
-		}
 
 		// precache usage of jammers
 		for(list<int>::iterator i = units_of_category[STATIONARY_JAMMER][s].begin(); i != units_of_category[STATIONARY_JAMMER][s].end(); ++i)
@@ -879,108 +795,54 @@ void AAIBuildTable::PrecacheStats()
 		}
 
 		// precache extractor efficiency
-		min_value[EXTRACTOR][s] = 10000;
-		avg_value[EXTRACTOR][s] = 0;
 		max_value[EXTRACTOR][s] = 0;
 
 		for(list<int>::iterator unit = units_of_category[EXTRACTOR][s].begin(); unit != units_of_category[EXTRACTOR][s].end(); ++unit)
 		{
-			avg_value[EXTRACTOR][s] += GetUnitDef(*unit).extractsMetal;
-
 			if(GetUnitDef(*unit).extractsMetal > max_value[EXTRACTOR][s])
 				max_value[EXTRACTOR][s] = GetUnitDef(*unit).extractsMetal;
-
-			if(GetUnitDef(*unit).extractsMetal < min_value[EXTRACTOR][s])
-				min_value[EXTRACTOR][s] = GetUnitDef(*unit).extractsMetal;
 		}
 
-		if(units_of_category[EXTRACTOR][s].size() > 0)
-			avg_value[EXTRACTOR][s] /= units_of_category[EXTRACTOR][s].size();
-		else
-		{
-			min_value[EXTRACTOR][s] = -1;
-			avg_value[EXTRACTOR][s] = -1;
+		if(units_of_category[EXTRACTOR][s].size() == 0)
 			max_value[EXTRACTOR][s] = -1;
-		}
 
 		// precache power plant energy production
-		min_value[POWER_PLANT][s] = 10000;
-		avg_value[POWER_PLANT][s] = 0;
 		max_value[POWER_PLANT][s] = 0;
 
 		for(list<int>::iterator unit = units_of_category[POWER_PLANT][s].begin(); unit != units_of_category[POWER_PLANT][s].end(); ++unit)
 		{
-			avg_value[POWER_PLANT][s] += units_static[*unit].efficiency[0];
-
 			if(units_static[*unit].efficiency[0] > max_value[POWER_PLANT][s])
 				max_value[POWER_PLANT][s] = units_static[*unit].efficiency[0];
-
-			if(units_static[*unit].efficiency[0] < min_value[POWER_PLANT][s])
-				min_value[POWER_PLANT][s] = units_static[*unit].efficiency[0];
 		}
 
-		if(units_of_category[POWER_PLANT][s].size() > 0)
-			avg_value[POWER_PLANT][s] /= units_of_category[POWER_PLANT][s].size();
-		else
-		{
-			min_value[POWER_PLANT][s] = -1;
-			avg_value[POWER_PLANT][s] = -1;
+		if(units_of_category[POWER_PLANT][s].size() == 0)
 			max_value[POWER_PLANT][s] = -1;
-		}
 
 		// precache stationary arty range
-		min_value[STATIONARY_ARTY][s] = 100000;
-		avg_value[STATIONARY_ARTY][s] = 0;
 		max_value[STATIONARY_ARTY][s] = 0;
 
 		for(list<int>::iterator unit = units_of_category[STATIONARY_ARTY][s].begin(); unit != units_of_category[STATIONARY_ARTY][s].end(); ++unit)
 		{
-			avg_value[STATIONARY_ARTY][s] += units_static[*unit].efficiency[1];
-
 			if(units_static[*unit].efficiency[1] > max_value[STATIONARY_ARTY][s])
 				max_value[STATIONARY_ARTY][s] = units_static[*unit].efficiency[1];
-
-			if(units_static[*unit].efficiency[1] < min_value[STATIONARY_ARTY][s])
-				min_value[STATIONARY_ARTY][s] = units_static[*unit].efficiency[1];
 		}
 
-		if(units_of_category[STATIONARY_ARTY][s].size() > 0)
-			avg_value[STATIONARY_ARTY][s] /= units_of_category[STATIONARY_ARTY][s].size();
-		else
-		{
-			min_value[STATIONARY_ARTY][s] = -1;
-			avg_value[STATIONARY_ARTY][s] = -1;
+		if(units_of_category[STATIONARY_ARTY][s].size() == 0)
 			max_value[STATIONARY_ARTY][s] = -1;
-		}
 
 		// precache scout los
-		min_value[SCOUT][s] = 100000;
-		avg_value[SCOUT][s] = 0;
 		max_value[SCOUT][s] = 0;
 
 		for(list<int>::iterator unit = units_of_category[SCOUT][s].begin(); unit != units_of_category[SCOUT][s].end(); ++unit)
 		{
-			avg_value[SCOUT][s] += GetUnitDef(*unit).losRadius;
-
 			if(GetUnitDef(*unit).losRadius > max_value[SCOUT][s])
 				max_value[SCOUT][s] = GetUnitDef(*unit).losRadius;
-
-			if(GetUnitDef(*unit).losRadius < min_value[SCOUT][s])
-				min_value[SCOUT][s] = GetUnitDef(*unit).losRadius;
 		}
 
-		if(units_of_category[SCOUT][s].size() > 0)
-			avg_value[SCOUT][s] /= units_of_category[SCOUT][s].size();
-		else
-		{
-			min_value[SCOUT][s] = -1;
-			avg_value[SCOUT][s] = -1;
+		if(units_of_category[SCOUT][s].size() == 0)
 			max_value[SCOUT][s] = -1;
-		}
 
 		// precache stationary defences weapon range
-		min_value[STATIONARY_DEF][s] = 100000;
-		avg_value[STATIONARY_DEF][s] = 0;
 		max_value[STATIONARY_DEF][s] = 0;
 
 		float range;
@@ -991,21 +853,12 @@ void AAIBuildTable::PrecacheStats()
 			{
 				range = s_buildTree.GetMaxRange(UnitDefId(*unit));
 
-				avg_value[STATIONARY_DEF][s] += range;
-
 				if(range > max_value[STATIONARY_DEF][s])
 					max_value[STATIONARY_DEF][s] = range;
-
-				if(range < min_value[STATIONARY_DEF][s])
-					min_value[STATIONARY_DEF][s] = range;
 			}
-
-			avg_value[STATIONARY_DEF][s] /= (float)units_of_category[STATIONARY_DEF][s].size();
 		}
 		else
 		{
-			min_value[STATIONARY_DEF][s] = -1;
-			avg_value[STATIONARY_DEF][s] = -1;
 			max_value[STATIONARY_DEF][s] = -1;
 		}
 
@@ -1014,29 +867,18 @@ void AAIBuildTable::PrecacheStats()
 
 		if(units_of_category[MOBILE_CONSTRUCTOR][s].size() > 0)
 		{
-			min_value[MOBILE_CONSTRUCTOR][s] = 100000;
-			avg_value[MOBILE_CONSTRUCTOR][s] = 0;
 			max_value[MOBILE_CONSTRUCTOR][s] = 0;
 
 			for(list<int>::iterator unit = units_of_category[MOBILE_CONSTRUCTOR][s].begin(); unit != units_of_category[MOBILE_CONSTRUCTOR][s].end(); ++unit)
 			{
 				buildspeed = GetUnitDef(*unit).buildSpeed;
 
-				avg_value[MOBILE_CONSTRUCTOR][s] += buildspeed;
-
 				if(buildspeed > max_value[MOBILE_CONSTRUCTOR][s])
 					max_value[MOBILE_CONSTRUCTOR][s] = buildspeed;
-
-				if(buildspeed < min_value[MOBILE_CONSTRUCTOR][s])
-					min_value[MOBILE_CONSTRUCTOR][s] = buildspeed;
 			}
-
-			avg_value[MOBILE_CONSTRUCTOR][s] /= (float)units_of_category[MOBILE_CONSTRUCTOR][s].size();
 		}
 		else
 		{
-			min_value[MOBILE_CONSTRUCTOR][s] = -1;
-			avg_value[MOBILE_CONSTRUCTOR][s] = -1;
 			max_value[MOBILE_CONSTRUCTOR][s] = -1;
 		}
 
@@ -1044,8 +886,6 @@ void AAIBuildTable::PrecacheStats()
 		for(list<UnitCategory>::iterator category = assault_categories.begin(); category != assault_categories.end(); ++category)
 		{
 			// precache range
-			min_value[*category][s] = 10000;
-			avg_value[*category][s] = 0;
 			max_value[*category][s] = 0;
 
 			if(units_of_category[*category][s].size() > 0)
@@ -1054,21 +894,12 @@ void AAIBuildTable::PrecacheStats()
 				{
 					range = s_buildTree.GetUnitTypeProperties( UnitDefId(*unit) ).m_range;
 
-					avg_value[*category][s] += range;
-
 					if(range > max_value[*category][s])
 						max_value[*category][s] = range;
-
-					if(range < min_value[*category][s])
-						min_value[*category][s] = range;
 				}
-
-				avg_value[*category][s] /= (float)units_of_category[*category][s].size();
 			}
 			else
 			{
-				min_value[*category][s] = -1;
-				avg_value[*category][s] = -1;
 				max_value[*category][s] = -1;
 			}
 		}
@@ -1082,29 +913,16 @@ void AAIBuildTable::PrecacheCosts()
 		for(int i = 1; i <= MOBILE_CONSTRUCTOR; ++i)
 		{
 			// precache costs
-			avg_cost[i][s] = 0;
-			this->min_cost[i][s] = 10000;
 			this->max_cost[i][s] = 0;
 
 			for(list<int>::iterator unit = units_of_category[i][s].begin(); unit != units_of_category[i][s].end(); ++unit)
 			{
-				avg_cost[i][s] += s_buildTree.GetTotalCost(UnitDefId(*unit));
-
 				if(s_buildTree.GetTotalCost(UnitDefId(*unit)) > this->max_cost[i][s])
 					this->max_cost[i][s] = s_buildTree.GetTotalCost(UnitDefId(*unit));
-
-				if(s_buildTree.GetTotalCost(UnitDefId(*unit)) < this->min_cost[i][s] )
-					this->min_cost[i][s] = s_buildTree.GetTotalCost(UnitDefId(*unit));
 			}
 
-			if(units_of_category[i][s].size() > 0)
-				avg_cost[i][s] /= units_of_category[i][s].size();
-			else
-			{
-				avg_cost[i][s] = -1;
-				this->min_cost[i][s] = -1;
+			if(units_of_category[i][s].size() == 0)
 				this->max_cost[i][s] = -1;
-			}
 		}
 	}
 }
@@ -1771,21 +1589,11 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 {
 	int best_jammer = 0;
 	float my_rating, best_rating = -10000;
-	side -= 1;
 
-	for(auto i = s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SUPPORT, side+1).begin(); i != s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SUPPORT, side+1).end(); ++i)
+	for(auto jammer = s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SUPPORT, side).begin(); jammer != s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SUPPORT, side).end(); ++jammer)
 	{
 		//! @todo Check unit type for jammer
-		/*if(canBuild && units_dynamic[*i].constructorsAvailable <= 0)
-			my_rating = -10000;
-		else if(water && GetUnitDef(*i).minWaterDepth > 0)
-			my_rating = cost * (avg_cost[STATIONARY_JAMMER][side] - s_buildTree.GetTotalCost(UnitDefId(*i)))/max_cost[STATIONARY_JAMMER][side]
-						+ range * (GetUnitDef(*i).jammerRadius - avg_value[STATIONARY_JAMMER][side])/max_value[STATIONARY_JAMMER][side];
-		else if (!water &&  GetUnitDef(*i).minWaterDepth <= 0)
-			my_rating = cost * (avg_cost[STATIONARY_JAMMER][side] - s_buildTree.GetTotalCost(UnitDefId(*i)))/max_cost[STATIONARY_JAMMER][side]
-						+ range * (GetUnitDef(*i).jammerRadius - avg_value[STATIONARY_JAMMER][side])/max_value[STATIONARY_JAMMER][side];
-		else
-			my_rating = -10000;
+		/*
 
 
 		if(my_rating > best_rating)
@@ -1833,28 +1641,6 @@ UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uin
 	}
 	
 	return selectedScout;
-}
-
-int AAIBuildTable::GetRandomUnit(list<int> unit_list)
-{
-	float best_rating = 0, my_rating;
-
-	int best_unit = 0;
-
-	for(list<int>::iterator i = unit_list.begin(); i != unit_list.end(); ++i)
-	{
-		my_rating = rand()%512;
-
-		if(my_rating >best_rating)
-		{
-			if(GetUnitDef(*i).metalCost < cfg->MAX_METAL_COST)
-			{
-				best_unit = *i;
-				best_rating = my_rating;
-			}
-		}
-	}
-	return best_unit;
 }
 
 void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const CombatPower& combatCriteria, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
@@ -2154,10 +1940,11 @@ bool AAIBuildTable::LoadBuildTable()
 					}
 
 					// load pre cached values
+					float dummy; 
 					fscanf(load_file, "%f %f %f %f %f %f %f %f %f \n",
-						&max_cost[cat][s], &min_cost[cat][s], &avg_cost[cat][s],
-						&max_buildtime[cat][s], &min_buildtime[cat][s], &avg_buildtime[cat][s],
-						&max_value[cat][s], &min_value[cat][s], &avg_value[cat][s]);
+						&max_cost[cat][s], &dummy, &dummy,
+						&max_buildtime[cat][s], &dummy, &dummy,
+						&max_value[cat][s], &dummy, &dummy);
 				}
 			}
 
@@ -2249,9 +2036,9 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 
 			// save pre cached values
 			fprintf(save_file, "%f %f %f %f %f %f %f %f %f \n",
-						max_cost[cat][s], min_cost[cat][s], avg_cost[cat][s],
-						max_buildtime[cat][s], min_buildtime[cat][s], avg_buildtime[cat][s],
-						max_value[cat][s], min_value[cat][s], avg_value[cat][s]);
+						max_cost[cat][s], 0.0f, 0.0f,
+						max_buildtime[cat][s], 0.0f, 0.0f,
+						max_value[cat][s], 0.0f, 0.0f);
 
 			fprintf(save_file, "\n");
 		}

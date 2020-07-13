@@ -141,9 +141,6 @@ public:
 	//! @brief Selects a combat unit of specified category according to given criteria
 	UnitDefId SelectCombatUnit(int side, const AAICombatCategory& category, const CombatPower& combatCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild);
 
-	// returns a random unit from the list
-	int GetRandomUnit(list<int> unit_list);
-
 	int GetStationaryArty(int side, float cost, float range, float efficiency, bool water, bool canBuild);
 
 	//! @brief Determines a scout unit with given properties
@@ -222,15 +219,9 @@ public:
 	static char buildtable_filename[500];
 
 	// cached values of average costs and buildtime
-	static vector<vector<float>> avg_cost;
-	static vector<vector<float>> avg_buildtime;
-	static vector<vector<float>> avg_value;	// used for different things, range of weapons, radar range, mex efficiency
 	static vector<vector<float>> max_cost;
 	static vector<vector<float>> max_buildtime;
 	static vector<vector<float>> max_value;
-	static vector<vector<float>> min_cost;
-	static vector<vector<float>> min_buildtime;
-	static vector<vector<float>> min_value;
 
 	// combat categories that attacked AI in certain game period attacked_by_category_learned[map_type][period][cat]
 	static vector< vector< vector<float> > > attacked_by_category_learned;
