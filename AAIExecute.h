@@ -202,6 +202,8 @@ private:
 	//! @brief Tries to find a suitable buildsite and builder to start the construction of the given building;
 	BuildOrderStatus TryConstructionOf(UnitDefId building, const AAISector* sector);
 
+	BuildOrderStatus TryConstructionOf(UnitDefId landBuilding, UnitDefId seaBuilding, const AAISector* sector);
+
 	bool BuildFactory();
 	bool BuildDefences();
 	bool BuildRadar();

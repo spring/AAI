@@ -187,7 +187,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		}
 
 		// set primary and secondary abilities
-		m_unitTypeProperties[id].m_range     = DeterminePrimaryAbility(unitDefs[id], unitCategory);
+		m_unitTypeProperties[id].m_range     = DeterminePrimaryAbility(unitDefs[id], unitCategory, cb);
 		m_unitTypeProperties[id].m_maxSpeed  = DetermineSecondaryAbility(unitDefs[id], unitCategory);
     }
 
@@ -294,6 +294,15 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 									cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
 									range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue());
 			}
+
+			/*for(auto powerPlant = m_unitsInCategory[side][AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()].begin(); powerPlant != m_unitsInCategory[side][AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()].end(); ++powerPlant)
+			{
+				fprintf(file, "%s: %f %f %f %f\n", unitDefs[powerPlant->id]->humanName.c_str(), 
+				 unitDefs[powerPlant->id]->energyMake,
+				 unitDefs[powerPlant->id]->tidalGenerator,
+				 unitDefs[powerPlant->id]->windGenerator, 
+				 unitDefs[powerPlant->id]->energyUpkeep);	
+			}*/
 		}
 
 		fclose(file);
@@ -316,7 +325,21 @@ void AAIBuildTree::AssignSideToUnitType(int side, UnitDefId unitDefId)
 	}
 }
 
-float AAIBuildTree::DeterminePrimaryAbility(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory) const
+float DetermineGeneratedPower(const springLegacyAI::UnitDef* unitDef, springLegacyAI::IAICallback* cb)
+{
+	if(unitDef->tidalGenerator > 0.0f)
+		return cb->GetTidalStrength();
+	else if(unitDef->windGenerator  > 0.0f)
+		return 0.5f * (cb->GetMinWind() + cb->GetMaxWind());
+	else if(unitDef->energyUpkeep < static_cast<float>(-cfg->MIN_ENERGY)) // solar plants
+		return - unitDef->energyUpkeep;
+	else if(unitDef->energyMake > static_cast<float>(cfg->MIN_ENERGY))
+		return unitDef->energyMake;	
+	else
+		return 0.0f;			
+}
+
+float AAIBuildTree::DeterminePrimaryAbility(const springLegacyAI::UnitDef* unitDef, const AAIUnitCategory& unitCategory, springLegacyAI::IAICallback* cb) const
 {
 	float primaryAbility(0.0f);
 
@@ -339,6 +362,8 @@ float AAIBuildTree::DeterminePrimaryAbility(const springLegacyAI::UnitDef* unitD
 		primaryAbility = unitDef->buildSpeed;
 	else if(unitCategory.isMetalExtractor())
 		primaryAbility = unitDef->extractsMetal;
+	else if(unitCategory.isPowerPlant())
+		primaryAbility = DetermineGeneratedPower(unitDef, cb);
 	else if(unitCategory.isStorage())
 		primaryAbility = unitDef->metalStorage;
 
@@ -480,7 +505,7 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 		{
 			return EUnitCategory::STATIC_SUPPORT;
 		}
-		else if(   (unitDef->energyMake > static_cast<float>(cfg->MIN_ENERGY) )
+		else if(   ( (unitDef->energyMake > static_cast<float>(cfg->MIN_ENERGY)) && !unitDef->needGeo )
 				|| (unitDef->tidalGenerator > 0.0f)
 				|| (unitDef->windGenerator  > 0.0f) 
 				|| (unitDef->energyUpkeep < static_cast<float>(-cfg->MIN_ENERGY)) )

@@ -117,8 +117,8 @@ public:
 	// if water == true, only water based units/buildings will be returned
 	// randomness == 1 means no randomness at all; never set randomnes to zero -> crash
 	// ******************************************************************************************************
-	// returns power plant
-	int GetPowerPlant(int side, float cost, float urgency, float max_power, float current_energy, bool water, bool geo, bool canBuild);
+	//! @brief Selects a power plant according to given criteria; a builder is requested if none available and a different power plant is chosen.
+	UnitDefId SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water);
 
 	//! @brief Selects a metal extractor according to given criteria; a builder is requested if none available and a different extractor is chosen.
 	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water);
@@ -294,6 +294,9 @@ private:
 
 	//! @brief Helper function used for building selection
 	bool IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const;
+
+	//! @brief Returns a power plant based on the given criteria
+	UnitDefId SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water, bool mustBeConstructable) const;
 
 	//! @brief Returns an extractor based on the given criteria
 	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool canBuild) const;

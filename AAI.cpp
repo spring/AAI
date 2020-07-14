@@ -210,6 +210,8 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	// init attack manager
 	am = new AAIAttackManager(this, map->continents.size());
 
+	Log("Tidal/Wind strength: %f / %f\n", cb->GetTidalStrength(), (cb->GetMaxWind() + cb->GetMinWind()) * 0.5f);
+
 	LogConsole("AAI loaded");
 }
 
@@ -317,7 +319,6 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	{
 		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
 		ut->UnitRequested(AAIUnitCategory(EUnitCategory::COMMANDER));
-		ut->UnitFinished(AAIUnitCategory(EUnitCategory::COMMANDER));
 
 		ut->futureBuilders += 1;
 

@@ -614,6 +614,71 @@ bool AAIExecute::searchForRallyPoint(float3& rallyPoint, const AAIMovementType& 
 // all building functions
 // ****************************************************************************************************
 
+BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId landBuilding, UnitDefId seaBuilding, const AAISector* sector)
+{
+	BuildOrderStatus buildOrderStatus;
+
+	if(sector->water_ratio < 0.15f)
+	{
+		buildOrderStatus = TryConstructionOf(landBuilding, sector);
+
+	}
+	else if(sector->water_ratio < 0.85f)
+	{
+		buildOrderStatus = TryConstructionOf(landBuilding, sector);
+
+		if(buildOrderStatus != BuildOrderStatus::SUCCESSFUL)
+			buildOrderStatus = TryConstructionOf(seaBuilding, sector);
+	}
+	else
+	{
+		buildOrderStatus = TryConstructionOf(seaBuilding, sector);
+	}
+
+	return buildOrderStatus;
+}
+
+BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISector* sector)
+{
+	if(building.isValid())
+	{
+		const float3 position = sector->FindBuildsite(building.id, false);
+
+		if(position.x > 0)
+		{
+			float min_dist;
+			AAIConstructor* builder = ai->Getut()->FindClosestBuilder(building.id, &position, true, &min_dist);
+
+			if(builder)
+			{
+				builder->GiveConstructionOrder(building.id, position, false);
+
+				if( ai->Getbt()->s_buildTree.GetUnitCategory(building).isPowerPlant() )
+					futureAvailableEnergy += ai->Getbt()->units_static[building.id].efficiency[0];
+
+				return BuildOrderStatus::SUCCESSFUL;
+			}
+			else
+			{
+				ai->Getbt()->BuildBuilderFor(building);
+				return BuildOrderStatus::NO_BUILDER_AVAILABLE;
+			}
+		}
+		else
+		{
+			if(ai->Getbt()->s_buildTree.GetMovementType(building).isStaticLand() )
+				ai->Getbrain()->ExpandBase(LAND_SECTOR);
+			else
+				ai->Getbrain()->ExpandBase(WATER_SECTOR);
+
+			ai->Log("Base expanded when looking for buildsite for %s\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(building).m_name.c_str());
+			return BuildOrderStatus::NO_BUILDSITE_FOUND;
+		}
+	}
+
+	return BuildOrderStatus::BUILDING_INVALID;
+}
+
 bool AAIExecute::BuildExtractor()
 {
 	AAIConstructor *builder, *land_builder = 0, *water_builder = 0;
@@ -840,34 +905,6 @@ bool AAIExecute::BuildPowerPlant()
 	if(current_energy > 1.5f * ai->Getcb()->GetEnergyUsage() + 200.0f)
 		return true;
 
-	int ground_plant = 0;
-	int water_plant = 0;
-
-	AAIConstructor *builder;
-	float3 pos;
-
-	bool checkWater, checkGround;
-	float urgency;
-	float max_power;
-	float eff;
-	float energy = ai->Getcb()->GetEnergyIncome()+1.0f;
-
-	// check if already one power_plant under construction and energy short
-	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(plant) > 0) 
-		&& (ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) > 9) 
-		&& (averageEnergySurplus < 100) )
-	{
-		urgency = 0.4f + GetEnergyUrgency();
-		max_power = 0.5f;
-		eff = 2.2f - ai->Getbrain()->Affordable() / 4.0f;
-	}
-	else
-	{
-		max_power = 0.5f + pow((float) ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant), 0.8f);
-		eff = 0.5 + 1.0f / (ai->Getbrain()->Affordable() + 0.5f);
-		urgency = 0.5f + GetEnergyUrgency();
-	}
-
 	// sort sectors according to threat level
 	learned = 70000.0f / (float)(ai->Getcb()->GetCurrentFrame() + 35000) + 1.0f;
 	current = 2.5f - learned;
@@ -875,115 +912,47 @@ bool AAIExecute::BuildPowerPlant()
 	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) >= 2)
 		ai->Getbrain()->sectors[0].sort(suitable_for_power_plant);
 
+	const AAIUnitStatistics& unitStatistics      = ai->Getbt()->s_buildTree.GetUnitStatistics(ai->GetSide());
+	const StatisticalData&   generatedPowerStats = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
+
+	float cost( 1.5f );
+	float buildtime( 1.5f );
+	float generatedPower( 0.5f );
+
+	// check if already one power_plant under construction and energy short
+	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(plant) > 0) 
+		&& (ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) > 6) 
+		&& (averageEnergySurplus < generatedPowerStats.GetMinValue()) )
+	{
+		buildtime = 3.0f;
+	}
+	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) > 9)
+	{
+		cost           = 0.75f;
+		buildtime      = 0.5f;
+		generatedPower = 2.0f;
+	}
+	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) > 4)
+	{
+		cost           = 1.25f;
+		buildtime      = 1.0f;
+		generatedPower = 1.0f;
+	}
+
 	// get water and ground plant
-	ground_plant = ai->Getbt()->GetPowerPlant(ai->GetSide(), eff, urgency, max_power, energy, false, false, false);
-	// currently aai cannot build this building
-	if(ground_plant && ai->Getbt()->units_dynamic[ground_plant].constructorsAvailable <= 0)
+	UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), cost, buildtime, generatedPower, false);
+	UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), cost, buildtime, generatedPower, true);
+
+	for(auto sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 	{
-		if( ai->Getbt()->units_dynamic[water_plant].constructorsRequested <= 0)
-			ai->Getbt()->BuildBuilderFor(UnitDefId(ground_plant));
+		BuildOrderStatus buildOrderStatus = TryConstructionOf(landPowerPlant, seaPowerPlant, *sector);
 
-		ground_plant = ai->Getbt()->GetPowerPlant(ai->GetSide(), eff, urgency, max_power, energy, false, false, true);
-	}
-
-	water_plant = ai->Getbt()->GetPowerPlant(ai->GetSide(), eff, urgency, max_power, energy, true, false, false);
-	// currently aai cannot build this building
-	if(water_plant && ai->Getbt()->units_dynamic[water_plant].constructorsAvailable <= 0)
-	{
-		if( ai->Getbt()->units_dynamic[water_plant].constructorsRequested <= 0)
-			ai->Getbt()->BuildBuilderFor(UnitDefId(water_plant));
-
-		water_plant = ai->Getbt()->GetPowerPlant(ai->GetSide(), eff, urgency, max_power, energy, true, false, true);
-	}
-
-	for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
-	{
-		if((*sector)->water_ratio < 0.15)
-		{
-			checkWater = false;
-			checkGround = true;
-		}
-		else if((*sector)->water_ratio < 0.85)
-		{
-			checkWater = true;
-			checkGround = true;
-		}
-		else
-		{
-			checkWater = true;
-			checkGround = false;
-		}
-
-		if(checkGround && ground_plant)
-		{
-			pos = (*sector)->FindBuildsite(ground_plant, false);
-
-			if(pos.x > 0)
-			{
-				float min_dist;
-				builder = ai->Getut()->FindClosestBuilder(ground_plant, &pos, true, &min_dist);
-
-				if(builder)
-				{
-					futureAvailableEnergy += ai->Getbt()->units_static[ground_plant].efficiency[0];
-					builder->GiveConstructionOrder(ground_plant, pos, false);
-					return true;
-				}
-				else
-				{
-					ai->Getbt()->BuildBuilderFor(UnitDefId(ground_plant));
-					return false;
-				}
-			}
-			else
-			{
-				ai->Getbrain()->ExpandBase(LAND_SECTOR);
-				ai->Log("Base expanded by BuildPowerPlant()\n");
-			}
-		}
-
-		if(checkWater && water_plant)
-		{
-			if(ai->Getut()->constructors.size() > 1 || ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) >= 2)
-				pos = (*sector)->FindBuildsite(water_plant, true);
-			else
-			{
-				builder = ai->Getut()->FindBuilder(water_plant, true);
-
-				if(builder)
-				{
-					pos = ai->Getmap()->GetClosestBuildsite(&ai->Getbt()->GetUnitDef(water_plant), ai->Getcb()->GetUnitPos(builder->m_myUnitId.id), 40, true);
-
-					if(pos.x <= 0)
-						pos = (*sector)->FindBuildsite(water_plant, true);
-				}
-				else
-					pos = (*sector)->FindBuildsite(water_plant, true);
-			}
-
-			if(pos.x > 0)
-			{
-				float min_dist;
-				builder = ai->Getut()->FindClosestBuilder(water_plant, &pos, true, &min_dist);
-
-				if(builder)
-				{
-					futureAvailableEnergy += ai->Getbt()->units_static[water_plant].efficiency[0];
-					builder->GiveConstructionOrder(water_plant, pos, true);
-					return true;
-				}
-				else
-				{
-					ai->Getbt()->BuildBuilderFor(UnitDefId(water_plant));
-					return false;
-				}
-			}
-			else
-			{
-				ai->Getbrain()->ExpandBase(WATER_SECTOR);
-				ai->Log("Base expanded by BuildPowerPlant() (water sector)\n");
-			}
-		}
+		// only continue with search in next sector if buildOrderStatus == BuildOrderStatus::NO_BUILDSITE_FOUND - otherwise stop
+		if(    (buildOrderStatus == BuildOrderStatus::SUCCESSFUL)
+			|| (buildOrderStatus == BuildOrderStatus::BUILDING_INVALID) )
+			return true; // construction order given or no storage constructable at the moment -> continue with construction of other buidlings before retry
+		else if(buildOrderStatus == BuildOrderStatus::NO_BUILDER_AVAILABLE )
+			return false; 	// stop looking for buildsite in next sector and retry next update if no builder is currently available	
 	}
 
 	return true;
@@ -1150,24 +1119,7 @@ bool AAIExecute::BuildStorage()
 
 	for(auto sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 	{
-		BuildOrderStatus buildOrderStatus;
-
-		if((*sector)->water_ratio < 0.15f)
-		{
-			buildOrderStatus = TryConstructionOf(landStorage, *sector);
-
-		}
-		else if((*sector)->water_ratio < 0.85f)
-		{
-			buildOrderStatus = TryConstructionOf(landStorage, *sector);
-
-			if(buildOrderStatus != BuildOrderStatus::SUCCESSFUL)
-				buildOrderStatus = TryConstructionOf(seaStorage, *sector);
-		}
-		else
-		{
-			buildOrderStatus = TryConstructionOf(seaStorage, *sector);
-		}
+		BuildOrderStatus buildOrderStatus = TryConstructionOf(landStorage, seaStorage, *sector);
 
 		// only continue with search in next sector if buildOrderStatus == BuildOrderStatus::NO_BUILDSITE_FOUND - otherwise stop
 		if(    (buildOrderStatus == BuildOrderStatus::SUCCESSFUL)
@@ -1178,43 +1130,6 @@ bool AAIExecute::BuildStorage()
 	}
 
 	return true;
-}
-
-BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISector* sector)
-{
-	if(building.isValid())
-	{
-		const float3 position = sector->FindBuildsite(building.id, false);
-
-		if(position.x > 0)
-		{
-			float min_dist;
-			AAIConstructor* builder = ai->Getut()->FindClosestBuilder(building.id, &position, true, &min_dist);
-
-			if(builder)
-			{
-				builder->GiveConstructionOrder(building.id, position, false);
-				return BuildOrderStatus::SUCCESSFUL;
-			}
-			else
-			{
-				ai->Getbt()->BuildBuilderFor(building);
-				return BuildOrderStatus::NO_BUILDER_AVAILABLE;
-			}
-		}
-		else
-		{
-			if(ai->Getbt()->s_buildTree.GetMovementType(building).isStaticLand() )
-				ai->Getbrain()->ExpandBase(LAND_SECTOR);
-			else
-				ai->Getbrain()->ExpandBase(WATER_SECTOR);
-
-			ai->Log("Base expanded when looking for buildsite for %s\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(building).m_name.c_str());
-			return BuildOrderStatus::NO_BUILDSITE_FOUND;
-		}
-	}
-
-	return BuildOrderStatus::BUILDING_INVALID;
 }
 
 bool AAIExecute::BuildAirBase()

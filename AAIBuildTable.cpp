@@ -1010,50 +1010,6 @@ bool AAIBuildTable::MemberOf(int unit_id, list<int> unit_list)
 	return false;
 }
 
-int AAIBuildTable::GetPowerPlant(int side, float cost, float urgency, float power, float /*current_energy*/, bool water, bool geo, bool canBuild)
-{
-	UnitTypeStatic *unit;
-
-	int best_unit = 0;
-
-	float best_ranking = -10000, my_ranking;
-
-	//debug
-	//ai->Log("Selecting power plant:     power %f    cost %f    urgency %f   energy %f \n", power, cost, urgency, current_energy);
-
-	for(list<int>::iterator pplant = units_of_category[POWER_PLANT][side-1].begin(); pplant != units_of_category[POWER_PLANT][side-1].end(); ++pplant)
-	{
-		unit = &units_static[*pplant];
-
-		if(canBuild && units_dynamic[*pplant].constructorsAvailable <= 0)
-			my_ranking = -10000;
-		else if(!geo && GetUnitDef(*pplant).needGeo)
-			my_ranking = -10000;
-		else if( (!water && GetUnitDef(*pplant).minWaterDepth <= 0) || (water && GetUnitDef(*pplant).minWaterDepth > 0) )
-		{
-			my_ranking = cost * unit->efficiency[1] / max_pplant_eff[side-1] + power * unit->efficiency[0] / max_value[POWER_PLANT][side-1]
-						- urgency * (GetUnitDef(*pplant).buildTime / max_buildtime[POWER_PLANT][side-1]);
-
-			//
-			if(s_buildTree.GetTotalCost(UnitDefId(*pplant)) >= max_cost[POWER_PLANT][side-1])
-				my_ranking -= (cost + urgency + power)/2.0f;
-
-			//ai->Log("%-20s: %f\n", GetUnitDef(*pplant)->humanName.c_str(), my_ranking);
-		}
-		else
-			my_ranking = -10000;
-
-		if(my_ranking > best_ranking)
-		{
-				best_ranking = my_ranking;
-				best_unit = *pplant;
-		}
-	}
-
-	// 0 if no unit found (list was probably empty)
-	return best_unit;
-}
-
 bool AAIBuildTable::IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const
 {
 	const bool constructablePassed = !mustBeConstructable || (units_dynamic[building.id].constructorsAvailable > 0);
@@ -1061,6 +1017,52 @@ bool AAIBuildTable::IsBuildingSelectable(UnitDefId building, bool water, bool mu
 	const bool seaCheckPassed      =  water    && s_buildTree.GetMovementType(building.id).isStaticSea();
 
 	return constructablePassed && (landCheckPassed || seaCheckPassed );
+}
+
+UnitDefId AAIBuildTable::SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water)
+{
+	UnitDefId powerPlant = SelectPowerPlant(side, cost, buildtime, powerGeneration, water, false);
+
+	if(powerPlant.isValid() && (units_dynamic[powerPlant.id].constructorsAvailable <= 0) && (units_dynamic[powerPlant.id].constructorsRequested <= 0) )
+	{
+		ai->Getbt()->BuildBuilderFor(powerPlant);
+		powerPlant = SelectPowerPlant(side, cost, buildtime, powerGeneration, water, true);
+	}
+
+	return powerPlant;
+}
+
+UnitDefId AAIBuildTable::SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water, bool mustBeConstructable) const
+{
+	UnitDefId selectedPowerPlant;
+
+	float     bestRating(0.0f);
+
+	const AAIUnitStatistics& unitStatistics  = s_buildTree.GetUnitStatistics(side);
+	const StatisticalData&   generatedPowers = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
+	const StatisticalData&   buildtimes      = unitStatistics.GetUnitBuildtimeStatistics(EUnitCategory::POWER_PLANT);
+	const StatisticalData&   costs           = unitStatistics.GetUnitCostStatistics(EUnitCategory::POWER_PLANT);
+
+	for(auto powerPlant = s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side).begin(); powerPlant != s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side).end(); ++powerPlant)
+	{
+				// check if under water or ground || water = true and building under water
+		if( IsBuildingSelectable(*powerPlant, water, mustBeConstructable) )
+		{
+			const float generatedPower = s_buildTree.GetMaxRange( *powerPlant );
+
+			float myRating =   powerGeneration * generatedPowers.GetNormalizedDeviationFromMin(generatedPower)
+						     + cost            * costs.GetNormalizedDeviationFromMax(s_buildTree.GetTotalCost(*powerPlant))
+							 + buildtime       * buildtimes.GetNormalizedDeviationFromMax(s_buildTree.GetBuildtime(*powerPlant));
+
+			if(myRating > bestRating)
+			{
+				bestRating = myRating;
+				selectedPowerPlant = *powerPlant;
+			}
+		}
+	}
+
+	return selectedPowerPlant;
 }
 
 UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water)
