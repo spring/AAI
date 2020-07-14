@@ -421,7 +421,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 			allowedMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
 		}
 
-		ai->Getbt()->AddAssistant(allowedMovementTypes, true);
+		//ai->Getbt()->AddAssistant(allowedMovementTypes, true);
 	}
 
 	return best_assistant;

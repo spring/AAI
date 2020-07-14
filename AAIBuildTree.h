@@ -128,7 +128,9 @@ private:
 	bool IsMissileLauncher(const springLegacyAI::UnitDef* unitDef) const;
 	bool IsDeflectionShieldEmitter(const springLegacyAI::UnitDef* unitDef) const;
 
+public:	//! @todo This can be made private again when refactoring of AAIBuilTable is done
     float GetMaxDamage(const springLegacyAI::UnitDef* unitDef) const;
+private:
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// member variables

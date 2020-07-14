@@ -154,17 +154,14 @@ public:
 	//! @brief Looks for most suitable construction unit for given building and places buildorder if such a unit is not already under construction/requested
 	void BuildBuilderFor(UnitDefId building, float cost = 1.0f, float buildtime = 0.5f, float buildpower = 0.75f, float constructableBuilderBonus = 0.25f);
 
-	// tries to build an assistant for the specified kind of unit
-	void AddAssistant(uint32_t allowedMovementTypes, bool canBuild);
+	// @brief Tries to build an assistant for the specified kind of unit
+	//void AddAssistant(uint32_t allowedMovementTypes, bool mustBeConstructable);
 
 	// updates unit table
 	void UpdateTable(const UnitDef* def_killer, int killer, const UnitDef *def_killed, int killed);
 
 	// updates max and average eff. values of the different categories
 	void UpdateMinMaxAvgEfficiency();
-
-	// returns max damage of all weapons
-	float GetMaxDamage(int unit_id);
 
 	//! @brief Returns metal extractor with the largest yardmap
 	UnitDefId GetLargestExtractor() const;
@@ -215,14 +212,6 @@ public:
 	// number of assault cat + arty & stat defences
 	static const int combat_categories = 6;
 
-	// path/name of the file in which AAI stores the build table
-	static char buildtable_filename[500];
-
-	// cached values of average costs and buildtime
-	static vector<vector<float>> max_cost;
-	static vector<vector<float>> max_buildtime;
-	static vector<vector<float>> max_value;
-
 	// combat categories that attacked AI in certain game period attacked_by_category_learned[map_type][period][cat]
 	static vector< vector< vector<float> > > attacked_by_category_learned;
 
@@ -234,10 +223,6 @@ public:
 
 	// AAI unit defs (static things like id, side, etc.)
 	static vector<UnitTypeStatic> units_static;
-
-	// storage for def. building selection
-	static vector<vector<double> > def_power;
-	static vector<double> max_pplant_eff;
 
 	// cached combat efficiencies
 	static vector< vector< vector<float> > > avg_eff;
@@ -270,9 +255,6 @@ public:
 	// AAI unit defs with aai-instance specific information (number of requested, active units, etc.)
 	vector<UnitTypeDynamic> units_dynamic;
 
-	// for internal use
-	const char* GetCategoryString2(UnitCategory category);
-
 	// all assault unit categories
 	std::list<UnitCategory> assault_categories;
 
@@ -283,12 +265,6 @@ private:
 	std::string GetBuildCacheFileName();
 	// precaches speed/cost/buildtime/range stats
 	void PrecacheStats();
-
-	// only precaches costs (called after possible cost multipliers have been assigned)
-	void PrecacheCosts();
-
-	// returns true, if unitid is in the list
-	bool MemberOf(int unit_id, list<int> unit_list);
 
 	bool LoadBuildTable();
 
