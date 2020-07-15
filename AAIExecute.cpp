@@ -1478,89 +1478,71 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 
 bool AAIExecute::BuildArty()
 {
-	const AAIUnitCategory staticArtillery(EUnitCategory::STATIC_ARTILLERY);
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(staticArtillery) > 0)
+	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_ARTILLERY) > 0)
 		return true;
 
-	int ground_arty = 0;
-	int sea_arty = 0;
+	const float cost(1.0f);
+	const float range(1.5f);
 
-	float3 my_pos, best_pos;
-	float my_rating, best_rating = -100000.0f;
-	int arty = 0;
+	UnitDefId landArtillery = ai->Getbt()->SelectStaticArtillery(ai->GetSide(), cost, range, false);
+	UnitDefId seaArtillery  = ai->Getbt()->SelectStaticArtillery(ai->GetSide(), cost, range, true);
 
-	// get ground radar
-	if(ai->Getmap()->land_ratio > 0.02f)
+	if(landArtillery.isValid() && (ai->Getbt()->units_dynamic[landArtillery.id].constructorsAvailable <= 0))
 	{
-		ground_arty = ai->Getbt()->GetStationaryArty(ai->GetSide(), 1, 2, 2, false, false);
-
-		if(ground_arty && ai->Getbt()->units_dynamic[ground_arty].constructorsAvailable <= 0)
-		{
-			if(ai->Getbt()->units_dynamic[ground_arty].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(UnitDefId(ground_arty));
-
-			ground_arty =ai->Getbt()->GetStationaryArty(ai->GetSide(), 1, 2, 2, false, true);
-		}
+		if(ai->Getbt()->units_dynamic[landArtillery.id].constructorsRequested <= 0)
+			ai->Getbt()->BuildBuilderFor(landArtillery);
 	}
 
-	// get sea radar
-	if(ai->Getmap()->water_ratio > 0.02f)
+	if(seaArtillery.isValid() && (ai->Getbt()->units_dynamic[seaArtillery.id].constructorsAvailable <= 0))
 	{
-		sea_arty = ai->Getbt()->GetStationaryArty(ai->GetSide(), 1, 2, 2, true, false);
-
-		if(sea_arty && ai->Getbt()->units_dynamic[sea_arty].constructorsAvailable <= 0)
-		{
-			if(ai->Getbt()->units_dynamic[sea_arty].constructorsRequested <= 0)
-				ai->Getbt()->BuildBuilderFor(UnitDefId(sea_arty));
-
-			sea_arty = ai->Getbt()->GetStationaryArty(ai->GetSide(), 1, 2, 2, true, true);
-		}
+		if(ai->Getbt()->units_dynamic[seaArtillery.id].constructorsRequested <= 0)
+			ai->Getbt()->BuildBuilderFor(seaArtillery);
 	}
 
-	for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+	float  bestRating(0.0f);
+	float3 bestPosition(ZeroVector);
+
+	for(auto sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 	{
 		if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_ARTILLERY) < 2)
 		{
-			my_pos = ZeroVector;
+			float3 position = ZeroVector;
 
-			if(ground_arty && (*sector)->water_ratio < 0.9f)
-				my_pos = (*sector)->GetRadarArtyBuildsite(ground_arty, ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(ground_arty))/4.0f, false);
+			if(landArtillery.isValid()  && ((*sector)->water_ratio < 0.9f) )
+				position = (*sector)->GetRadarArtyBuildsite(landArtillery.id, ai->Getbt()->s_buildTree.GetMaxRange(landArtillery)/4.0f, false);
 
-			if(my_pos.x <= 0 && sea_arty && (*sector)->water_ratio > 0.1f)
+			if((position.x <= 0.0f) && seaArtillery.isValid() && ((*sector)->water_ratio > 0.1f) )
+				position = (*sector)->GetRadarArtyBuildsite(seaArtillery.id, ai->Getbt()->s_buildTree.GetMaxRange(seaArtillery)/4.0f, true);
+			
+			if(position.x > 0)
 			{
-				my_pos = (*sector)->GetRadarArtyBuildsite(sea_arty,  ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(sea_arty))/4.0f, true);
+				const float myRating = ai->Getmap()->GetEdgeDistance(&position);
 
-				if(my_pos.x > 0)
-					ground_arty = sea_arty;
-			}
-
-			if(my_pos.x > 0)
-			{
-				my_rating = - ai->Getmap()->GetEdgeDistance(&my_pos);
-
-				if(my_rating > best_rating)
+				if(myRating > bestRating)
 				{
-					best_rating = my_rating;
-					best_pos = my_pos;
-					arty = ground_arty;
+					bestRating   = myRating;
+					bestPosition = position;
 				}
 			}
 		}
 	}
 
-	if(arty)
+	// Check if suitable position for artillery has been found
+	if(bestPosition.x > 0.0f)
 	{
-		float min_dist;
-		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(arty, &best_pos, true, &min_dist);
+		UnitDefId artillery = (bestPosition.y > 0.0f) ? landArtillery : seaArtillery;
+
+		float minDistance;
+		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(artillery.id, &bestPosition, true, &minDistance);
 
 		if(builder)
 		{
-			builder->GiveConstructionOrder(arty, best_pos, false);
+			builder->GiveConstructionOrder(artillery.id, bestPosition, false);
 			return true;
 		}
 		else
 		{
-			ai->Getbt()->BuildBuilderFor(UnitDefId(ground_arty));
+			ai->Getbt()->BuildBuilderFor(artillery);
 			return false;
 		}
 	}

@@ -610,13 +610,6 @@ void AAIBuildTable::PrecacheStats()
 			units_static[factory->id].efficiency[0] = average_metal  / s_buildTree.GetCanConstructList(UnitDefId(factory->id)).size();
 			units_static[factory->id].efficiency[1] = average_energy / s_buildTree.GetCanConstructList(UnitDefId(factory->id)).size();
 		}
-
-		// precache range of arty
-		for(auto artillery = s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_ARTILLERY, side).begin(); artillery != s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_ARTILLERY, side).end(); ++artillery)
-		{
-			units_static[artillery->id].efficiency[1] = s_buildTree.GetUnitTypeProperties( UnitDefId(artillery->id) ).m_range;
-			units_static[artillery->id].efficiency[0] = 1 + s_buildTree.GetTotalCost(UnitDefId(artillery->id))/100.0;
-		}
 	}
 
 	for(int s = 0; s < numOfSides; ++s)
@@ -1208,34 +1201,31 @@ int AAIBuildTable::GetAirBase(int side, float /*cost*/, bool water, bool canBuil
 	return best_airbase;
 }
 
-int AAIBuildTable::GetStationaryArty(int side, float cost, float range, float efficiency, bool water, bool canBuild)
+UnitDefId AAIBuildTable::SelectStaticArtillery(int side, float cost, float range, bool water) const
 {
-	float best_ranking = 0, my_ranking;
-	int best_arty = 0;
+	const StatisticalData& costs      = s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::STATIC_ARTILLERY);
+	const StatisticalData& ranges     = s_buildTree.GetUnitStatistics(side).GetUnitPrimaryAbilityStatistics(EUnitCategory::STATIC_ARTILLERY);
 
-	for(list<int>::iterator arty = units_of_category[STATIONARY_ARTY][side-1].begin(); arty != units_of_category[STATIONARY_ARTY][side-1].end(); ++arty)
+	float bestRating(0.0f);
+	UnitDefId selectedArtillery;
+
+	for(auto artillery = s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_ARTILLERY, side).begin(); artillery != s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_ARTILLERY, side).end(); ++artillery)
 	{
 		// check if water
-		if(canBuild && units_dynamic[*arty].constructorsAvailable <= 0)
-			my_ranking = 0;
-		else if(!water && GetUnitDef(*arty).minWaterDepth <= 0)
+		if( IsBuildingSelectable(*artillery, water, false) )
 		{
-			my_ranking =  (range * units_static[*arty].efficiency[1] + efficiency * units_static[*arty].efficiency[0]) / (cost * s_buildTree.GetTotalCost(UnitDefId(*arty)));
-		}
-		else if(water && GetUnitDef(*arty).minWaterDepth > 0)
-		{
-			my_ranking =  (range * units_static[*arty].efficiency[1] + efficiency * units_static[*arty].efficiency[0]) / (cost * s_buildTree.GetTotalCost(UnitDefId(*arty)));
-		}
-		else
-			my_ranking = 0;
+			const float myRating =   cost  * costs.GetNormalizedDeviationFromMax(s_buildTree.GetTotalCost(*artillery))
+			                       + range * ranges.GetNormalizedDeviationFromMin(s_buildTree.GetMaxRange(*artillery));
 
-		if(my_ranking > best_ranking)
-		{
-			best_ranking = my_ranking;
-			best_arty = *arty;
+			if(myRating > bestRating)
+			{
+				bestRating        = myRating;
+				selectedArtillery = *artillery;
+			}
 		}
 	}
-	return best_arty;
+
+	return selectedArtillery;
 }
 
 UnitDefId AAIBuildTable::SelectRadar(int side, float cost, float range, bool water)

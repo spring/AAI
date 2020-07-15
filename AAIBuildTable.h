@@ -141,7 +141,8 @@ public:
 	//! @brief Selects a combat unit of specified category according to given criteria
 	UnitDefId SelectCombatUnit(int side, const AAICombatCategory& category, const CombatPower& combatCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild);
 
-	int GetStationaryArty(int side, float cost, float range, float efficiency, bool water, bool canBuild);
+	//! @brief Selects a static artillery according to given criteria
+	UnitDefId SelectStaticArtillery(int side, float cost, float range, bool water) const;
 
 	//! @brief Determines a scout unit with given properties
 	UnitDefId selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable);

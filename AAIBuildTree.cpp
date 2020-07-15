@@ -527,9 +527,17 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 			{
 				return EUnitCategory::STATIC_SUPPORT;
 			}
-			//else
+			else
 			{
-				if( GetMaxRange( UnitDefId(unitDef->id) ) < cfg->STATIONARY_ARTY_RANGE)
+				float range(0.0f);
+				
+				for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDef->weapons.begin(); w != unitDef->weapons.end(); ++w)
+				{
+					if((*w).def->range > range)
+						range = (*w).def->range;
+				}
+
+				if( range < cfg->STATIONARY_ARTY_RANGE)
 				{
 					return EUnitCategory::STATIC_DEFENCE;
 				}
