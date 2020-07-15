@@ -200,8 +200,8 @@ public:
 	//! @brief Returns target type id of given unit category
 	int GetIDOfAssaultCategory(const AAIUnitCategory& category) const;
 
-	UnitCategory GetAssaultCategoryOfID(int id);
-
+	//! @brief Returns the unit category for a given index (0 to 5) of an combat unit type (ground, air, hover, sea, submarine, static)
+	AAIUnitCategory GetUnitCategoryOfCombatUnitIndex(int index) const;
 
 	//
 	// these data are shared by several instances of aai
@@ -218,9 +218,6 @@ public:
 
 	// combat categories that attacked AI in certain game period attacked_by_category_current[period][cat]
 	static vector< vector<float> > attacked_by_category_current;
-
-	// units of the different categories
-	static vector<vector<list<int>>> units_of_category;
 
 	// AAI unit defs (static things like id, side, etc.)
 	static vector<UnitTypeStatic> units_static;
