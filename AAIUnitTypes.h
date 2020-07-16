@@ -166,14 +166,19 @@ private:
 enum class EUnitType : int
 {
 	UNKNOWN              = 0x0000, //! Unknown unit type, i.e. not set
-	ANTI_SURFACE         = 0x0001, //! Used for combat units/static defences that can fight land/hover/floating units
-	ANTI_AIR             = 0x0002, //! Anti air combat units/static defences
-	ANTI_SUBMERGED       = 0x0004, //! Anti submarine combat units/static defences
-	RADAR                = 0x0008, //! Radar
-	SONAR                = 0x0010, //! Sonar
-	SEISMIC              = 0x0020, //! Seismic detector
-	RADAR_JAMMER         = 0x0040, //! Radar jammer
-	SONAR_JAMMER         = 0x0080, //! Sonar jammer
+	BUILDING             = 0x0001, //! Static unit aka building
+	MOBILE_UNIT          = 0x0002, //! Mobile unit
+	ANTI_SURFACE         = 0x0004, //! Used for combat units/static defences that can fight land/hover/floating units
+	ANTI_AIR             = 0x0008, //! Anti air combat units/static defences
+	ANTI_SUBMERGED       = 0x0010, //! Anti submarine combat units/static defences
+	RADAR                = 0x0020, //! Radar
+	SONAR                = 0x0040, //! Sonar
+	SEISMIC              = 0x0080, //! Seismic detector
+	RADAR_JAMMER         = 0x0100, //! Radar jammer
+	SONAR_JAMMER         = 0x0200, //! Sonar jammer
+	BUILDER              = 0x0400, //! Can construct buildings
+	FACTORY              = 0x0800, //! Can construct units
+	CONSTRUCTION_ASSIST  = 0x1000, //! Can assists with cosntruction of units/buildings
 };
 
 //! @brief Unit type with convenience functions (works as bitmask)
@@ -190,6 +195,12 @@ public:
 
 	//! Returns whether given unit type is set
 	bool IsUnitTypeSet(EUnitType unitType) const { return static_cast<bool>(m_unitType & static_cast<int>(unitType)); }
+
+	//! Returns whether unit is a building (i.e. static)
+	bool IsBuilding()        const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::BUILDING)); }
+
+	//! Returns whether unit is mobile
+	bool IsMobileUnit()      const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::MOBILE_UNIT)); }
 
 	//! Returns whether unit is considered to be able to fight against surface units (ground, hover, ships)
 	bool IsAntiSurface()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_SURFACE)); }
@@ -214,6 +225,15 @@ public:
 
 	//! Returns true if radar jammer flag is set
 	bool IsSonarJammer()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::SONAR_JAMMER)); }
+
+	//! Returns true if unit can construct at least one building
+	bool IsBuilder()         const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::BUILDER)); }
+
+	//! Returns true if unit can construct at least one mobile unit
+	bool IsFactory()         const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::FACTORY)); }
+
+	//! Returns true if unit can help with costruction of other units/buildings
+	bool IsConstrcutionAssist()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::CONSTRUCTION_ASSIST)); }
 
 private:
 	//! Unit type

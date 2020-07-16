@@ -88,20 +88,6 @@ public:
 	float vsBuildings;
 };
 
-// unit types (for bitfield)
-#define UNIT_TYPE_BUILDER (unsigned int) 1
-#define UNIT_TYPE_FACTORY (unsigned int) 2
-#define UNIT_TYPE_ASSISTER (unsigned int) 4
-#define UNIT_TYPE_RESURRECTOR (unsigned int) 8
-#define UNIT_TYPE_COMMANDER (unsigned int) 16
-#define UNIT_TYPE_ASSAULT (unsigned int) 32
-#define UNIT_TYPE_ANTI_AIR (unsigned int) 64
-#define UNIT_TYPE_ARTY (unsigned int) 128
-#define UNIT_TYPE_FIGHTER (unsigned int) 256
-#define UNIT_TYPE_BOMBER (unsigned int) 512
-#define UNIT_TYPE_GUNSHIP (unsigned int) 1024
-
-
 enum UnitCategory {UNKNOWN, STATIONARY_DEF, STATIONARY_ARTY, STORAGE, STATIONARY_CONSTRUCTOR, AIR_BASE,
 STATIONARY_RECON, STATIONARY_JAMMER, STATIONARY_LAUNCHER, DEFLECTION_SHIELD, POWER_PLANT, EXTRACTOR, METAL_MAKER,
 COMMANDER, GROUND_ASSAULT, AIR_ASSAULT, HOVER_ASSAULT, SEA_ASSAULT, SUBMARINE_ASSAULT, GROUND_ARTY, SEA_ARTY, HOVER_ARTY,

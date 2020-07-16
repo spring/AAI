@@ -188,9 +188,8 @@ bool AAIExecute::InitBuildingAt(const UnitDef *def, float3 *pos, bool water)
 	int y = pos->z / ai->Getmap()->ySectorSize;
 
 	// update buildmap
-	ai->Getmap()->UpdateBuildMap(*pos, def, true, water, ai->Getbt()->IsFactory(def->id));
-
 	UnitDefId unitDefId(def->id);
+	ai->Getmap()->UpdateBuildMap(*pos, def, true, water, ai->Getbt()->s_buildTree.GetUnitType(unitDefId).IsFactory());
 
 	// update defence map (if necessary)
 	if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence() == true)
@@ -515,19 +514,19 @@ void AAIExecute::InitBuildques()
 	// stationary factories
 	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->s_buildTree.GetUnitType(*cons).IsFactory())
 			++numOfFactories;
 	}
 	// and look for all mobile factories
 	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->s_buildTree.GetUnitType(*cons).IsFactory())
 			++numOfFactories;
 	}
 	// and add com
 	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->s_buildTree.GetUnitType(*cons).IsFactory())
 			++numOfFactories;
 	}
 
@@ -542,7 +541,7 @@ void AAIExecute::InitBuildques()
 
 	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->s_buildTree.GetUnitType(*cons).IsFactory())
 		{
 			factory_table[i] = cons->id;
 			++i;
@@ -551,7 +550,7 @@ void AAIExecute::InitBuildques()
 
 	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->s_buildTree.GetUnitType(*cons).IsFactory())
 		{
 			factory_table[i] = cons->id;
 			++i;
@@ -560,7 +559,7 @@ void AAIExecute::InitBuildques()
 
 	for(auto cons = ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).begin(); cons != ai->Getbt()->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).end(); ++cons)
 	{
-		if(ai->Getbt()->units_static[cons->id].unit_type & UNIT_TYPE_FACTORY)
+		if(ai->Getbt()->s_buildTree.GetUnitType(*cons).IsFactory())
 		{
 			factory_table[i] = cons->id;
 			++i;
@@ -1499,6 +1498,8 @@ bool AAIExecute::BuildArty()
 			ai->Getbt()->BuildBuilderFor(seaArtillery);
 	}
 
+	//ai->Log("Selected artillery (land/sea): %s / %s\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(landArtillery).m_name.c_str(), ai->Getbt()->s_buildTree.GetUnitTypeProperties(seaArtillery).m_name.c_str());
+
 	float  bestRating(0.0f);
 	float3 bestPosition(ZeroVector);
 
@@ -1531,6 +1532,8 @@ bool AAIExecute::BuildArty()
 	if(bestPosition.x > 0.0f)
 	{
 		UnitDefId artillery = (bestPosition.y > 0.0f) ? landArtillery : seaArtillery;
+
+		//ai->Log("Position for %s found\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(artillery).m_name.c_str());
 
 		float minDistance;
 		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(artillery.id, &bestPosition, true, &minDistance);

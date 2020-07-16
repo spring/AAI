@@ -125,11 +125,11 @@ private:
 	bool IsUnitCommander(int unit_id);
 
 	//! @todo These functions are duplicated in buildtable -> remove duplication after unit category handling is reworked
-	bool IsFactory(UnitDefId unitDefId)  const { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_FACTORY ); };
+	bool IsFactory(UnitDefId unitDefId)  const { return ai->Getbt()->s_buildTree.GetUnitType(unitDefId).IsFactory(); };
 
-	bool IsBuilder(UnitDefId unitDefId)  const { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_BUILDER ); };
+	bool IsBuilder(UnitDefId unitDefId)  const { return ai->Getbt()->s_buildTree.GetUnitType(unitDefId).IsBuilder(); };
 
-	bool IsAssister(UnitDefId unitDefId) const { return static_cast<bool>( ai->Getbt()->units_static[unitDefId.id].unit_type & UNIT_TYPE_ASSISTER ); };
+	bool IsAssister(UnitDefId unitDefId) const { return ai->Getbt()->s_buildTree.GetUnitType(unitDefId).IsConstrcutionAssist(); };
 
 	//! Number of active (i.e. not under construction anymore) units of each unit category
 	std::vector<int> m_activeUnitsOfCategory;

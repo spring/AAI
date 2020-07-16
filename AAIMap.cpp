@@ -781,7 +781,7 @@ float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int 
 			// check if buildmap allows construction
 			if(CanBuildAt(xPos, yPos, xSize, ySize, water))
 			{
-				if(ai->Getbt()->IsFactory(def->id))
+				if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 					yPos += 8;
 
 				pos.x = xPos;
@@ -927,7 +927,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					temp_pos.y = 0;
 					temp_pos.z = pos.z;
 
-					if(ai->Getbt()->IsFactory(def->id))
+					if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 						temp_pos.z += 8;
 
 					// buildmap allows construction, now check if otherwise blocked
@@ -950,7 +950,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					temp_pos.y = 0;
 					temp_pos.z = pos.z + 2 * vIterator;
 
-					if(ai->Getbt()->IsFactory(def->id))
+					if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 						temp_pos.z += 8;
 
 					// buildmap allows construction, now check if otherwise blocked
@@ -993,7 +993,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					temp_pos.y = 0;
 					temp_pos.z = pos.z;
 
-					if(ai->Getbt()->IsFactory(def->id))
+					if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 						temp_pos.z += 8;
 
 					// buildmap allows construction, now check if otherwise blocked
@@ -1015,7 +1015,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					temp_pos.y = 0;
 					temp_pos.z = pos.z;
 
-					if(ai->Getbt()->IsFactory(def->id))
+					if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 						temp_pos.z += 8;
 
 					// buildmap allows construction, now check if otherwise blocked
@@ -1070,7 +1070,7 @@ float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 		// check if buildmap allows construction
 		if(CanBuildAt(pos.x, pos.z, xSize, ySize, water))
 		{
-			if(ai->Getbt()->IsFactory(def->id))
+			if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 				pos.z += 8;
 
 			// buildmap allows construction, now check if otherwise blocked
@@ -1477,7 +1477,7 @@ void AAIMap::GetSize(const UnitDef *def, int *xSize, int *ySize) const
 	*ySize = def->zsize;
 
 	// if building is a factory additional vertical space is needed
-	if(ai->Getbt()->IsFactory(def->id))
+	if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 	{
 		*xSize += cfg->X_SPACE;
 		*ySize += ((float)cfg->Y_SPACE)*1.5;

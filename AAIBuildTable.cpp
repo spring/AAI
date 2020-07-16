@@ -132,12 +132,6 @@ void AAIBuildTable::Init()
 		units_static.resize(numOfUnits+1);
 		fixed_eff.resize(numOfUnits+1, vector<float>(combat_categories));
 
-		// init with 
-		for(int i = 0; i <= numOfUnits; ++i)
-		{
-			units_static[i].unit_type = 0;
-		}
-
 		// now calculate efficiency of combat units and get max range
 		for(int i = 1; i <= numOfUnits; i++)
 		{
@@ -237,39 +231,6 @@ void AAIBuildTable::Init()
 				// get memory for eff
 				units_static[i].efficiency.resize(combat_categories, 0.0f);
 			}
-		}
-
-
-		//
-		// determine unit type
-		//
-		for(int i = 1; i <= numOfUnits; i++)
-		{
-			// check for factories and builders
-			if(s_buildTree.GetCanConstructList(UnitDefId(i)).size() > 0)
-			{
-				for(std::list<UnitDefId>::const_iterator unit = s_buildTree.GetCanConstructList(UnitDefId(i)).begin(); unit != s_buildTree.GetCanConstructList(UnitDefId(i)).end(); ++unit)
-				{
-					// filter out neutral and unknown units
-					if( (s_buildTree.GetSideOfUnitType(*unit) > 0) && (s_buildTree.GetUnitCategory(*unit).isValid() == true) )
-					{
-						if(s_buildTree.GetMovementType(*unit).isStatic() == true)
-							units_static[i].unit_type |= UNIT_TYPE_BUILDER;
-						else
-							units_static[i].unit_type |= UNIT_TYPE_FACTORY;
-					}
-				}
-
-				if(    !(s_buildTree.GetMovementType(UnitDefId(i)).isStatic() == true) 
-				    &&  (GetUnitDef(i).canAssist == true) )
-					units_static[i].unit_type |= UNIT_TYPE_ASSISTER;
-			}
-
-			if(GetUnitDef(i).canResurrect)
-				units_static[i].unit_type |= UNIT_TYPE_RESURRECTOR;
-
-			if( s_buildTree.IsStartingUnit( UnitDefId(i) ))
-				units_static[i].unit_type |= UNIT_TYPE_COMMANDER;
 		}
 
 		// precache stats
@@ -1231,7 +1192,6 @@ void AAIBuildTable::UpdateMinMaxAvgEfficiency()
 {
 	int counter;
 	float min, max, sum;
-	UnitCategory killer, killed;
 
 	for(int side = 0; side < numOfSides; ++side)
 	{
@@ -1251,8 +1211,8 @@ void AAIBuildTable::UpdateMinMaxAvgEfficiency()
 				for(auto unit = s_buildTree.GetUnitsInCategory(killerUnitCategory, side+1).begin(); unit != s_buildTree.GetUnitsInCategory(killerUnitCategory, side+1).end(); ++unit)
 				{
 					// only count anti air units vs air and assault units vs non air
-					if(    (destroyedUnitCategory.isAirCombat()  && (units_static[unit->id].unit_type == ANTI_AIR_UNIT)) 
-					    || (!destroyedUnitCategory.isAirCombat() && (units_static[unit->id].unit_type != ANTI_AIR_UNIT)) )
+					if(    (destroyedUnitCategory.isAirCombat()  && s_buildTree.GetUnitType(*unit).IsAntiAir()) 
+					    || (!destroyedUnitCategory.isAirCombat() && !s_buildTree.GetUnitType(*unit).IsAntiAir()) )
 					{
 						sum += units_static[unit->id].efficiency[j];
 
@@ -1356,9 +1316,6 @@ bool AAIBuildTable::LoadBuildTable()
 
 			for(int i = 1; i < unitList.size(); ++i)
 			{
-				// to be deleted when unit static fully moved to AAIBuildtree
-				fscanf(load_file, "%u ", &units_static[i].unit_type);
-
 				// get memory for eff
 				units_static[i].efficiency.resize(combat_categories);
 
@@ -1434,8 +1391,6 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 
 	for(int i = 1; i < unitList.size(); ++i)
 	{
-		fprintf(save_file, "%u ", units_static[i].unit_type);
-
 		// save combat eff
 		for(int k = 0; k < combat_categories; ++k)
 			fprintf(save_file, "%f ", units_static[i].efficiency[k]);
@@ -1536,7 +1491,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 			if(ai->Getexecute()->AddUnitToBuildqueue(UnitDefId(constructor), 1, urgent))
 			{
 				// increase counter if mobile factory is a builder as well
-				if(units_static[constructor].unit_type & UNIT_TYPE_BUILDER)
+				if(s_buildTree.GetUnitType(UnitDefId(constructor)).IsBuilder())
 					ai->Getut()->futureBuilders += 1;
 
 				if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
@@ -1819,50 +1774,6 @@ bool AAIBuildTable::IsDeflectionShieldEmitter(int def_id)
 	}
 
 	return false;
-}
-
-bool AAIBuildTable::IsCommander(int def_id)
-{
-	if(units_static[def_id].unit_type & UNIT_TYPE_COMMANDER)
-		return true;
-	else
-		return false;
-}
-
-float AAIBuildTable::GetEfficiencyAgainst(int unit_def_id, UnitCategory category)
-{
-	if(category == GROUND_ASSAULT)
-		return units_static[unit_def_id].efficiency[0];
-	else if(category == AIR_ASSAULT)
-		return units_static[unit_def_id].efficiency[1];
-	else if(category == HOVER_ASSAULT)
-		return units_static[unit_def_id].efficiency[2];
-	else if(category == SEA_ASSAULT)
-		return units_static[unit_def_id].efficiency[3];
-	else if(category == SUBMARINE_ASSAULT)
-		return units_static[unit_def_id].efficiency[4];
-	else if(category >= STATIONARY_DEF && category <= METAL_MAKER)
-		return units_static[unit_def_id].efficiency[5];
-	else
-		return 0;
-}
-
-bool AAIBuildTable::IsBuilder(int def_id)
-{
-	if(units_static[def_id].unit_type & UNIT_TYPE_BUILDER)
-		return true;
-	else
-		return false;
-}
-
-bool AAIBuildTable::IsFactory(int def_id)
-{
-	assert(def_id >= 0);
-	assert(def_id < units_static.size());
-	if(units_static[def_id].unit_type & UNIT_TYPE_FACTORY)
-		return true;
-	else
-		return false;
 }
 
 int AAIBuildTable::GetIDOfAssaultCategory(const AAIUnitCategory& category) const

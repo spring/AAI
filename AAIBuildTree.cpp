@@ -20,6 +20,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <map>
 
 using namespace springLegacyAI;
 
@@ -158,7 +159,11 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
 		
 		m_unitTypeProperties[id].m_movementType.setMovementType( DetermineMovementType(unitDefs[id]) );
+	}
 
+	// second loop because movement type information for all units is needed to determine unit type
+	for(int id = 1; id <= numberOfUnitTypes; ++id)
+	{
 		// set unit category and add to corresponding unit list (if unit is not neutral)
 		AAIUnitCategory unitCategory( DetermineUnitCategory(unitDefs[id]) );
 		m_unitTypeProperties[id].m_unitCategory = unitCategory;
@@ -214,7 +219,9 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 
 void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const
 {
-	const std::unordered_map<EUnitType, std::string> unitTypes {	
+	const std::map<EUnitType, std::string> unitTypes {
+			{EUnitType::BUILDING, "building"},
+			{EUnitType::MOBILE_UNIT, "mobile unit"},
 			{EUnitType::ANTI_SURFACE, "anti surface"},
 			{EUnitType::ANTI_AIR, "anti air"},
 			{EUnitType::ANTI_SUBMERGED, "anti submerged"},
@@ -222,8 +229,10 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 			{EUnitType::SONAR, "sonar"},
 			{EUnitType::SEISMIC, "seismic detector"},
 			{EUnitType::RADAR_JAMMER, "radar jammer"},
-			{EUnitType::SONAR_JAMMER, "sonar jammer"} };
-
+			{EUnitType::SONAR_JAMMER, "sonar jammer"},
+			{EUnitType::BUILDER, "builder"},
+			{EUnitType::FACTORY, "factory"},
+			{EUnitType::CONSTRUCTION_ASSIST, "construction assist"}};
 
 	FILE* file = fopen(filename.c_str(), "w+");
 
@@ -445,22 +454,27 @@ void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::Un
 	//! @todo Add detection of bassault unit types when combat efficiency is available.
 	if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isAirCombat())
 	{
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_AIR);
 	}
 	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.isGroundCombat()
 	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.isHoverCombat())
 	{
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
 	}
 	else if(    m_unitTypeProperties[unitDefId.id].m_unitCategory.isSeaCombat()
 	         || m_unitTypeProperties[unitDefId.id].m_unitCategory.isSubmarineCombat())
 	{
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SUBMERGED);
 	}
 	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticSensor())
 	{
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);
+
 		if(unitDef->radarRadius > 0)
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::RADAR);
 
@@ -472,12 +486,43 @@ void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::Un
 	}
 	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticSupport())
 	{
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);
+
 		if(unitDef->jammerRadius > 0)
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::RADAR_JAMMER);
 
 		if(unitDef->sonarJamRadius > 0)
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::SONAR_JAMMER);
+		
+		if(unitDef->canAssist)
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::CONSTRUCTION_ASSIST);
+	}
+	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.isMobileConstructor() 
+	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticConstructor()
+			|| m_unitTypeProperties[unitDefId.id].m_unitCategory.isCommander() )
+	{
+		if( GetMovementType(unitDefId).isStatic() )
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);
+		else
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
 
+		if(unitDef->canAssist)
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::CONSTRUCTION_ASSIST);
+
+		bool builder(false), factory(false);
+		for(auto unit = GetCanConstructList(unitDefId).begin(); unit != GetCanConstructList(unitDefId).end(); ++unit)
+		{
+			if(GetMovementType(*unit).isStatic())
+				builder = true;
+			else
+				factory = true;
+		}
+
+		if(builder)
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDER);
+
+		if(factory)
+			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::FACTORY);
 	}
 }
 

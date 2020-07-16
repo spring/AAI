@@ -40,7 +40,6 @@ struct UnitTypeStatic
 {
 	vector<float> efficiency;		// 0 -> ground assault, 1 -> air assault, 2 -> hover assault
 									// 3 -> sea assault, 4 -> submarine , 5 -> stat. defences
-	unsigned int unit_type;
 };
 
 //! Criteria used for selection of units
@@ -188,14 +187,6 @@ public:
 
 	// returns true, if unit is a transporter
 	bool IsTransporter(int id);
-
-	// return a units eff. against a certain category
-	float GetEfficiencyAgainst(int unit_def_id, UnitCategory category);
-
-	bool IsCommander(int def_id);
-
-	bool IsBuilder(int def_id);
-	bool IsFactory(int def_id);
 
 	//! @brief Returns target type id of given unit category
 	int GetIDOfAssaultCategory(const AAIUnitCategory& category) const;

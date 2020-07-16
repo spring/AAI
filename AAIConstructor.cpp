@@ -355,7 +355,7 @@ void AAIConstructor::GiveConstructionOrder(int id_building, float3 pos, bool wat
 
 		ai->Getut()->UnitRequested(ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId));
 
-		if(ai->Getbt()->IsFactory(id_building))
+		if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(id_building)).IsFactory())
 			ai->Getut()->futureFactories += 1;
 	}
 }

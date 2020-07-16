@@ -287,7 +287,7 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 				&& (ai->Getbt()->s_buildTree.CanBuildUnitType(builder->m_myDefId.id, building) == true) )
 			{
 				// filter out commander (if not allowed)
-				if(! (!commander &&  ai->Getbt()->IsCommander(builder->m_myDefId.id)) )
+				if(! (!commander &&  ai->Getbt()->s_buildTree.GetUnitCategory(builder->m_myDefId).isCommander() ) )
 					return builder;
 			}
 		}
@@ -335,7 +335,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, const float3 *pos
 					suitable = true;
 
 				// filter out commander
-				if(suitable && ( commander || !ai->Getbt()->IsCommander(builder->m_myDefId.id) ) )
+				if(suitable && ( commander || ! ai->Getbt()->s_buildTree.GetUnitCategory(builder->m_myDefId).isCommander() ) )
 				{
 					my_dist = fastmath::apxsqrt( (builder_pos.x - pos->x) * (builder_pos.x - pos->x) + (builder_pos.z - pos->z) * (builder_pos.z - pos->z) );
 
@@ -391,7 +391,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 					suitable = true;
 
 				// filter out commander
-				if(suitable && ( commander || !ai->Getbt()->IsCommander(assistant->m_myDefId.id) ) )
+				if(suitable && ( commander || !ai->Getbt()->s_buildTree.GetUnitCategory(assistant->m_myDefId).isCommander() ) )
 				{
 					const float dist = (pos.x - assistant_pos.x) * (pos.x - assistant_pos.x) + (pos.z - assistant_pos.z) * (pos.z - assistant_pos.z);
 
