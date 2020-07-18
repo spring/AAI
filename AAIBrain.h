@@ -76,9 +76,6 @@ public:
 
 	void BuildUnits();
 
-	// returns game period
-	int GetGamePeriod();
-
 	void UpdatePressureByEnemy();
 
 	// returns the probability that units of specified combat category will be used to attack (determine value with respect to game period, current and learning data)

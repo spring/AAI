@@ -12,6 +12,9 @@
 
 typedef unsigned int   uint32_t;
 
+#include <vector>
+#include <string>
+
 //! @brief An id identifying a unit type - used to prevent mixing ids referring to units and unit definitions
 class UnitDefId
 {

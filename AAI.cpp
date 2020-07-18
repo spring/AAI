@@ -34,9 +34,12 @@
 using namespace springLegacyAI;
 
 
-
 #include "CUtils/SimpleProfiler.h"
 #define AAI_SCOPED_TIMER(part) SCOPED_TIMER(part, profiler);
+
+// 
+const std::vector<int> GamePhase::m_startFrameOfGamePhase  = {0, 10800, 27000, 72000};
+const std::vector<std::string> GamePhase::m_gamePhaseNames = {"starting phase", "early phase", "mid phase", "late game"}; 
 
 int AAI::s_aaiInstances = 0;
 
@@ -55,7 +58,8 @@ AAI::AAI() :
 	m_logFile(NULL),
 	m_initialized(false),
 	m_configLoaded(false),
-	m_aaiInstance(0)
+	m_aaiInstance(0),
+	m_gamePhase(0)
 {
 	// initialize random numbers generator
 	srand (time(NULL));
@@ -111,7 +115,8 @@ AAI::~AAI()
 	build_tasks.clear();
 
 	// save game learning data
-	bt->SaveBuildTable(brain->GetGamePeriod(), map->map_type);
+	GamePhase gamePhase(cb->GetCurrentFrame());
+	bt->SaveBuildTable(gamePhase.GetArrayIndex(), map->map_type);
 
 	spring::SafeDelete(am);
 	spring::SafeDelete(af);
@@ -327,6 +332,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 
 		execute->InitAI(unit, def);
 
+		Log("Entering %s...\n", m_gamePhase.GetName().c_str());
 		m_initialized = true;
 		return;
 	}
@@ -791,6 +797,14 @@ void AAI::Update()
 	if (tick < 0)
 	{
 		return;
+	}
+
+	GamePhase gamePhase(tick);
+
+	if(gamePhase > m_gamePhase)
+	{
+		m_gamePhase = gamePhase;
+		Log("Entering %s...\n", m_gamePhase.GetName().c_str());
 	}
 
 	if (m_initialized == false)

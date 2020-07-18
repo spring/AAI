@@ -62,8 +62,8 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 	if(ai->getAAIInstance() == 1)
 	{
 		// set up attacked_by table
-		attacked_by_category_current.resize(cfg->GAME_PERIODS, vector<float>(combat_categories, 0));
-		attacked_by_category_learned.resize(3,  vector< vector<float> >(cfg->GAME_PERIODS, vector<float>(combat_categories, 0)));
+		attacked_by_category_current.resize(GamePhase::numberOfGamePhases, vector<float>(combat_categories, 0));
+		attacked_by_category_learned.resize(3,  vector< vector<float> >(GamePhase::numberOfGamePhases, vector<float>(combat_categories, 0)));
 
 		// init eff stats
 		avg_eff.resize(numOfSides, vector< vector<float> >(combat_categories, vector<float>(combat_categories, 1.0f)));
@@ -237,7 +237,7 @@ void AAIBuildTable::Init()
 		PrecacheStats();
 
 		// save to cache file
-		SaveBuildTable(0, LAND_MAP);
+		SaveBuildTable(GamePhase(0), LAND_MAP);
 
 		ai->LogConsole("New BuildTable has been created");
 	}
@@ -1337,7 +1337,7 @@ bool AAIBuildTable::LoadBuildTable()
 	return false;
 }
 
-void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
+void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const MapType& mapType)
 {
 	// reset factory ratings
 	for(int s = 0; s < cfg->SIDES; ++s)
@@ -1362,24 +1362,20 @@ void AAIBuildTable::SaveBuildTable(int game_period, MapType map_type)
 	fprintf(save_file, "%s \n", MOD_LEARN_VERSION);
 
 	// update attacked_by values
-	// FIXME: using t two times as the for-loop-var?
-	for(int t = 0; t < 4; ++t)
+	for(int t = 0; t < gamePhase.GetArrayIndex(); ++t)
 	{
 		for(int cat = 0; cat < combat_categories; ++cat)
 		{
-			for(int t = 0; t < game_period; ++t)
-			{
-				attacked_by_category_learned[map_type][t][cat] =
-						0.75f * attacked_by_category_learned[map_type][t][cat] +
+				attacked_by_category_learned[mapType][t][cat] =
+						0.75f * attacked_by_category_learned[mapType][t][cat] +
 						0.25f * attacked_by_category_current[t][cat];
-			}
 		}
 	}
 
 	// save attacked_by table
 	for(int map = 0; map <= WATER_MAP; ++map)
 	{
-		for(int t = 0; t < 4; ++t)
+		for(int t = 0; t < GamePhase::numberOfGamePhases; ++t)
 		{
 			for(int cat = 0; cat < combat_categories; ++cat)
 			{

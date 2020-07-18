@@ -13,13 +13,13 @@
 #include "LegacyCpp/IGlobalAI.h"
 #include <list>
 #include <vector>
+#include "aidef.h"
 
 namespace springLegacyAI {
 	class IAICallback;
 }
 
 using namespace springLegacyAI;
-using namespace std;
 
 class AAIExecute;
 class Profiler;
@@ -82,7 +82,7 @@ public:
 		return side;
 	}
 
-	list<AAIBuildTask*>& Getbuild_tasks() { return build_tasks; }
+	std::list<AAIBuildTask*>& Getbuild_tasks() { return build_tasks; }
 	AAIBrain* Getbrain() { return brain; }
 	AAIExecute* Getexecute() { return execute; }
 	AAIUnitTable* Getut() { return ut; }
@@ -90,7 +90,7 @@ public:
 	AAIAirForceManager* Getaf() { return af; }
 	AAIAttackManager* Getam() { return am; }
 	AAIBuildTable* Getbt() { return bt; }
-	vector<list<AAIGroup*> >& Getgroup_list() { return group_list; }
+	std::vector<std::list<AAIGroup*> >& Getgroup_list() { return group_list; }
 
 private:
 	Profiler* GetProfiler(){ return profiler; }
@@ -103,7 +103,7 @@ private:
 	int side;
 
 	// list of buildtasks
-	list<AAIBuildTask*> build_tasks;
+	std::list<AAIBuildTask*> build_tasks;
 
 	AAIBrain *brain;			// makes decisions
 	AAIExecute *execute;		// executes all kinds of tasks
@@ -113,7 +113,7 @@ private:
 	AAIAirForceManager *af;		// coordinates the airforce
 	AAIAttackManager *am;		// coordinates combat forces
 
-	vector<list<AAIGroup*> > group_list;  // unit groups
+	std::vector<std::list<AAIGroup*> > group_list;  // unit groups
 
 	Profiler* profiler;
 
@@ -130,7 +130,10 @@ private:
 	static int s_aaiInstances;
 
 	//! Id of this instance of AAI
-	int m_aaiInstance; 
+	int m_aaiInstance;
+
+	//! Current game phase
+	GamePhase m_gamePhase; 
 };
 
 #endif

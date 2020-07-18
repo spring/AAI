@@ -292,14 +292,14 @@ void AAIExecute::BuildScouts()
 		float cost;
 		float sightRange;
 
-		int period = ai->Getbrain()->GetGamePeriod();
+		GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
 
-		if(period == 0)
+		if(gamePhase.IsStartingPhase())
 		{
 			cost = 2.0f;
 			sightRange = 0.5f;
 		}
-		else if(period == 1)
+		else if(gamePhase.IsEarlyPhase())
 		{
 			cost = 1.0f;
 			sightRange = 1.0f;
@@ -1984,7 +1984,7 @@ void AAIExecute::CheckDefences()
 		|| (ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(staticDefence) +  ai->Getut()->GetNumberOfRequestedUnitsOfCategory(staticDefence) > 2) )
 		return;
 
-	int game_period = ai->Getbrain()->GetGamePeriod();
+	GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
 
 	int max_dist = 2;
 
@@ -2025,7 +2025,7 @@ void AAIExecute::CheckDefences()
 							rating = (1.0f + (*sector)->GetThreatByID(*cat, learned, current)) / ( 1.0f + (*sector)->GetMyDefencePowerAgainstAssaultCategory(*cat));
 
 							// how often did units of that category attack anywere in the current period of the game
-							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(*cat, game_period));
+							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(*cat, gamePhase.GetArrayIndex()));
 						}
 						else
 							rating = 0;

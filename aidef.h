@@ -11,10 +11,12 @@
 #define AAI_DEF_H
 
 #include "System/float3.h"
+#include <vector>
+#include <string>
 
-#ifdef _MSC_VER
-#pragma warning(disable: 4244 4018) // signed/unsigned and loss of precision...
-#endif
+//#ifdef _MSC_VER
+//#pragma warning(disable: 4244 4018) // signed/unsigned and loss of precision...
+//#endif
 
 #define AAI_VERSION aiexport_getVersion()
 #define MAP_CACHE_VERSION "MAP_DATA_0_89"
@@ -113,6 +115,52 @@ public:
 	void invalidate() { id = -1; };
 
 	int id;
+};
+
+//! @brief This class encapsulates the determination of the current game phase (ranging from start to late game) 
+//!        used to differentiate when making decisions/record learning data
+class GamePhase
+{
+public:
+	GamePhase(int frame)
+	{
+		for(int i = 1; i < numberOfGamePhases; ++i) // starting with i=1 on purpose 
+		{
+			if(frame < m_startFrameOfGamePhase[i])
+			{
+				m_gamePhase = i-1;
+				return;
+			}
+		}
+		m_gamePhase = 3;
+	}
+
+	bool operator>(const GamePhase& rhs) const { return (m_gamePhase > rhs.m_gamePhase); }
+
+	int GetArrayIndex()          const { return m_gamePhase; };
+
+	const std::string& GetName() const { return m_gamePhaseNames[m_gamePhase]; }
+
+	bool IsStartingPhase()       const {return (m_gamePhase == 0); }
+
+	bool IsEarlyPhase()          const {return (m_gamePhase == 1); }
+
+	bool IsIntermediatePhase()   const {return (m_gamePhase == 2); }
+
+	bool IsLatePhase()           const {return (m_gamePhase == 3); }
+
+	static const int numberOfGamePhases = 4;
+
+private:
+	int m_gamePhase;
+
+	//! Frame at which respective game phase starts: 0 -> 0 min, 1 -> 6min, 2 -> 15 min, 3 -> 40 min
+	const static std::vector<int>         m_startFrameOfGamePhase;
+
+	const static std::vector<std::string> m_gamePhaseNames;
+	
+	//const static inline std::vector<int> m_startFrameOfGamePhase = {0, 10800, 27000, 72000}; use when switching to Cpp17
+	//const static inline std::vector<int> m_gamePhaseNames = {"starting phase", "early phase", "mid phase", "late game"}; use when switching to Cpp17
 };
 
 struct AAIUnit

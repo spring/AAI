@@ -169,8 +169,6 @@ AAIConfig::AAIConfig(void)
 	SCOUTING_MEMORY_FACTOR = 1.0f;
 	WATER_MAP_RATIO = 0.8f;
 	LAND_WATER_MAP_RATIO = 0.3f;
-
-	GAME_PERIODS = 4;
 }
 
 AAIConfig::~AAIConfig(void)

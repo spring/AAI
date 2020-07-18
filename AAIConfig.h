@@ -126,7 +126,6 @@ public:
 	float SCOUTING_MEMORY_FACTOR;
 	float LEARN_SPEED;
 	int LEARN_RATE;
-	int GAME_PERIODS;
 
 	/**
 	 * open a file in springs data directory

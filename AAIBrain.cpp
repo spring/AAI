@@ -526,7 +526,8 @@ void AAIBrain::AttackedBy(int combat_category_id)
 	recentlyAttackedByCategory[combat_category_id] += 1.0f;
 
 	// update counter for memory dependent on playtime
-	ai->Getbt()->attacked_by_category_current[GetGamePeriod()][combat_category_id] += 1.0f;
+	GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
+	ai->Getbt()->attacked_by_category_current[gamePhase.GetArrayIndex()][combat_category_id] += 1.0f;
 }
 
 void AAIBrain::UpdateDefenceCapabilities()
@@ -653,7 +654,7 @@ void AAIBrain::BuildUnits()
 {
 	bool urgent = false;
 
-	int gamePhase = GetGamePeriod();
+	GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate threat by and defence vs. the different combat categories
@@ -665,7 +666,7 @@ void AAIBrain::BuildUnits()
 
 	for(int cat = 0; cat < AAIBuildTable::ass_categories; ++cat)
 	{
-		attackedByCategory[cat] = GetAttacksBy(cat, gamePhase) + recentlyAttackedByCategory[cat];
+		attackedByCategory[cat] = GetAttacksBy(cat, gamePhase.GetArrayIndex()) + recentlyAttackedByCategory[cat];
 		attackedByCatStatistics.AddValue( attackedByCategory[cat] );
 
 		unitsSpottedStatistics.AddValue(max_combat_units_spotted[cat]);
@@ -710,7 +711,7 @@ void AAIBrain::BuildUnits()
 		{
 			AAICombatCategory unitCategory(ETargetTypeCategory::SURFACE);
 		
-			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && gamePhase > 0)
+			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
 				unitCategory.setCategory(ETargetTypeCategory::AIR);
 
 			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
@@ -724,7 +725,7 @@ void AAIBrain::BuildUnits()
 			if(rand()%100 < groundRatio)
 				unitCategory.setCategory(ETargetTypeCategory::FLOATER);
 
-			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && gamePhase > 0)
+			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
 				unitCategory.setCategory(ETargetTypeCategory::AIR);
 			
 
@@ -735,7 +736,7 @@ void AAIBrain::BuildUnits()
 			//! @todo Add selection of Submarines
 			AAICombatCategory unitCategory(ETargetTypeCategory::FLOATER);
 
-			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && gamePhase > 0)
+			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
 				unitCategory.setCategory(ETargetTypeCategory::AIR);
 
 			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
@@ -792,10 +793,10 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 	unitCriteria.power      = 1.0f;
 	unitCriteria.efficiency = 1.0f;
 
-	int gamePhase = GetGamePeriod();
+	GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
 
 	// prefer cheaper but effective units in the first few minutes
-	if(gamePhase < 1)
+	if(gamePhase.IsStartingPhase())
 	{
 		unitCriteria.cost       = 2.0f;
 		unitCriteria.efficiency = 2.0f;
@@ -868,22 +869,6 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 		else if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
 			ai->Getbt()->BuildFactoryFor(unitDefId.id);
 	}
-}
-
-
-int AAIBrain::GetGamePeriod()
-{
-	int tick = ai->Getcb()->GetCurrentFrame();
-
-	if(tick < 9000) // below 5 minutes
-		return 0;
-	else if(tick < 18000) // below 10 minutes
-		return 1;
-	else if(tick < 54000) // below 30 minutes
-		return 2;
-	else
-		return 3;
-
 }
 
 bool AAIBrain::IsSafeSector(AAISector *sector)

@@ -107,7 +107,7 @@ public:
 	bool AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent);
 
 	// returns buildque for a certain factory
-	list<int>* GetBuildqueueOfFactory(int def_id);
+	std::list<int>* GetBuildqueueOfFactory(int def_id);
 
 	//! @brief Determines rally point for given movement type on given continent - returns whether search has been successfull
 	bool searchForRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId, int minDist, int maxDist);
@@ -161,7 +161,7 @@ private:
 	float static learned;
 	float static current;
 	// buildques for the factories
-	vector<list<int> > buildques;
+	std::vector<std::list<int> > buildques;
 	// number of factories (both mobile and sationary)
 
 	int numOfFactories;
@@ -229,7 +229,7 @@ private:
 	AAI *ai;
 
 	// stores which buildque belongs to what kind of factory
-	vector<int> factory_table;
+	std::vector<int> factory_table;
 
 	//! Number of times a building was created but no suitable builder could be identfied.
 	unsigned int m_linkingBuildTaskToBuilderFailed;

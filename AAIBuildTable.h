@@ -74,7 +74,7 @@ public:
 	// loads everything from a cache file or creates a new one
 	void Init();
 
-	void SaveBuildTable(int game_period, MapType map_type);
+	void SaveBuildTable(const GamePhase& gamePhase, const MapType& mapType);
 
 	// cache for combat eff (needs side, thus initialized later)
 	void InitCombatEffCache(int side);
