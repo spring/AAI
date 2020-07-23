@@ -680,29 +680,21 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 
 bool AAIExecute::BuildExtractor()
 {
-	AAIConstructor *builder, *land_builder = 0, *water_builder = 0;
-	float3 pos;
-	float min_dist;
-
-	float cost = 0.25f + ai->Getbrain()->Affordable() / 6.0f;
-	float efficiency = 6.0 / (cost + 0.75f);
-
-	UnitDefId landExtractor;
-	UnitDefId seaExtractor;
-
-	// check if metal map
+	//-----------------------------------------------------------------------------------------------------------------
+	// metal map
+	//-----------------------------------------------------------------------------------------------------------------
 	if(ai->Getmap()->metalMap)
 	{
 		// get id of an extractor and look for suitable builder
-		landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, false);
+		UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), 1.0f, 0.5f, false, false);
 
 		if(landExtractor.isValid())
 		{
-			land_builder  = ai->Getut()->FindBuilder(landExtractor.id, true);
+			AAIConstructor* land_builder  = ai->Getut()->FindBuilder(landExtractor.id, true);
 
 			if(land_builder)
 			{
-				pos = GetBuildsite(land_builder->m_myUnitId.id, landExtractor.id, EXTRACTOR);
+				float3 pos = GetBuildsite(land_builder->m_myUnitId.id, landExtractor.id, EXTRACTOR);
 
 				if(pos.x != 0)
 					land_builder->GiveConstructionOrder(landExtractor.id, pos, false);
@@ -717,9 +709,42 @@ bool AAIExecute::BuildExtractor()
 		}
 	}
 
+	//-----------------------------------------------------------------------------------------------------------------
 	// normal map
+	//-----------------------------------------------------------------------------------------------------------------
+
+	const GamePhase& gamePhase = ai->GetGamePhase();
+
+
+	float cost       = 0.5f;
+	float efficiency = 2.0f;
+
+	if(gamePhase.IsStartingPhase())
+	{
+		efficiency = 1.0;
+		cost       = 2.0f;
+	}
+	else if(gamePhase.IsEarlyPhase())
+	{
+		efficiency = 1.0;
+		cost       = 1.5f;
+	}
+	else
+	{
+		const SmoothedData& metalSurplus = ai->Getbrain()->GetSmoothedMetalSurplus();
+
+		if(metalSurplus.GetAverageValue() < 0.5f && ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::METAL_EXTRACTOR) < 4)
+		{
+			efficiency = 1.0;
+			cost       = 2.0f;
+		}
+	}
 
 	// select a land/water mex
+	UnitDefId landExtractor, seaExtractor;
+
+	AAIConstructor *land_builder = nullptr, *water_builder = nullptr;
+
 	if(ai->Getmap()->land_metal_spots > 0)
 	{
 		landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, false);
@@ -741,107 +766,84 @@ bool AAIExecute::BuildExtractor()
 		return false;
 
 	// check the first 10 free spots for the one with least distance to available builder
-	int max_spots = 10;
-	int current_spot = 0;
-	bool free_spot_found = false;
-
-	vector<AAIMetalSpot*> spots;
-	spots.resize(max_spots);
-	vector<AAIConstructor*> builders;
-	builders.resize(max_spots, 0);
-
-	vector<float> dist_to_builder;
+	const int maxExtractorBuildSpots = 10;
+	std::list<PossibleSpotForMetalExtractor> extractorSpots;
 
 	// determine max search dist - prevent crashes on smaller maps
 	int max_search_dist = min(cfg->MAX_MEX_DISTANCE, ai->Getbrain()->max_distance);
+	float min_dist;
 
-	for(int sector_dist = 0; sector_dist < max_search_dist; ++sector_dist)
+	bool freeMetalSpotFound = false;
+	
+	for(int distanceFromBase = 0; distanceFromBase < max_search_dist; ++distanceFromBase)
 	{
-		if(sector_dist == 1)
+		//! @todo Fix possible wrong value if metal spots are skipped because enemy units are within base sector
+		if(distanceFromBase == 1)
 			ai->Getbrain()->freeBaseSpots = false;
 
-		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[sector_dist].begin(); sector != ai->Getbrain()->sectors[sector_dist].end(); ++sector)
+		for(auto sector = ai->Getbrain()->sectors[distanceFromBase].begin(); sector != ai->Getbrain()->sectors[distanceFromBase].end(); ++sector)
 		{
-			if(ai->Getbrain()->MexConstructionAllowedInSector(*sector))
+			if(    (*sector)->freeMetalSpots 
+				&& !ai->Getmap()->IsAlreadyOccupiedByAlliedAAI(*sector)
+				&& !(*sector)->IsOccupiedByEnemies() )		
 			{
-				for(list<AAIMetalSpot*>::iterator spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
+				for(auto spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
 				{
 					if(!(*spot)->occupied)
 					{
-						//
-						if((*spot)->pos.y >= 0 && land_builder)
-						{
-							free_spot_found = true;
+						freeMetalSpotFound = true;
 
-							builder = ai->Getut()->FindClosestBuilder(landExtractor.id, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
+						UnitDefId extractor = ((*spot)->pos.y >= 0) ? landExtractor : seaExtractor;
 
-							if(builder)
-							{
-								dist_to_builder.push_back(min_dist);
-								spots[current_spot] = *spot;
-								builders[current_spot] = builder;
+						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor.id, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
 
-								++current_spot;
-							}
-						}
-						else if((*spot)->pos.y < 0 && water_builder)
-						{
-							free_spot_found = true;
+						if(builder)
+							extractorSpots.push_back(PossibleSpotForMetalExtractor(*spot, builder, min_dist));
 
-							builder = ai->Getut()->FindClosestBuilder(seaExtractor.id, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
-
-							if(builder)
-							{
-								dist_to_builder.push_back(min_dist);
-								spots[current_spot] = *spot;
-								builders[current_spot] = builder;
-
-								++current_spot;
-							}
-						}
-
-						if(current_spot >= max_spots)
+						if(extractorSpots.size() >= maxExtractorBuildSpots)
 							break;
 					}
 				}
 			}
 
-			if(current_spot >= max_spots)
+			if(extractorSpots.size() >= maxExtractorBuildSpots)
 				break;
 		}
 
-		if(current_spot >= max_spots)
+		// stop looking for metal spots further away from base if already one found
+		if(extractorSpots.size() > 0)
 			break;
 	}
 
 	// look for spot with minimum dist to available builder
-	int best = -1;
-	min_dist = 1000000.0f;
-
-	for(size_t i = 0; i < dist_to_builder.size(); ++i)
+	if(extractorSpots.size() > 0)
 	{
-		if(dist_to_builder[i] < min_dist)
+		PossibleSpotForMetalExtractor& bestSpot = *(extractorSpots.begin());
+
+		float minDistanceToClosestBuilder = (extractorSpots.begin())->m_distanceToClosestBuilder;
+
+		for(auto spot = extractorSpots.begin(); spot != extractorSpots.end(); ++spot)
 		{
-			best = i;
-			min_dist = dist_to_builder[i];
+			if(spot->m_distanceToClosestBuilder < min_dist)
+			{
+				bestSpot = *spot;
+				min_dist = spot->m_distanceToClosestBuilder;
+			}
 		}
-	}
 
-	// order mex construction for best spot
-	if(best >= 0)
-	{
-		if(spots[best]->pos.y < 0)
-			builders[best]->GiveConstructionOrder(seaExtractor.id, spots[best]->pos, true);
+		// order mex construction for best spot
+		if(bestSpot.m_metalSpot->pos.y < 0.0f)
+			bestSpot.m_builder->GiveConstructionOrder(seaExtractor.id, bestSpot.m_metalSpot->pos, true);
 		else
-			builders[best]->GiveConstructionOrder(landExtractor.id, spots[best]->pos, false);
+			bestSpot.m_builder->GiveConstructionOrder(landExtractor.id, bestSpot.m_metalSpot->pos, false);
 
-		spots[best]->occupied = true;
+		bestSpot.m_metalSpot->occupied = true;
 
-		return true;
+		return true;	
 	}
 
 	// dont build other things if construction could not be started due to unavailable builders
-	if(free_spot_found)
+	if(freeMetalSpotFound)
 		return false;
 	else
 		return true;

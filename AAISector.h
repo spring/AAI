@@ -66,6 +66,9 @@ public:
 	//! @brief Return the total number of enemy combat units
 	float GetTotalEnemyCombatUnits() const { return std::accumulate(m_enemyCombatUnits.begin(), m_enemyCombatUnits.end(), 0.0f); };
 
+	//! @brief Returns whether sector is supsected to be occupied by enemy units
+	bool IsOccupiedByEnemies() const{ return (GetTotalEnemyCombatUnits() > 0.1f) || (enemy_structures > 0.01f) || (enemies_on_radar > 0); }
+
 	void AddEnemyCombatUnit(const AAICombatUnitCategory& category, float value)  { m_enemyCombatUnits[category.GetArrayIndex()] += value; };
 
 	//! @brief Returns number of enemy units of given category spotted in this sector (float as number decreases over time if sector is not scouted)

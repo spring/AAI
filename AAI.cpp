@@ -939,6 +939,7 @@ void AAI::Update()
 	{
 		AAI_SCOPED_TIMER("Update-Income")
 		execute->UpdateRessources();
+		brain->UpdateRessources(cb);
 	}
 
 	// building management

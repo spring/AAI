@@ -69,6 +69,9 @@ public:
 	//! @brief Returns the id of this AAI instance
 	int getAAIInstance() const { return m_aaiInstance; }
 
+	//! @brief Returns current game phase
+	const GamePhase& GetGamePhase() const { return m_gamePhase; }
+
 	// called every frame
 	void Update();
 

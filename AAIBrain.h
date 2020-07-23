@@ -28,6 +28,8 @@ public:
 	AAIBrain(AAI *ai);
 	~AAIBrain(void);
 
+	const SmoothedData& GetSmoothedMetalSurplus() const { return m_metalSurplus; }
+
 	// adds/removes sector to the base
 	void AddSector(AAISector *sector);
 	void RemoveSector(AAISector *sector);
@@ -43,6 +45,9 @@ public:
 
 	// recalculates the center of the base
 	void UpdateBaseCenter();
+
+	//! @brief Updates the (smoothened) energy/metal income
+	void UpdateRessources(springLegacyAI::IAICallback* cb);
 
 	//! @brief Updates the maximum number of spotted combat units for each category (old max values decrease over time)
 	void UpdateMaxCombatUnitsSpotted(const std::vector<int>& spottedCombatUnits);
@@ -68,9 +73,6 @@ public:
 
 	// returns true if commander is allowed for construction at the specified position in the sector
 	bool CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos);
-
-	// returns true if AAI may build a mex in this sector (e.g. safe sector)
-	bool MexConstructionAllowedInSector(AAISector *sector);
 
 	void DefendCommander(int attacker);
 
@@ -117,9 +119,6 @@ private:
 	// returns true if enough energy for constr.
 	bool EnergyForConstr(int unit, int wokertime = 175);
 
-	// returns true if sector is considered to be safe
-	bool IsSafeSector(AAISector *sector);
-
 	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatPower& combatCriteria, bool urgent);
 
 	bool SectorInList(list<AAISector*> mylist, AAISector *sector);
@@ -127,7 +126,19 @@ private:
 	vector<float> defence_power_vs;
 
 	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
-	std::vector<float> recentlyAttackedByCategory;
+	std::vector<float> m_recentlyAttackedByCategory;
+
+	//! Average metal surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_metalSurplus;
+
+	//! Average energy surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_energySurplus;
+
+	//! Average metal income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_metalIncome;
+
+	//! Average energy income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_energyIncome;
 
 	AAI *ai;
 };

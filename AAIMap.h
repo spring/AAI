@@ -13,6 +13,7 @@
 #include "aidef.h"
 #include "AAITypes.h"
 #include "AAIUnitTypes.h"
+#include "AAISector.h"
 #include "System/float3.h"
 
 #include <vector>
@@ -22,7 +23,6 @@ using namespace std;
 
 class AAIBuildTable;
 class AAI;
-class AAISector;
 
 namespace springLegacyAI {
 	struct UnitDef;
@@ -61,6 +61,9 @@ public:
 
 	//! @brief Returns a bitmask storing which movement types are suitable for the map type
 	uint32_t getSuitableMovementTypesForMap() const { return getSuitableMovementTypes(map_type); };
+
+	//! @brief Returns whether the given sector is already occupied by another AAI player of the same team
+	bool IsAlreadyOccupiedByAlliedAAI(const AAISector* sector) const { return (team_sector_map[sector->x][sector->y] != -1); }
 
 	// returns sector (0 if out of sector map -> e.g. aircraft flying outside of the map) of a position
 	AAISector* GetSectorOfPos(const float3& pos);

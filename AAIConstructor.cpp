@@ -13,11 +13,13 @@
 #include "AAIConstructor.h"
 #include "AAIBuildTask.h"
 #include "AAIExecute.h"
+#include "AAIBrain.h"
 #include "AAIBuildTable.h"
 #include "AAIUnitTable.h"
 #include "AAIConfig.h"
 #include "AAIMap.h"
 #include "AAISector.h"
+
 
 #include "LegacyCpp/UnitDef.h"
 #include "LegacyCpp/CommandQueue.h"
@@ -263,9 +265,10 @@ void AAIConstructor::CheckAssistance()
 	if(m_isBuilder && build_task)
 	{
 		// prevent assisting when low on ressources
-		if(ai->Getexecute()->averageMetalSurplus < 0.1)
+		const SmoothedData& metalSurplus = ai->Getbrain()->GetSmoothedMetalSurplus();
+		if(metalSurplus.GetAverageValue() < 0.5f)
 		{
-			if(ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId).isMetalMaker() == true)
+			if(ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId).isMetalMaker())
 			{
 				if(ai->Getexecute()->averageEnergySurplus < 0.5 * ai->Getbt()->GetUnitDef(m_constructedDefId.id).energyUpkeep)
 					return;

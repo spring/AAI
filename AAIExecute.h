@@ -28,6 +28,19 @@ class AAIMap;
 class AAIUnitTable;
 class AAISector;
 
+struct PossibleSpotForMetalExtractor
+{
+	PossibleSpotForMetalExtractor(AAIMetalSpot* metalSpot, AAIConstructor* builder, float distanceToClosestBuilder) :
+		m_metalSpot(metalSpot),
+		m_builder(builder),
+		m_distanceToClosestBuilder(m_distanceToClosestBuilder)
+		{}
+
+	AAIMetalSpot*   m_metalSpot;
+	AAIConstructor* m_builder;
+	float           m_distanceToClosestBuilder;
+};
+
 class AAIExecute
 {
 public:

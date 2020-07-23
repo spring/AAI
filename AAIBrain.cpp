@@ -20,7 +20,11 @@
 #include "LegacyCpp/UnitDef.h"
 using namespace springLegacyAI;
 
-AAIBrain::AAIBrain(AAI *ai)
+AAIBrain::AAIBrain(AAI *ai) :
+	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_metalIncome(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS)
 {
 	this->ai = ai;
 	freeBaseSpots = false;
@@ -31,9 +35,9 @@ AAIBrain::AAIBrain(AAI *ai)
 
 	base_center = ZeroVector;
 
-	max_combat_units_spotted.resize(AAIBuildTable::ass_categories, 0);
-	recentlyAttackedByCategory.resize(AAIBuildTable::combat_categories, 0);
-	defence_power_vs.resize(AAIBuildTable::ass_categories, 0);
+	max_combat_units_spotted.resize(AAIBuildTable::ass_categories, 0.0f);
+	m_recentlyAttackedByCategory.resize(AAIBuildTable::combat_categories, 0.0f);
+	defence_power_vs.resize(AAIBuildTable::ass_categories, 0.0f);
 
 	enemy_pressure_estimation = 0;
 }
@@ -396,11 +400,6 @@ bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 		return false;
 }
 
-bool AAIBrain::MexConstructionAllowedInSector(AAISector *sector)
-{
-	return sector->freeMetalSpots && IsSafeSector(sector) && (ai->Getmap()->team_sector_map[sector->x][sector->y] == -1 || ai->Getmap()->team_sector_map[sector->x][sector->y] == ai->Getcb()->GetMyAllyTeam());
-}
-
 bool AAIBrain::ExpandBase(SectorType sectorType)
 {
 	if(sectors[0].size() >= cfg->MAX_BASE_SIZE)
@@ -424,7 +423,7 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 		for(list<AAISector*>::iterator t = sectors[search_dist].begin(); t != sectors[search_dist].end(); ++t)
 		{
 			// dont expand if enemy structures in sector && check for allied buildings
-			if(IsSafeSector(*t) && (*t)->allied_structures < 3 && ai->Getmap()->team_sector_map[(*t)->x][(*t)->y] == -1)
+			if(!(*t)->IsOccupiedByEnemies() && (*t)->allied_structures < 3 && !ai->Getmap()->IsAlreadyOccupiedByAlliedAAI())
 			{
 				// rate current sector
 				spots = (*t)->GetNumberOfMetalSpots();
@@ -499,6 +498,28 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 	return false;
 }
 
+void AAIBrain::UpdateRessources(springLegacyAI::IAICallback* cb)
+{
+	const float energyIncome = cb->GetEnergyIncome();
+	const float metalIncome  = cb->GetMetalIncome();
+
+	float energySurplus = energyIncome - cb->GetEnergyUsage();
+	float metalSurplus  = metalIncome  - cb->GetMetalUsage();
+
+	// cap surplus at 0
+	if(energySurplus < 0.0f)
+		energySurplus = 0.0f;
+
+	if(metalSurplus < 0.0f)
+		metalSurplus = 0.0f;
+
+	m_energyIncome.AddValue(energyIncome);
+	m_metalIncome.AddValue(metalIncome);
+
+	m_energySurplus.AddValue(energySurplus);
+	m_metalSurplus.AddValue(metalSurplus);
+}
+
 void AAIBrain::UpdateMaxCombatUnitsSpotted(const std::vector<int>& spottedCombatUnits)
 {
 	for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
@@ -516,14 +537,14 @@ void AAIBrain::UpdateAttackedByValues()
 {
 	for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
 	{
-		recentlyAttackedByCategory[i] *= 0.95f;
+		m_recentlyAttackedByCategory[i] *= 0.95f;
 	}
 }
 
 void AAIBrain::AttackedBy(int combat_category_id)
 {
 	// update counter for current game
-	recentlyAttackedByCategory[combat_category_id] += 1.0f;
+	m_recentlyAttackedByCategory[combat_category_id] += 1.0f;
 
 	// update counter for memory dependent on playtime
 	GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
@@ -666,7 +687,7 @@ void AAIBrain::BuildUnits()
 
 	for(int cat = 0; cat < AAIBuildTable::ass_categories; ++cat)
 	{
-		attackedByCategory[cat] = GetAttacksBy(cat, gamePhase.GetArrayIndex()) + recentlyAttackedByCategory[cat];
+		attackedByCategory[cat] = GetAttacksBy(cat, gamePhase.GetArrayIndex()) + m_recentlyAttackedByCategory[cat];
 		attackedByCatStatistics.AddValue( attackedByCategory[cat] );
 
 		unitsSpottedStatistics.AddValue(max_combat_units_spotted[cat]);
@@ -869,15 +890,6 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 		else if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
 			ai->Getbt()->BuildFactoryFor(unitDefId.id);
 	}
-}
-
-bool AAIBrain::IsSafeSector(AAISector *sector)
-{
-	// TODO: improve criteria
-	return (   (sector->GetLostUnits() < 0.5f)
-			&& (sector->GetTotalEnemyCombatUnits() < 0.1f) 
-			&& (sector->enemy_structures < 0.01f)
-			&& (sector->enemies_on_radar == 0) );
 }
 
 float AAIBrain::GetAttacksBy(int combat_category, int game_period)

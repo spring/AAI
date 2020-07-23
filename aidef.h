@@ -163,6 +163,34 @@ private:
 	//const static inline std::vector<int> m_gamePhaseNames = {"starting phase", "early phase", "mid phase", "late game"}; use when switching to Cpp17
 };
 
+class SmoothedData
+{
+public:
+	SmoothedData(int smoothingLength) : m_averageValue(0.0f), m_nextIndex(0) { m_values.resize(smoothingLength, 0.0f); } 
+
+	float GetAverageValue() const { return m_averageValue; }
+
+	void AddValue(float value) 
+	{
+		m_averageValue += (value - m_values[m_nextIndex]) / static_cast<float>(m_values.size());
+		m_values[m_nextIndex] = value;
+		++m_nextIndex;
+
+		if(m_nextIndex >= m_values.size())
+			m_nextIndex = 0;
+	}
+
+private:
+	//! The values to be averaged
+	std::vector<float> m_values;
+
+	//! The current average value
+	float m_averageValue;
+
+	//! Index where next value will be added 
+	int   m_nextIndex;
+};
+
 struct AAIUnit
 {
 	int unit_id;
