@@ -326,29 +326,31 @@ void AAIConstructor::GiveReclaimOrder(int unit_id)
 }
 
 
-void AAIConstructor::GiveConstructionOrder(int id_building, float3 pos, bool water)
+void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos)
 {
 	// get def and final position
-	const UnitDef *def = &ai->Getbt()->GetUnitDef(id_building);
+	const UnitDef *def = &ai->Getbt()->GetUnitDef(building.id);
 
 	// give order if building can be placed at the desired position (position lies within a valid sector)
-	if(ai->Getexecute()->InitBuildingAt(def, &pos, water))
+	const bool buildingInitializationSuccessful = ai->Getexecute()->InitBuildingAt(def, pos);
+
+	if(buildingInitializationSuccessful)
 	{
 		// check if builder was previously assisting other builders/factories
-		if(m_assistUnitId.isValid() == true)
+		if(m_assistUnitId.isValid())
 		{
 			ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
 			m_assistUnitId.invalidate();
 		}
 
 		// set building as current task and order construction
-		m_buildPos = pos;
-		m_constructedDefId.id = id_building;
-		assert(m_constructedUnitId.isValid());
+		m_buildPos         = pos;
+		m_constructedDefId = building;
+
 		m_activity.SetActivity(EConstructorActivity::HEADING_TO_BUILDSITE);
 
 		// order builder to construct building
-		Command c(-id_building);
+		Command c(-m_constructedDefId.id);
 		c.PushPos(m_buildPos);
 
 		ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
@@ -356,9 +358,9 @@ void AAIConstructor::GiveConstructionOrder(int id_building, float3 pos, bool wat
 		// increase number of active units of that type/category
 		ai->Getbt()->units_dynamic[def->id].requested += 1;
 
-		ai->Getut()->UnitRequested(ai->Getbt()->s_buildTree.GetUnitCategory(m_constructedDefId));
+		ai->Getut()->UnitRequested(ai->Getbt()->s_buildTree.GetUnitCategory(building));
 
-		if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(id_building)).IsFactory())
+		if(ai->Getbt()->s_buildTree.GetUnitType(building).IsFactory())
 			ai->Getut()->futureFactories += 1;
 	}
 }

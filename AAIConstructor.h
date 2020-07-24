@@ -103,7 +103,8 @@ public:
 	//! @brief Set constructor to idle and invalidate all data associated with constructing a unit/building (construction ids, build pos, ...)
 	void ConstructionFinished();
 	
-	void GiveConstructionOrder(int id_building, float3 pos, bool water);
+	//! @brief Issues a construction order for given building at position and sets all internal variables of the construction unit accordingly
+	void GiveConstructionOrder(UnitDefId building, const float3& pos);
 
 	//! @brief Assist given contructor
 	void AssistConstruction(UnitId constructorUnitId);

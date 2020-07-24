@@ -420,45 +420,45 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 
 	for(int search_dist = 1; search_dist <= max_search_dist; ++search_dist)
 	{
-		for(list<AAISector*>::iterator t = sectors[search_dist].begin(); t != sectors[search_dist].end(); ++t)
+		for(list<AAISector*>::iterator sector = sectors[search_dist].begin(); sector != sectors[search_dist].end(); ++sector)
 		{
 			// dont expand if enemy structures in sector && check for allied buildings
-			if(!(*t)->IsOccupiedByEnemies() && (*t)->allied_structures < 3 && !ai->Getmap()->IsAlreadyOccupiedByAlliedAAI())
+			if(!(*sector)->IsOccupiedByEnemies() && (*sector)->allied_structures < 3 && !ai->Getmap()->IsAlreadyOccupiedByAlliedAAI(*sector))
 			{
 				// rate current sector
-				spots = (*t)->GetNumberOfMetalSpots();
+				spots = (*sector)->GetNumberOfMetalSpots();
 
 				my_rating = 1.0f + (float)spots;
 
 				if(sectorType == LAND_SECTOR)
 					// prefer flat sectors without water
-					my_rating += ((*t)->flat_ratio - (*t)->water_ratio) * 16.0f;
+					my_rating += ((*sector)->flat_ratio - (*sector)->water_ratio) * 16.0f;
 				else if(sectorType == WATER_SECTOR)
 				{
 					// check for continent size (to prevent aai to expand into little ponds instead of big ocean)
-					if((*t)->water_ratio > 0.1 &&  (*t)->ConnectedToOcean())
-						my_rating += 8.0f * (*t)->water_ratio;
+					if((*sector)->water_ratio > 0.1 &&  (*sector)->ConnectedToOcean())
+						my_rating += 8.0f * (*sector)->water_ratio;
 					else
 						my_rating = 0;
 				}
 				else // LAND_WATER_SECTOR
-					my_rating += ((*t)->flat_ratio + (*t)->water_ratio) * 8.0f;
+					my_rating += ((*sector)->flat_ratio + (*sector)->water_ratio) * 8.0f;
 
 				// minmize distance between sectors
 				dist = 0.1f;
 
-				for(list<AAISector*>::iterator sector = sectors[0].begin(); sector != sectors[0].end(); ++sector) {
-					dist += fastmath::apxsqrt( ((*t)->x - (*sector)->x) * ((*t)->x - (*sector)->x) + ((*t)->y - (*sector)->y) * ((*t)->y - (*sector)->y) );
+				for(list<AAISector*>::iterator baseSector = sectors[0].begin(); baseSector != sectors[0].end(); ++baseSector) {
+					dist += fastmath::apxsqrt( ((*sector)->x - (*baseSector)->x) * ((*sector)->x - (*baseSector)->x) + ((*sector)->y - (*baseSector)->y) * ((*sector)->y - (*baseSector)->y) );
 				}
 
-				float3 center = (*t)->GetCenter();
+				float3 center = (*sector)->GetCenter();
 				my_rating /= (dist * fastmath::apxsqrt(ai->Getmap()->GetEdgeDistance( &center )) );
 
 				// choose higher rated sector
 				if(my_rating > best_rating)
 				{
 					best_rating = my_rating;
-					best_sector = *t;
+					best_sector = *sector;
 				}
 			}
 		}

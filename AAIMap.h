@@ -82,10 +82,8 @@ public:
 	// return rating of a the best buidliste fpr a def. building vs category within specified rect (and stores pos in pointer)
 	float GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAIUnitCategory& category, float terrainModifier, bool water) const;
 
-	float3 GetClosestBuildsite(const UnitDef *def, float3 pos, int max_distance, bool water);
-
-	// updates buildmap ((un)block cells + insert/remove spaces) if regular building is added/removed (factories need some extra space)
-	void UpdateBuildMap(float3 build_pos, const UnitDef *def, bool block, bool water, bool factory);
+	//! @brief Updates the buildmap: (un)block cells + insert/remove spaces (factory exits get some extra space)
+	void UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool block);
 
 	// returns number of cells with big slope
 	int GetCliffyCells(int xPos, int yPos, int xSize, int ySize);
@@ -98,9 +96,9 @@ public:
 
 	void UpdateSectors();
 
+	//! @brief Adds a defence buidling to the defence map
+	void AddStaticDefence(const float3& position, UnitDefId defence);
 
-	// adds/removes a defence buidling to the defence map
-	void AddDefence(float3 *pos, int defence);
 	void RemoveDefence(float3 *pos, int defence);
 
 	// sectors
@@ -142,8 +140,9 @@ private:
 	vector<float> defence_map;	//  ground/sea defence map has 1/2 of resolution of blockmap/buildmap
 	vector<float> air_defence_map; // air defence map has 1/2 of resolution of blockmap/buildmap
 	vector<float> submarine_defence_map; // submarine defence map has 1/2 of resolution of blockmap/buildmap
-	// converts map-pos to unit-pos and vice versa
-	void Pos2BuildMapPos(float3 *pos, const UnitDef* def);
+	
+	//! @brief Converts the given position (in map coordinates) to a position in buildmap coordinates
+	void Pos2BuildMapPos(float3* position, const UnitDef* def) const;
 
 	// stores the def_id of the building or combat unit placed on that cell (0 if none), same resolution as los map (= 1/2 resolution of buildmap)
 	vector<unsigned short> scout_map;

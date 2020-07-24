@@ -354,7 +354,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		if (bt->s_buildTree.GetMovementType(unitDefId).isStatic())
 		{
 			float3 pos = cb->GetUnitPos(unit);
-			execute->InitBuildingAt(def, &pos, pos.y < 0);
+			execute->InitBuildingAt(def, pos);
 		}
 	}
 	else
@@ -636,9 +636,6 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			if (category.isStaticConstructor() == true)
 			{
 				ut->RemoveConstructor(unit, def->id);
-
-				map->UpdateBuildMap(pos, def, false, bt->s_buildTree.GetMovementType(unitDefId).isStaticSea(), true);
-
 				// speed up reconstruction
 				execute->urgency[STATIONARY_CONSTRUCTOR] += 1.5;
 			}
@@ -646,12 +643,10 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			else if (category.isCommander() == true)
 			{
 				ut->RemoveCommander(unit, def->id);
-
-				map->UpdateBuildMap(pos, def, false, bt->s_buildTree.GetMovementType(unitDefId).isStaticSea(), true);
 			}
-			// other building
-			else
-				map->UpdateBuildMap(pos, def, false, bt->s_buildTree.GetMovementType(unitDefId).isStaticSea(), false);
+			
+			// unblock cells in buildmap
+			map->UpdateBuildMap(pos, def, false);
 
 			// if no buildings left in that sector, remove from base sectors
 			if (map->sector[x][y].own_structures == 0 && brain->sectors[0].size() > 2)

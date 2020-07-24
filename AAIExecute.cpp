@@ -181,19 +181,19 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 	}
 }
 
-bool AAIExecute::InitBuildingAt(const UnitDef *def, float3 *pos, bool water)
+bool AAIExecute::InitBuildingAt(const UnitDef *def, const float3& position)
 {
-	// determine target sector
-	int x = pos->x / ai->Getmap()->xSectorSize;
-	int y = pos->z / ai->Getmap()->ySectorSize;
-
 	// update buildmap
-	UnitDefId unitDefId(def->id);
-	ai->Getmap()->UpdateBuildMap(*pos, def, true, water, ai->Getbt()->s_buildTree.GetUnitType(unitDefId).IsFactory());
+	ai->Getmap()->UpdateBuildMap(position, def, true);
 
 	// update defence map (if necessary)
-	if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence() == true)
-		ai->Getmap()->AddDefence(pos, def->id);
+	UnitDefId unitDefId(def->id);
+	if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence())
+		ai->Getmap()->AddStaticDefence(position, unitDefId);
+
+	// determine target sector
+	const int x = position.x / ai->Getmap()->xSectorSize;
+	const int y = position.z / ai->Getmap()->ySectorSize;
 
 	// drop bad sectors (should only happen when defending mexes at the edge of the map)
 	if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
@@ -650,7 +650,7 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 
 			if(builder)
 			{
-				builder->GiveConstructionOrder(building.id, position, false);
+				builder->GiveConstructionOrder(building, position);
 
 				if( ai->Getbt()->s_buildTree.GetUnitCategory(building).isPowerPlant() )
 					futureAvailableEnergy += ai->Getbt()->units_static[building.id].efficiency[0];
@@ -697,7 +697,7 @@ bool AAIExecute::BuildExtractor()
 				float3 pos = GetBuildsite(land_builder->m_myUnitId.id, landExtractor.id, EXTRACTOR);
 
 				if(pos.x != 0)
-					land_builder->GiveConstructionOrder(landExtractor.id, pos, false);
+					land_builder->GiveConstructionOrder(landExtractor, pos);
 
 				return true;
 			}
@@ -832,11 +832,9 @@ bool AAIExecute::BuildExtractor()
 		}
 
 		// order mex construction for best spot
-		if(bestSpot.m_metalSpot->pos.y < 0.0f)
-			bestSpot.m_builder->GiveConstructionOrder(seaExtractor.id, bestSpot.m_metalSpot->pos, true);
-		else
-			bestSpot.m_builder->GiveConstructionOrder(landExtractor.id, bestSpot.m_metalSpot->pos, false);
+		const UnitDefId& extractor = (bestSpot.m_metalSpot->pos.y < 0.0f) ? seaExtractor : landExtractor;
 
+		bestSpot.m_builder->GiveConstructionOrder(extractor, bestSpot.m_metalSpot->pos);
 		bestSpot.m_metalSpot->occupied = true;
 
 		return true;	
@@ -1032,7 +1030,7 @@ bool AAIExecute::BuildMetalMaker()
 					if(builder)
 					{
 						futureRequestedEnergy += ai->Getbt()->GetUnitDef(maker).energyUpkeep;
-						builder->GiveConstructionOrder(maker, pos, false);
+						builder->GiveConstructionOrder(UnitDefId(maker), pos);
 						return true;
 					}
 					else
@@ -1074,7 +1072,7 @@ bool AAIExecute::BuildMetalMaker()
 					if(builder)
 					{
 						futureRequestedEnergy += ai->Getbt()->GetUnitDef(maker).energyUpkeep;
-						builder->GiveConstructionOrder(maker, pos, true);
+						builder->GiveConstructionOrder(UnitDefId(maker), pos);
 						return true;
 					}
 					else
@@ -1413,8 +1411,8 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 
 				if(builder)
 				{
-					builder->GiveConstructionOrder(selectedDefence.id, pos, false);
-					ai->Getmap()->AddDefence(&pos, selectedDefence.id);
+					builder->GiveConstructionOrder(selectedDefence, pos);
+					ai->Getmap()->AddStaticDefence(pos, selectedDefence);
 					return BuildOrderStatus::SUCCESSFUL;
 				}
 				else
@@ -1459,8 +1457,8 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 
 				if(builder)
 				{
-					builder->GiveConstructionOrder(selectedDefence.id, pos, true);
-					ai->Getmap()->AddDefence(&pos, selectedDefence.id);
+					builder->GiveConstructionOrder(selectedDefence, pos);
+					ai->Getmap()->AddStaticDefence(pos, selectedDefence);
 					return BuildOrderStatus::SUCCESSFUL;
 				}
 				else
@@ -1542,7 +1540,7 @@ bool AAIExecute::BuildArty()
 
 		if(builder)
 		{
-			builder->GiveConstructionOrder(artillery.id, bestPosition, false);
+			builder->GiveConstructionOrder(artillery, bestPosition);
 			return true;
 		}
 		else
@@ -1620,7 +1618,7 @@ bool AAIExecute::BuildFactory()
 			if(builder != nullptr)
 			{
 				// give build order
-				builder->GiveConstructionOrder(factory->id, buildpos, isSeaFactory);
+				builder->GiveConstructionOrder(*factory, buildpos);
 
 				// add average ressource usage
 				futureRequestedMetal  += ai->Getbt()->units_static[factory->id].efficiency[0];
@@ -1720,7 +1718,7 @@ bool AAIExecute::BuildRadar()
 
 		if(builder)
 		{
-			builder->GiveConstructionOrder(selectedRadar.id, bestPosition, false);
+			builder->GiveConstructionOrder(selectedRadar, bestPosition);
 			return true;
 		}
 		else
@@ -1892,7 +1890,7 @@ void AAIExecute::DefendMex(int mex, int def_id)
 						builder = ai->Getut()->FindClosestBuilder(defence.id, &pos, true, &min_dist);
 
 					if(builder)
-						builder->GiveConstructionOrder(defence.id, pos, water);
+						builder->GiveConstructionOrder(defence, pos);
 				}
 			}
 		}
@@ -2759,12 +2757,12 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 			futureRequestedMetal = 0;
 
 		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.GetMovementType(unitDefId).isStaticSea(), true);
+		ai->Getmap()->UpdateBuildMap(build_pos, def, false);
 	}
 	else // normal building
 	{
 		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false, ai->Getbt()->s_buildTree.GetMovementType(unitDefId).isStaticSea(), false);
+		ai->Getmap()->UpdateBuildMap(build_pos, def, false);
 	}
 }
 

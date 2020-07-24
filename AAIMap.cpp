@@ -696,19 +696,26 @@ void AAIMap::Learn()
 }
 
 // converts unit positions to cell coordinates
-void AAIMap::Pos2BuildMapPos(float3 *pos, const UnitDef* def)
+void AAIMap::Pos2BuildMapPos(float3 *position, const UnitDef* def) const
 {
 	// get cell index of middlepoint
-	pos->x = (int) (pos->x/SQUARE_SIZE);
-	pos->z = (int) (pos->z/SQUARE_SIZE);
+	int x = (int) (position->x/SQUARE_SIZE);
+	int z = (int) (position->z/SQUARE_SIZE);
 
 	// shift to the leftmost uppermost cell
-	pos->x -= def->xsize/2;
-	pos->z -= def->zsize/2;
+	x -= def->xsize/2;
+	z -= def->zsize/2;
 
 	// check if pos is still in that map, otherwise retun 0
-	if(pos->x < 0 && pos->z < 0)
-		pos->x = pos->z = 0;
+	if(x < 0)
+		position->x = 0.0f;
+	else
+		position->x = static_cast<float>(x);
+
+	if(z < 0)
+		position->z = 0.0f;
+	else
+		position->z = static_cast<float>(z);
 }
 
 void AAIMap::BuildMapPos2Pos(float3 *pos, const UnitDef *def) const
@@ -737,8 +744,6 @@ void AAIMap::Pos2FinalBuildPos(float3 *pos, const UnitDef* def) const
 
 bool AAIMap::SetBuildMap(int xPos, int yPos, int xSize, int ySize, int value, int ignore_value)
 {
-	//float3 my_pos;
-
 	if(xPos+xSize <= xMapSize && yPos+ySize <= yMapSize)
 	{
 		for(int x = xPos; x < xSize+xPos; x++)
@@ -752,10 +757,12 @@ bool AAIMap::SetBuildMap(int xPos, int yPos, int xSize, int ySize, int value, in
 					// debug
 					/*if(x%2 == 0 && y%2 == 0)
 					{
-						my_pos.x = x * 8;
-						my_pos.z = y * 8;
-						my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
-						ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 1500, ai->Getcb()->GetMyAllyTeam(), true, true);
+						float3 myPos;
+						myPos.x = x;
+						myPos.z = y;
+						BuildMapPos2Pos(&myPos, ai->Getcb()->GetUnitDef("armmine1")); 
+						myPos.y = ai->Getcb()->GetElevation(myPos.x, myPos.z);
+						ai->Getcb()->DrawUnit("armmine1", myPos, 0.0f, 2000, ai->Getcb()->GetMyAllyTeam(), true, true);
 					}*/
 				}
 			}
@@ -1091,30 +1098,6 @@ float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 	return ZeroVector;
 }
 
-float3 AAIMap::GetClosestBuildsite(const UnitDef *def, float3 pos, int max_distance, bool water)
-{
-	Pos2BuildMapPos(&pos, def);
-
-	int xStart = pos.x - max_distance;
-	int xEnd = pos.x + max_distance;
-	int yStart = pos.z - max_distance;
-	int yEnd = pos.z + max_distance;
-
-	if(xStart < 0)
-		xStart = 0;
-
-	if(xEnd >= xSectors * xSectorSizeMap)
-		xEnd = xSectors * xSectorSizeMap - 1;
-
-	if(yStart < 0)
-		yStart = 0;
-
-	if(yEnd >= ySectors * ySectorSizeMap)
-		yEnd = ySectors * ySectorSizeMap - 1;
-
-	return GetCenterBuildsite(def, xStart, xEnd, yStart, yEnd, water);
-}
-
 bool AAIMap::CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water) const
 {
 	if( (xPos+xSize <= xMapSize) && (yPos+ySize <= yMapSize) )
@@ -1327,10 +1310,12 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 					// debug
 					/*if(x%2 == 0 && y%2 == 0)
 					{
-						my_pos.x = x * 8;
-						my_pos.z = y * 8;
-						my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
-						ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 1500, ai->Getcb()->GetMyAllyTeam(), true, true);
+						float3 myPos;
+						myPos.x = x;
+						myPos.z = y;
+						BuildMapPos2Pos(&myPos, ai->Getcb()->GetUnitDef("armmine1")); 
+						myPos.y = ai->Getcb()->GetElevation(myPos.x, myPos.z);
+						ai->Getcb()->DrawUnit("armmine1", myPos, 0.0f, 2000, ai->Getcb()->GetMyAllyTeam(), true, true);
 					}*/
 				}
 
@@ -1371,39 +1356,43 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 	}
 }
 
-void AAIMap::UpdateBuildMap(float3 build_pos, const UnitDef *def, bool block, bool water, bool factory)
+void AAIMap::UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool block)
 {
-	Pos2BuildMapPos(&build_pos, def);
+	const bool water   = ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(def->id)).isStaticSea();
+	const bool factory = ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory();
+	
+	float3 buildMapPos = buildPos;
+	Pos2BuildMapPos(&buildMapPos, def);
 
 	if(block)
 	{
 		if(water)
-			SetBuildMap(build_pos.x, build_pos.z, def->xsize, def->zsize, 5);
+			SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, 5);
 		else
-			SetBuildMap(build_pos.x, build_pos.z, def->xsize, def->zsize, 1);
+			SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, 1);
 	}
 	else
 	{
 		// remove spaces before freeing up buildspace
-		CheckRows(build_pos.x, build_pos.z, def->xsize, def->zsize, block, water);
+		CheckRows(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, block, water);
 
 		if(water)
-			SetBuildMap(build_pos.x, build_pos.z, def->xsize, def->zsize, 4);
+			SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, 4);
 		else
-			SetBuildMap(build_pos.x, build_pos.z, def->xsize, def->zsize, 0);
+			SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, 0);
 	}
 
 	if(factory)
 	{
 		// extra space for factories to keep exits clear
-		BlockCells(build_pos.x, build_pos.z - 8, def->xsize, 8, block, water);
-		BlockCells(build_pos.x + def->xsize, build_pos.z - 8, cfg->X_SPACE, def->zsize + 1.5f * (float)cfg->Y_SPACE, block, water);
-		BlockCells(build_pos.x, build_pos.z + def->zsize, def->xsize, 1.5f * (float)cfg->Y_SPACE - 8, block, water);
+		BlockCells(buildMapPos.x,              buildMapPos.z - 8,          def->xsize, 8, block, water);
+		BlockCells(buildMapPos.x + def->xsize, buildMapPos.z - 8,          cfg->X_SPACE, def->zsize + 1.5f * (float)cfg->Y_SPACE, block, water);
+		BlockCells(buildMapPos.x,              buildMapPos.z + def->zsize, def->xsize, 1.5f * (float)cfg->Y_SPACE - 8, block, water);
 	}
 
 	// add spaces after blocking buildspace
 	if(block)
-		CheckRows(build_pos.x, build_pos.z, def->xsize, def->zsize, block, water);
+		CheckRows(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, block, water);
 }
 
 
@@ -2328,9 +2317,9 @@ AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 		return 0;
 }
 
-void AAIMap::AddDefence(float3 *pos, int defence)
+void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 {
-	int range = static_cast<int>( ai->Getbt()->s_buildTree.GetMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
+	int range = static_cast<int>( ai->Getbt()->s_buildTree.GetMaxRange(defence) ) / (SQUARE_SIZE * 4);
 	int cell;
 
 	float power;
@@ -2339,23 +2328,23 @@ void AAIMap::AddDefence(float3 *pos, int defence)
 
 	if(cfg->AIR_ONLY_MOD)
 	{
-		power = ai->Getbt()->fixed_eff[defence][0];
-		air_power = (ai->Getbt()->fixed_eff[defence][1] + ai->Getbt()->fixed_eff[defence][2])/2.0f;
-		submarine_power = ai->Getbt()->fixed_eff[defence][3];
+		power = ai->Getbt()->fixed_eff[defence.id][0];
+		air_power = (ai->Getbt()->fixed_eff[defence.id][1] + ai->Getbt()->fixed_eff[defence.id][2])/2.0f;
+		submarine_power = ai->Getbt()->fixed_eff[defence.id][3];
 	}
 	else
 	{
-		if(ai->Getbt()->GetUnitDef(defence).minWaterDepth > 0)
-			power = (ai->Getbt()->fixed_eff[defence][2] + ai->Getbt()->fixed_eff[defence][3]) / 2.0f;
+		if(ai->Getbt()->s_buildTree.GetMovementType(defence).isStaticSea())
+			power = (ai->Getbt()->fixed_eff[defence.id][2] + ai->Getbt()->fixed_eff[defence.id][3]) / 2.0f;
 		else
-			power = ai->Getbt()->fixed_eff[defence][0];
+			power = ai->Getbt()->fixed_eff[defence.id][0];
 
-		air_power = ai->Getbt()->fixed_eff[defence][1];
-		submarine_power = ai->Getbt()->fixed_eff[defence][4];
+		air_power = ai->Getbt()->fixed_eff[defence.id][1];
+		submarine_power = ai->Getbt()->fixed_eff[defence.id][4];
 	}
 
-	int xPos = (pos->x + ai->Getbt()->GetUnitDef(defence).xsize/2)/ (SQUARE_SIZE * 4);
-	int yPos = (pos->z + ai->Getbt()->GetUnitDef(defence).zsize/2)/ (SQUARE_SIZE * 4);
+	const int xPos = (position.x + ai->Getbt()->GetUnitDef(defence.id).xsize/2)/ (SQUARE_SIZE * 4);
+	const int yPos = (position.z + ai->Getbt()->GetUnitDef(defence.id).zsize/2)/ (SQUARE_SIZE * 4);
 
 	// x range will change from line to line
 	int xStart;
@@ -2410,8 +2399,6 @@ void AAIMap::AddDefence(float3 *pos, int defence)
 	if(yEnd >= yDefMapSize)
 		yEnd = yDefMapSize-1;
 
-	float3 my_pos;
-
 	for(int y = yStart; y <= yEnd; ++y)
 	{
 		for(int x = xStart; x <= xEnd; ++x)
@@ -2422,14 +2409,17 @@ void AAIMap::AddDefence(float3 *pos, int defence)
 			air_defence_map[cell] += 5000.0f;
 			submarine_defence_map[cell] += 5000.0f;
 
-			/*my_pos.x = x * 32;
+			/*
+			float3 my_pos;
+			my_pos.x = x * 32;
 			my_pos.z = y * 32;
 			my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
 			ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 8000, ai->Getcb()->GetMyAllyTeam(), false, true);
 			my_pos.x = (x+1) * 32;
 			my_pos.z = (y+1) * 32;
 			my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
-			ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 8000, ai->Getcb()->GetMyAllyTeam(), false, true);*/
+			ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 8000, ai->Getcb()->GetMyAllyTeam(), false, true);
+			*/
 		}
 	}
 
