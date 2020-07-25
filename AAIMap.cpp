@@ -160,7 +160,7 @@ void AAIMap::Init()
 		buildmap.resize(xMapSize*yMapSize, 0);
 		blockmap.resize(xMapSize*yMapSize, 0);
 		continent_map.resize(xContMapSize*yContMapSize, -1);
-		plateau_map.resize(xContMapSize*yContMapSize, 0);
+		plateau_map.resize(xContMapSize*yContMapSize, 0.0f);
 
 		// create map that stores which aai player has occupied which sector (visible to all aai players)
 		team_sector_map.resize(xSectors);
@@ -187,14 +187,13 @@ void AAIMap::Init()
 	}
 
 	// add metalspots to their sectors
-	int k, l;
-	for(list<AAIMetalSpot>::iterator spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
+	for(std::list<AAIMetalSpot>::iterator spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
 	{
-		k = spot->pos.x/xSectorSize;
-		l = spot->pos.z/ySectorSize;
+		const int x = spot->pos.x/xSectorSize;
+		const int y = spot->pos.z/ySectorSize;
 
-		if(k < xSectors && l < ySectors)
-			sector[k][l].AddMetalSpot(&(*spot));
+		if(x < xSectors && y < ySectors)
+			sector[x][y].AddMetalSpot(&(*spot));
 	}
 
 	readMapLearnFile();
@@ -233,17 +232,18 @@ void AAIMap::Init()
 	ai->Log("Average water continent size is %i\n", avg_water_continent_size);
 
 	//debug
-	/*float3 my_pos;
-	for(int x = 0; x < xMapSize; x+=2)
+	/*for(int x = 0; x < xMapSize; x+=2)
 	{
 		for(int y = 0; y < yMapSize; y+=2)
 		{
-			if(buildmap[x + y*xMapSize] == 1 || buildmap[x + y*xMapSize] == 5)
+			if((buildmap[x + y*xMapSize] == 1) || (buildmap[x + y*xMapSize] == 5) )
 			{
-				my_pos.x = x * 8;
-				my_pos.z = y * 8;
-				my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
-				ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 8000, ai->Getcb()->GetMyAllyTeam(), true, true);
+				float3 myPos;
+				myPos.x = x;
+				myPos.z = y;
+				BuildMapPos2Pos(&myPos, ai->Getcb()->GetUnitDef("armmine1")); 
+				myPos.y = ai->Getcb()->GetElevation(myPos.x, myPos.z);
+				ai->Getcb()->DrawUnit("armmine1", myPos, 0.0f, 4000, ai->Getcb()->GetMyAllyTeam(), true, true);	
 			}
 		}
 	}*/
@@ -298,20 +298,26 @@ void AAIMap::ReadMapCacheFile()
 			fscanf(file, "%f ", &water_ratio);
 
 			// load buildmap
-			for(int i = 0; i < xMapSize*yMapSize; ++i)
+			for(int y = 0; y < yMapSize; ++y)
 			{
-				fscanf(file, "%i ", &temp);
-				buildmap[i] = temp;
+				for(int x = 0; x < xMapSize; ++x)
+				{
+					const int cell = x + y * xMapSize;
+					fscanf(file, "%i ", &buildmap[cell]);
+				}
 			}
 
 			// load plateau map
-			for(int i = 0; i < xMapSize*yMapSize/16; ++i)
+			for(int y = 0; y < yMapSize/8; ++y)
 			{
-				fscanf(file, "%f ", &temp_float);
-				plateau_map[i] = temp_float;
+				for(int x = 0; x < xMapSize/8; ++x)
+				{
+					const int cell = x + y * xMapSize/8;
+					fscanf(file, "%f ", &plateau_map[cell]);
+				}
 			}
 
-			// load mex spots
+			// load metal spots
 			AAIMetalSpot spot;
 			fscanf(file, "%i ", &temp);
 
@@ -334,15 +340,15 @@ void AAIMap::ReadMapCacheFile()
 
 	if(!loaded)  // create new map data
 	{
-		// look for metalspots
-		SearchMetalSpots();
-
 		CalculateWaterRatio();
 
 		// detect cliffs/water and create plateau map
 		AnalyseMap();
 
 		DetectMapType();
+
+		// search for metal spots after analysis of map for cliffs/water to avoid overriding of blocked underwater metal spots (5) with water (4)
+		DetectMetalSpots();
 
 		//////////////////////////////////////////////////////////////////////////////////////////////////////
 		// save mod independent map data
@@ -364,26 +370,38 @@ void AAIMap::ReadMapCacheFile()
 		fprintf(file, "%f\n", water_ratio);
 
 		// save buildmap
-		for(int i = 0; i < xMapSize*yMapSize; ++i)
-			fprintf(file, "%i ", buildmap[i]);
-
-		fprintf(file, "\n");
+		for(int y = 0; y < yMapSize; ++y)
+		{
+			for(int x = 0; x < xMapSize; ++x)
+			{
+				const int cell = x + y * xMapSize;
+				fprintf(file, "%i ", buildmap[cell]);
+			}
+			fprintf(file, "\n");
+		}
 
 		// save plateau map
-		for(int i = 0; i < xMapSize*yMapSize/16; ++i)
-			fprintf(file, "%f ", plateau_map[i]);
-
+		for(int y = 0; y < yMapSize/8; ++y)
+		{
+			for(int x = 0; x < xMapSize/8; ++x)
+			{
+				const int cell = x + y * xMapSize/8;
+				fprintf(file, "%f ", plateau_map[cell]);
+			}
+			fprintf(file, "\n");
+		}
+			
 		// save mex spots
 		land_metal_spots = 0;
 		water_metal_spots = 0;
 
-		fprintf(file, "\n" _STPF_ " \n", metal_spots.size());
+		fprintf(file, _STPF_ " \n", metal_spots.size());
 
 		for(list<AAIMetalSpot>::iterator spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
 		{
 			fprintf(file, "%f %f %f %f \n", spot->pos.x, spot->pos.y, spot->pos.z, spot->amount);
 
-			if(spot->pos.y >= 0)
+			if(spot->pos.y >= 0.0f)
 				++land_metal_spots;
 			else
 				++water_metal_spots;
@@ -456,8 +474,6 @@ void AAIMap::ReadMapCacheFile()
 		}
 	}
 }
-
-
 
 void AAIMap::ReadContinentFile()
 {
@@ -1103,9 +1119,9 @@ bool AAIMap::CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water) co
 	if( (xPos+xSize <= xMapSize) && (yPos+ySize <= yMapSize) )
 	{
 		// check if all squares the building needs are empty
-		for(int x = xPos; x < xSize+xPos; ++x)
+		for(int y = yPos; y < ySize+yPos; ++y)
 		{
-			for(int y = yPos; y < ySize+yPos; ++y)
+			for(int x = xPos; x < xSize+xPos; ++x)
 			{
 				// check if cell already blocked by something
 				if(!water && buildmap[x+y*xMapSize] != 0)
@@ -1286,12 +1302,7 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 		yEnd = yMapSize;
 
 	//float3 my_pos;
-	int empty, cell;
-
-	if(water)
-		empty = 4;
-	else
-		empty = 0;
+	const int emptyCellValue = water ? 4 : 0;
 
 	if(block)	// block cells
 	{
@@ -1299,11 +1310,11 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 		{
 			for(int x = xPos; x < xEnd; ++x)
 			{
-				cell = x + xMapSize*y;
+				const int cell = x + xMapSize*y;
 
 				// if no building ordered that cell to be blocked, update buildmap
 				// (only if space is not already occupied by a building)
-				if(blockmap[cell] == 0 && buildmap[cell] == empty)
+				if( (blockmap[cell] == 0) && (buildmap[cell] == emptyCellValue) )
 				{
 					buildmap[cell] = 2;
 
@@ -1329,7 +1340,7 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 		{
 			for(int x = xPos; x < xEnd; ++x)
 			{
-				cell = x + xMapSize*y;
+				const int cell = x + xMapSize*y;
 
 				if(blockmap[cell] > 0)
 				{
@@ -1339,15 +1350,17 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 					//					- if it is not marked as blocked its occupied by another building or unpassable)
 					if(blockmap[cell] == 0 && buildmap[cell] == 2)
 					{
-						buildmap[cell] = empty;
+						buildmap[cell] = emptyCellValue;
 
 						// debug
 						/*if(x%2 == 0 && y%2 == 0)
 						{
-							my_pos.x = x * 8;
-							my_pos.z = y * 8;
-							my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
-							ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 1500, ai->Getcb()->GetMyAllyTeam(), true, true);
+							float3 myPos;
+							myPos.x = x;
+							myPos.z = y;
+							BuildMapPos2Pos(&myPos, ai->Getcb()->GetUnitDef("armmine1")); 
+							myPos.y = ai->Getcb()->GetElevation(myPos.x, myPos.z);
+							ai->Getcb()->DrawUnit("armmine1", myPos, 0.0f, 2000, ai->Getcb()->GetMyAllyTeam(), true, true);				
 						}*/
 					}
 				}
@@ -1366,20 +1379,16 @@ void AAIMap::UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool blo
 
 	if(block)
 	{
-		if(water)
-			SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, 5);
-		else
-			SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, 1);
+		const int blockValue = water ? 5 : 1;
+		SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, blockValue);
 	}
 	else
 	{
 		// remove spaces before freeing up buildspace
 		CheckRows(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, block, water);
 
-		if(water)
-			SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, 4);
-		else
-			SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, 0);
+		const int unblockValue = water ? 5 : 1;
+		SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, unblockValue);
 	}
 
 	if(factory)
@@ -1512,8 +1521,6 @@ int AAIMap::GetCliffyCellsInSector(AAISector *sector)
 
 void AAIMap::AnalyseMap()
 {
-	float3 my_pos;
-
 	float slope;
 
 	const float *height_map = ai->Getcb()->GetHeightMap();
@@ -1524,7 +1531,7 @@ void AAIMap::AnalyseMap()
 		for(int y = 0; y < yMapSize; ++y)
 		{
 			// check for water
-			if(height_map[y * xMapSize + x] < 0)
+			if(height_map[y * xMapSize + x] < 0.0f)
 				buildmap[x+y*xMapSize] = 4;
 			else if(x < xMapSize - 4 && y < yMapSize - 4)
 			// check slope
@@ -1545,16 +1552,13 @@ void AAIMap::AnalyseMap()
 		}
 	}
 
-	// calculate plateu map
-	int xSize = xMapSize/4;
-	int ySize = yMapSize/4;
-
+	// calculate plateau map
 	int TERRAIN_DETECTION_RANGE = 6;
 	float my_height, diff;
 
-	for(int x = TERRAIN_DETECTION_RANGE; x < xSize - TERRAIN_DETECTION_RANGE; ++x)
+	for(int x = TERRAIN_DETECTION_RANGE; x < xContMapSize - TERRAIN_DETECTION_RANGE; ++x)
 	{
-		for(int y = TERRAIN_DETECTION_RANGE; y < ySize - TERRAIN_DETECTION_RANGE; ++y)
+		for(int y = TERRAIN_DETECTION_RANGE; y < yContMapSize - TERRAIN_DETECTION_RANGE; ++y)
 		{
 			my_height = height_map[4 * (x + y * xMapSize)];
 
@@ -1567,23 +1571,23 @@ void AAIMap::AnalyseMap()
 					 if(diff > 0)
 					 {
 						 if(buildmap[4 * (i + j * xMapSize)] != 3)
-							 plateau_map[i + j * xSize] += diff;
+							 plateau_map[i + j * xContMapSize] += diff;
 					 }
 					 else
-						 plateau_map[i + j * xSize] += diff;
+						 plateau_map[i + j * xContMapSize] += diff;
 				}
 			}
 		}
 	}
 
-	for(int x = 0; x < xSize; ++x)
+	for(int x = 0; x < xContMapSize; ++x)
 	{
-		for(int y = 0; y < ySize; ++y)
+		for(int y = 0; y < yContMapSize; ++y)
 		{
-			if(plateau_map[x + y * xSize] >= 0)
-				plateau_map[x + y * xSize] = sqrt(plateau_map[x + y * xSize]);
+			if(plateau_map[x + y * xContMapSize] >= 0.0f)
+				plateau_map[x + y * xContMapSize] = sqrt(plateau_map[x + y * xContMapSize]);
 			else
-				plateau_map[x + y * xSize] = -1.0f * sqrt((-1.0f) * plateau_map[x + y * xSize]);
+				plateau_map[x + y * xContMapSize] = -1.0f * sqrt((-1.0f) * plateau_map[x + y * xContMapSize]);
 		}
 	}
 }
@@ -1882,7 +1886,7 @@ void AAIMap::CalculateContinentMaps()
 }
 
 // algorithm more or less by krogothe - thx very much
-void AAIMap::SearchMetalSpots()
+void AAIMap::DetectMetalSpots()
 {
 	const UnitDefId largestExtractor = ai->Getbt()->GetLargestExtractor();
 	if ( largestExtractor.isValid() == false ) 
@@ -1965,7 +1969,6 @@ void AAIMap::SearchMetalSpots()
 		MexArrayB[i] = spring::SafeDivide(TempAverage[i] * 255,  MaxMetal);  //scale the metal so any map will have values 0-255, no matter how much metal it has
 	}
 
-
 	for (int a = 0; a != MaxSpots; a++)
 	{
 		if(!Stopme)
@@ -1990,7 +1993,7 @@ void AAIMap::SearchMetalSpots()
 
 			Pos2FinalBuildPos(&pos, def);
 
-			temp.amount = TempMetal * ai->Getcb()->GetMaxMetal() * MaxMetal / 255.0;
+			temp.amount = TempMetal * ai->Getcb()->GetMaxMetal() * MaxMetal / 255.0f;
 			temp.occupied = false;
 			temp.pos = pos;
 
@@ -2000,15 +2003,13 @@ void AAIMap::SearchMetalSpots()
 
 				if(pos.z >= 2 && pos.x >= 2 && pos.x < xMapSize-2 && pos.z < yMapSize-2)
 				{
-					if(CanBuildAt(pos.x, pos.z, def->xsize, def->zsize))
+					const bool water = temp.pos.y < 0.0f;
+					if(CanBuildAt(pos.x, pos.z, def->xsize, def->zsize, water))
 					{
 						metal_spots.push_back(temp);
-						SpotsFound++;
+						++SpotsFound;
 
-						if(pos.y >= 0)
-							SetBuildMap(pos.x-2, pos.z-2, def->xsize+4, def->zsize+4, 1);
-						else
-							SetBuildMap(pos.x-2, pos.z-2, def->xsize+4, def->zsize+4, 5);
+						SetBuildMap(pos.x-2, pos.z-2, def->xsize+2, def->zsize+2, water ? 5 : 1);
 					}
 				}
 			//}
@@ -2319,8 +2320,7 @@ AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 
 void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 {
-	int range = static_cast<int>( ai->Getbt()->s_buildTree.GetMaxRange(defence) ) / (SQUARE_SIZE * 4);
-	int cell;
+	const int range = static_cast<int>( ai->Getbt()->s_buildTree.GetMaxRange(defence) ) / (SQUARE_SIZE * 4);
 
 	float power;
 	float air_power;
@@ -2375,7 +2375,7 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 
 		for(int x = xStart; x < xEnd; ++x)
 		{
-			cell = x + xDefMapSize*y;
+			const int cell = x + xDefMapSize*y;
 
 			defence_map[cell] += power;
 			air_defence_map[cell] += air_power;
@@ -2384,10 +2384,10 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 	}
 
 	// further increase values close around the bulding (to prevent aai from packing buildings too close together)
-	xStart = xPos - 3;
-	xEnd = xPos + 3;
-	yStart = yPos - 3;
-	yEnd = yPos + 3;
+	xStart = xPos - 2;
+	xEnd = xPos + 2;
+	yStart = yPos - 2;
+	yEnd = yPos + 2;
 
 	if(xStart < 0)
 		xStart = 0;
@@ -2403,23 +2403,21 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 	{
 		for(int x = xStart; x <= xEnd; ++x)
 		{
-			cell = x + xDefMapSize*y;
+			const int cell = x + xDefMapSize*y;
 
 			defence_map[cell] += 5000.0f;
 			air_defence_map[cell] += 5000.0f;
 			submarine_defence_map[cell] += 5000.0f;
 
-			/*
-			float3 my_pos;
+			/*float3 my_pos;
 			my_pos.x = x * 32;
 			my_pos.z = y * 32;
 			my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
-			ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 8000, ai->Getcb()->GetMyAllyTeam(), false, true);
+			ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 4000, ai->Getcb()->GetMyAllyTeam(), false, true);
 			my_pos.x = (x+1) * 32;
 			my_pos.z = (y+1) * 32;
 			my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
-			ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 8000, ai->Getcb()->GetMyAllyTeam(), false, true);
-			*/
+			ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 4000, ai->Getcb()->GetMyAllyTeam(), false, true);*/
 		}
 	}
 
@@ -2467,10 +2465,10 @@ void AAIMap::RemoveDefence(float3 *pos, int defence)
 	int yPos = (pos->z + ai->Getbt()->GetUnitDef(defence).zsize/2) / (SQUARE_SIZE * 4);
 
 	// further decrease values close around the bulding (to prevent aai from packing buildings too close together)
-	int xStart = xPos - 3;
-	int xEnd = xPos + 3;
-	int yStart = yPos - 3;
-	int yEnd = yPos + 3;
+	int xStart = xPos - 2;
+	int xEnd = xPos + 2;
+	int yStart = yPos - 2;
+	int yEnd = yPos + 2;
 
 	if(xStart < 0)
 		xStart = 0;
@@ -2540,7 +2538,7 @@ void AAIMap::RemoveDefence(float3 *pos, int defence)
 float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAIUnitCategory& category, float terrainModifier, bool water) const
 {
 	*buildPos = ZeroVector;
-	float my_rating, best_rating = -100000;
+	float my_rating, best_rating = -10000.0f;
 
 	// get required cell-size of the building
 	int xSize, ySize, xPos, yPos, cell;

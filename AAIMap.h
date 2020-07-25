@@ -159,7 +159,7 @@ private:
 
 	bool initialized;
 	// krogothe's metal spot finder
-	void SearchMetalSpots();
+	void DetectMetalSpots();
 
 	// determines type of map (land, land/water or water map)
 	void DetectMapType();
@@ -188,7 +188,7 @@ private:
 	// loads mex spots, cliffs etc. from file or creates new one
 	void ReadMapCacheFile();
 
-	// returns true if buildmap allows construction
+	//! @brief returns true if buildmap allows construction
 	bool CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water = false) const;
 
 	// return next cell in direction with a certain value
@@ -239,7 +239,7 @@ private:
 	static list<AAIMetalSpot> metal_spots;
 	static float flat_land_ratio;
 	static vector<int> blockmap;		// number of buildings which ordered a cell to blocked
-	static vector<float> plateau_map;	// positive values indicate plateaus, 1/4 of resolution of blockmap/buildmap
+	static vector<float> plateau_map;	// positive values indicate plateaus, same resolution as continent map 1/4 of resolution of blockmap/buildmap
 	static vector<int> continent_map;	// id of continent a cell belongs to
 
 	static vector<int> ship_movement_map;	// movement maps for different categories, 1/4 of resolution of blockmap/buildmap
