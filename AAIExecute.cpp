@@ -92,6 +92,8 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 		return;
 	}
 
+	ai->Log("My team / ally team: %i / %i\n", ai->Getcb()->GetMyTeam(), ai->Getcb()->GetMyAllyTeam());
+
 	// tell the brain about the starting sector
 	float3 pos = ai->Getcb()->GetUnitPos(commander_unit_id);
 	int x = pos.x/ai->Getmap()->xSectorSize;
@@ -791,6 +793,10 @@ bool AAIExecute::BuildExtractor()
 				{
 					if(!(*spot)->occupied)
 					{
+						float3 myPos = (*spot)->pos;
+						myPos.y = ai->Getcb()->GetElevation(myPos.x, myPos.z);
+						ai->Getcb()->DrawUnit("armmine1", myPos, 0.0f, 4000, ai->Getcb()->GetMyAllyTeam(), false, true);
+			
 						freeMetalSpotFound = true;
 
 						UnitDefId extractor = ((*spot)->pos.y >= 0) ? landExtractor : seaExtractor;
@@ -811,7 +817,7 @@ bool AAIExecute::BuildExtractor()
 		}
 
 		// stop looking for metal spots further away from base if already one found
-		if(extractorSpots.size() > 0)
+		if( (distanceFromBase > 1) && (extractorSpots.size() > 0) )
 			break;
 	}
 
@@ -1825,7 +1831,7 @@ void AAIExecute::DefendMex(int mex, int def_id)
 	const int x = pos.x/ai->Getmap()->xSectorSize;
 	const int y = pos.z/ai->Getmap()->ySectorSize;
 
-	if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
+	if( ai->Getmap()->IsValidSector(x, y) )
 	{
 		const AAISector *sector = &ai->Getmap()->sector[x][y];
 
@@ -2556,7 +2562,7 @@ void AAIExecute::CheckConstruction()
 
 	for(int i = 1; i <= METAL_MAKER; ++i)
 	{
-		urgency[i] *= 1.03f;
+		urgency[i] *= 1.02f;
 
 		if(urgency[i] > 20.0f)
 			urgency[i] -= 1.0f;
@@ -2684,36 +2690,33 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 	const UnitDef *def = &ai->Getbt()->GetUnitDef(unitDefId.id);
 	const AAIUnitCategory category = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
 
-	int x = build_pos.x/ai->Getmap()->xSectorSize;
-	int y = build_pos.z/ai->Getmap()->ySectorSize;
-
-	bool validSector = false;
-
-	if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
-		validSector = true;
+	const int  x = build_pos.x/ai->Getmap()->xSectorSize;
+	const int  y = build_pos.z/ai->Getmap()->ySectorSize;
+	const bool validSector = ai->Getmap()->IsValidSector(x, y);
 
 	// decrease number of units of that category in the target sector
 	if(validSector)
 		ai->Getmap()->sector[x][y].RemoveBuilding(category);
 
 	// free metalspot if mex was odered to be built
-	if( (category.isMetalExtractor() == true) && (build_pos.x > 0) )
+	if(category.isMetalExtractor())
 	{
-		ai->Getmap()->sector[x][y].FreeMetalSpot(build_pos, def);
+		if(validSector)
+			ai->Getmap()->sector[x][y].FreeMetalSpot(build_pos, def);
 	}
-	else if(category.isPowerPlant() == true)
+	else if(category.isPowerPlant())
 	{
 		futureAvailableEnergy -= ai->Getbt()->units_static[unitDefId.id].efficiency[0];
 
 		if(futureAvailableEnergy < 0)
 			futureAvailableEnergy = 0;
 	}
-	else if(category.isStorage() == true)
+	else if(category.isStorage())
 	{
 		futureStoredEnergy -= ai->Getbt()->GetUnitDef(def->id).energyStorage;
 		futureStoredMetal -= ai->Getbt()->GetUnitDef(def->id).metalStorage;
 	}
-	else if(category.isMetalMaker() == true)
+	else if(category.isMetalMaker())
 	{
 		futureRequestedEnergy -= ai->Getbt()->GetUnitDef(def->id).energyUpkeep;
 
@@ -2727,20 +2730,18 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 		if(futureRequestedEnergy < 0)
 			futureRequestedEnergy = 0;
 	}*/
-	else if(category.isStaticSensor() == true)
+	else if(category.isStaticSensor())
 	{
 		futureRequestedEnergy -= ai->Getbt()->units_static[def->id].efficiency[0];
 
 		if(futureRequestedEnergy < 0)
 			futureRequestedEnergy = 0;
 	}
-	else if(category.isStaticDefence() == true)
+	else if(category.isStaticDefence())
 	{
 		ai->Getmap()->RemoveDefence(&build_pos, unitDefId.id);
 	}
-
-	// clear buildmap
-	if(category.isStaticConstructor() == true)
+	else if(category.isStaticConstructor())
 	{
 		ai->Getut()->futureFactories -= 1;
 
@@ -2755,15 +2756,10 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 
 		if(futureRequestedMetal < 0)
 			futureRequestedMetal = 0;
+	}
 
-		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false);
-	}
-	else // normal building
-	{
-		// update buildmap of sector
-		ai->Getmap()->UpdateBuildMap(build_pos, def, false);
-	}
+	// update buildmap of sector
+	ai->Getmap()->UpdateBuildMap(build_pos, def, false);
 }
 
 void AAIExecute::AddStartFactory()

@@ -71,7 +71,7 @@ list<int> AAIMap::map_categories_id;
 AAIMap::AAIMap(AAI *ai)
 {
 	this->ai = ai;
-	initialized = false;
+	m_myTeamId = ai->Getcb()->GetMyTeam();
 }
 
 AAIMap::~AAIMap(void)
@@ -192,7 +192,7 @@ void AAIMap::Init()
 		const int x = spot->pos.x/xSectorSize;
 		const int y = spot->pos.z/ySectorSize;
 
-		if(x < xSectors && y < ySectors)
+		if(IsValidSector(x,y))
 			sector[x][y].AddMetalSpot(&(*spot));
 	}
 
@@ -213,8 +213,6 @@ void AAIMap::Init()
 	defence_map.resize(xDefMapSize*yDefMapSize, 0);
 	air_defence_map.resize(xDefMapSize*yDefMapSize, 0);
 	submarine_defence_map.resize(xDefMapSize*yDefMapSize, 0);
-
-	initialized = true;
 
 	// for log file
 	ai->Log("Map: %s\n",ai->Getcb()->GetMapName());
@@ -1499,26 +1497,6 @@ int AAIMap::GetCliffyCells(int xPos, int yPos, int xSize, int ySize)
 	return cliffs;
 }
 
-int AAIMap::GetCliffyCellsInSector(AAISector *sector)
-{
-	int cliffs = 0;
-
-	int xPos = sector->x * xSectorSize;
-	int yPos = sector->y * ySectorSize;
-
-	// count cells with big slope
-	for(int x = xPos; x < xPos + xSectorSizeMap; ++x)
-	{
-		for(int y = yPos; y < yPos + ySectorSizeMap; ++y)
-		{
-			if(buildmap[x+y*xMapSize] == 3)
-				++cliffs;
-		}
-	}
-
-	return cliffs;
-}
-
 void AAIMap::AnalyseMap()
 {
 	float slope;
@@ -2165,9 +2143,6 @@ void AAIMap::UpdateRecon()
 	}
 
 	// update own/friendly units
-	int x, y;
-	int my_team = ai->Getcb()->GetMyTeam();
-
 	number_of_units = ai->Getcb()->GetFriendlyUnits(&(units_in_los.front()));
 
 	for(int i = 0; i < number_of_units; ++i)
@@ -2180,15 +2155,15 @@ void AAIMap::UpdateRecon()
 		{
 			float3 pos = ai->Getcb()->GetUnitPos(units_in_los[i]);
 
-			x = pos.x/xSectorSize;
-			y = pos.z/ySectorSize;
+			const int x = pos.x/xSectorSize;
+			const int y = pos.z/ySectorSize;
 
-			if(x >= 0 && y >= 0 && x < xSectors && y < ySectors)
+			if(IsValidSector(x,y))
 			{
 				// add building to sector (and update stat_combat_power if it's a stat defence)
 				if(category.isBuilding() == true)
 				{
-					if(ai->Getcb()->GetUnitTeam(units_in_los[i]) == my_team)
+					if(ai->Getcb()->GetUnitTeam(units_in_los[i]) == m_myTeamId)
 						++sector[x][y].own_structures;
 					else
 						++sector[x][y].allied_structures;
@@ -2298,21 +2273,12 @@ const char* AAIMap::GetMapTypeTextString(MapType map_type)
 		return "unknown map type";
 }
 
-
-bool AAIMap::ValidSector(int x, int y)
-{
-	if(x >= 0 && y >= 0 && x < xSectors && y < ySectors)
-		return true;
-	else
-		return false;
-}
-
 AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 {
 	int x = pos.x/xSectorSize;
 	int y = pos.z/ySectorSize;
 
-	if(ValidSector(x,y))
+	if(IsValidSector(x,y))
 		return &(sector[x][y]);
 	else
 		return 0;

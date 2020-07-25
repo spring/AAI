@@ -499,37 +499,22 @@ void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
 	if(m_activity.IsDestroyed() == false)
 	{
 		float3 pos = ai->Getcb()->GetUnitPos(m_myUnitId.id);
+		const int x = pos.x / ai->Getmap()->xSectorSize;
+		const int y = pos.z / ai->Getmap()->ySectorSize;
 
-		int x = pos.x / ai->Getmap()->xSectorSize;
-		int y = pos.z / ai->Getmap()->ySectorSize;
-
-		// attacked by scout
-		if(attackedByCategory.isScout() == true)
+		if( ai->Getmap()->IsValidSector(x, y) )
 		{
-			// dont flee from scouts in your own base
-			if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
+			// dont flee within base
+			if(ai->Getmap()->sector[x][y].distance_to_base == 0)
+				return;
+			else
 			{
-				// builder is within base
-				if(ai->Getmap()->sector[x][y].distance_to_base == 0)
-					return;
-				// dont flee outside of the base if health is > 50%
-				else
-				{
-					if(ai->Getcb()->GetUnitHealth(m_myUnitId.id) > ai->Getbt()->GetUnitDef(m_myDefId.id).health / 2.0f)
-						return;
-				}
+				// dont flee outside from scouts of the base if health is > 50%
+				if(   attackedByCategory.isScout()
+				   && (ai->Getcb()->GetUnitHealth(m_myUnitId.id) > 0.5f * ai->Getbt()->GetUnitDef(m_myDefId.id).health))
+					return;	
 			}
 		}
-		else
-		{
-			if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
-			{
-				// builder is within base
-				if(ai->Getmap()->sector[x][y].distance_to_base == 0)
-					return;
-			}
-		}
-
 
 		// get safe position
 		pos = ai->Getexecute()->determineSafePos(m_myDefId, pos);

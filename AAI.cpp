@@ -373,7 +373,8 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 				const int x = pos.x / map->xSectorSize;
 				const int y = pos.z / map->ySectorSize;
 
-				map->sector[x][y].AddExtractor(unit, def->id, &pos);
+				if(map->IsValidSector(x,y))
+					map->sector[x][y].AddExtractor(unit, def->id, &pos);
 			}
 		}
 	}
@@ -502,14 +503,11 @@ void AAI::UnitDestroyed(int unit, int attacker)
 	UnitDefId unitDefId(def->id);
 
 	float3 pos = cb->GetUnitPos(unit);
-	int x = pos.x/map->xSectorSize;
-	int y = pos.z/map->ySectorSize;
+	const int x = pos.x/map->xSectorSize;
+	const int y = pos.z/map->ySectorSize;
 
 	// check if unit pos is within a valid sector (e.g. aircraft flying outside of the map)
-	bool validSector = true;
-
-	if (x >= map->xSectors || x < 0 || y < 0 || y >= map->ySectors)
-		validSector = false;
+	const bool validSector = map->IsValidSector(x,y);
 
 	// update threat map
 	if (attacker && validSector)

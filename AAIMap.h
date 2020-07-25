@@ -47,6 +47,9 @@ public:
 	//! @brief Converts given position to final building position for the given unit type
 	void Pos2FinalBuildPos(float3 *pos, const UnitDef *def) const;
 
+	//! @brief Returns whether x/y specify a valid sector
+	bool IsValidSector(int x, int y) const { return( (x >= 0) && (y >= 0) && (x < xSectors) && (y < ySectors) ); }
+
 	//! @brief Returns the id of continent the cell belongs to
 	int GetContinentID(int x, int y) const;
 
@@ -63,7 +66,7 @@ public:
 	uint32_t getSuitableMovementTypesForMap() const { return getSuitableMovementTypes(map_type); };
 
 	//! @brief Returns whether the given sector is already occupied by another AAI player of the same team
-	bool IsAlreadyOccupiedByAlliedAAI(const AAISector* sector) const { return (team_sector_map[sector->x][sector->y] != -1); }
+	bool IsAlreadyOccupiedByAlliedAAI(const AAISector* sector) const { return (team_sector_map[sector->x][sector->y] != -1) && (team_sector_map[sector->x][sector->y] != m_myTeamId); }
 
 	// returns sector (0 if out of sector map -> e.g. aircraft flying outside of the map) of a position
 	AAISector* GetSectorOfPos(const float3& pos);
@@ -157,7 +160,6 @@ private:
 	// temp for scouting
 	std::vector<int> m_spottedEnemyCombatUnits;
 
-	bool initialized;
 	// krogothe's metal spot finder
 	void DetectMetalSpots();
 
@@ -199,8 +201,6 @@ private:
 
 	const char* GetMapTypeTextString(MapType map_type);
 
-	int GetCliffyCellsInSector(AAISector *sector);
-
 	// blocks/unblocks cells (to prevent AAI from packing buildings too close to each other)
 	void BlockCells(int xPos, int yPos, int width, int height, bool block, bool water);
 
@@ -213,17 +213,20 @@ private:
 	//! @brief Returns distance to closest edge of the map (in build_map coordinates)
 	int GetEdgeDistance(int xPos, int yPos) const;
 
-	// true if x/y are a valid sector
-	bool ValidSector(int x, int y);
 	// sets cells of the builmap to value
 	bool SetBuildMap(int xPos, int yPos, int xSize, int ySize, int value, int ignore_value = -1);
 
+public:
 	void BuildMapPos2Pos(float3 *pos, const UnitDef* def) const;
 
+private:
 	std::string LocateMapLearnFile() const;
 	std::string LocateMapCacheFile() const;
 
 	AAI *ai;
+
+	//! Id of the team (not ally team) of the AAI instance
+	int m_myTeamId;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// static (shared with other ai players)
