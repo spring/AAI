@@ -201,7 +201,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	map->Init();
 
 	// init brain
-	brain = new AAIBrain(this);
+	brain = new AAIBrain(this, map->GetMaxSectorDistanceToBase());
 
 	// init executer
 	execute = new AAIExecute(this);
@@ -649,12 +649,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			// if no buildings left in that sector, remove from base sectors
 			if (map->sector[x][y].own_structures == 0 && brain->sectors[0].size() > 2)
 			{
-				brain->RemoveSector(&map->sector[x][y]);
-
-				brain->UpdateNeighbouringSectors();
-				brain->UpdateBaseCenter();
-
-				brain->expandable = true;
+				brain->AssignSectorToBase(&map->sector[x][y], false);
 
 				Log("\nRemoving sector %i,%i from base; base size: " _STPF_ " \n", x, y, brain->sectors[0].size());
 			}

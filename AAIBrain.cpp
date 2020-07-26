@@ -17,23 +17,24 @@
 #include "AAIGroup.h"
 #include "AAISector.h"
 
+#include <unordered_map>
+
 #include "LegacyCpp/UnitDef.h"
 using namespace springLegacyAI;
 
-AAIBrain::AAIBrain(AAI *ai) :
+AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
+	m_freeMetalSpotsInBase(false),
+	m_baseFlatLandRatio(0.0f),
+	m_baseWaterRatio(0.0f),
+	m_centerOfBase(ZeroVector),
 	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_metalIncome(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS)
 {
 	this->ai = ai;
-	freeBaseSpots = false;
-	expandable = true;
 
-	max_distance = ai->Getmap()->xSectors + ai->Getmap()->ySectors - 2;
-	sectors.resize(max_distance);
-
-	base_center = ZeroVector;
+	sectors.resize(maxSectorDistanceToBase);
 
 	max_combat_units_spotted.resize(AAIBuildTable::ass_categories, 0.0f);
 	m_recentlyAttackedByCategory.resize(AAIBuildTable::combat_categories, 0.0f);
@@ -229,49 +230,39 @@ bool AAIBrain::RessourcesForConstr(int /*unit*/, int /*wokertime*/)
 	return true;
 }
 
-void AAIBrain::AddSector(AAISector *sector)
+void AAIBrain::AssignSectorToBase(AAISector *sector, bool addToBase)
 {
-	sectors[0].push_back(sector);
-
-	sector->SetBase(true);
-
-	// update base land/water ratio
-	baseLandRatio = 0;
-	baseWaterRatio = 0;
-
-	for(list<AAISector*>::iterator s = sectors[0].begin(); s != sectors[0].end(); ++s)
+	if(addToBase)
 	{
-		baseLandRatio += (*s)->GetFlatRatio();
-		baseWaterRatio += (*s)->GetWaterRatio();
+		sectors[0].push_back(sector);
+		sector->SetBase(true);
+	}
+	else
+	{
+		sectors[0].remove(sector);
+		sector->SetBase(false);
 	}
 
-	baseLandRatio /= (float)sectors[0].size();
-	baseWaterRatio /= (float)sectors[0].size();
-}
-
-void AAIBrain::RemoveSector(AAISector *sector)
-{
-	sectors[0].remove(sector);
-
-	sector->SetBase(false);
-
 	// update base land/water ratio
-	baseLandRatio = 0;
-	baseWaterRatio = 0;
+	m_baseFlatLandRatio = 0.0f;
+	m_baseWaterRatio    = 0.0f;
 
 	if(sectors[0].size() > 0)
 	{
 		for(list<AAISector*>::iterator s = sectors[0].begin(); s != sectors[0].end(); ++s)
 		{
-			baseLandRatio += (*s)->GetFlatRatio();
-			baseWaterRatio += (*s)->GetWaterRatio();
+			m_baseFlatLandRatio += (*s)->GetFlatRatio();
+			m_baseWaterRatio += (*s)->GetWaterRatio();
 		}
 
-		baseLandRatio /= (float)sectors[0].size();
-		baseWaterRatio /= (float)sectors[0].size();
+		m_baseFlatLandRatio /= (float)sectors[0].size();
+		m_baseWaterRatio /= (float)sectors[0].size();
 	}
-}
 
+	UpdateNeighbouringSectors();
+
+	UpdateCenterOfBase();
+}
 
 void AAIBrain::DefendCommander(int /*attacker*/)
 {
@@ -298,18 +289,21 @@ void AAIBrain::DefendCommander(int /*attacker*/)
 	}*/
 }
 
-void AAIBrain::UpdateBaseCenter()
+void AAIBrain::UpdateCenterOfBase()
 {
-	base_center = ZeroVector;
+	m_centerOfBase = ZeroVector;
 
-	for(list<AAISector*>::iterator sector = sectors[0].begin(); sector != sectors[0].end(); ++sector)
+	if(sectors[0].size() > 0)
 	{
-		base_center.x += (0.5 + (*sector)->x) * ai->Getmap()->xSectorSize;
-		base_center.z += (0.5 + (*sector)->y) * ai->Getmap()->ySectorSize;
-	}
+		for(std::list<AAISector*>::iterator sector = sectors[0].begin(); sector != sectors[0].end(); ++sector)
+		{
+			m_centerOfBase.x += (0.5f + static_cast<float>( (*sector)->x) ) * static_cast<float>(ai->Getmap()->xSectorSize);
+			m_centerOfBase.z += (0.5f + static_cast<float>( (*sector)->y) ) * static_cast<float>(ai->Getmap()->ySectorSize);
+		}
 
-	base_center.x /= sectors[0].size();
-	base_center.z /= sectors[0].size();
+		m_centerOfBase.x /= static_cast<float>(sectors[0].size());
+		m_centerOfBase.z /= static_cast<float>(sectors[0].size());
+	}
 }
 
 void AAIBrain::UpdateNeighbouringSectors()
@@ -326,7 +320,7 @@ void AAIBrain::UpdateNeighbouringSectors()
 		}
 	}
 
-	for(int i = 1; i < max_distance; ++i)
+	for(int i = 1; i < sectors.size(); ++i)
 	{
 		// delete old sectors
 		sectors[i].clear();
@@ -374,17 +368,6 @@ void AAIBrain::UpdateNeighbouringSectors()
 	//ai->Log("Base has now %i direct neighbouring sectors\n", sectors[1].size());
 }
 
-bool AAIBrain::SectorInList(list<AAISector*> mylist, AAISector *sector)
-{
-	// check if sector already added to list
-	for(list<AAISector*>::iterator t = mylist.begin(); t != mylist.end(); ++t)
-	{
-		if(*t == sector)
-			return true;
-	}
-	return false;
-}
-
 bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 {
 	// commander is always allowed in base
@@ -407,93 +390,87 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 
 	// now targets should contain all neighbouring sectors that are not currently part of the base
 	// only once; select the sector with most metalspots and least danger
-	AAISector *best_sector = NULL;
-	float best_rating  = 0, my_rating;
-	int spots;
-	float dist;
-
 	int max_search_dist = 1;
 
 	// if aai is looking for a water sector to expand into ocean, allow greater search_dist
-	if(sectorType == WATER_SECTOR &&  baseWaterRatio < 0.1)
+	if(sectorType == WATER_SECTOR &&  m_baseWaterRatio < 0.1)
 		max_search_dist = 3;
+
+	std::list< std::pair<AAISector*, float> > expansionCandidateList;
+	StatisticalData sectorDistances;
 
 	for(int search_dist = 1; search_dist <= max_search_dist; ++search_dist)
 	{
-		for(list<AAISector*>::iterator sector = sectors[search_dist].begin(); sector != sectors[search_dist].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = sectors[search_dist].begin(); sector != sectors[search_dist].end(); ++sector)
 		{
 			// dont expand if enemy structures in sector && check for allied buildings
-			if(!(*sector)->IsOccupiedByEnemies() && (*sector)->allied_structures < 3 && !ai->Getmap()->IsAlreadyOccupiedByAlliedAAI(*sector))
+			if(!(*sector)->IsOccupiedByEnemies() && (*sector)->allied_structures < 3.0f && !ai->Getmap()->IsAlreadyOccupiedByOtherAAI(*sector))
 			{
-				// rate current sector
-				spots = (*sector)->GetNumberOfMetalSpots();
-
-				my_rating = 1.0f + (float)spots;
-
-				if(sectorType == LAND_SECTOR)
-					// prefer flat sectors without water
-					my_rating += ((*sector)->flat_ratio - (*sector)->water_ratio) * 16.0f;
-				else if(sectorType == WATER_SECTOR)
+				float sectorDistance(0.0f);
+				for(list<AAISector*>::iterator baseSector = sectors[0].begin(); baseSector != sectors[0].end(); ++baseSector) 
 				{
-					// check for continent size (to prevent aai to expand into little ponds instead of big ocean)
-					if((*sector)->water_ratio > 0.1 &&  (*sector)->ConnectedToOcean())
-						my_rating += 8.0f * (*sector)->water_ratio;
-					else
-						my_rating = 0;
+					const int deltaX = (*sector)->x - (*baseSector)->x;
+					const int deltaY = (*sector)->y - (*baseSector)->y;
+					sectorDistance += (deltaX * deltaX + deltaY * deltaY); // try squared distances, use fastmath::apxsqrt() otherwise
 				}
-				else // LAND_WATER_SECTOR
-					my_rating += ((*sector)->flat_ratio + (*sector)->water_ratio) * 8.0f;
+				expansionCandidateList.push_back( std::pair<AAISector*, float>(*sector, sectorDistance) );
 
-				// minmize distance between sectors
-				dist = 0.1f;
-
-				for(list<AAISector*>::iterator baseSector = sectors[0].begin(); baseSector != sectors[0].end(); ++baseSector) {
-					dist += fastmath::apxsqrt( ((*sector)->x - (*baseSector)->x) * ((*sector)->x - (*baseSector)->x) + ((*sector)->y - (*baseSector)->y) * ((*sector)->y - (*baseSector)->y) );
-				}
-
-				float3 center = (*sector)->GetCenter();
-				my_rating /= (dist * fastmath::apxsqrt(ai->Getmap()->GetEdgeDistance( &center )) );
-
-				// choose higher rated sector
-				if(my_rating > best_rating)
-				{
-					best_rating = my_rating;
-					best_sector = *sector;
-				}
+				sectorDistances.AddValue(sectorDistance);
 			}
 		}
 	}
 
-	if(best_sector)
+	sectorDistances.Finalize();
+
+	AAISector *selectedSector(nullptr);
+	float bestRating(0.0f);
+
+	for(auto candidate = expansionCandidateList.begin(); candidate != expansionCandidateList.end(); ++candidate)
+	{
+		// sectors that result in more compact bases or with more metal spots are rated higher
+		float myRating = static_cast<float>( (candidate->first)->GetNumberOfMetalSpots() );
+		                + 4.0f * sectorDistances.GetNormalizedDeviationFromMax(candidate->second);
+
+		if(sectorType == LAND_SECTOR)
+			// prefer flat sectors without water
+			myRating += ((candidate->first)->flat_ratio - (candidate->first)->water_ratio) * 16.0f;
+		else if(sectorType == WATER_SECTOR)
+		{
+			// check for continent size (to prevent aai to expand into little ponds instead of big ocean)
+			if((candidate->first)->water_ratio > 0.1f &&  (candidate->first)->ConnectedToOcean())
+				myRating += 16.0f * (candidate->first)->water_ratio;
+			else
+				myRating = 0.0f;
+		}
+		else // LAND_WATER_SECTOR
+			myRating += ((candidate->first)->flat_ratio + (candidate->first)->water_ratio) * 16.0f;
+
+		if(myRating > bestRating)
+		{
+			bestRating    = myRating;
+			selectedSector = candidate->first;
+		}			
+	}
+
+	if(selectedSector)
 	{
 		// add this sector to base
-		AddSector(best_sector);
-
+		AssignSectorToBase(selectedSector, true);
+	
 		// debug purposes:
 		if(sectorType == LAND_SECTOR)
 		{
-			ai->Log("\nAdding land sector %i,%i to base; base size: " _STPF_, best_sector->x, best_sector->y, sectors[0].size());
-			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", baseLandRatio, baseWaterRatio);
+			ai->Log("\nAdding land sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, sectors[0].size());
+			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
 		}
 		else
 		{
-			ai->Log("\nAdding water sector %i,%i to base; base size: " _STPF_, best_sector->x, best_sector->y, sectors[0].size());
-			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", baseLandRatio, baseWaterRatio);
+			ai->Log("\nAdding water sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, sectors[0].size());
+			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
 		}
-
-		// update neighbouring sectors
-		UpdateNeighbouringSectors();
-		UpdateBaseCenter();
-
-		// check if further expansion possible
-		if(sectors[0].size() == cfg->MAX_BASE_SIZE)
-			expandable = false;
-
-		freeBaseSpots = true;
 
 		return true;
 	}
-
 
 	return false;
 }

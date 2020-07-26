@@ -25,26 +25,25 @@ enum SectorType {UNKNOWN_SECTOR, LAND_SECTOR, LAND_WATER_SECTOR, WATER_SECTOR};
 class AAIBrain
 {
 public:
-	AAIBrain(AAI *ai);
+	AAIBrain(AAI *ai, int maxSectorDistanceToBase);
 	~AAIBrain(void);
 
 	const SmoothedData& GetSmoothedMetalSurplus() const { return m_metalSurplus; }
 
-	// adds/removes sector to the base
-	void AddSector(AAISector *sector);
-	void RemoveSector(AAISector *sector);
+	float GetBaseFlatLandRatio() const { return m_baseFlatLandRatio; }
+
+	float GetBaseWaterRatio() const { return m_baseWaterRatio; }
+
+	const float3& GetCenterOfBase() const { return m_centerOfBase; }
+
+	//! @brief Adds/removes the given sector to the base
+	void AssignSectorToBase(AAISector *sector, bool addToBase);
 
 	// returns dest attack sector
 	AAISector* GetAttackDest(bool land, bool water);
 
 	// returns a sector to proceed with attack
 	AAISector* GetNextAttackDest(AAISector *current_sector, bool land, bool water);
-
-	// checks for new neighbours (and removes old ones if necessary)
-	void UpdateNeighbouringSectors();
-
-	// recalculates the center of the base
-	void UpdateBaseCenter();
 
 	//! @brief Updates the (smoothened) energy/metal income
 	void UpdateRessources(springLegacyAI::IAICallback* cb);
@@ -86,30 +85,22 @@ public:
 	//  0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	vector<list<AAISector*> > sectors;
 
-	// ratio of  flat land/water cells in all base sectors
-	float baseLandRatio;
-	float baseWaterRatio;
-
-	int max_distance;
-
-	// center of base (mean value of centers of all base sectors)
-	float3 base_center;
-
 	// are there any free metal spots within the base
-	bool freeBaseSpots;
-	bool expandable;
+	bool m_freeMetalSpotsInBase;
 
 	// holding max number of units of a category spotted at the same time
 	vector<float> max_combat_units_spotted;
 
 	// current estimations of game situation , values ranging from 0 (min) to 1 max
-
 	float enemy_pressure_estimation;	// how much pressure done to the ai by enemy units
 
-	// pos where com spawned
-	float3 start_pos;
-
 private:
+	//! @brief Checks for new neighbours (and removes old ones if necessary)
+	void UpdateNeighbouringSectors();
+
+	//! @brief Recalculates the center of the base (needs to be called after sectors have been added or removed)
+	void UpdateCenterOfBase();
+
 	// returns true if sufficient ressources to build unit are availbale
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
@@ -121,9 +112,16 @@ private:
 
 	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatPower& combatCriteria, bool urgent);
 
-	bool SectorInList(list<AAISector*> mylist, AAISector *sector);
-	list<AAISector*> GetSectors();
 	vector<float> defence_power_vs;
+
+	//! Ratio of cells with flat land of all base sectors (ranging from 0 (none) to 1(all))
+	float m_baseFlatLandRatio;
+
+	//! Ratio of cells with water of all base sectors (ranging from 0 (none) to 1(all))
+	float m_baseWaterRatio;
+
+	//! Center of base (mean value of centers of all base sectors)
+	float3 m_centerOfBase;
 
 	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
 	std::vector<float> m_recentlyAttackedByCategory;

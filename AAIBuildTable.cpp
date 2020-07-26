@@ -1438,15 +1438,15 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 			// prevent AAI from requesting factories that cannot be built within the current base
 			if(s_buildTree.GetMovementType(*factory).isStaticLand() == true)
 			{
-				if(ai->Getbrain()->baseLandRatio > 0.1f)
-					my_rating *= ai->Getbrain()->baseLandRatio;
+				if(ai->Getbrain()->GetBaseFlatLandRatio() > 0.1f)
+					my_rating *= ai->Getbrain()->GetBaseFlatLandRatio();
 				else
 					my_rating = -100000.0f;
 			}
 			else if(s_buildTree.GetMovementType(*factory).isStaticSea() == true)
 			{
-				if(ai->Getbrain()->baseWaterRatio > 0.1f)
-					my_rating *= ai->Getbrain()->baseWaterRatio;
+				if(ai->Getbrain()->GetBaseWaterRatio() > 0.1f)
+					my_rating *= ai->Getbrain()->GetBaseWaterRatio();
 				else
 					my_rating = -100000.0f;
 			}

@@ -111,10 +111,7 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 	// set sector as part of the base
 	if(ai->Getmap()->team_sector_map[x][y] < 0)
 	{
-		ai->Getbrain()->AddSector(&ai->Getmap()->sector[x][y]);
-		ai->Getbrain()->start_pos = pos;
-		ai->Getbrain()->UpdateNeighbouringSectors();
-		ai->Getbrain()->UpdateBaseCenter();
+		ai->Getbrain()->AssignSectorToBase(&ai->Getmap()->sector[x][y], true);
 	}
 	else
 	{
@@ -772,7 +769,7 @@ bool AAIExecute::BuildExtractor()
 	std::list<PossibleSpotForMetalExtractor> extractorSpots;
 
 	// determine max search dist - prevent crashes on smaller maps
-	int max_search_dist = min(cfg->MAX_MEX_DISTANCE, ai->Getbrain()->max_distance);
+	int max_search_dist = min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->sectors.size()) );
 	float min_dist;
 
 	bool freeMetalSpotFound = false;
@@ -781,22 +778,18 @@ bool AAIExecute::BuildExtractor()
 	{
 		//! @todo Fix possible wrong value if metal spots are skipped because enemy units are within base sector
 		if(distanceFromBase == 1)
-			ai->Getbrain()->freeBaseSpots = false;
+			ai->Getbrain()->m_freeMetalSpotsInBase = false;
 
 		for(auto sector = ai->Getbrain()->sectors[distanceFromBase].begin(); sector != ai->Getbrain()->sectors[distanceFromBase].end(); ++sector)
 		{
 			if(    (*sector)->freeMetalSpots 
-				&& !ai->Getmap()->IsAlreadyOccupiedByAlliedAAI(*sector)
+				&& !ai->Getmap()->IsAlreadyOccupiedByOtherAAI(*sector)
 				&& !(*sector)->IsOccupiedByEnemies() )		
 			{
 				for(auto spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
 				{
 					if(!(*spot)->occupied)
 					{
-						float3 myPos = (*spot)->pos;
-						myPos.y = ai->Getcb()->GetElevation(myPos.x, myPos.z);
-						ai->Getcb()->DrawUnit("armmine1", myPos, 0.0f, 4000, ai->Getcb()->GetMyAllyTeam(), false, true);
-			
 						freeMetalSpotFound = true;
 
 						UnitDefId extractor = ((*spot)->pos.y >= 0) ? landExtractor : seaExtractor;
@@ -1822,7 +1815,7 @@ void AAIExecute::DefendMex(int mex, int def_id)
 		return;
 
 	float3 pos = ai->Getcb()->GetUnitPos(mex);
-	const float3 base_pos = ai->Getbrain()->base_center;
+	const float3& base_pos = ai->Getbrain()->GetCenterOfBase();
 
 	// check if mex is located in a small pond/on a little island
 	if(ai->Getmap()->LocatedOnSmallContinent(pos))
@@ -1864,36 +1857,33 @@ void AAIExecute::DefendMex(int mex, int def_id)
 			if(defence.isValid())
 			{
 				// place defences according to the direction of the main base
-				if(pos.x > base_pos.x + 500)
-					pos.x += 120;
-				else if(pos.x > base_pos.x + 300)
-					pos.x += 70;
-				else if(pos.x < base_pos.x - 500)
-					pos.x -= 120;
-				else if(pos.x < base_pos.x - 300)
-					pos.x -= 70;
+				if(pos.x > base_pos.x + 500.0f)
+					pos.x += 120.0f;
+				else if(pos.x > base_pos.x + 300.0f)
+					pos.x += 70.0f;
+				else if(pos.x < base_pos.x - 500.0f)
+					pos.x -= 120.0f;
+				else if(pos.x < base_pos.x - 300.0f)
+					pos.x -= 70.0f;
 
-				if(pos.z > base_pos.z + 500)
-					pos.z += 70;
-				else if(pos.z > base_pos.z + 300)
-					pos.z += 120;
-				else if(pos.z < base_pos.z - 500)
-					pos.z -= 120;
-				else if(pos.z < base_pos.z - 300)
-					pos.z -= 70;
+				if(pos.z > base_pos.z + 500.0f)
+					pos.z += 70.0f;
+				else if(pos.z > base_pos.z + 300.0f)
+					pos.z += 120.0f;
+				else if(pos.z < base_pos.z - 500.0f)
+					pos.z -= 120.0f;
+				else if(pos.z < base_pos.z - 300.0f)
+					pos.z -= 70.0f;
 
 				// get suitable pos
-				pos = ai->Getcb()->ClosestBuildSite(&ai->Getbt()->GetUnitDef(defence.id), pos, 1400.0, 2);
+				pos = ai->Getcb()->ClosestBuildSite(&ai->Getbt()->GetUnitDef(defence.id), pos, 1400.0f, 2);
 
-				if(pos.x > 0)
+				if(pos.x > 0.0f)
 				{
-					AAIConstructor *builder;
-					float min_dist;
+					const bool commanderAllowed = (ai->Getbrain()->sectors[0].size() > 2);
 
-					if(ai->Getbrain()->sectors[0].size() > 2)
-						builder = ai->Getut()->FindClosestBuilder(defence.id, &pos, false, &min_dist);
-					else
-						builder = ai->Getut()->FindClosestBuilder(defence.id, &pos, true, &min_dist);
+					float min_dist;
+					AAIConstructor *builder = ai->Getut()->FindClosestBuilder(defence.id, &pos, commanderAllowed, &min_dist);
 
 					if(builder)
 						builder->GiveConstructionOrder(defence, pos);
@@ -2191,7 +2181,7 @@ void AAIExecute::CheckRessources()
 
 void AAIExecute::CheckMexUpgrade()
 {
-	if(ai->Getbrain()->freeBaseSpots)
+	if(ai->Getbrain()->m_freeMetalSpotsInBase)
 		return;
 
 	float cost = 0.25f + ai->Getbrain()->Affordable() / 8.0f;
@@ -2931,11 +2921,7 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 	// add best sector to base
 	if(best_sector)
 	{
-		ai->Getbrain()->AddSector(best_sector);
-		ai->Getbrain()->start_pos = best_sector->GetCenter();
-
-		ai->Getbrain()->UpdateNeighbouringSectors();
-		ai->Getbrain()->UpdateBaseCenter();
+		ai->Getbrain()->AssignSectorToBase(best_sector, true);
 	}
 }
 

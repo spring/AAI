@@ -129,7 +129,7 @@ bool AAISector::SetBase(bool base)
 		{
 			if(!(*spot)->occupied)
 			{
-				ai->Getbrain()->freeBaseSpots = true;
+				ai->Getbrain()->m_freeMetalSpotsInBase = true;
 				break;
 			}
 		}
@@ -200,7 +200,7 @@ void AAISector::FreeMetalSpot(float3 pos, const UnitDef *extractor)
 
 				// if part of the base, tell the brain that the base has now free spots again
 				if(distance_to_base == 0)
-					ai->Getbrain()->freeBaseSpots = true;
+					ai->Getbrain()->m_freeMetalSpotsInBase = true;
 
 				return;
 			}

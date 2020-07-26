@@ -44,6 +44,9 @@ public:
 
 	void Init();
 
+	//! @brief Returns max distance (in sectors) a sector can have to base
+	int GetMaxSectorDistanceToBase() const { return (xSectors + ySectors - 2); }
+
 	//! @brief Converts given position to final building position for the given unit type
 	void Pos2FinalBuildPos(float3 *pos, const UnitDef *def) const;
 
@@ -66,7 +69,7 @@ public:
 	uint32_t getSuitableMovementTypesForMap() const { return getSuitableMovementTypes(map_type); };
 
 	//! @brief Returns whether the given sector is already occupied by another AAI player of the same team
-	bool IsAlreadyOccupiedByAlliedAAI(const AAISector* sector) const { return (team_sector_map[sector->x][sector->y] != -1) && (team_sector_map[sector->x][sector->y] != m_myTeamId); }
+	bool IsAlreadyOccupiedByOtherAAI(const AAISector* sector) const { return (team_sector_map[sector->x][sector->y] != -1) && (team_sector_map[sector->x][sector->y] != m_myTeamId); }
 
 	// returns sector (0 if out of sector map -> e.g. aircraft flying outside of the map) of a position
 	AAISector* GetSectorOfPos(const float3& pos);
