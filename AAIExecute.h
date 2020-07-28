@@ -123,9 +123,6 @@ public:
 	// returns buildque for a certain factory
 	std::list<int>* GetBuildqueueOfFactory(int def_id);
 
-	//! @brief Determines rally point for given movement type on given continent - returns whether search has been successfull
-	bool searchForRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId, int minDist, int maxDist);
-
 	float3 GetUnitBuildsite(int builder, int unit);
 
 	int unitProductionRate;

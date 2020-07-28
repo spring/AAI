@@ -47,7 +47,6 @@ AAIBrain::~AAIBrain(void)
 {
 }
 
-
 AAISector* AAIBrain::GetAttackDest(bool land, bool water)
 {
 	float best_rating = 0.0f, my_rating = 0.0f;
@@ -381,6 +380,60 @@ bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 		return true;
 	else
 		return false;
+}
+
+bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId)
+{
+	AAISector* bestSector(nullptr);
+	AAISector* secondBestSector(nullptr);
+
+	float bestRating(0.0f);
+
+	for(int i = 1; i <= 2; ++i)
+	{
+		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->sectors[i].begin(); sector != ai->Getbrain()->sectors[i].end(); ++sector)
+		{
+			const float edgeDistance = static_cast<float>( (*sector)->GetEdgeDistance() );
+			const float totalAttacks = (*sector)->GetLostUnits() + (*sector)->GetTotalAttacksInThisGame();
+
+			float myRating = std::min(totalAttacks, 5.0f)
+			               + std::min(2.0f* edgeDistance, 6.0f)
+			               + 3.0f * (*sector)->GetNumberOfBuildings(EUnitCategory::METAL_EXTRACTOR)
+						   + 4.0f / (2.0f + static_cast<float>( (*sector)->rally_points ) ); 
+			
+			if( moveType.isGround() )
+			{
+				myRating += 3.0f * (*sector)->flat_ratio;
+			}
+			else if( moveType.isAir() || moveType.isAmphibious() || moveType.isHover())
+			{
+				myRating += 3.0f * ((*sector)->flat_ratio + (*sector)->water_ratio);
+			}
+			else
+			{
+				myRating += 3.0f * (*sector)->water_ratio;
+			}
+			
+			if(myRating > bestRating)
+			{
+				bestRating       = myRating;
+				secondBestSector = bestSector;
+				bestSector       = *sector;
+			}
+		}
+	}
+
+	// continent bound units must get a rally point on their current continent
+	const bool continentBound = moveType.cannotMoveToOtherContinents();
+	bool rallyPointFound(false);
+
+	if(bestSector)
+		rallyPointFound = continentBound ? bestSector->determineMovePosOnContinent(&rallyPoint, continentId) : bestSector->determineMovePos(&rallyPoint);
+
+	if(!rallyPointFound && secondBestSector)
+		rallyPointFound = continentBound ? secondBestSector->determineMovePosOnContinent(&rallyPoint, continentId) : secondBestSector->determineMovePos(&rallyPoint);
+
+	return rallyPointFound;
 }
 
 bool AAIBrain::ExpandBase(SectorType sectorType)

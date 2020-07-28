@@ -119,6 +119,14 @@ public:
 	//! @brief Returns lost airunits in that sector
 	float GetLostAirUnits() const { return m_lostAirUnits; }
 
+	//! @brief Returns number of attacks by the main combat categories (ground, hover, air)
+	float GetTotalAttacksInThisGame() const 
+	{
+		return    attacked_by_this_game[AAICombatUnitCategory(ECombatUnitCategory::GROUND_COMBAT).GetArrayIndex()]
+				+ attacked_by_this_game[AAICombatUnitCategory(ECombatUnitCategory::HOVER_COMBAT).GetArrayIndex()]
+				+ attacked_by_this_game[AAICombatUnitCategory(ECombatUnitCategory::SEA_COMBAT).GetArrayIndex()];
+	}
+
 	// returns center of the sector
 	float3 GetCenter();
 
@@ -140,14 +148,11 @@ public:
 	// returns true if sector is connected with a big ocean (and not only a small pond)
 	bool ConnectedToOcean();
 
-	// returns min dist to edge in number of sectors
-	int GetEdgeDistance();
+	//! @brief Returns minimum distance to one of the map edges (in sector sizes)
+	int GetEdgeDistance() const { return m_minSectorDistanceToMapEdge; }
 
 	// sector x/y index
 	int x, y;
-
-	// minimum distance to edge in number of sectors
-	int map_border_dist;
 
 	// water and flat terrain ratio
 	float flat_ratio;
@@ -206,6 +211,7 @@ public:
 	vector<float> enemy_stat_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine @todo: Check if hover really makes sense or can be merged with ground
 	vector<float> enemy_mobile_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine, 5 building
 	AAI* Getai() { return ai; }
+
 private:
 	float GetEnemyCombatPowerAgainstCombatCategory(int combat_category);
 
@@ -238,6 +244,9 @@ private:
 	void DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const;
 
 	AAI *ai;
+
+	//! Minimum distance to one of the map edges (in sector sizes)
+	int m_minSectorDistanceToMapEdge;
 
 	//! Number of own buildings of each category in the sector
 	std::vector<int> m_ownBuildingsOfCategory;

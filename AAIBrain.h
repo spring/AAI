@@ -64,7 +64,10 @@ public:
 	// returns pos where scout schould be sent to
 	void GetNewScoutDest(float3 *dest, int scout);
 
-	// adds new sectors to base
+	//! @brief Determines rally point for given movement type on given continent - returns whether search has been successfull
+	bool DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId);
+
+	//! @brief Tries to add a new sectors to base, returns true if successful (may fail because base already reached maximum size or no suitable sectors found)
 	bool ExpandBase(SectorType sectorType);
 
 	// returns how much ressources can be spent for unit construction atm

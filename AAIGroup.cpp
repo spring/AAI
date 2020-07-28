@@ -19,6 +19,7 @@
 #include "AAIConfig.h"
 #include "AAIMap.h"
 #include "AAISector.h"
+#include "AAIBrain.h"
 
 
 #include "LegacyCpp/UnitDef.h"
@@ -104,7 +105,7 @@ bool AAIGroup::AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId)
 	if(continentId == m_continentId)
 	{
 		//check if type match && current size
-		if( (m_groupDefId.id == unitDefId.id) && (units.size() < maxSize) && !attack && (task == GROUP_IDLE || task == GROUP_RETREATING))
+		if( (m_groupDefId.id == unitDefId.id) && (units.size() < maxSize) && !attack && (task != GROUP_ATTACKING) && (task != GROUP_BOMBING))
 		{
 			units.push_back(int2(unitId.id, unitDefId.id));
 			++size;
@@ -324,23 +325,23 @@ void AAIGroup::AttackSector(AAISector *dest, float importance)
 	int group_x = pos.x/ai->Getmap()->xSectorSize;
 	int group_y = pos.z/ai->Getmap()->ySectorSize;
 
-	c.SetParam(0, 0.5f * (dest->left   + dest->right));
-	c.SetParam(2, 0.5f * (dest->bottom + dest->top)  );
+	//c.SetParam(0, 0.5f * (dest->left   + dest->right));
+	//c.SetParam(2, 0.5f * (dest->bottom + dest->top)  );
 
 	// choose location that way that attacking units must cross the entire sector
 	if(dest->x > group_x)
-		c.SetParam(0, (dest->left + 7 * dest->right)/8);
+		c.SetParam(0, (dest->left + 7.0f * dest->right)/8.0f);
 	else if(dest->x < group_x)
-		c.SetParam(0, (7 * dest->left + dest->right)/8);
+		c.SetParam(0, (7 * dest->left + dest->right)/8.0f);
 	else
-		c.SetParam(0, (dest->left + dest->right)/2);
+		c.SetParam(0, (dest->left + dest->right)/2.0f);
 
 	if(dest->y > group_y)
-		c.SetParam(2, (7.0f * dest->bottom + dest->top)/8);
+		c.SetParam(2, (7.0f * dest->bottom + dest->top)/8.0f);
 	else if(dest->y < group_y)
-		c.SetParam(2, (dest->bottom + 7.0f * dest->top)/8);
+		c.SetParam(2, (dest->bottom + 7.0f * dest->top)/8.0f);
 	else
-		c.SetParam(2, (dest->bottom + dest->top)/2);
+		c.SetParam(2, (dest->bottom + dest->top)/2.0f);
 
 	c.SetParam(1, ai->Getcb()->GetElevation(c.GetParam(0), c.GetParam(2)));
 
@@ -400,9 +401,8 @@ int AAIGroup::GetRandomUnit()
 
 bool AAIGroup::SufficientAttackPower()
 {
-	return true; 
 	//! @todo Check if this criteria are really sensible
-	if(units.size() >= maxSize - 1)
+	if(units.size() >= 2) //maxSize - 1)
 		return true;
 
 	if(group_unit_type == ASSAULT_UNIT)
@@ -473,7 +473,7 @@ bool AAIGroup::SufficientAttackPower()
 
 bool AAIGroup::AvailableForAttack()
 {
-	if(!attack && task == GROUP_IDLE)
+	if(!attack)
 	{
 		if(group_unit_type == ASSAULT_UNIT)
 		{
@@ -662,9 +662,9 @@ void AAIGroup::GetNewRallyPoint()
 		--sector->rally_points;
 	}
 
-	bool rallyPointFound = ai->Getexecute()->searchForRallyPoint(m_rallyPoint, m_moveType, m_continentId, 1, 1);
+	const bool rallyPointFound = ai->Getbrain()->DetermineRallyPoint(m_rallyPoint, m_moveType, m_continentId);
 
-	if(rallyPointFound == true)
+	if(rallyPointFound)
 	{
 		//add new rally point to sector
 		sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
@@ -678,5 +678,9 @@ void AAIGroup::GetNewRallyPoint()
 
 			GiveOrder(&c, 90, HEADING_TO_RALLYPOINT, "Group::RallyPoint");
 		}
+	}
+	else
+	{
+		ai->Log("Failed to determine rally point for goup of unit type %s!\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str());
 	}
 }

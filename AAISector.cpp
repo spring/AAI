@@ -56,16 +56,10 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 	this->bottom = bottom;
 
 	// determine map border distance
-	map_border_dist = x;
+	const int xEdgeDist = std::min(x, ai->Getmap()->xSectors - 1 - x);
+	const int yEdgeDist = std::min(y, ai->Getmap()->ySectors - 1 - y);
 
-	if(ai->Getmap()->xSectors - x < map_border_dist)
-		map_border_dist = ai->Getmap()->xSectors - x;
-
-	if(y < map_border_dist)
-		map_border_dist = y;
-
-	if(ai->Getmap()->ySectors - y < map_border_dist)
-		map_border_dist = ai->Getmap()->ySectors - y;
+	m_minSectorDistanceToMapEdge = std::min(xEdgeDist, yEdgeDist);
 
 	const float3 center = GetCenter();
 	continent = ai->Getmap()->GetContinentID(center);
@@ -786,22 +780,4 @@ bool AAISector::determineMovePosOnContinent(float3 *pos, int continent)
 
 	*pos = ZeroVector;
 	return false;
-}
-
-int AAISector::GetEdgeDistance()
-{
-	if(x > y)
-	{
-		if(y < ai->Getmap()->ySectors - y)
-			return y;
-		else
-			return ai->Getmap()->ySectors - y;
-	}
-	else
-	{
-		if(x < ai->Getmap()->xSectors - x)
-			return x;
-		else
-			return ai->Getmap()->xSectors - x;
-	}
 }

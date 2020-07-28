@@ -242,7 +242,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	int continentId = -1;
 	
 	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.GetMovementType(unitDefId);
-	if( moveType.cannotMoveToOtherContinents() == true )
+	if( moveType.cannotMoveToOtherContinents() )
 	{
 		const float3 unitPos = ai->Getcb()->GetUnitPos(unitDefId.id);
 		continentId = ai->Getmap()->GetContinentID(unitPos);
@@ -267,7 +267,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	// -> create new one
 
 	// get continent for ground assault units, even if they are amphibious (otherwise non amphib ground units will be added no matter which continent they are on)
-	if( (category.isGroundCombat() == true)  && (continentId == -1) )  
+	if( (category.isGroundCombat())  && (continentId == -1) )  
 	{
 		const float3 pos = ai->Getcb()->GetUnitPos(unitId.id);
 		continentId = ai->Getmap()->GetContinentID(pos);
@@ -564,48 +564,6 @@ void AAIExecute::InitBuildques()
 			++i;
 		}
 	}
-}
-
-bool AAIExecute::searchForRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId, int minSectorDist, int maxSectorDist)
-{
-	// continent bound units must get a rally point on their current continent
-	if( moveType.cannotMoveToOtherContinents() == true )
-	{
-		// check neighbouring sectors
-		for(int i = minSectorDist; i <= maxSectorDist; ++i)
-		{
-			if( moveType.canMoveOnLand() == true )
-				ai->Getbrain()->sectors[i].sort(suitable_for_ground_rallypoint);
-			else if( moveType.canMoveOnSea() == true )
-				ai->Getbrain()->sectors[i].sort(suitable_for_sea_rallypoint);
-
-			for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[i].begin(); sector != ai->Getbrain()->sectors[i].end(); ++sector)
-			{
-				bool rallyPointFound = (*sector)->determineMovePosOnContinent(&rallyPoint, continentId);
-
-				if(rallyPointFound == true)
-					return true;
-			}
-		}
-	}
-	else // non continent bound units may get rally points at any pos (sea or ground)
-	{
-		// check neighbouring sectors
-		for(int i = minSectorDist; i <= maxSectorDist; ++i)
-		{
-			ai->Getbrain()->sectors[i].sort(suitable_for_all_rallypoint);
-
-			for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[i].begin(); sector != ai->Getbrain()->sectors[i].end(); ++sector)
-			{
-				bool rallyPointFound = (*sector)->determineMovePos(&rallyPoint);
-
-				if(rallyPointFound == true)
-					return true;
-			}
-		}
-	}
-
-	return false;
 }
 
 // ****************************************************************************************************
@@ -2611,37 +2569,37 @@ bool AAIExecute::least_dangerous(AAISector *left, AAISector *right)
 
 bool AAIExecute::suitable_for_power_plant(AAISector *left, AAISector *right)
 {
-	return sector_threat(left) * (float)left->map_border_dist < sector_threat(right) * (float)right->map_border_dist;
+	return sector_threat(left) * static_cast<float>( left->GetEdgeDistance() ) < sector_threat(right) * static_cast<float>( right->GetEdgeDistance() );
 }
 
 bool AAIExecute::suitable_for_ground_factory(AAISector *left, AAISector *right)
 {
-	return ( (2.0f * left->flat_ratio + left->map_border_dist)
-			> (2.0f * right->flat_ratio + right->map_border_dist) );
+	return ( (2.0f * left->flat_ratio + static_cast<float>( left->GetEdgeDistance() ))
+			> (2.0f * right->flat_ratio + static_cast<float>( right->GetEdgeDistance() )) );
 }
 
 bool AAIExecute::suitable_for_sea_factory(AAISector *left, AAISector *right)
 {
-	return ( (2.0f * left->water_ratio + left->map_border_dist)
-			> (2.0f * right->water_ratio + right->map_border_dist) );
+	return ( (2.0f * left->water_ratio + static_cast<float>( left->GetEdgeDistance() ))
+			> (2.0f * right->water_ratio + static_cast<float>( right->GetEdgeDistance() )) );
 }
 
 bool AAIExecute::suitable_for_ground_rallypoint(AAISector *left, AAISector *right)
 {
-	return ( (left->flat_ratio  + 0.5f * left->map_border_dist)/ ((float) (left->rally_points + 1) )
-		>  (right->flat_ratio  + 0.5f * right->map_border_dist)/ ((float) (right->rally_points + 1) ) );
+	return ( (left->flat_ratio  + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
+		>  (right->flat_ratio  + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
 }
 
 bool AAIExecute::suitable_for_sea_rallypoint(AAISector *left, AAISector *right)
 {
-	return ( (left->water_ratio  + 0.5f * left->map_border_dist)/ ((float) (left->rally_points + 1) )
-		>  (right->water_ratio  + 0.5f * right->map_border_dist)/ ((float) (right->rally_points + 1) ) );
+	return ( (left->water_ratio  + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
+		>  (right->water_ratio  + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
 }
 
 bool AAIExecute::suitable_for_all_rallypoint(AAISector *left, AAISector *right)
 {
-	return ( (left->flat_ratio + left->water_ratio + 0.5f * left->map_border_dist)/ ((float) (left->rally_points + 1) )
-		>  (right->flat_ratio + right->water_ratio + 0.5f * right->map_border_dist)/ ((float) (right->rally_points + 1) ) );
+	return ( (left->flat_ratio + left->water_ratio + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
+		>  (right->flat_ratio + right->water_ratio + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
 }
 
 bool AAIExecute::defend_vs_ground(AAISector *left, AAISector *right)
@@ -2839,7 +2797,7 @@ float3 AAIExecute::determineSafePos(UnitDefId unitDefId, float3 unit_pos)
 
 			if(ai->Getmap()->GetContinentID(pos) == cont_id)
 			{
-				my_rating = (*sector)->map_border_dist - (*sector)->getEnemyThreatToMovementType(moveType);
+				my_rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->getEnemyThreatToMovementType(moveType);
 
 				if(my_rating > best_rating)
 				{
@@ -2854,7 +2812,7 @@ float3 AAIExecute::determineSafePos(UnitDefId unitDefId, float3 unit_pos)
 	{
 		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 		{
-			my_rating = (*sector)->map_border_dist - (*sector)->getEnemyThreatToMovementType(moveType);
+			my_rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->getEnemyThreatToMovementType(moveType);
 
 			if(my_rating > best_rating)
 			{
