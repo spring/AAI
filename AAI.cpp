@@ -267,17 +267,17 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 
 				if (sector && !am->SufficientDefencePowerAt(sector, 1.2f))
 				{
-					const AAIMovementType& attackerMoveType = bt->s_buildTree.GetMovementType(UnitDefId(attackerDef->id));
+					const AAIUnitCategory& attackerCategory = bt->s_buildTree.GetUnitCategory(UnitDefId(attackerDef->id));
 
 					// building has been attacked
 					if (category.isBuilding() == true)
-						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 115);
+						execute->DefendUnitVS(damaged, attackerCategory, &pos, 115);
 					// builder
 					else if ( ut->IsBuilder(UnitId(damaged)) == true )
-						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 110);
+						execute->DefendUnitVS(damaged, attackerCategory, &pos, 110);
 					// normal units
 					else
-						execute->DefendUnitVS(damaged, attackerMoveType, &pos, 105);
+						execute->DefendUnitVS(damaged, attackerCategory, &pos, 105);
 				}
 			}
 		}
@@ -290,13 +290,6 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 		{
 			ut->units[damaged].cons->Retreat(EUnitCategory::UNKNOWN);
 		}
-			
-
-		// building has been attacked
-		//if (cat <= METAL_MAKER)
-		//	execute->DefendUnitVS(damaged, def, att_cat, NULL, 115);
-		//else if (ut->IsBuilder(damaged))
-		//	execute->DefendUnitVS(damaged, def, att_cat, NULL, 110);
 	}
 }
 

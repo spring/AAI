@@ -607,9 +607,9 @@ void AAIBrain::UpdateDefenceCapabilities()
 		{
 			for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[category->GetArrayIndex()].begin(); group != ai->Getgroup_list()[category->GetArrayIndex()].end(); ++group)
 			{
-				if((*group)->group_unit_type == ASSAULT_UNIT)
+				if((*group)->GetUnitTypeOfGroup().IsAssaultUnit())
 				{
-					switch((*group)->category.getUnitCategory())
+					switch((*group)->GetUnitCategoryOfGroup().getUnitCategory())
 					{
 						case EUnitCategory::GROUND_COMBAT:
 							defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(0);
@@ -631,7 +631,7 @@ void AAIBrain::UpdateDefenceCapabilities()
 							break;
 					}	
 				}
-				else if((*group)->group_unit_type == ANTI_AIR_UNIT)
+				else if((*group)->GetUnitTypeOfGroup().IsAntiAir())
 					defence_power_vs[1] += (*group)->GetCombatPowerVsCategory(1);
 			}
 		}

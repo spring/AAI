@@ -43,7 +43,7 @@ public:
 
 	bool RemoveUnit(int unit, int attacker);
 
-	void GiveOrder(Command *c, float importance, UnitTask task, const char *owner);
+	void GiveOrderToGroup(Command *c, float importance, UnitTask task, const char *owner);
 
 	void AttackSector(AAISector *dest, float importance);
 
@@ -86,6 +86,12 @@ public:
 	//! @brief Return the id of the continent the units of this group are stationed on (-1 for non-continent bound movement types)
 	int GetContinentId() const { return m_continentId; }
 
+	//! @brief Returns the combat unit type of the units in the group 
+	const AAIUnitType& GetUnitTypeOfGroup() const { return m_groupType; }
+
+	//! @brief Returns the combat unit type of the units in the group 
+	const AAIUnitCategory& GetUnitCategoryOfGroup() const { return m_category; }
+
 	float3 GetGroupPos();
 
 	// checks if the group may participate in an attack (= idle, sufficient combat power, etc.)
@@ -97,16 +103,9 @@ public:
 	float avg_speed;
 	list<int2> units;
 
-
 	float task_importance;	// importance of current task
 
 	GroupTask task;
-
-	AAIUnitCategory category;
-
-	int combat_category;
-
-	UnitType group_unit_type;
 
 	//! The movement type of the units of the group
 	AAIMovementType m_moveType;
@@ -117,11 +116,21 @@ public:
 private:
 	// returns true if group is strong enough to attack
 	bool SufficientAttackPower();
+
+	//! @brief Helper function used to determine the exact attack location when issueing attack orders
+	void DeterminePositionForAttackOrder(Command& c, const AAISector* targetSector, const float3& currentUnitPos) const;
+
 	int lastCommandFrame;
 	Command lastCommand;
 
 	//! The type of units in this group
 	UnitDefId m_groupDefId;
+
+	//! The unit category of the units in this group
+	AAIUnitCategory m_category;
+
+	//! The unit type of the units in this group
+	AAIUnitType m_groupType;
 
 	AAI* ai;
 

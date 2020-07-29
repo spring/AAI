@@ -112,7 +112,7 @@ void AAIAttack::AttackSector(AAISector *sector)
 				Command c(CMD_GUARD);
 				c.PushParam(unit);
 
-				(*group)->GiveOrder(&c, 110, GUARDING, "Group::AttackSector");
+				(*group)->GiveOrderToGroup(&c, 110, GUARDING, "Group::AttackSector");
 			}
 		}
 	}
@@ -125,12 +125,12 @@ void AAIAttack::AttackSector(AAISector *sector)
 
 void AAIAttack::AddGroup(AAIGroup *group)
 {
-	if(group->group_unit_type == ASSAULT_UNIT)
+	if(group->GetUnitTypeOfGroup().IsAssaultUnit())
 	{
 		combat_groups.insert(group);
 		group->attack = this;
 	}
-	else if(group->group_unit_type == ANTI_AIR_UNIT)
+	else if(group->GetUnitTypeOfGroup().IsAntiAir())
 	{
 		aa_groups.insert(group);
 		group->attack = this;
@@ -144,11 +144,11 @@ void AAIAttack::AddGroup(AAIGroup *group)
 
 void AAIAttack::RemoveGroup(AAIGroup *group)
 {
-	if(group->group_unit_type == ASSAULT_UNIT)
+	if(group->GetUnitTypeOfGroup().IsAssaultUnit())
 	{
 		combat_groups.erase(group);
 	}
-	else if(group->group_unit_type == ANTI_AIR_UNIT)
+	else if(group->GetUnitTypeOfGroup().IsAntiAir())
 	{
 		aa_groups.erase(group);
 	}

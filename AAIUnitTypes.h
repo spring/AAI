@@ -171,14 +171,15 @@ enum class EUnitType : int
 	ANTI_SURFACE         = 0x0004, //! Used for combat units/static defences that can fight land/hover/floating units
 	ANTI_AIR             = 0x0008, //! Anti air combat units/static defences
 	ANTI_SUBMERGED       = 0x0010, //! Anti submarine combat units/static defences
-	RADAR                = 0x0020, //! Radar
-	SONAR                = 0x0040, //! Sonar
-	SEISMIC              = 0x0080, //! Seismic detector
-	RADAR_JAMMER         = 0x0100, //! Radar jammer
-	SONAR_JAMMER         = 0x0200, //! Sonar jammer
-	BUILDER              = 0x0400, //! Can construct buildings
-	FACTORY              = 0x0800, //! Can construct units
-	CONSTRUCTION_ASSIST  = 0x1000, //! Can assists with cosntruction of units/buildings
+	ANTI_STATIC          = 0x0020, //! Anti building (bombers)
+	RADAR                = 0x0040, //! Radar
+	SONAR                = 0x0080, //! Sonar
+	SEISMIC              = 0x0100, //! Seismic detector
+	RADAR_JAMMER         = 0x0200, //! Radar jammer
+	SONAR_JAMMER         = 0x0400, //! Sonar jammer
+	BUILDER              = 0x0800, //! Can construct buildings
+	FACTORY              = 0x1000, //! Can construct units
+	CONSTRUCTION_ASSIST  = 0x2000, //! Can assists with construction of units/buildings
 };
 
 //! @brief Unit type with convenience functions (works as bitmask)
@@ -211,6 +212,9 @@ public:
 	//! Returns whether unit is considered to be able to fight submerged units (submarines)
 	bool IsAntiSubmerged()   const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_SUBMERGED)); }
 
+	//! Returns whether unit is considered to be able to fight static units more efficiently (e.g. bombers, missile launchers)
+	bool IsAntiStatic()      const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_STATIC)); }
+
 	//! Returns true if radar flag is set
 	bool IsRadar()           const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::RADAR)); }
 
@@ -233,7 +237,10 @@ public:
 	bool IsFactory()         const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::FACTORY)); }
 
 	//! Returns true if unit can help with costruction of other units/buildings
-	bool IsConstrcutionAssist()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::CONSTRUCTION_ASSIST)); }
+	bool IsConstructionAssist()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::CONSTRUCTION_ASSIST)); }
+
+	//! Returns whether unit is considered to be able to fight against surface or submerged units (not anti air)
+	bool IsAssaultUnit()     const { return static_cast<bool>(m_unitType & (static_cast<int>(EUnitType::ANTI_SURFACE) + static_cast<int>(EUnitType::ANTI_SUBMERGED) )); }
 
 private:
 	//! Unit type

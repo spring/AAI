@@ -115,7 +115,7 @@ public:
 	void CheckFallBack(int unit_id, int def_id);
 
 	//! @brief Tries to call support against specific attacker (e.g. air)
-	void DefendUnitVS(int unit, const AAIMovementType& attackerMoveType, float3 *enemy_pos, int importance);
+	void DefendUnitVS(int unit, const AAIUnitCategory& attackerCategory, float3 *enemy_pos, int importance) const;
 
 	//! @brief Adds the given number of units to the most suitable buildqueue
 	bool AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent);
@@ -193,9 +193,8 @@ private:
 	// chooses a starting sector close to specified sector
 	void ChooseDifferentStartingSector(int x, int y);
 
-	// returns closest (taking into account movement speed) group with units of specified unit type that may reach the location
-
-	AAIGroup* GetClosestGroupForDefence(UnitType group_type, float3 *pos, int continent, int importance);
+	//! @brief Returns closest (taking into account movement speed) group with units of specified unit type that may reach the location
+	AAIGroup* GetClosestGroupForDefence(EUnitType groupType, const float3* pos, int continent, int importance) const;
 	
 	float3 GetBuildsite(int builder, int building, UnitCategory category);
 	void InitBuildques();

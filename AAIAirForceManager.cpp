@@ -75,21 +75,21 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 			{
 				if(category.isAirCombat() == true)
 				{
-					group = GetAirGroup(100.0, ANTI_AIR_UNIT);
+					group = GetAirGroup(100.0, EUnitType::ANTI_AIR);
 
 					if(group)
 						group->DefendAirSpace(&pos);
 				}
 				else if(category.isBuilding() == true)
 				{
-					group = GetAirGroup(100.0, BOMBER_UNIT);
+					group = GetAirGroup(100.0, EUnitType::ANTI_STATIC);
 
 					if(group)
 						group->BombTarget(unitId.id, &pos);
 				}
 				else
 				{
-					group = GetAirGroup(100.0, ASSAULT_UNIT);
+					group = GetAirGroup(100.0, EUnitType::ANTI_SURFACE);
 
 					if(group)
 						group->AirRaidUnit(unitId.id);
@@ -197,7 +197,7 @@ void AAIAirForceManager::BombBestUnit(float cost, float danger)
 
 	if(best_target != -1)
 	{
-		AAIGroup *group = GetAirGroup(100.0, BOMBER_UNIT);
+		AAIGroup *group = GetAirGroup(100.0, EUnitType::ANTI_STATIC);
 
 		if(group)
 		{
@@ -210,25 +210,14 @@ void AAIAirForceManager::BombBestUnit(float cost, float danger)
 	}
 }
 
-AAIGroup* AAIAirForceManager::GetAirGroup(float importance, UnitType group_type)
+AAIGroup* AAIAirForceManager::GetAirGroup(float importance, EUnitType groupType) const
 {
-	if(cfg->AIR_ONLY_MOD)
+	for(std::list<AAIGroup*>::iterator group = air_groups->begin(); group != air_groups->end(); ++group)
 	{
-		for(list<AAIGroup*>::iterator group = air_groups->begin(); group != air_groups->end(); ++group)
-		{
-			if((*group)->task_importance < importance && group_type == (*group)->group_unit_type  && (*group)->units.size() > (*group)->maxSize/2)
-				return *group;
-		}
+		if( ((*group)->task_importance < importance) && (*group)->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) && ((*group)->units.size() > (*group)->maxSize/2) )
+			return *group;
 	}
-	else
-	{
-		for(list<AAIGroup*>::iterator group = air_groups->begin(); group != air_groups->end(); ++group)
-		{
-			if((*group)->task_importance < importance && group_type == (*group)->group_unit_type && (*group)->units.size() >= (*group)->maxSize)
-				return *group;
-		}
-	}
-
+	
 	return 0;
 }
 

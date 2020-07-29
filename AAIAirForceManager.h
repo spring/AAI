@@ -53,7 +53,8 @@ public:
 	vector<AAIAirTarget> targets;
 
 private:
-	AAIGroup* GetAirGroup(float importance, UnitType group_type);
+	//! @brief Returns a group of air units of given type currently occupied with a task of lower priority (or idle) - nullptr if none found
+	AAIGroup* GetAirGroup(float importance, EUnitType groupType) const;
 
 	// returns true if uni already in target list
 	bool IsTarget(int unit_id);

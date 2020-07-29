@@ -129,7 +129,7 @@ private:
 
 	bool IsBuilder(UnitDefId unitDefId)  const { return ai->Getbt()->s_buildTree.GetUnitType(unitDefId).IsBuilder(); };
 
-	bool IsAssister(UnitDefId unitDefId) const { return ai->Getbt()->s_buildTree.GetUnitType(unitDefId).IsConstrcutionAssist(); };
+	bool IsAssister(UnitDefId unitDefId) const { return ai->Getbt()->s_buildTree.GetUnitType(unitDefId).IsConstructionAssist(); };
 
 	//! Number of active (i.e. not under construction anymore) units of each unit category
 	std::vector<int> m_activeUnitsOfCategory;

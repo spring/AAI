@@ -84,7 +84,7 @@ void AAIAttackManager::LaunchAttack()
 				
 				if( (*group)->m_moveType.cannotMoveToOtherContinents() )
 				{
-					if((*group)->group_unit_type == ASSAULT_UNIT)
+					if((*group)->GetUnitTypeOfGroup().IsAssaultUnit())
 					{
 						available_combat_groups_continent[(*group)->GetContinentId()].push_back(*group);
 						++total_combat_groups;
@@ -94,7 +94,7 @@ void AAIAttackManager::LaunchAttack()
 				}
 				else
 				{
-					if((*group)->group_unit_type == ASSAULT_UNIT)
+					if((*group)->GetUnitTypeOfGroup().IsAssaultUnit())
 					{
 						available_combat_groups_global.push_back(*group);
 						++total_combat_groups;
@@ -317,7 +317,10 @@ bool AAIAttackManager::SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *
 		for(set<AAIGroup*>::iterator group = combat_groups->begin(); group != combat_groups->end(); ++group)
 		{
 			attack_power += (*group)->GetCombatPowerVsCategory(5);
-			available_combat_cat[(*group)->combat_category] += (*group)->size;
+			
+			int combatCategoryIndex = ai->Getbt()->GetIDOfAssaultCategory((*group)->GetUnitCategoryOfGroup());
+
+			available_combat_cat[combatCategoryIndex] += (*group)->size;
 			total_units += (*group)->size;
 		}
 
@@ -380,15 +383,16 @@ bool AAIAttackManager::SufficientCombatPowerAt(const AAISector *dest, set<AAIGro
 		// get ammount of involved groups per category
 		total_units = 1;
 
-		for(set<AAIGroup*>::iterator group = combat_groups->begin(); group != combat_groups->end(); ++group)
+		for(std::set<AAIGroup*>::iterator group = combat_groups->begin(); group != combat_groups->end(); ++group)
 		{
-			available_combat_cat[(*group)->combat_category] += (*group)->size;
+			int combatCategoryIndex = ai->Getbt()->GetIDOfAssaultCategory((*group)->GetUnitCategoryOfGroup());
+			available_combat_cat[combatCategoryIndex] += (*group)->size;
 			total_units += (*group)->size;
 		}
 
 		// get total enemy power
 		for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-			enemy_power += dest->GetEnemyAreaCombatPowerVs(i, 0.25) * (float)available_combat_cat[i];
+			enemy_power += dest->GetEnemyAreaCombatPowerVs(i, 0.25f) * (float)available_combat_cat[i];
 
 		enemy_power /= (float)total_units;
 
