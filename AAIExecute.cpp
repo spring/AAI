@@ -92,10 +92,10 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 		return;
 	}
 
-	ai->Log("My team / ally team: %i / %i\n", ai->Getcb()->GetMyTeam(), ai->Getcb()->GetMyAllyTeam());
+	ai->Log("My team / ally team: %i / %i\n", ai->GetAICallback()->GetMyTeam(), ai->GetAICallback()->GetMyAllyTeam());
 
 	// tell the brain about the starting sector
-	float3 pos = ai->Getcb()->GetUnitPos(commander_unit_id);
+	float3 pos = ai->GetAICallback()->GetUnitPos(commander_unit_id);
 	int x = pos.x/ai->Getmap()->xSectorSize;
 	int y = pos.z/ai->Getmap()->ySectorSize;
 
@@ -143,8 +143,8 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 
 void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos)
 {
-	AAIBuildTask *task = new AAIBuildTask(ai, unitId.id, unitDefId.id, pos, ai->Getcb()->GetCurrentFrame());
-	ai->Getbuild_tasks().push_back(task);
+	AAIBuildTask *task = new AAIBuildTask(ai, unitId.id, unitDefId.id, pos, ai->GetAICallback()->GetCurrentFrame());
+	ai->GetBuildTasks().push_back(task);
 
 	// find builder and associate building with that builder
 	task->builder_id = -1;
@@ -228,7 +228,7 @@ void AAIExecute::stopUnit(int unit)
 // returns true if unit is busy
 bool AAIExecute::IsBusy(int unit)
 {
-	const CCommandQueue* commands = ai->Getcb()->GetCurrentUnitCommands(unit);
+	const CCommandQueue* commands = ai->GetAICallback()->GetCurrentUnitCommands(unit);
 
 	if(commands->empty())
 		return false;
@@ -244,7 +244,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	const AAIMovementType& moveType = ai->Getbt()->s_buildTree.GetMovementType(unitDefId);
 	if( moveType.cannotMoveToOtherContinents() )
 	{
-		const float3 unitPos = ai->Getcb()->GetUnitPos(unitDefId.id);
+		const float3 unitPos = ai->GetAICallback()->GetUnitPos(unitDefId.id);
 		continentId = ai->Getmap()->GetContinentID(unitPos);
 	}
 
@@ -254,7 +254,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 
 	//ai->Log("Trying to add unit %s to group of combat category %i\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), combatUnitCategory.GetArrayIndex());
 
-	for(auto group = ai->Getgroup_list()[category.GetArrayIndex()].begin(); group != ai->Getgroup_list()[category.GetArrayIndex()].end(); ++group)
+	for(auto group = ai->GetGroupList()[category.GetArrayIndex()].begin(); group != ai->GetGroupList()[category.GetArrayIndex()].end(); ++group)
 	{
 		if((*group)->AddUnit(unitId, unitDefId, continentId))
 		{
@@ -269,13 +269,13 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	// get continent for ground assault units, even if they are amphibious (otherwise non amphib ground units will be added no matter which continent they are on)
 	if( (category.isGroundCombat())  && (continentId == -1) )  
 	{
-		const float3 pos = ai->Getcb()->GetUnitPos(unitId.id);
+		const float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
 		continentId = ai->Getmap()->GetContinentID(pos);
 	}
 
 	AAIGroup *new_group = new AAIGroup(ai, unitDefId, continentId);
 
-	ai->Getgroup_list()[category.GetArrayIndex()].push_back(new_group);
+	ai->GetGroupList()[category.GetArrayIndex()].push_back(new_group);
 	new_group->AddUnit(unitId, unitDefId, continentId);
 	ai->Getut()->units[unitId.id].group = new_group;
 }
@@ -290,7 +290,7 @@ void AAIExecute::BuildScouts()
 		float cost;
 		float sightRange;
 
-		GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
+		GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 		if(gamePhase.IsStartingPhase())
 		{
@@ -357,7 +357,7 @@ float3 AAIExecute::GetBuildsite(int builder, int building, UnitCategory /*catego
 	//const UnitDef *def = ai->Getbt()->GetUnitDef(building);
 
 	// check the sector of the builder
-	builder_pos = ai->Getcb()->GetUnitPos(builder);
+	builder_pos = ai->GetAICallback()->GetUnitPos(builder);
 	// look in the builders sector first
 	int x = builder_pos.x/ai->Getmap()->xSectorSize;
 	int y = builder_pos.z/ai->Getmap()->ySectorSize;
@@ -386,7 +386,7 @@ float3 AAIExecute::GetBuildsite(int builder, int building, UnitCategory /*catego
 
 float3 AAIExecute::GetUnitBuildsite(int builder, int unit)
 {
-	float3 builder_pos = ai->Getcb()->GetUnitPos(builder);
+	float3 builder_pos = ai->GetAICallback()->GetUnitPos(builder);
 	float3 pos = ZeroVector, best_pos = ZeroVector;
 	float min_dist = 1000000, dist;
 
@@ -416,10 +416,10 @@ float AAIExecute::GetTotalGroundPower()
 	float power = 0;
 
 	// get ground power of all ground assault units
-	for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].begin(); group != ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].end(); ++group)
+	for(list<AAIGroup*>::iterator group = ai->GetGroupList()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].begin(); group != ai->GetGroupList()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].end(); ++group)
 		power += (*group)->GetCombatPowerVsCategory(0);
 
-	for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].begin(); group != ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].end(); ++group)
+	for(list<AAIGroup*>::iterator group = ai->GetGroupList()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].begin(); group != ai->GetGroupList()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].end(); ++group)
 		power += (*group)->GetCombatPowerVsCategory(0);
 
 	return power;
@@ -429,10 +429,10 @@ float AAIExecute::GetTotalAirPower()
 {
 	float power = 0;
 
-	for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].begin(); group != ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].end(); ++group)
+	for(list<AAIGroup*>::iterator group = ai->GetGroupList()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].begin(); group != ai->GetGroupList()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].end(); ++group)
 		power += (*group)->GetCombatPowerVsCategory(1);
 	
-	for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].begin(); group != ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].end(); ++group)
+	for(list<AAIGroup*>::iterator group = ai->GetGroupList()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].begin(); group != ai->GetGroupList()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].end(); ++group)
 		power += (*group)->GetCombatPowerVsCategory(1);
 
 
@@ -816,7 +816,7 @@ bool AAIExecute::BuildPowerPlant()
 		// try to assist construction of other power plants first
 		AAIConstructor *builder;
 
-		for(list<AAIBuildTask*>::iterator task = ai->Getbuild_tasks().begin(); task != ai->Getbuild_tasks().end(); ++task)
+		for(list<AAIBuildTask*>::iterator task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
 		{
 			if((*task)->builder_id >= 0)
 				builder = ai->Getut()->units[(*task)->builder_id].cons;
@@ -854,14 +854,14 @@ bool AAIExecute::BuildPowerPlant()
 	else if(ai->Getut()->activeFactories < 1 && ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) >= 2)
 		return true;
 
-	const float current_energy = ai->Getcb()->GetEnergyIncome();
+	const float current_energy = ai->GetAICallback()->GetEnergyIncome();
 
 	// stop building power plants if already to much available energy
-	if(current_energy > 1.5f * ai->Getcb()->GetEnergyUsage() + 200.0f)
+	if(current_energy > 1.5f * ai->GetAICallback()->GetEnergyUsage() + 200.0f)
 		return true;
 
 	// sort sectors according to threat level
-	learned = 70000.0f / (float)(ai->Getcb()->GetCurrentFrame() + 35000) + 1.0f;
+	learned = 70000.0f / (float)(ai->GetAICallback()->GetCurrentFrame() + 35000) + 1.0f;
 	current = 2.5f - learned;
 
 	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) >= 2)
@@ -938,7 +938,7 @@ bool AAIExecute::BuildMetalMaker()
 
 
 	// sort sectors according to threat level
-	learned = 70000.0 / (ai->Getcb()->GetCurrentFrame() + 35000) + 1;
+	learned = 70000.0 / (ai->GetAICallback()->GetCurrentFrame() + 35000) + 1;
 	current = 2.5 - learned;
 
 	ai->Getbrain()->sectors[0].sort(least_dangerous);
@@ -1063,8 +1063,8 @@ bool AAIExecute::BuildStorage()
 	AAIConstructor *builder;
 	float3 pos;
 
-	float metal  = 4.0f / (ai->Getcb()->GetMetalStorage()  + futureStoredMetal - ai->Getcb()->GetMetal()  + 1.0f);
-	float energy = 4.0f / (ai->Getcb()->GetEnergyStorage() + futureStoredMetal - ai->Getcb()->GetEnergy() + 1.0f);
+	float metal  = 4.0f / (ai->GetAICallback()->GetMetalStorage()  + futureStoredMetal - ai->GetAICallback()->GetMetal()  + 1.0f);
+	float energy = 4.0f / (ai->GetAICallback()->GetEnergyStorage() + futureStoredMetal - ai->GetAICallback()->GetEnergy() + 1.0f);
 
 	const float cost = (ai->Getut()->GetNumberOfActiveUnitsOfCategory(storage) < 1) ? 1.5f : 0.75f;
 	const float buildtime (cost); 
@@ -1227,7 +1227,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 		return BuildOrderStatus::SUCCESSFUL;
 
 	// dont start construction of further defences if expensive defences are already under construction in this sector
-	for(list<AAIBuildTask*>::iterator task = ai->Getbuild_tasks().begin(); task != ai->Getbuild_tasks().end(); ++task)
+	for(list<AAIBuildTask*>::iterator task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
 	{
 		if(ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId((*task)->def_id)).isStaticDefence() == true)
 		{
@@ -1771,7 +1771,7 @@ void AAIExecute::DefendMex(int mex, int def_id)
 	if(ai->Getut()->activeFactories < cfg->MIN_FACTORIES_FOR_DEFENCES)
 		return;
 
-	float3 pos = ai->Getcb()->GetUnitPos(mex);
+	float3 pos = ai->GetAICallback()->GetUnitPos(mex);
 	const float3& base_pos = ai->Getbrain()->GetCenterOfBase();
 
 	// check if mex is located in a small pond/on a little island
@@ -1833,7 +1833,7 @@ void AAIExecute::DefendMex(int mex, int def_id)
 					pos.z -= 70.0f;
 
 				// get suitable pos
-				pos = ai->Getcb()->ClosestBuildSite(&ai->Getbt()->GetUnitDef(defence.id), pos, 1400.0f, 2);
+				pos = ai->GetAICallback()->ClosestBuildSite(&ai->Getbt()->GetUnitDef(defence.id), pos, 1400.0f, 2);
 
 				if(pos.x > 0.0f)
 				{
@@ -1853,10 +1853,10 @@ void AAIExecute::DefendMex(int mex, int def_id)
 void AAIExecute::UpdateRessources()
 {
 	// get current metal/energy surplus
-	metalSurplus[counter] = ai->Getcb()->GetMetalIncome() - ai->Getcb()->GetMetalUsage();
+	metalSurplus[counter] = ai->GetAICallback()->GetMetalIncome() - ai->GetAICallback()->GetMetalUsage();
 	if(metalSurplus[counter] < 0) metalSurplus[counter] = 0;
 
-	energySurplus[counter] = ai->Getcb()->GetEnergyIncome() - ai->Getcb()->GetEnergyUsage();
+	energySurplus[counter] = ai->GetAICallback()->GetEnergyIncome() - ai->GetAICallback()->GetEnergyUsage();
 	if(energySurplus[counter] < 0) energySurplus[counter] = 0;
 
 	// calculate average value
@@ -1937,7 +1937,7 @@ void AAIExecute::CheckDefences()
 		|| (ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(staticDefence) +  ai->Getut()->GetNumberOfRequestedUnitsOfCategory(staticDefence) > 2) )
 		return;
 
-	GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
+	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	int max_dist = 2;
 
@@ -1953,7 +1953,7 @@ void AAIExecute::CheckDefences()
 			// stop building further defences if maximum has been reached / sector contains allied buildings / is occupied by another aai instance
 			if(    ((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < cfg->MAX_DEFENCES) 
 				&& ((*sector)->allied_structures < 4)
-				&& (ai->Getmap()->team_sector_map[(*sector)->x][(*sector)->y] != ai->Getcb()->GetMyAllyTeam()) )
+				&& (ai->Getmap()->team_sector_map[(*sector)->x][(*sector)->y] != ai->GetAICallback()->GetMyAllyTeam()) )
 			{
 				if((*sector)->failed_defences > 1)
 					(*sector)->failed_defences = 0;
@@ -2083,14 +2083,14 @@ void AAIExecute::CheckRessources()
 		{
 			for(set<int>::iterator maker = ai->Getut()->metal_makers.begin(); maker != ai->Getut()->metal_makers.end(); ++maker)
 			{
-				if(ai->Getcb()->IsUnitActivated(*maker))
+				if(ai->GetAICallback()->IsUnitActivated(*maker))
 				{
 					Command c(CMD_ONOFF);
 					c.PushParam(0);
 					//ai->Getcb()->GiveOrder(*maker, &c);
 					GiveOrder(&c, *maker, "ToggleMMaker");
 
-					futureRequestedEnergy += ai->Getcb()->GetUnitDef(*maker)->energyUpkeep;
+					futureRequestedEnergy += ai->GetAICallback()->GetUnitDef(*maker)->energyUpkeep;
 					++disabledMMakers;
 					break;
 				}
@@ -2102,9 +2102,9 @@ void AAIExecute::CheckRessources()
 	{
 		for(set<int>::iterator maker = ai->Getut()->metal_makers.begin(); maker != ai->Getut()->metal_makers.end(); ++maker)
 		{
-			if(!ai->Getcb()->IsUnitActivated(*maker))
+			if(!ai->GetAICallback()->IsUnitActivated(*maker))
 			{
-				float usage = ai->Getcb()->GetUnitDef(*maker)->energyUpkeep;
+				float usage = ai->GetAICallback()->GetUnitDef(*maker)->energyUpkeep;
 
 				if(averageEnergySurplus > usage * 0.7f)
 				{
@@ -2144,7 +2144,7 @@ void AAIExecute::CheckMexUpgrade()
 	float cost = 0.25f + ai->Getbrain()->Affordable() / 8.0f;
 	float eff  = 6.0f / (cost + 0.75f);
 
-	int my_team = ai->Getcb()->GetMyTeam();
+	int my_team = ai->GetAICallback()->GetMyTeam();
 
 	UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, eff, false, false);
 	UnitDefId seaExtractor  = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, eff, false, true);
@@ -2173,7 +2173,7 @@ void AAIExecute::CheckMexUpgrade()
 					return;
 
 				if((*spot)->extractor_def > 0 && (*spot)->extractor > -1 && (*spot)->extractor < cfg->MAX_UNITS
-					&& ai->Getcb()->GetUnitTeam((*spot)->extractor) == my_team)	// only upgrade own extractors
+					&& ai->GetAICallback()->GetUnitTeam((*spot)->extractor) == my_team)	// only upgrade own extractors
 				{
 					float extractedMetalGain;
 
@@ -2236,7 +2236,7 @@ void AAIExecute::CheckRadarUpgrade()
 		if(upgradeRadar == true)
 		{
 			// better radar found, clear buildpos
-			AAIConstructor *builder = ai->Getut()->FindClosestAssistant(ai->Getcb()->GetUnitPos(*sensor), 10, true);
+			AAIConstructor *builder = ai->Getut()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(*sensor), 10, true);
 
 			if(builder)
 			{
@@ -2345,7 +2345,7 @@ float AAIExecute::GetEnergyStorageUrgency()
 
 float AAIExecute::GetMetalStorageUrgency()
 {
-	if(averageMetalSurplus > 2.0f && (ai->Getcb()->GetMetalStorage() + futureStoredMetal - ai->Getcb()->GetMetal()) < 100.0f)
+	if(averageMetalSurplus > 2.0f && (ai->GetAICallback()->GetMetalStorage() + futureStoredMetal - ai->GetAICallback()->GetMetal()) < 100.0f)
 		return 0.3f;
 	else
 		return 0;
@@ -2394,7 +2394,7 @@ void AAIExecute::CheckAirBase()
 {
 	urgency[AIR_BASE] = 0.0f; // Detection of air base currently broken
 	// only build repair pad if any air units have been built yet
-	//if(ai->Getut()->activeUnits[AIR_BASE] +  ai->Getut()->requestedUnits[AIR_BASE] + ai->Getut()->futureUnits[AIR_BASE] < cfg->MAX_AIR_BASE && ai->Getgroup_list()[AIR_ASSAULT].size() > 0)
+	//if(ai->Getut()->activeUnits[AIR_BASE] +  ai->Getut()->requestedUnits[AIR_BASE] + ai->Getut()->futureUnits[AIR_BASE] < cfg->MAX_AIR_BASE && ai->GetGroupList()[AIR_ASSAULT].size() > 0)
 	//		urgency[AIR_BASE] = 0.5f;
 }
 
@@ -2520,7 +2520,7 @@ bool AAIExecute::AssistConstructionOfCategory(const AAIUnitCategory& category)
 {
 	AAIConstructor *builder, *assistant;
 
-	for(list<AAIBuildTask*>::iterator task = ai->Getbuild_tasks().begin(); task != ai->Getbuild_tasks().end(); ++task)
+	for(list<AAIBuildTask*>::iterator task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
 	{
 		if((*task)->builder_id >= 0)
 			builder = ai->Getut()->units[(*task)->builder_id].cons;
@@ -2731,7 +2731,7 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(EUnitType groupType, const float
 
 	for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 	{
-		for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[category->GetArrayIndex()].begin(); group != ai->Getgroup_list()[category->GetArrayIndex()].end(); ++group)
+		for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 		{
 			if((*group)->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) && !(*group)->attack)
 			{
@@ -2899,7 +2899,7 @@ void AAIExecute::CheckFallBack(int unit_id, int def_id)
 			Command c(CMD_MOVE);
 
 			c.PushParam(pos.x);
-			c.PushParam(ai->Getcb()->GetElevation(pos.x, pos.z));
+			c.PushParam(ai->GetAICallback()->GetElevation(pos.x, pos.z));
 			c.PushParam(pos.z);
 
 			//ai->Getcb()->GiveOrder(unit_id, &c);
@@ -2913,14 +2913,14 @@ void AAIExecute::GetFallBackPos(float3 *pos, int unit_id, float max_weapon_range
 {
 	*pos = ZeroVector;
 
-	const float3 unit_pos = ai->Getcb()->GetUnitPos(unit_id);
+	const float3 unit_pos = ai->GetAICallback()->GetUnitPos(unit_id);
 
 	// units without range should not end up here; this is for attacking units only
 	// prevents a NaN
 	assert(max_weapon_range != 0.0f);
 
 	// get list of enemies within weapons range
-	const int number_of_enemies = ai->Getcb()->GetEnemyUnits(&(ai->Getmap()->units_in_los.front()), unit_pos, max_weapon_range * cfg->FALLBACK_DIST_RATIO);
+	const int number_of_enemies = ai->GetAICallback()->GetEnemyUnits(&(ai->Getmap()->units_in_los.front()), unit_pos, max_weapon_range * cfg->FALLBACK_DIST_RATIO);
 
 	if(number_of_enemies > 0)
 	{
@@ -2928,7 +2928,7 @@ void AAIExecute::GetFallBackPos(float3 *pos, int unit_id, float max_weapon_range
 
 		for(int k = 0; k < number_of_enemies; ++k)
 		{
-			enemy_pos = ai->Getcb()->GetUnitPos(ai->Getmap()->units_in_los[k]);
+			enemy_pos = ai->GetAICallback()->GetUnitPos(ai->Getmap()->units_in_los[k]);
 
 			// get distance to enemy
 			float dx   = enemy_pos.x - unit_pos.x;
@@ -2961,9 +2961,9 @@ void AAIExecute::GiveOrder(Command *c, int unit, const char *owner)
 	++issued_orders;
 
 	if(issued_orders%500 == 0)
-		ai->Log("%i th order has been given by %s in frame %i\n", issued_orders, owner,  ai->Getcb()->GetCurrentFrame());
+		ai->Log("%i th order has been given by %s in frame %i\n", issued_orders, owner,  ai->GetAICallback()->GetCurrentFrame());
 
-	ai->Getut()->units[unit].last_order = ai->Getcb()->GetCurrentFrame();
+	ai->Getut()->units[unit].last_order = ai->GetAICallback()->GetCurrentFrame();
 
-	ai->Getcb()->GiveOrder(unit, c);
+	ai->GetAICallback()->GiveOrder(unit, c);
 }

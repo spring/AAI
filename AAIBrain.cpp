@@ -151,10 +151,10 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 	float my_rating, best_rating = 0;
 	AAISector *scout_sector = 0, *sector;
 
-	const UnitDef *def = ai->Getcb()->GetUnitDef(scout);
+	const UnitDef *def = ai->GetAICallback()->GetUnitDef(scout);
 	const AAIMovementType& scoutMoveType = ai->Getbt()->s_buildTree.GetMovementType( UnitDefId(def->id) );
 
-	float3 pos = ai->Getcb()->GetUnitPos(scout);
+	float3 pos = ai->GetAICallback()->GetUnitPos(scout);
 
 	// get continent
 	int continent = ai->Getmap()->getSmartContinentID(&pos, scoutMoveType);
@@ -199,7 +199,7 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 bool AAIBrain::MetalForConstr(int unit, int workertime)
 {
 
-	int metal = (ai->Getbt()->GetUnitDef(unit).buildTime/workertime) * (ai->Getcb()->GetMetalIncome()-(ai->Getcb()->GetMetalUsage()) + ai->Getcb()->GetMetal());
+	int metal = (ai->Getbt()->GetUnitDef(unit).buildTime/workertime) * (ai->GetAICallback()->GetMetalIncome()-(ai->GetAICallback()->GetMetalUsage()) + ai->GetAICallback()->GetMetal());
 	int total_cost = ai->Getbt()->GetUnitDef(unit).metalCost;
 
 	if(metal > total_cost)
@@ -376,7 +376,7 @@ bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 	else if(sectors[0].size() < 3 && sector->distance_to_base <= 1)
 		return true;
 	// allow construction on islands close to base on water maps
-	else if(ai->Getmap()->map_type == WATER_MAP && ai->Getcb()->GetElevation(pos->x, pos->z) >= 0 && sector->distance_to_base <= 3)
+	else if(ai->Getmap()->map_type == WATER_MAP && ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0 && sector->distance_to_base <= 3)
 		return true;
 	else
 		return false;
@@ -577,7 +577,7 @@ void AAIBrain::AttackedBy(int combat_category_id)
 	m_recentlyAttackedByCategory[combat_category_id] += 1.0f;
 
 	// update counter for memory dependent on playtime
-	GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
+	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 	ai->Getbt()->attacked_by_category_current[gamePhase.GetArrayIndex()][combat_category_id] += 1.0f;
 }
 
@@ -591,7 +591,7 @@ void AAIBrain::UpdateDefenceCapabilities()
 	{
 		for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
-			for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[category->GetArrayIndex()].begin(); group != ai->Getgroup_list()[category->GetArrayIndex()].end(); ++group)
+			for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 			{
 				defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(0);
 				defence_power_vs[1] += (*group)->GetCombatPowerVsCategory(1);
@@ -605,7 +605,7 @@ void AAIBrain::UpdateDefenceCapabilities()
 		// anti air power
 		for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
-			for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[category->GetArrayIndex()].begin(); group != ai->Getgroup_list()[category->GetArrayIndex()].end(); ++group)
+			for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 			{
 				if((*group)->GetUnitTypeOfGroup().IsAssaultUnit())
 				{
@@ -698,14 +698,14 @@ void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 
 float AAIBrain::Affordable()
 {
-	return 25.0f /(ai->Getcb()->GetMetalIncome() + 5.0f);
+	return 25.0f /(ai->GetAICallback()->GetMetalIncome() + 5.0f);
 }
 
 void AAIBrain::BuildUnits()
 {
 	bool urgent = false;
 
-	GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
+	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate threat by and defence vs. the different combat categories
@@ -844,7 +844,7 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 	unitCriteria.power      = 1.0f;
 	unitCriteria.efficiency = 1.0f;
 
-	GamePhase gamePhase(ai->Getcb()->GetCurrentFrame());
+	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	// prefer cheaper but effective units in the first few minutes
 	if(gamePhase.IsStartingPhase())

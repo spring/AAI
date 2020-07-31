@@ -27,7 +27,7 @@ AAIAirForceManager::AAIAirForceManager(AAI *ai)
 {
 	this->ai = ai;
 
-	my_team = ai->Getcb()->GetMyTeam();
+	my_team = ai->GetAICallback()->GetMyTeam();
 	num_of_targets = 0;
 
 	targets.resize(cfg->MAX_AIR_TARGETS);
@@ -35,7 +35,7 @@ AAIAirForceManager::AAIAirForceManager(AAI *ai)
 	for(int i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
 		targets[i].unit_id = -1;
 
-	air_groups = &ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()];
+	air_groups = &ai->GetGroupList()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()];
 }
 
 AAIAirForceManager::~AAIAirForceManager(void)
@@ -46,9 +46,9 @@ AAIAirForceManager::~AAIAirForceManager(void)
 void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory& category, float health)
 {
 	// do not attack own units
-	if(my_team != ai->Getcb()->GetUnitTeam(unitId.id))
+	if(my_team != ai->GetAICallback()->GetUnitTeam(unitId.id))
 	{
-		float3 pos = ai->Getcb()->GetUnitPos(unitId.id);
+		float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
 
 		// calculate in which sector unit is located
 		const int x = pos.x/ai->Getmap()->xSectorSize;
@@ -58,7 +58,7 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 		if(x >= 0 && x < ai->Getmap()->xSectors && y >= 0 && y < ai->Getmap()->ySectors)
 		{
 			// check for anti air defences if low on units
-			if( (ai->Getmap()->sector[x][y].GetLostAirUnits() > 2.5f) && (ai->Getgroup_list()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size() < 5) )
+			if( (ai->Getmap()->sector[x][y].GetLostAirUnits() > 2.5f) && (ai->GetGroupList()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size() < 5) )
 				return;
 
 			AAIGroup *group(nullptr);
@@ -106,9 +106,9 @@ void AAIAirForceManager::CheckBombTarget(int unit_id, int def_id)
 		return;
 
 	// do not add own units or units that ar already on target list
-	if(my_team != ai->Getcb()->GetUnitTeam(unit_id) && !IsTarget(unit_id))
+	if(my_team != ai->GetAICallback()->GetUnitTeam(unit_id) && !IsTarget(unit_id))
 	{
-		float3 pos = ai->Getcb()->GetUnitPos(unit_id);
+		float3 pos = ai->GetAICallback()->GetUnitPos(unit_id);
 
 		// calculate in which sector unit is located
 		int x = pos.x/ai->Getmap()->xSectorSize;
@@ -130,10 +130,10 @@ void AAIAirForceManager::AddTarget(int unit_id, int def_id)
 		{
 			ai->LogConsole("Target added...");
 
-			targets[i].pos = ai->Getcb()->GetUnitPos(unit_id);
+			targets[i].pos = ai->GetAICallback()->GetUnitPos(unit_id);
 			targets[i].def_id = def_id;
 			targets[i].cost = ai->Getbt()->s_buildTree.GetTotalCost(UnitDefId(def_id));
-			targets[i].health = ai->Getcb()->GetUnitHealth(unit_id);
+			targets[i].health = ai->GetAICallback()->GetUnitHealth(unit_id);
 
 			ai->Getut()->units[unit_id].status = BOMB_TARGET;
 

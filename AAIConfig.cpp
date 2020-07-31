@@ -196,12 +196,12 @@ std::string AAIConfig::GetFileName(springLegacyAI::IAICallback* cb, const std::s
 
 bool AAIConfig::loadGameConfig(AAI *ai)
 {
-	MAX_UNITS = ai->Getcb()->GetMaxUnits();
+	MAX_UNITS = ai->GetAICallback()->GetMaxUnits();
 
 	std::list<string> possible_config_filenames;
-	possible_config_filenames.push_back(GetFileName(ai->Getcb(), ai->Getcb()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	possible_config_filenames.push_back(GetFileName(ai->Getcb(), ai->Getcb()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	possible_config_filenames.push_back(GetFileName(ai->Getcb(), ai->Getcb()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
 	FILE* file = NULL;
 	std::string configfile;
 	for(const std::string& filename: possible_config_filenames) {
@@ -441,7 +441,7 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 bool AAIConfig::loadGeneralConfig(AAI& ai)
 {
 	// load general settings
-	const std::string filename = GetFileName(ai.Getcb(), GENERAL_CFG_FILE, CFG_PATH);
+	const std::string filename = GetFileName(ai.GetAICallback(), GENERAL_CFG_FILE, CFG_PATH);
 
 	FILE* file = fopen(filename.c_str(), "r");
 
@@ -485,7 +485,7 @@ bool AAIConfig::loadGeneralConfig(AAI& ai)
 
 const UnitDef* AAIConfig::GetUnitDef(AAI* ai, const std::string& name)
 {
-	const UnitDef* res = ai->Getcb()->GetUnitDef(name.c_str());
+	const UnitDef* res = ai->GetAICallback()->GetUnitDef(name.c_str());
 	if (res == NULL) {
 		ai->Log("ERROR: loading unit - could not find unit %s\n", name.c_str());
 	}

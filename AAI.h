@@ -64,10 +64,10 @@ public:
 	int HandleEvent(int msg, const void *data);
 	
 	//! @brief Returns the number of AAI instances
-	int getNumberOfAAIInstances() const { return s_aaiInstances; }
+	int GetNumberOfAAIInstances() const { return s_aaiInstances; }
 
 	//! @brief Returns the id of this AAI instance
-	int getAAIInstance() const { return m_aaiInstance; }
+	int GetAAIInstance() const { return m_aaiInstance; }
 
 	//! @brief Returns current game phase
 	const GamePhase& GetGamePhase() const { return m_gamePhase; }
@@ -75,35 +75,31 @@ public:
 	// called every frame
 	void Update();
 
-	IAICallback* Getcb() { return cb; }
-	IGlobalAICallback* Getaicb() { return aicb; }
+	//! @brief Returns pointer to AI callback
+	IAICallback* GetAICallback() const { return m_aiCallback; }
 
-	int GetSide() const
-	{
-		assert(side>=0);
-		assert(side<=2);
-		return side;
-	}
+	//! @brief Returns the side of this AAI instance
+	int GetSide() const { return m_side; }
 
-	std::list<AAIBuildTask*>& Getbuild_tasks() { return build_tasks; }
-	AAIBrain* Getbrain() { return brain; }
-	AAIExecute* Getexecute() { return execute; }
-	AAIUnitTable* Getut() { return ut; }
-	AAIMap* Getmap() { return map; }
+	std::list<AAIBuildTask*>& GetBuildTasks() { return build_tasks; }
+
+	std::vector<std::list<AAIGroup*> >& GetGroupList() { return group_list; }
+
+
+	AAIBrain*           Getbrain() { return brain; }
+	AAIExecute*         Getexecute() { return execute; }
+	AAIUnitTable*       Getut() { return ut; }
+	AAIMap*             Getmap() { return map; }
 	AAIAirForceManager* Getaf() { return af; }
-	AAIAttackManager* Getam() { return am; }
-	AAIBuildTable* Getbt() { return bt; }
-	std::vector<std::list<AAIGroup*> >& Getgroup_list() { return group_list; }
+	AAIAttackManager*   Getam() { return am; }
+	AAIBuildTable*      Getbt() { return bt; }
+	
 
 private:
 	Profiler* GetProfiler(){ return profiler; }
 
-	// callbacks
-	IAICallback* cb;
-	IGlobalAICallback* aicb;
-
-	// side 1= arm, 2 = core, 0 = neutral
-	int side;
+	//! Pointer to AI callback
+	IAICallback* m_aiCallback;
 
 	// list of buildtasks
 	std::list<AAIBuildTask*> build_tasks;
@@ -119,6 +115,9 @@ private:
 	std::vector<std::list<AAIGroup*> > group_list;  // unit groups
 
 	Profiler* profiler;
+
+	//! Side of this AAI instance; 0 always neutral, for TA-like mods 1 = Arm, 2 = Core
+	int m_side;
 
 	//! File to which log messages are written
 	FILE *m_logFile;

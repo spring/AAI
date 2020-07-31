@@ -71,13 +71,13 @@ list<int> AAIMap::map_categories_id;
 AAIMap::AAIMap(AAI *ai)
 {
 	this->ai = ai;
-	m_myTeamId = ai->Getcb()->GetMyTeam();
+	m_myTeamId = ai->GetAICallback()->GetMyTeam();
 }
 
 AAIMap::~AAIMap(void)
 {
 	// delete common data only if last AAI instance is deleted
-	if(ai->getNumberOfAAIInstances() == 0)
+	if(ai->GetNumberOfAAIInstances() == 0)
 	{
 		Learn();
 
@@ -127,16 +127,16 @@ AAIMap::~AAIMap(void)
 void AAIMap::Init()
 {
 	// all static vars are only initialized by the first AAI instance
-	if(ai->getAAIInstance() == 1)
+	if(ai->GetAAIInstance() == 1)
 	{
 		// get size
-		xMapSize = ai->Getcb()->GetMapWidth();
-		yMapSize = ai->Getcb()->GetMapHeight();
+		xMapSize = ai->GetAICallback()->GetMapWidth();
+		yMapSize = ai->GetAICallback()->GetMapHeight();
 
 		xSize = xMapSize * SQUARE_SIZE;
 		ySize = yMapSize * SQUARE_SIZE;
 
-		losMapRes = ai->Getcb()->GetLosMapResolution();
+		losMapRes = ai->GetAICallback()->GetLosMapResolution();
 		xLOSMapSize = xMapSize / losMapRes;
 		yLOSMapSize = yMapSize / losMapRes;
 
@@ -215,10 +215,10 @@ void AAIMap::Init()
 	submarine_defence_map.resize(xDefMapSize*yDefMapSize, 0);
 
 	// for log file
-	ai->Log("Map: %s\n",ai->Getcb()->GetMapName());
+	ai->Log("Map: %s\n",ai->GetAICallback()->GetMapName());
 	ai->Log("Maptype: %s\n", GetMapTypeTextString(map_type));
 	ai->Log("Land / water ratio: : %f / %f\n", land_ratio, water_ratio);
-	ai->Log("Mapsize is %i x %i\n", ai->Getcb()->GetMapWidth(),ai->Getcb()->GetMapHeight());
+	ai->Log("Mapsize is %i x %i\n", ai->GetAICallback()->GetMapWidth(),ai->GetAICallback()->GetMapHeight());
 	ai->Log("%i sectors in x direction\n", xSectors);
 	ai->Log("%i sectors in y direction\n", ySectors);
 	ai->Log("x-sectorsize is %i (Map %i)\n", xSectorSize, xSectorSizeMap);
@@ -475,7 +475,7 @@ void AAIMap::ReadMapCacheFile()
 
 void AAIMap::ReadContinentFile()
 {
-	const std::string filename = cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), true, true, true, true), MAP_CACHE_PATH, "_continent.dat", true);
+	const std::string filename = cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, true, true, true), MAP_CACHE_PATH, "_continent.dat", true);
 	FILE* file = fopen(filename.c_str(), "r");
 
 	if(file != NULL)
@@ -537,7 +537,7 @@ void AAIMap::ReadContinentFile()
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 	// save movement maps
-	const std::string movementfile = cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), true, false, true, false), MAP_CACHE_PATH, "_movement.dat", true);
+	const std::string movementfile = cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, false, true, false), MAP_CACHE_PATH, "_movement.dat", true);
 	file = fopen(movementfile.c_str(), "w+");
 
 	fprintf(file, "%s\n",  CONTINENT_DATA_VERSION);
@@ -567,12 +567,12 @@ void AAIMap::ReadContinentFile()
 
 std::string AAIMap::LocateMapLearnFile() const
 {
-	return cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), true, true, true, true), MAP_LEARN_PATH, "_maplearn.dat", true);
+	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, true, true, true), MAP_LEARN_PATH, "_maplearn.dat", true);
 }
 
 std::string AAIMap::LocateMapCacheFile() const
 {
-	return cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), false, false, true, true), MAP_LEARN_PATH, "_mapcache.dat", true);
+	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), false, false, true, true), MAP_LEARN_PATH, "_mapcache.dat", true);
 }
 
 void AAIMap::readMapLearnFile()
@@ -812,7 +812,7 @@ float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int 
 				BuildMapPos2Pos(&pos, def);
 				Pos2FinalBuildPos(&pos, def);
 
-				if(ai->Getcb()->CanBuildAt(def, pos))
+				if(ai->GetAICallback()->CanBuildAt(def, pos))
 				{
 					int x = pos.x/xSectorSize;
 					int y = pos.z/ySectorSize;
@@ -863,7 +863,7 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 					BuildMapPos2Pos(&pos, def);
 					Pos2FinalBuildPos(&pos, def);
 
-					if(ai->Getcb()->CanBuildAt(def, pos))
+					if(ai->GetAICallback()->CanBuildAt(def, pos))
 					{
 						best_pos = pos;
 						best_rating = my_rating;
@@ -898,14 +898,14 @@ float3 AAIMap::GetHighestBuildsite(const UnitDef *def, int xStart, int xEnd, int
 				BuildMapPos2Pos(&pos, def);
 				Pos2FinalBuildPos(&pos, def);
 
-				if(ai->Getcb()->CanBuildAt(def, pos))
+				if(ai->GetAICallback()->CanBuildAt(def, pos))
 				{
 					x = pos.x/xSectorSize;
 					y = pos.z/ySectorSize;
 
 					if(x < xSectors && x  >= 0 && y < ySectors && y >= 0)
 					{
-						pos.y = ai->Getcb()->GetElevation(pos.x, pos.z);
+						pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
 
 						if(pos.y > best_pos.y)
 							best_pos = pos;
@@ -955,7 +955,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					BuildMapPos2Pos(&temp_pos, def);
 					Pos2FinalBuildPos(&temp_pos, def);
 
-					if(ai->Getcb()->CanBuildAt(def, temp_pos))
+					if(ai->GetAICallback()->CanBuildAt(def, temp_pos))
 					{
 						int	x = temp_pos.x/xSectorSize;
 						int	y = temp_pos.z/ySectorSize;
@@ -978,7 +978,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					BuildMapPos2Pos(&temp_pos, def);
 					Pos2FinalBuildPos(&temp_pos, def);
 
-					if(ai->Getcb()->CanBuildAt(def, temp_pos))
+					if(ai->GetAICallback()->CanBuildAt(def, temp_pos))
 					{
 						int x = temp_pos.x/xSectorSize;
 						int y = temp_pos.z/ySectorSize;
@@ -1021,7 +1021,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					BuildMapPos2Pos(&temp_pos, def);
 					Pos2FinalBuildPos(&temp_pos, def);
 
-					if(ai->Getcb()->CanBuildAt(def, temp_pos))
+					if(ai->GetAICallback()->CanBuildAt(def, temp_pos))
 					{
 						int x = temp_pos.x/xSectorSize;
 						int y = temp_pos.z/ySectorSize;
@@ -1043,7 +1043,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					BuildMapPos2Pos(&temp_pos, def);
 					Pos2FinalBuildPos(&temp_pos, def);
 
-					if(ai->Getcb()->CanBuildAt(def, temp_pos))
+					if(ai->GetAICallback()->CanBuildAt(def, temp_pos))
 					{
 						int x = temp_pos.x/xSectorSize;
 						int y = temp_pos.z/ySectorSize;
@@ -1098,7 +1098,7 @@ float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 			BuildMapPos2Pos(&pos, def);
 			Pos2FinalBuildPos(&pos, def);
 
-			if(ai->Getcb()->CanBuildAt(def, pos))
+			if(ai->GetAICallback()->CanBuildAt(def, pos))
 			{
 				int x = pos.x/xSectorSize;
 				int y = pos.z/ySectorSize;
@@ -1501,7 +1501,7 @@ void AAIMap::AnalyseMap()
 {
 	float slope;
 
-	const float *height_map = ai->Getcb()->GetHeightMap();
+	const float *height_map = ai->GetAICallback()->GetHeightMap();
 
 	// get water/cliffs
 	for(int x = 0; x < xMapSize; ++x)
@@ -1608,7 +1608,7 @@ void AAIMap::CalculateContinentMaps()
 	old_edge_cells = &a;
 	new_edge_cells = &b;
 
-	const float *height_map = ai->Getcb()->GetHeightMap();
+	const float *height_map = ai->GetAICallback()->GetHeightMap();
 
 	int x, y;
 
@@ -1892,13 +1892,13 @@ void AAIMap::DetectMetalSpots()
 							//They are still perfectly valid and will generate metal mind you!
 	int MaxSpots = 5000; //If more spots than that are found the map is considered a metalmap, tweak this as needed
 
-	int MetalMapHeight = ai->Getcb()->GetMapHeight() / 2; //metal map has 1/2 resolution of normal map
-	int MetalMapWidth = ai->Getcb()->GetMapWidth() / 2;
+	int MetalMapHeight = ai->GetAICallback()->GetMapHeight() / 2; //metal map has 1/2 resolution of normal map
+	int MetalMapWidth = ai->GetAICallback()->GetMapWidth() / 2;
 	int TotalCells = MetalMapHeight * MetalMapWidth;
-	unsigned char XtractorRadius = ai->Getcb()->GetExtractorRadius()/ 16.0;
-	unsigned char DoubleRadius = ai->Getcb()->GetExtractorRadius() / 8.0;
-	int SquareRadius = (ai->Getcb()->GetExtractorRadius() / 16.0) * (ai->Getcb()->GetExtractorRadius() / 16.0); //used to speed up loops so no recalculation needed
-	int DoubleSquareRadius = (ai->Getcb()->GetExtractorRadius() / 8.0) * (ai->Getcb()->GetExtractorRadius() / 8.0); // same as above
+	unsigned char XtractorRadius = ai->GetAICallback()->GetExtractorRadius()/ 16.0;
+	unsigned char DoubleRadius = ai->GetAICallback()->GetExtractorRadius() / 8.0;
+	int SquareRadius = (ai->GetAICallback()->GetExtractorRadius() / 16.0) * (ai->GetAICallback()->GetExtractorRadius() / 16.0); //used to speed up loops so no recalculation needed
+	int DoubleSquareRadius = (ai->GetAICallback()->GetExtractorRadius() / 8.0) * (ai->GetAICallback()->GetExtractorRadius() / 8.0); // same as above
 //	int CellsInRadius = PI * XtractorRadius * XtractorRadius; //yadda yadda
 	unsigned char* MexArrayA = new unsigned char [TotalCells];
 	unsigned char* MexArrayB = new unsigned char [TotalCells];
@@ -1912,7 +1912,7 @@ void AAIMap::DetectMetalSpots()
 	//Load up the metal Values in each pixel
 	for (int i = 0; i != TotalCells - 1; i++)
 	{
-		MexArrayA[i] = *(ai->Getcb()->GetMetalMap() + i);
+		MexArrayA[i] = *(ai->GetAICallback()->GetMetalMap() + i);
 		TotalMetal += MexArrayA[i];		// Count the total metal so you can work out an average of the whole map
 	}
 
@@ -1967,11 +1967,11 @@ void AAIMap::DetectMetalSpots()
 		{
 			pos.x = coordx * 2 * SQUARE_SIZE;
 			pos.z = coordy * 2 * SQUARE_SIZE;
-			pos.y = ai->Getcb()->GetElevation(pos.x, pos.z);
+			pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
 
 			Pos2FinalBuildPos(&pos, def);
 
-			temp.amount = TempMetal * ai->Getcb()->GetMaxMetal() * MaxMetal / 255.0f;
+			temp.amount = TempMetal * ai->GetAICallback()->GetMaxMetal() * MaxMetal / 255.0f;
 			temp.occupied = false;
 			temp.pos = pos;
 
@@ -2054,7 +2054,7 @@ void AAIMap::DetectMetalSpots()
 
 void AAIMap::UpdateRecon()
 {
-	int frame = ai->Getcb()->GetCurrentFrame();
+	int frame = ai->GetAICallback()->GetCurrentFrame();
 
 	fill(sector_in_los.begin(), sector_in_los.end(), 0);
 	fill(sector_in_los_with_enemies.begin(), sector_in_los_with_enemies.end(), 0);
@@ -2063,7 +2063,7 @@ void AAIMap::UpdateRecon()
 	//
 	// reset scouted buildings for all cells within current los
 	//
-	const unsigned short *los_map = ai->Getcb()->GetLosMap();
+	const unsigned short *los_map = ai->GetAICallback()->GetLosMap();
 
 	for(int y = 0; y < yLOSMapSize; ++y)
 	{
@@ -2086,13 +2086,13 @@ void AAIMap::UpdateRecon()
 	}
 
 	// update enemy units
-	int number_of_units = ai->Getcb()->GetEnemyUnitsInRadarAndLos(&(units_in_los.front()));
+	int number_of_units = ai->GetAICallback()->GetEnemyUnitsInRadarAndLos(&(units_in_los.front()));
 	int x_pos, y_pos;
 
 	for(int i = 0; i < number_of_units; ++i)
 	{
-		float3 pos = ai->Getcb()->GetUnitPos(units_in_los[i]);
-		const UnitDef* def = ai->Getcb()->GetUnitDef(units_in_los[i]);
+		float3 pos = ai->GetAICallback()->GetUnitPos(units_in_los[i]);
+		const UnitDef* def = ai->GetAICallback()->GetUnitDef(units_in_los[i]);
 
 		if(def) // unit is within los
 		{
@@ -2143,17 +2143,17 @@ void AAIMap::UpdateRecon()
 	}
 
 	// update own/friendly units
-	number_of_units = ai->Getcb()->GetFriendlyUnits(&(units_in_los.front()));
+	number_of_units = ai->GetAICallback()->GetFriendlyUnits(&(units_in_los.front()));
 
 	for(int i = 0; i < number_of_units; ++i)
 	{
 		// get unit def & category
-		const UnitDef* def = ai->Getcb()->GetUnitDef(units_in_los[i]);
+		const UnitDef* def = ai->GetAICallback()->GetUnitDef(units_in_los[i]);
 		const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 		if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
 		{
-			float3 pos = ai->Getcb()->GetUnitPos(units_in_los[i]);
+			float3 pos = ai->GetAICallback()->GetUnitPos(units_in_los[i]);
 
 			const int x = pos.x/xSectorSize;
 			const int y = pos.z/ySectorSize;
@@ -2163,7 +2163,7 @@ void AAIMap::UpdateRecon()
 				// add building to sector (and update stat_combat_power if it's a stat defence)
 				if(category.isBuilding() == true)
 				{
-					if(ai->Getcb()->GetUnitTeam(units_in_los[i]) == m_myTeamId)
+					if(ai->GetAICallback()->GetUnitTeam(units_in_los[i]) == m_myTeamId)
 						++sector[x][y].own_structures;
 					else
 						++sector[x][y].allied_structures;
@@ -2224,7 +2224,7 @@ void AAIMap::UpdateEnemyScoutingData()
 						else if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isCombatUnit() == true)
 						{
 							// units that have been scouted long time ago matter less
-							const int frame = ai->Getcb()->GetCurrentFrame();
+							const int frame = ai->GetAICallback()->GetCurrentFrame();
 							const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(last_updated_map[x + y * xLOSMapSize] - frame)) / 3600.0f  );
 							const AAICombatUnitCategory category( ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId) );
 
@@ -2387,7 +2387,7 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 		}
 	}
 
-	const std::string filename = cfg->GetFileName(ai->Getcb(), "AAIDefMap.txt", "", "", true);
+	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDefMap.txt", "", "", true);
 	FILE* file = fopen(filename.c_str(), "w+");
 	for(int y = 0; y < yDefMapSize; ++y)
 	{
@@ -2526,7 +2526,7 @@ float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xSta
 
 	float range =  ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
 
-	const std::string filename = cfg->GetFileName(ai->Getcb(), "AAIDebug.txt", "", "", true);
+	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
 	FILE* file = fopen(filename.c_str(), "w+");
 	fprintf(file, "Search area: (%i, %i) x (%i, %i)\n", xStart, yStart, xEnd, yEnd);
 	fprintf(file, "Range: %g\n", range);
@@ -2563,7 +2563,7 @@ float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xSta
 					BuildMapPos2Pos(&pos, def);
 					Pos2FinalBuildPos(&pos, def);
 
-					if(ai->Getcb()->CanBuildAt(def, pos))
+					if(ai->GetAICallback()->CanBuildAt(def, pos))
 					{
 						*buildPos = pos;
 						best_rating = my_rating;
@@ -2605,28 +2605,28 @@ int AAIMap::GetContinentID(const float3& pos) const
 int AAIMap::getSmartContinentID(float3 *pos, const AAIMovementType& moveType) const
 {
 	// check if non sea/amphib unit in shallow water
-	if(     (ai->Getcb()->GetElevation(pos->x, pos->z) < 0)
+	if(     (ai->GetAICallback()->GetElevation(pos->x, pos->z) < 0)
 	     && (moveType.getMovementType() == EMovementType::MOVEMENT_TYPE_GROUND) )
 	{
 		//look for closest land cell
 		for(int k = 1; k < 10; ++k)
 		{
-			if(ai->Getcb()->GetElevation(pos->x + k * 16, pos->z) > 0)
+			if(ai->GetAICallback()->GetElevation(pos->x + k * 16, pos->z) > 0)
 			{
 				pos->x += k *16;
 				break;
 			}
-			else if(ai->Getcb()->GetElevation(pos->x - k * 16, pos->z) > 0)
+			else if(ai->GetAICallback()->GetElevation(pos->x - k * 16, pos->z) > 0)
 			{
 				pos->x -= k *16;
 				break;
 			}
-			else if(ai->Getcb()->GetElevation(pos->x, pos->z + k * 16) > 0)
+			else if(ai->GetAICallback()->GetElevation(pos->x, pos->z + k * 16) > 0)
 			{
 				pos->z += k *16;
 				break;
 			}
-			else if(ai->Getcb()->GetElevation(pos->x, pos->z - k * 16) > 0)
+			else if(ai->GetAICallback()->GetElevation(pos->x, pos->z - k * 16) > 0)
 			{
 				pos->z -= k *16;
 				break;

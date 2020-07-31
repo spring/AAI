@@ -59,7 +59,7 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 	assault_categories.push_back(SUBMARINE_ASSAULT);
 
 	// only set up static things if first aai instance is initialized
-	if(ai->getAAIInstance() == 1)
+	if(ai->GetAAIInstance() == 1)
 	{
 		// set up attacked_by table
 		attacked_by_category_current.resize(GamePhase::numberOfGamePhases, vector<float>(combat_categories, 0));
@@ -76,7 +76,7 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 AAIBuildTable::~AAIBuildTable(void)
 {
 	// delete common data only if last AAI instance is deleted
-	if(ai->getNumberOfAAIInstances() == 0)
+	if(ai->GetNumberOfAAIInstances() == 0)
 	{
 		attacked_by_category_learned.clear();
 		attacked_by_category_current.clear();
@@ -92,7 +92,7 @@ AAIBuildTable::~AAIBuildTable(void)
 void AAIBuildTable::Init()
 {
 	// get number of units and alloc memory for unit list
-	const int numOfUnits = ai->Getcb()->GetNumUnitDefs();
+	const int numOfUnits = ai->GetAICallback()->GetNumUnitDefs();
 
 	// one more than needed because 0 is dummy object (so UnitDef->id can be used to adress that unit in the array)
 	units_dynamic.resize(numOfUnits+1);
@@ -110,7 +110,7 @@ void AAIBuildTable::Init()
 	{
 		//spring first unitdef id is 1, we remap it so id = is position in array
 		unitList.resize(numOfUnits+1);
-		ai->Getcb()->GetUnitDefList(&unitList[1]);
+		ai->GetAICallback()->GetUnitDefList(&unitList[1]);
 		UnitDef* tmp = new UnitDef();
 		tmp->id=0;
 		unitList[0] = tmp;
@@ -122,7 +122,7 @@ void AAIBuildTable::Init()
 	}
 
 	// generate buildtree (if not already done by other instance)
-	s_buildTree.Generate(ai->Getcb());
+	s_buildTree.Generate(ai->GetAICallback());
 
 	// Try to load buildtable; if not possible, create a new one
 	if(LoadBuildTable() == false)
@@ -243,7 +243,7 @@ void AAIBuildTable::Init()
 	}
 
 	// only once
-	if(ai->getAAIInstance() == 1)
+	if(ai->GetAAIInstance() == 1)
 	{
 		UpdateMinMaxAvgEfficiency();
 	}
@@ -1262,7 +1262,7 @@ void AAIBuildTable::UpdateMinMaxAvgEfficiency()
 
 std::string AAIBuildTable::GetBuildCacheFileName()
 {
-	return cfg->GetFileName(ai->Getcb(), cfg->getUniqueName(ai->Getcb(), true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
+	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
 }
 
 

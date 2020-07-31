@@ -77,7 +77,7 @@ void AAIAttackManager::LaunchAttack()
 
 	for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 	{
-		for(list<AAIGroup*>::iterator group = ai->Getgroup_list()[category->GetArrayIndex()].begin(); group != ai->Getgroup_list()[category->GetArrayIndex()].end(); ++group)
+		for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 		{
 			if( (*group)->AvailableForAttack() )
 			{
@@ -263,7 +263,7 @@ void AAIAttackManager::StopAttack(AAIAttack *attack)
 void AAIAttackManager::CheckAttack(AAIAttack *attack)
 {
 	// prevent command overflow
-	if((ai->Getcb()->GetCurrentFrame() - attack->lastAttack) < 30)
+	if((ai->GetAICallback()->GetCurrentFrame() - attack->lastAttack) < 30)
 		return;
 
 	// drop failed attacks
@@ -288,7 +288,7 @@ void AAIAttackManager::CheckAttack(AAIAttack *attack)
 void AAIAttackManager::GetNextDest(AAIAttack *attack)
 {
 	// prevent command overflow
-	if((ai->Getcb()->GetCurrentFrame() - attack->lastAttack) < 60)
+	if((ai->GetAICallback()->GetCurrentFrame() - attack->lastAttack) < 60)
 		return;
 
 	// get new target sector

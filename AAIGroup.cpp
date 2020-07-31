@@ -151,7 +151,7 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 				
 			if(attacker)
 			{
-				const springLegacyAI::UnitDef *def = ai->Getcb()->GetUnitDef(attacker);
+				const springLegacyAI::UnitDef *def = ai->GetAICallback()->GetUnitDef(attacker);
 
 				if(def && !cfg->AIR_ONLY_MOD)
 				{
@@ -168,7 +168,7 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
 					else if(category.isAirCombat() == true)
 					{
-						float3 enemy_pos = ai->Getcb()->GetUnitPos(attacker);
+						float3 enemy_pos = ai->GetAICallback()->GetUnitPos(attacker);
 
 						// get a random unit of the group
 						int unit = GetRandomUnit();
@@ -189,7 +189,7 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 
 void AAIGroup::GiveOrderToGroup(Command *c, float importance, UnitTask task, const char *owner)
 {
-	lastCommandFrame = ai->Getcb()->GetCurrentFrame();
+	lastCommandFrame = ai->GetAICallback()->GetCurrentFrame();
 
 	task_importance = importance;
 
@@ -241,7 +241,7 @@ void AAIGroup::Update()
 				{
 					c = Command(CMD_MOVE);
 					c.PushParam(pos.x);
-					c.PushParam(ai->Getcb()->GetElevation(pos.x, pos.z));
+					c.PushParam(ai->GetAICallback()->GetElevation(pos.x, pos.z));
 					c.PushParam(pos.z);
 
 					//ai->Getcb()->GiveOrder(unit->x, &c);
@@ -275,7 +275,7 @@ float3 AAIGroup::GetGroupPos()
 {
 	if(!units.empty())
 	{
-		return ai->Getcb()->GetUnitPos(units.begin()->x);
+		return ai->GetAICallback()->GetUnitPos(units.begin()->x);
 	}
 	else
 		return ZeroVector;
@@ -319,7 +319,7 @@ void AAIGroup::DeterminePositionForAttackOrder(Command& c, const AAISector* targ
 	else
 		c.SetParam(2, (targetSector->bottom + targetSector->top)/2.0f);
 
-	c.SetParam(1, ai->Getcb()->GetElevation(c.GetParam(0), c.GetParam(2)));
+	c.SetParam(1, ai->GetAICallback()->GetElevation(c.GetParam(0), c.GetParam(2)));
 }
 
 void AAIGroup::AttackSector(AAISector *dest, float importance)
@@ -355,7 +355,7 @@ void AAIGroup::Defend(int unit, float3 *enemy_pos, int importance)
 
 		GiveOrderToGroup(&cmd, importance, GUARDING, "Group::Defend");
 
-		float3 pos = ai->Getcb()->GetUnitPos(unit);
+		float3 pos = ai->GetAICallback()->GetUnitPos(unit);
 
 		target_sector = ai->Getmap()->GetSectorOfPos(pos);
 	}
@@ -477,7 +477,7 @@ bool AAIGroup::AvailableForAttack()
 
 void AAIGroup::UnitIdle(int unit)
 {
-	if(ai->Getcb()->GetCurrentFrame() - lastCommandFrame < 10)
+	if(ai->GetAICallback()->GetCurrentFrame() - lastCommandFrame < 10)
 		return;
 
 	// special behaviour of aircraft in non air only mods
@@ -494,7 +494,7 @@ void AAIGroup::UnitIdle(int unit)
 	else if(attack)
 	{
 		//check if idle unit is in target sector
-		const float3 pos = ai->Getcb()->GetUnitPos(unit);
+		const float3 pos = ai->GetAICallback()->GetUnitPos(unit);
 		const AAISector *sector = ai->Getmap()->GetSectorOfPos(pos);
 
 		if( (sector == target_sector) || (target_sector == nullptr) )
@@ -543,7 +543,7 @@ void AAIGroup::UnitIdle(int unit)
 	else if(task == GROUP_RETREATING)
 	{
 		//check if retreating units is in target sector
-		float3 pos = ai->Getcb()->GetUnitPos(unit);
+		float3 pos = ai->GetAICallback()->GetUnitPos(unit);
 
 		AAISector *temp = ai->Getmap()->GetSectorOfPos(pos);
 
@@ -553,7 +553,7 @@ void AAIGroup::UnitIdle(int unit)
 	else if(task == GROUP_DEFENDING)
 	{
 		//check if retreating units is in target sector
-		float3 pos = ai->Getcb()->GetUnitPos(unit);
+		float3 pos = ai->GetAICallback()->GetUnitPos(unit);
 
 		AAISector *temp = ai->Getmap()->GetSectorOfPos(pos);
 

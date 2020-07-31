@@ -230,7 +230,7 @@ void AAIUnitTable::AddMetalMaker(int unit_id, int def_id)
 
 void AAIUnitTable::RemoveMetalMaker(int unit_id)
 {
-	if(!ai->Getcb()->IsUnitActivated(unit_id))
+	if(!ai->GetAICallback()->IsUnitActivated(unit_id))
 		--ai->Getexecute()->disabledMMakers;
 
 	metal_makers.erase(unit_id);
@@ -319,7 +319,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, const float3 *pos
 			if(    (builder->IsAvailableForConstruction() == true) 
 				&& ( ai->Getbt()->s_buildTree.CanBuildUnitType(builder->m_myDefId.id, building) == true) )
 			{
-				builder_pos = ai->Getcb()->GetUnitPos(builder->m_myUnitId.id);
+				builder_pos = ai->GetAICallback()->GetUnitPos(builder->m_myUnitId.id);
 
 				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.GetMovementType(builder->m_myDefId);
 
@@ -375,7 +375,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 			// find idle assister
 			if(assistant->IsIdle() == true)
 			{
-				assistant_pos = ai->Getcb()->GetUnitPos(assistant->m_myUnitId.id);
+				assistant_pos = ai->GetAICallback()->GetUnitPos(assistant->m_myUnitId.id);
 
 				const AAIMovementType& moveType = ai->Getbt()->s_buildTree.GetMovementType(assistant->m_myDefId.id);
 
@@ -411,7 +411,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 		uint32_t allowedMovementTypes =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR)
 										+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
 
-		if(ai->Getcb()->GetElevation(pos.x, pos.z) < 0.0f)
+		if(ai->GetAICallback()->GetElevation(pos.x, pos.z) < 0.0f)
 		{
 			allowedMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
 			allowedMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);

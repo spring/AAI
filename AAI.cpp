@@ -37,32 +37,31 @@ using namespace springLegacyAI;
 #include "CUtils/SimpleProfiler.h"
 #define AAI_SCOPED_TIMER(part) SCOPED_TIMER(part, profiler);
 
-// 
+// C++ < C++17 does not support initialization of static cont within class declaration
 const std::vector<int> GamePhase::m_startFrameOfGamePhase  = {0, 10800, 27000, 72000};
 const std::vector<std::string> GamePhase::m_gamePhaseNames = {"starting phase", "early phase", "mid phase", "late game"}; 
 
 int AAI::s_aaiInstances = 0;
 
 AAI::AAI() :
-	cb(NULL),
-	aicb(NULL),
-	side(0),
-	brain(NULL),
-	execute(NULL),
-	ut(NULL),
-	bt(NULL),
-	map(NULL),
-	af(NULL),
-	am(NULL),
-	profiler(NULL),
-	m_logFile(NULL),
+	m_aiCallback(nullptr),
+	brain(nullptr),
+	execute(nullptr),
+	ut(nullptr),
+	bt(nullptr),
+	map(nullptr),
+	af(nullptr),
+	am(nullptr),
+	profiler(nullptr),
+	m_side(0),
+	m_logFile(nullptr),
 	m_initialized(false),
 	m_configLoaded(false),
 	m_aaiInstance(0),
 	m_gamePhase(0)
 {
 	// initialize random numbers generator
-	srand (time(NULL));
+	srand (time(nullptr));
 }
 
 AAI::~AAI()
@@ -100,11 +99,11 @@ AAI::~AAI()
 	Log("Unit production rate: %i\n\n", execute->unitProductionRate);
 
 	Log("Requested constructors:\n");
-	for(auto fac = bt->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); fac != bt->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++fac)
+	for(auto fac = bt->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side).begin(); fac != bt->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side).end(); ++fac)
 	{
 		Log("%-24s: %i\n", bt->s_buildTree.GetUnitTypeProperties(*fac).m_name.c_str(), bt->units_dynamic[fac->id].requested);
 	}
-	for(auto builder = bt->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).begin(); builder != bt->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).end(); ++builder)
+	for(auto builder = bt->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side).begin(); builder != bt->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side).end(); ++builder)
 		Log("%-24s: %i\n", bt->s_buildTree.GetUnitTypeProperties(*builder).m_name.c_str(), bt->units_dynamic[builder->id].requested);
 
 	// delete buildtasks
@@ -115,7 +114,7 @@ AAI::~AAI()
 	build_tasks.clear();
 
 	// save game learning data
-	GamePhase gamePhase(cb->GetCurrentFrame());
+	GamePhase gamePhase(m_aiCallback->GetCurrentFrame());
 	bt->SaveBuildTable(gamePhase.GetArrayIndex(), map->map_type);
 
 	spring::SafeDelete(am);
@@ -155,19 +154,18 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	profiler = new Profiler(profilerName);
 
 	AAI_SCOPED_TIMER("InitAI")
-	aicb = callback;
-	cb = callback->GetAICallback();
+	m_aiCallback = callback->GetAICallback();
 
 	// open log file
 	// this size equals the one used in "AIAICallback::GetValue(AIVAL_LOCATE_FILE_..."
 	char filename[2048];
 	SNPRINTF(filename, 2048, "%sAAI_log_team_%d.txt", AILOG_PATH, team);
 
-	cb->GetValue(AIVAL_LOCATE_FILE_W, filename);
+	m_aiCallback->GetValue(AIVAL_LOCATE_FILE_W, filename);
 
 	m_logFile = fopen(filename,"w");
 
-	Log("AAI %s running game %s\n \n", AAI_VERSION, cb->GetModHumanName());
+	Log("AAI %s running game %s\n \n", AAI_VERSION, m_aiCallback->GetModHumanName());
 
 	++s_aaiInstances;
 	m_aaiInstance = s_aaiInstances; //! @todo This might not be 100% thread safe (if multiple instances off AAI are initialized by several threads at the same time)
@@ -215,7 +213,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	// init attack manager
 	am = new AAIAttackManager(this, map->continents.size());
 
-	Log("Tidal/Wind strength: %f / %f\n", cb->GetTidalStrength(), (cb->GetMaxWind() + cb->GetMinWind()) * 0.5f);
+	Log("Tidal/Wind strength: %f / %f\n", m_aiCallback->GetTidalStrength(), (m_aiCallback->GetMaxWind() + m_aiCallback->GetMinWind()) * 0.5f);
 
 	LogConsole("AAI loaded");
 }
@@ -231,7 +229,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 			brain->DefendCommander(attacker);
 	}
 
-	const springLegacyAI::UnitDef* attackedDef = cb->GetUnitDef(damaged);
+	const springLegacyAI::UnitDef* attackedDef = m_aiCallback->GetUnitDef(damaged);
 
 	if(attackedDef != nullptr)
 	{
@@ -246,10 +244,10 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 	if (attacker >= 0)
 	{
 		// filter out friendly fire
-		if (cb->GetUnitTeam(attacker) == cb->GetMyTeam())
+		if (m_aiCallback->GetUnitTeam(attacker) == m_aiCallback->GetMyTeam())
 			return;
 
-		const springLegacyAI::UnitDef* attackerDef = cb->GetUnitDef(attacker);
+		const springLegacyAI::UnitDef* attackerDef = m_aiCallback->GetUnitDef(attacker);
 
 		if (attackerDef != nullptr)
 		{
@@ -262,7 +260,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 			{
 				//if (att_cat >= GROUND_ASSAULT && att_cat <= SUBMARINE_ASSAULT)
 
-				float3 pos = cb->GetUnitPos(attacker);
+				float3 pos = m_aiCallback->GetUnitPos(attacker);
 				AAISector *sector = map->GetSectorOfPos(pos);
 
 				if (sector && !am->SufficientDefencePowerAt(sector, 1.2f))
@@ -300,7 +298,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		return;
 
 	// get unit's id
-	const springLegacyAI::UnitDef* def = cb->GetUnitDef(unit);
+	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
 	UnitDefId unitDefId(def->id);
 	const AAIUnitCategory& category = bt->s_buildTree.GetUnitCategory(unitDefId);
 
@@ -321,7 +319,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		ut->futureBuilders += 1;
 
 		// set side
-		side = bt->s_buildTree.GetSideOfUnitType( unitDefId) ;
+		m_side = bt->s_buildTree.GetSideOfUnitType( unitDefId) ;
 
 		execute->InitAI(unit, def);
 
@@ -331,7 +329,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	}
 
 	// resurrected units will be handled differently
-	if ( !cb->UnitBeingBuilt(unit))
+	if ( !m_aiCallback->UnitBeingBuilt(unit))
 	{
 		LogConsole("ressurected", 0);
 		Log("Ressurected %s\n", bt->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
@@ -346,7 +344,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 
 		if (bt->s_buildTree.GetMovementType(unitDefId).isStatic())
 		{
-			float3 pos = cb->GetUnitPos(unit);
+			float3 pos = m_aiCallback->GetUnitPos(unit);
 			execute->InitBuildingAt(def, pos);
 		}
 	}
@@ -355,7 +353,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		// construction of building started
 		if (bt->s_buildTree.GetMovementType(unitDefId).isStatic())
 		{
-			float3 pos = cb->GetUnitPos(unit);
+			float3 pos = m_aiCallback->GetUnitPos(unit);
 
 			// create new buildtask
 			execute->createBuildTask(UnitId(unit), unitDefId, &pos);
@@ -383,7 +381,7 @@ void AAI::UnitFinished(int unit)
     }
 
 	// get unit's id
-	const springLegacyAI::UnitDef* def = cb->GetUnitDef(unit);
+	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
 	UnitDefId unitDefId(def->id);
 
 	const AAIUnitCategory& category = bt->s_buildTree.GetUnitCategory(unitDefId);
@@ -475,7 +473,7 @@ void AAI::UnitFinished(int unit)
 				Command c(CMD_CLOAK);
 				c.PushParam(1);
 
-				cb->GiveOrder(unit, &c);
+				m_aiCallback->GiveOrder(unit, &c);
 			}
 		}
 		// builder
@@ -492,10 +490,10 @@ void AAI::UnitDestroyed(int unit, int attacker)
 {
 	AAI_SCOPED_TIMER("UnitDestroyed")
 	// get unit's id
-	const springLegacyAI::UnitDef* def = cb->GetUnitDef(unit);
+	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
 	UnitDefId unitDefId(def->id);
 
-	float3 pos = cb->GetUnitPos(unit);
+	float3 pos = m_aiCallback->GetUnitPos(unit);
 	const int x = pos.x/map->xSectorSize;
 	const int y = pos.z/map->ySectorSize;
 
@@ -505,14 +503,14 @@ void AAI::UnitDestroyed(int unit, int attacker)
 	// update threat map
 	if (attacker && validSector)
 	{
-		const springLegacyAI::UnitDef* att_def = cb->GetUnitDef(attacker);
+		const springLegacyAI::UnitDef* att_def = m_aiCallback->GetUnitDef(attacker);
 
 		if (att_def)
 			map->sector[x][y].UpdateThreatValues(unitDefId, UnitDefId(att_def->id));
 	}
 
 	// unfinished unit has been killed
-	if (cb->UnitBeingBuilt(unit))
+	if (m_aiCallback->UnitBeingBuilt(unit))
 	{
 		const AAIUnitCategory& category = bt->s_buildTree.GetUnitCategory(unitDefId);
 		ut->UnitUnderConstructionKilled(category);
@@ -564,7 +562,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		// update buildtable
 		if (attacker)
 		{
-			const springLegacyAI::UnitDef* def_att = cb->GetUnitDef(attacker);
+			const springLegacyAI::UnitDef* def_att = m_aiCallback->GetUnitDef(attacker);
 
 			if (def_att)
 			{
@@ -600,7 +598,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 				ut->RemoveExtractor(unit);
 
 				// mark spots of destroyed mexes as unoccupied
-				map->sector[x][y].FreeMetalSpot(cb->GetUnitPos(unit), def);
+				map->sector[x][y].FreeMetalSpot(m_aiCallback->GetUnitPos(unit), def);
 			}
 			else if (category.isPowerPlant() == true)
 			{
@@ -721,7 +719,7 @@ void AAI::UnitMoveFailed(int unit)
 		ut->units[unit].cons->CheckIfConstructionFailed();
 	}
 
-	float3 pos = cb->GetUnitPos(unit);
+	float3 pos = m_aiCallback->GetUnitPos(unit);
 
 	pos.x = pos.x - 64 + 32 * (rand()%5);
 	pos.z = pos.z - 64 + 32 * (rand()%5);
@@ -733,7 +731,7 @@ void AAI::UnitMoveFailed(int unit)
 		pos.z = 0;
 
 	// workaround: prevent flooding the interface with move orders if a unit gets stuck
-	if (cb->GetCurrentFrame() - ut->units[unit].last_order < 5)
+	if (m_aiCallback->GetCurrentFrame() - ut->units[unit].last_order < 5)
 		return;
 	else
 		execute->MoveUnitTo(unit, &pos);
@@ -753,8 +751,8 @@ void AAI::EnemyDestroyed(int enemy, int attacker)
 	if (attacker)
 	{
 		// get unit's id
-		const UnitDef* def = cb->GetUnitDef(enemy);
-		const UnitDef* def_att = cb->GetUnitDef(attacker);
+		const UnitDef* def = m_aiCallback->GetUnitDef(enemy);
+		const UnitDef* def_att = m_aiCallback->GetUnitDef(attacker);
 
 		if (def_att)
 		{
@@ -773,7 +771,7 @@ void AAI::EnemyDestroyed(int enemy, int attacker)
 
 void AAI::Update()
 {
-	const int tick = cb->GetCurrentFrame();
+	const int tick = m_aiCallback->GetCurrentFrame();
 
 	if (tick < 0)
 	{
@@ -920,7 +918,7 @@ void AAI::Update()
 	{
 		AAI_SCOPED_TIMER("Update-Income")
 		execute->UpdateRessources();
-		brain->UpdateRessources(cb);
+		brain->UpdateRessources(m_aiCallback);
 	}
 
 	// building management
@@ -1007,9 +1005,9 @@ int AAI::HandleEvent(int msg, const void* data)
 			{
 				const IGlobalAI::ChangeTeamEvent* cte = (const IGlobalAI::ChangeTeamEvent*) data;
 
-				const int myAllyTeamId = cb->GetMyAllyTeam();
-				const bool oldEnemy = !cb->IsAllied(myAllyTeamId, cb->GetTeamAllyTeam(cte->oldteam));
-				const bool newEnemy = !cb->IsAllied(myAllyTeamId, cb->GetTeamAllyTeam(cte->newteam));
+				const int myAllyTeamId = m_aiCallback->GetMyAllyTeam();
+				const bool oldEnemy = !m_aiCallback->IsAllied(myAllyTeamId, m_aiCallback->GetTeamAllyTeam(cte->oldteam));
+				const bool newEnemy = !m_aiCallback->IsAllied(myAllyTeamId, m_aiCallback->GetTeamAllyTeam(cte->newteam));
 
 				if (oldEnemy && !newEnemy) {
 					// unit changed from an enemy to an allied team
@@ -1019,18 +1017,18 @@ int AAI::HandleEvent(int msg, const void* data)
 					// unit changed from an ally to an enemy team
 					// we lost a friend! :(
 					EnemyCreated(cte->unit);
-					if (!cb->UnitBeingBuilt(cte->unit)) {
+					if (!m_aiCallback->UnitBeingBuilt(cte->unit)) {
 						EnemyFinished(cte->unit);
 					}
 				}
 
-				if (cte->oldteam == cb->GetMyTeam()) {
+				if (cte->oldteam == m_aiCallback->GetMyTeam()) {
 					// we lost a unit
 					UnitDestroyed(cte->unit, -1);
-				} else if (cte->newteam == cb->GetMyTeam()) {
+				} else if (cte->newteam == m_aiCallback->GetMyTeam()) {
 					// we have a new unit
 					UnitCreated(cte->unit, -1);
-					if (!cb->UnitBeingBuilt(cte->unit)) {
+					if (!m_aiCallback->UnitBeingBuilt(cte->unit)) {
 						UnitFinished(cte->unit);
 						UnitIdle(cte->unit);
 					}
@@ -1064,7 +1062,7 @@ void AAI::LogConsole(const char* format, ...)
 	vsnprintf(buf, 1024, format, args);
 	va_end(args);
 
-	cb->SendTextMsg(buf, 0);
+	m_aiCallback->SendTextMsg(buf, 0);
 	Log("%s\n", &buf);
 }
 

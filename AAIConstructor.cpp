@@ -49,7 +49,7 @@ AAIConstructor::~AAIConstructor(void)
 
 bool AAIConstructor::isBusy() const
 {
-	const CCommandQueue *commands = ai->Getcb()->GetCurrentUnitCommands(m_myUnitId.id);
+	const CCommandQueue *commands = ai->GetAICallback()->GetCurrentUnitCommands(m_myUnitId.id);
 
 	if(commands->empty())
 		return false;
@@ -107,7 +107,7 @@ void AAIConstructor::Update()
 			{
 				// give build order
 				Command c(-constructedUnitDefId.id);
-				ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
+				ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
 
 				m_constructedDefId = constructedUnitDefId.id;
 				m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
@@ -128,7 +128,7 @@ void AAIConstructor::Update()
 					Command c(-constructedUnitDefId.id);
 					c.PushPos(pos);
 
-					ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
+					ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
 					m_constructedDefId = constructedUnitDefId.id;
 					assert(ai->Getbt()->IsValidUnitDefID(constructedUnitDefId.id));
 					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
@@ -244,7 +244,7 @@ void AAIConstructor::CheckAssistance()
 
 			if(assist)
 			{
-				AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(ai->Getcb()->GetUnitPos(m_myUnitId.id), 5, true);
+				AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(m_myUnitId.id), 5, true);
 
 				if(assistant)
 				{
@@ -353,7 +353,7 @@ void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos
 		Command c(-m_constructedDefId.id);
 		c.PushPos(m_buildPos);
 
-		ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
+		ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
 
 		// increase number of active units of that type/category
 		ai->Getbt()->units_dynamic[def->id].requested += 1;
@@ -368,7 +368,7 @@ void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos
 void AAIConstructor::AssistConstruction(UnitId constructorUnitId)
 {
 	// Check if the target can be assisted at all. If not, try to repair it instead
-	const UnitDef* def = ai->Getcb()->GetUnitDef(constructorUnitId.id);
+	const UnitDef* def = ai->GetAICallback()->GetUnitDef(constructorUnitId.id);
 	Command c(def->canBeAssisted? CMD_GUARD: CMD_REPAIR);
 	c.PushParam(constructorUnitId.id);
 
@@ -398,7 +398,7 @@ void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 	c.PushParam(build_task->unit_id);
 
 	m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
-	ai->Getcb()->GiveOrder(m_myUnitId.id, &c);
+	ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
 }
 
 void AAIConstructor::CheckIfConstructionFailed()
@@ -498,7 +498,7 @@ void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
 {
 	if(m_activity.IsDestroyed() == false)
 	{
-		float3 pos = ai->Getcb()->GetUnitPos(m_myUnitId.id);
+		float3 pos = ai->GetAICallback()->GetUnitPos(m_myUnitId.id);
 		const int x = pos.x / ai->Getmap()->xSectorSize;
 		const int y = pos.z / ai->Getmap()->ySectorSize;
 
@@ -511,7 +511,7 @@ void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
 			{
 				// dont flee outside from scouts of the base if health is > 50%
 				if(   attackedByCategory.isScout()
-				   && (ai->Getcb()->GetUnitHealth(m_myUnitId.id) > 0.5f * ai->Getbt()->GetUnitDef(m_myDefId.id).health))
+				   && (ai->GetAICallback()->GetUnitHealth(m_myUnitId.id) > 0.5f * ai->Getbt()->GetUnitDef(m_myDefId.id).health))
 					return;	
 			}
 		}
@@ -523,7 +523,7 @@ void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
 		{
 			Command c(CMD_MOVE);
 			c.PushParam(pos.x);
-			c.PushParam(ai->Getcb()->GetElevation(pos.x, pos.z));
+			c.PushParam(ai->GetAICallback()->GetElevation(pos.x, pos.z));
 			c.PushParam(pos.z);
 
 			ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "BuilderRetreat");

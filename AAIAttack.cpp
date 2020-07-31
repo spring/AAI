@@ -93,7 +93,7 @@ void AAIAttack::AttackSector(AAISector *sector)
 
 	dest = sector;
 
-	lastAttack = ai->Getcb()->GetCurrentFrame();
+	lastAttack = ai->GetAICallback()->GetCurrentFrame();
 
 	for(set<AAIGroup*>::iterator group = combat_groups.begin(); group != combat_groups.end(); ++group)
 	{

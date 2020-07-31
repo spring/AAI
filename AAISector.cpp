@@ -112,7 +112,7 @@ bool AAISector::SetBase(bool base)
 		// check if already occupied (may happen if two coms start in same sector)
 		if(ai->Getmap()->team_sector_map[x][y] >= 0)
 		{
-			ai->Log("\nTeam %i could not add sector %i,%i to base, already occupied by ally team %i!\n\n",ai->Getcb()->GetMyTeam(), x, y, ai->Getmap()->team_sector_map[x][y]);
+			ai->Log("\nTeam %i could not add sector %i,%i to base, already occupied by ally team %i!\n\n",ai->GetAICallback()->GetMyTeam(), x, y, ai->Getmap()->team_sector_map[x][y]);
 			return false;
 		}
 
@@ -131,7 +131,7 @@ bool AAISector::SetBase(bool base)
 		// increase importance
 		importance_this_game += 1;
 
-		ai->Getmap()->team_sector_map[x][y] = ai->Getcb()->GetMyTeam();
+		ai->Getmap()->team_sector_map[x][y] = ai->GetAICallback()->GetMyTeam();
 
 		if(importance_this_game > cfg->MAX_SECTOR_IMPORTANCE)
 			importance_this_game = cfg->MAX_SECTOR_IMPORTANCE;
@@ -254,7 +254,7 @@ float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAIUnitCate
 {
 	float3 best_pos = ZeroVector, pos;
 	
-	int my_team = ai->Getcb()->GetMyAllyTeam();
+	int my_team = ai->GetAICallback()->GetMyAllyTeam();
 
 	float my_rating, best_rating = -10000;
 
@@ -457,7 +457,7 @@ UnitCategory AAISector::GetWeakestCategory()
 	UnitCategory weakest = UNKNOWN;
 	float importance, most_important = 0;
 
-	float learned = 60000 / (ai->Getcb()->GetCurrentFrame() + 30000) + 0.5;
+	float learned = 60000 / (ai->GetAICallback()->GetCurrentFrame() + 30000) + 0.5;
 	float current = 2.5 - learned;
 
 	if(interior)
