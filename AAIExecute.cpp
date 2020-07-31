@@ -273,7 +273,6 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 		continentId = ai->Getmap()->GetContinentID(pos);
 	}
 
-	const UnitType  unitType = ai->Getbt()->GetUnitType(unitDefId.id);
 	AAIGroup *new_group = new AAIGroup(ai, unitDefId, continentId);
 
 	ai->Getgroup_list()[category.GetArrayIndex()].push_back(new_group);

@@ -656,7 +656,7 @@ void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 	}
 	else
 	{
-		if(ai->Getbt()->GetUnitType(unitDefId.id) == ASSAULT_UNIT)
+		if(ai->Getbt()->GetUnitType(unitDefId.id).IsAssaultUnit())
 		{
 			const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
 
@@ -691,7 +691,7 @@ void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 					break;
 			}
 		}
-		else if(ai->Getbt()->GetUnitType(unitDefId.id) == ANTI_AIR_UNIT)
+		else if(ai->Getbt()->GetUnitType(unitDefId.id).IsAntiAir())
 			defence_power_vs[1] += ai->Getbt()->units_static[unitDefId.id].efficiency[1];
 	}
 }

@@ -346,72 +346,71 @@ void AAIBuildTable::PrecacheStats()
 	}
 }
 
-UnitType AAIBuildTable::GetUnitType(int def_id)
+AAIUnitType AAIBuildTable::GetUnitType(UnitDefId unitDefId) const
 {
 	if(cfg->AIR_ONLY_MOD)
 	{
-		return ASSAULT_UNIT;
+		return AAIUnitType(EUnitType::ANTI_SURFACE);
 	}
 	else
 	{
-		if (units_static.empty()) return UNKNOWN_UNIT;
-		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(UnitDefId(def_id));
+		if (units_static.empty()) 
+			return AAIUnitType(EUnitType::UNKNOWN);
 
-		int side = s_buildTree.GetSideOfUnitType(UnitDefId(def_id))-1;
+		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
+
+		int side = s_buildTree.GetSideOfUnitType(unitDefId)-1;
 
 		if(side < 0)
-			return UnitType::UNKNOWN_UNIT;
+			return AAIUnitType(EUnitType::UNKNOWN);
 
-		if(category.isGroundCombat() == true)
+		if(category.isGroundCombat())
 		{
-			if( units_static[def_id].efficiency[1] / max_eff[side][0][1]  > 6.0f * units_static[def_id].efficiency[0] / max_eff[side][0][0] )
-				return ANTI_AIR_UNIT;
+			if( units_static[unitDefId.id].efficiency[1] / max_eff[side][0][1]  > 6.0f * units_static[unitDefId.id].efficiency[0] / max_eff[side][0][0] )
+				return AAIUnitType(EUnitType::ANTI_AIR);
 			else
-				return ASSAULT_UNIT;
+				return AAIUnitType(EUnitType::ANTI_SURFACE);
 		}
-		else if(category.isAirCombat() == true)
+		else if(category.isAirCombat())
 		{
-			float vs_building = units_static[def_id].efficiency[5] / max_eff[side][1][5];
+			float vs_building = units_static[unitDefId.id].efficiency[5] / max_eff[side][1][5];
 
-			float vs_units = (units_static[def_id].efficiency[0] / max_eff[side][1][0]
-							+ units_static[def_id].efficiency[3] / max_eff[side][1][3]) / 2.0f;
+			float vs_units = (units_static[unitDefId.id].efficiency[0] / max_eff[side][1][0]
+							+ units_static[unitDefId.id].efficiency[3] / max_eff[side][1][3]) / 2.0f;
 
-			if( units_static[def_id].efficiency[1]  / max_eff[side][1][1] > 2 * (vs_building + vs_units) )
-				return ANTI_AIR_UNIT;
+			if( units_static[unitDefId.id].efficiency[1]  / max_eff[side][1][1] > 2 * (vs_building + vs_units) )
+				return AAIUnitType(EUnitType::ANTI_AIR);
 			else
 			{
-				if(vs_building > 4 * vs_units || GetUnitDef(def_id).type == string("Bomber"))
-					return BOMBER_UNIT;
+				if(vs_building > 4 * vs_units || GetUnitDef(unitDefId.id).type == string("Bomber"))
+					return AAIUnitType(EUnitType::ANTI_STATIC);
 				else
-					return ASSAULT_UNIT;
+					return AAIUnitType(EUnitType::ANTI_SURFACE);
 			}
 		}
-		else if(category.isHoverCombat() == true)
+		else if(category.isHoverCombat())
 		{
-			if( units_static[def_id].efficiency[1] / max_eff[side][2][1] > 6.0f * units_static[def_id].efficiency[0] / max_eff[side][2][0] )
-				return ANTI_AIR_UNIT;
+			if( units_static[unitDefId.id].efficiency[1] / max_eff[side][2][1] > 6.0f * units_static[unitDefId.id].efficiency[0] / max_eff[side][2][0] )
+				return AAIUnitType(EUnitType::ANTI_AIR);
 			else
-				return ASSAULT_UNIT;
+				return AAIUnitType(EUnitType::ANTI_SURFACE);
 		}
-		else if(category.isSeaCombat() == true)
+		else if(category.isSeaCombat())
 		{
-			if( units_static[def_id].efficiency[1] / max_eff[side][3][1] > 6.0f * units_static[def_id].efficiency[3] / max_eff[side][3][3] )
-				return ANTI_AIR_UNIT;
+			if( units_static[unitDefId.id].efficiency[1] / max_eff[side][3][1] > 6.0f * units_static[unitDefId.id].efficiency[3] / max_eff[side][3][3] )
+				return AAIUnitType(EUnitType::ANTI_AIR);
 			else
-				return ASSAULT_UNIT;
+				return AAIUnitType(EUnitType::ANTI_SURFACE);
 		}
-		else if(category.isSubmarineCombat() == SUBMARINE_ASSAULT)
+		else if(category.isSubmarineCombat())
 		{
-			if( units_static[def_id].efficiency[1] / max_eff[side][4][1] > 6 * units_static[def_id].efficiency[3] / max_eff[side][4][3] )
-				return ANTI_AIR_UNIT;
+			if( units_static[unitDefId.id].efficiency[1] / max_eff[side][4][1] > 6 * units_static[unitDefId.id].efficiency[3] / max_eff[side][4][3] )
+				return AAIUnitType(EUnitType::ANTI_AIR);
 			else
-				return ASSAULT_UNIT;
+				return AAIUnitType(EUnitType::ANTI_SURFACE);
 		}
-		else if(category.isMobileArtillery() == true)
-		{
-			return ARTY_UNIT;
-		} else //throw "AAIBuildTable::GetUnitType: invalid unit category";
-			return UNKNOWN_UNIT;
+		else
+			return AAIUnitType(EUnitType::UNKNOWN);
 	}
 }
 

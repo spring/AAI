@@ -79,8 +79,8 @@ public:
 	// cache for combat eff (needs side, thus initialized later)
 	void InitCombatEffCache(int side);
 
-	// return unit type (for groups)
-	UnitType GetUnitType(int def_id);
+	//! @brief Determines the unit type
+	AAIUnitType GetUnitType(UnitDefId unitDefId) const;
 
 	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
 	void ConstructorRequested(UnitDefId constructor);

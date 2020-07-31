@@ -188,6 +188,8 @@ class AAIUnitType
 public:
 	AAIUnitType() : m_unitType(static_cast<int>(EUnitType::UNKNOWN)) {}
 
+	AAIUnitType(EUnitType unitType) : m_unitType(static_cast<int>(unitType)) {}
+
 	//! @brief Sets the given unit type
 	void SetUnitType(EUnitType unitType) { m_unitType = static_cast<int>(unitType);  }
 

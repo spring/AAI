@@ -225,6 +225,7 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 			{EUnitType::ANTI_SURFACE, "anti surface"},
 			{EUnitType::ANTI_AIR, "anti air"},
 			{EUnitType::ANTI_SUBMERGED, "anti submerged"},
+			{EUnitType::ANTI_STATIC, "anti building"},
 			{EUnitType::RADAR, "radar"},
 			{EUnitType::SONAR, "sonar"},
 			{EUnitType::SEISMIC, "seismic detector"},
