@@ -35,18 +35,18 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 
 	attack = nullptr;
 
-	m_groupType = ai->Getbt()->s_buildTree.GetUnitType(m_groupDefId); 
-	m_category  = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
+	m_groupType = ai->s_buildTree.GetUnitType(m_groupDefId); 
+	m_category  = ai->s_buildTree.GetUnitCategory(unitDefId);
 	
 	// set movement type of group (filter out add. movement info like underwater, floater, etc.)
-	m_moveType = ai->Getbt()->s_buildTree.GetMovementType( unitDefId );
+	m_moveType = ai->s_buildTree.GetMovementType( unitDefId );
 
 	// now we know type and category, determine max group size
 	if(cfg->AIR_ONLY_MOD)
 	{
 		maxSize = cfg->MAX_AIR_GROUP_SIZE;
 	}
-	else if(ai->Getbt()->s_buildTree.GetUnitType(unitDefId).IsAntiAir() )
+	else if(ai->s_buildTree.GetUnitType(unitDefId).IsAntiAir() )
 			maxSize = cfg->MAX_ANTI_AIR_GROUP_SIZE;
 	else
 	{
@@ -75,7 +75,7 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 	// get a rally point
 	GetNewRallyPoint();
 
-	ai->Log("Creating new group - max size: %i   unit type: %s   continent: %i\n", maxSize, ai->Getbt()->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str(), m_continentId);
+	ai->Log("Creating new group - max size: %i   unit type: %s   continent: %i\n", maxSize, ai->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str(), m_continentId);
 }
 
 AAIGroup::~AAIGroup(void)
@@ -156,7 +156,7 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 				if(def && !cfg->AIR_ONLY_MOD)
 				{
 					UnitDefId attackerUnitDefId(def->id);
-					const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(attackerUnitDefId);
+					const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(attackerUnitDefId);
 
 					if(category.isStaticDefence() == true)
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
@@ -174,7 +174,7 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 						int unit = GetRandomUnit();
 
 						if(unit)
-							ai->Getexecute()->DefendUnitVS(unit, ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def->id)), &enemy_pos, 100);
+							ai->Getexecute()->DefendUnitVS(unit, ai->s_buildTree.GetUnitCategory(UnitDefId(def->id)), &enemy_pos, 100);
 					}
 				}
 			}
@@ -231,7 +231,7 @@ void AAIGroup::Update()
 
 		for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
 		{
-			range = ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(unit->y));
+			range = ai->s_buildTree.GetMaxRange(UnitDefId(unit->y));
 
 			if(range > cfg->MIN_FALLBACK_RANGE)
 			{
@@ -390,7 +390,7 @@ bool AAIGroup::SufficientAttackPower()
 	if(units.size() >= 2)
 		return true;
 
-	if(ai->Getbt()->s_buildTree.GetUnitType(m_groupDefId).IsAntiAir() )
+	if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAntiAir() )
 	{
 		const float avg_combat_power = static_cast<float>(units.size()) * ai->Getbt()->units_static[m_groupDefId.id].efficiency[1];
 
@@ -457,7 +457,7 @@ bool AAIGroup::AvailableForAttack()
 {
 	if(!attack)
 	{
-		if( ai->Getbt()->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() )
+		if( ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() )
 		{
 			if(SufficientAttackPower())
 				return true;
@@ -500,13 +500,13 @@ void AAIGroup::UnitIdle(int unit)
 		if( (sector == target_sector) || (target_sector == nullptr) )
 		{
 			// combat groups
-			if(ai->Getbt()->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && (attack->dest->enemy_structures <= 0.0f) )
+			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && (attack->dest->enemy_structures <= 0.0f) )
 			{
 				ai->Getam()->GetNextDest(attack);
 				return;
 			}
 			// unit the aa group was guarding has been killed
-			else if(ai->Getbt()->s_buildTree.GetUnitType(m_groupDefId).IsAntiAir())
+			else if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAntiAir())
 			{
 				if(!attack->combat_groups.empty())
 				{
@@ -527,7 +527,7 @@ void AAIGroup::UnitIdle(int unit)
 		else
 		{
 			// idle assault units are ordered to attack the current target sector
-			if(ai->Getbt()->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit())
+			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit())
 			{
 				Command c(CMD_FIGHT);
 
@@ -640,6 +640,6 @@ void AAIGroup::GetNewRallyPoint()
 	}
 	else
 	{
-		ai->Log("Failed to determine rally point for goup of unit type %s!\n", ai->Getbt()->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str());
+		ai->Log("Failed to determine rally point for goup of unit type %s!\n", ai->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str());
 	}
 }

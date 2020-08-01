@@ -637,8 +637,8 @@ float AAISector::GetFlatRatio()
 
 void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerDefId)
 {
-	const AAIUnitCategory& destroyedCategory = ai->Getbt()->s_buildTree.GetUnitCategory(destroyedDefId);
-	const AAIUnitCategory& attackerCategory  = ai->Getbt()->s_buildTree.GetUnitCategory(attackerDefId);
+	const AAIUnitCategory& destroyedCategory = ai->s_buildTree.GetUnitCategory(destroyedDefId);
+	const AAIUnitCategory& attackerCategory  = ai->s_buildTree.GetUnitCategory(attackerDefId);
 
 	// if lost unit is a building, increase attacked_by
 	if(destroyedCategory.isBuilding() == true)
@@ -658,7 +658,7 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 			combats_this_game[category.GetArrayIndex()] += 1.0f;
 		}
 
-		if(ai->Getbt()->s_buildTree.GetMovementType(destroyedDefId).isAir())
+		if(ai->s_buildTree.GetMovementType(destroyedDefId).isAir())
 			m_lostAirUnits += 1.0f;
 		else
 			m_lostUnits += 1.0f;

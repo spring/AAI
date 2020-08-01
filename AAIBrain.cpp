@@ -152,7 +152,7 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 	AAISector *scout_sector = 0, *sector;
 
 	const UnitDef *def = ai->GetAICallback()->GetUnitDef(scout);
-	const AAIMovementType& scoutMoveType = ai->Getbt()->s_buildTree.GetMovementType( UnitDefId(def->id) );
+	const AAIMovementType& scoutMoveType = ai->s_buildTree.GetMovementType( UnitDefId(def->id) );
 
 	float3 pos = ai->GetAICallback()->GetUnitPos(scout);
 
@@ -589,7 +589,7 @@ void AAIBrain::UpdateDefenceCapabilities()
 
 	if(cfg->AIR_ONLY_MOD)
 	{
-		for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
+		for(auto category = ai->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
 			for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 			{
@@ -603,7 +603,7 @@ void AAIBrain::UpdateDefenceCapabilities()
 	else
 	{
 		// anti air power
-		for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
+		for(auto category = ai->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
 			for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 			{
@@ -658,7 +658,7 @@ void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 	{
 		if(ai->Getbt()->GetUnitType(unitDefId.id).IsAssaultUnit())
 		{
-			const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
+			const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
 
 			switch (category.getUnitCategory())
 			{
@@ -893,10 +893,10 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 	{
 		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable > 0)
 		{
-			const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId);
-			const StatisticalData& costStatistics = ai->Getbt()->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
+			const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
+			const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
 
-			if(ai->Getbt()->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
+			if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
 			{
 				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 3, urgent))
 				{
@@ -904,7 +904,7 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 					ai->Getut()->UnitRequested(category, 3);
 				}
 			}
-			else if(ai->Getbt()->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
+			else if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
 			{
 				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 2, urgent))
 					ai->Getbt()->units_dynamic[unitDefId.id].requested += 2;

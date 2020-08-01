@@ -223,9 +223,6 @@ public:
 	// however for some purposes its necessary to have constant values (e.g. adding and subtracting stationary defences to/from the defense map)
 	static vector< vector<float> > fixed_eff;
 
-	//! The buildtree (who builds what, which unit belongs to which side, ...)
-	static AAIBuildTree s_buildTree;
-
 	//
 	//	non static variales
 	//

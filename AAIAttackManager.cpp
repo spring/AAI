@@ -75,7 +75,7 @@ void AAIAttackManager::LaunchAttack()
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	int total_combat_groups = 0;
 
-	for(auto category = ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->Getbt()->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
+	for(auto category = ai->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 	{
 		for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 		{

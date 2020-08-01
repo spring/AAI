@@ -802,7 +802,7 @@ float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int 
 			// check if buildmap allows construction
 			if(CanBuildAt(xPos, yPos, xSize, ySize, water))
 			{
-				if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
+				if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 					yPos += 8;
 
 				pos.x = xPos;
@@ -948,7 +948,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					temp_pos.y = 0;
 					temp_pos.z = pos.z;
 
-					if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
+					if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 						temp_pos.z += 8;
 
 					// buildmap allows construction, now check if otherwise blocked
@@ -971,7 +971,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					temp_pos.y = 0;
 					temp_pos.z = pos.z + 2 * vIterator;
 
-					if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
+					if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 						temp_pos.z += 8;
 
 					// buildmap allows construction, now check if otherwise blocked
@@ -1014,7 +1014,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					temp_pos.y = 0;
 					temp_pos.z = pos.z;
 
-					if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
+					if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 						temp_pos.z += 8;
 
 					// buildmap allows construction, now check if otherwise blocked
@@ -1036,7 +1036,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					temp_pos.y = 0;
 					temp_pos.z = pos.z;
 
-					if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
+					if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 						temp_pos.z += 8;
 
 					// buildmap allows construction, now check if otherwise blocked
@@ -1091,7 +1091,7 @@ float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 		// check if buildmap allows construction
 		if(CanBuildAt(pos.x, pos.z, xSize, ySize, water))
 		{
-			if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
+			if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 				pos.z += 8;
 
 			// buildmap allows construction, now check if otherwise blocked
@@ -1369,8 +1369,8 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 
 void AAIMap::UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool block)
 {
-	const bool water   = ai->Getbt()->s_buildTree.GetMovementType(UnitDefId(def->id)).isStaticSea();
-	const bool factory = ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory();
+	const bool water   = ai->s_buildTree.GetMovementType(UnitDefId(def->id)).isStaticSea();
+	const bool factory = ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory();
 	
 	float3 buildMapPos = buildPos;
 	Pos2BuildMapPos(&buildMapPos, def);
@@ -1473,7 +1473,7 @@ void AAIMap::GetSize(const UnitDef *def, int *xSize, int *ySize) const
 	*ySize = def->zsize;
 
 	// if building is a factory additional vertical space is needed
-	if(ai->Getbt()->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
+	if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
 	{
 		*xSize += cfg->X_SPACE;
 		*ySize += ((float)cfg->Y_SPACE)*1.5;
@@ -2102,7 +2102,7 @@ void AAIMap::UpdateRecon()
 			// make sure unit is within the map (e.g. no aircraft that has flown outside of the map)
 			if(x_pos >= 0 && x_pos < xLOSMapSize && y_pos >= 0 && y_pos < yLOSMapSize)
 			{
-				const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def->id));
+				const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 				// add buildings/combat units to scout map
 				if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
@@ -2149,7 +2149,7 @@ void AAIMap::UpdateRecon()
 	{
 		// get unit def & category
 		const UnitDef* def = ai->GetAICallback()->GetUnitDef(units_in_los[i]);
-		const AAIUnitCategory& category = ai->Getbt()->s_buildTree.GetUnitCategory(UnitDefId(def->id));
+		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 		if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
 		{
@@ -2210,23 +2210,23 @@ void AAIMap::UpdateEnemyScoutingData()
 					if(unitDefId.isValid() == true)
 					{
 						// add building to sector (and update stat_combat_power if it's a stat defence)
-						if(ai->Getbt()->s_buildTree.GetMovementType(unitDefId).isStatic() == true)
+						if(ai->s_buildTree.GetMovementType(unitDefId).isStatic() == true)
 						{
 							sector->enemy_structures += 1.0f;
 
-							if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence() == true)
+							if(ai->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence() == true)
 							{
 								for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
 									sector->enemy_stat_combat_power[i] += ai->Getbt()->units_static[unitDefId.id].efficiency[i];
 							}
 						}
 						// add unit to sector and update mobile_combat_power
-						else if(ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId).isCombatUnit() == true)
+						else if(ai->s_buildTree.GetUnitCategory(unitDefId).isCombatUnit() == true)
 						{
 							// units that have been scouted long time ago matter less
 							const int frame = ai->GetAICallback()->GetCurrentFrame();
 							const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(last_updated_map[x + y * xLOSMapSize] - frame)) / 3600.0f  );
-							const AAICombatUnitCategory category( ai->Getbt()->s_buildTree.GetUnitCategory(unitDefId) );
+							const AAICombatUnitCategory category( ai->s_buildTree.GetUnitCategory(unitDefId) );
 
 							sector->AddEnemyCombatUnit(category, lastSeen);
 
@@ -2286,7 +2286,7 @@ AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 
 void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 {
-	const int range = static_cast<int>( ai->Getbt()->s_buildTree.GetMaxRange(defence) ) / (SQUARE_SIZE * 4);
+	const int range = static_cast<int>( ai->s_buildTree.GetMaxRange(defence) ) / (SQUARE_SIZE * 4);
 
 	float power;
 	float air_power;
@@ -2300,7 +2300,7 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 	}
 	else
 	{
-		if(ai->Getbt()->s_buildTree.GetMovementType(defence).isStaticSea())
+		if(ai->s_buildTree.GetMovementType(defence).isStaticSea())
 			power = (ai->Getbt()->fixed_eff[defence.id][2] + ai->Getbt()->fixed_eff[defence.id][3]) / 2.0f;
 		else
 			power = ai->Getbt()->fixed_eff[defence.id][0];
@@ -2404,7 +2404,7 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 void AAIMap::RemoveDefence(float3 *pos, int defence)
 {
 	int cell;
-	int range = static_cast<int>( ai->Getbt()->s_buildTree.GetMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
+	int range = static_cast<int>( ai->s_buildTree.GetMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
 
 	float power;
 	float air_power;
@@ -2524,7 +2524,7 @@ float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xSta
 	else if(category.isSubmarineCombat() )
 		map = &submarine_defence_map;
 
-	float range =  ai->Getbt()->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
+	float range =  ai->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
 
 	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
 	FILE* file = fopen(filename.c_str(), "w+");

@@ -14,6 +14,7 @@
 #include <list>
 #include <vector>
 #include "aidef.h"
+#include "AAIBuildTree.h"
 
 namespace springLegacyAI {
 	class IAICallback;
@@ -93,7 +94,9 @@ public:
 	AAIAirForceManager* Getaf() { return af; }
 	AAIAttackManager*   Getam() { return am; }
 	AAIBuildTable*      Getbt() { return bt; }
-	
+
+	//! The buildtree (who builds what, which unit belongs to which side, ...)
+	static AAIBuildTree s_buildTree;
 
 private:
 	Profiler* GetProfiler(){ return profiler; }
