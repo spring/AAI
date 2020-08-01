@@ -107,12 +107,6 @@ private:
 	// returns true if sufficient ressources to build unit are availbale
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
-	// returns true if enough metal for constr.
-	bool MetalForConstr(int unit, int workertime = 175);
-
-	// returns true if enough energy for constr.
-	bool EnergyForConstr(int unit, int wokertime = 175);
-
 	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatPower& combatCriteria, bool urgent);
 
 	vector<float> defence_power_vs;

@@ -196,36 +196,10 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 		scout_sector->last_scout = 1;
 }
 
-bool AAIBrain::MetalForConstr(int unit, int workertime)
-{
-
-	int metal = (ai->Getbt()->GetUnitDef(unit).buildTime/workertime) * (ai->GetAICallback()->GetMetalIncome()-(ai->GetAICallback()->GetMetalUsage()) + ai->GetAICallback()->GetMetal());
-	int total_cost = ai->Getbt()->GetUnitDef(unit).metalCost;
-
-	if(metal > total_cost)
-		return true;
-
-	return false;
-}
-
-bool AAIBrain::EnergyForConstr(int unit, int /*wokertime*/)
-{
-
-	// check energy
-//	int energy =  ai->Getbt()->unitList[unit-1]->buildTime * (ai->Getcb()->GetEnergyIncome()-(ai->Getcb()->GetEnergyUsage()/2));
-
-	// TODO: FIXME: add code here
-
-	return true;
-}
-
 bool AAIBrain::RessourcesForConstr(int /*unit*/, int /*wokertime*/)
 {
-	// check metal and energy
-	/*if(MetalForConstr(unit) && EnergyForConstr(unit))
-			return true;
+	//! @todo check metal and energy
 
-	return false;*/
 	return true;
 }
 
