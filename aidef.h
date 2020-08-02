@@ -136,6 +136,10 @@ public:
 
 	bool operator>(const GamePhase& rhs) const { return (m_gamePhase > rhs.m_gamePhase); }
 
+	bool operator<(const GamePhase& rhs) const { return (m_gamePhase < rhs.m_gamePhase); }
+
+	bool operator<=(const GamePhase& rhs) const { return (m_gamePhase <= rhs.m_gamePhase); }
+
 	int GetArrayIndex()          const { return m_gamePhase; };
 
 	const std::string& GetName() const { return m_gamePhaseNames[m_gamePhase]; }
@@ -147,6 +151,12 @@ public:
 	bool IsIntermediatePhase()   const {return (m_gamePhase == 2); }
 
 	bool IsLatePhase()           const {return (m_gamePhase == 3); }
+
+	void EnterNextGamePhase() 
+	{ 
+		if(m_gamePhase < numberOfGamePhases-1)
+			++m_gamePhase;
+	}
 
 	static const int numberOfGamePhases = 4;
 

@@ -145,6 +145,8 @@ public:
 
 	AAICombatUnitCategory(const AAIUnitCategory& category) : m_combatUnitCategory( static_cast<ECombatUnitCategory>(category.GetArrayIndex() - static_cast<int>(EUnitCategory::GROUND_COMBAT)) ) {}
 
+	ECombatUnitCategory GetCombatUnitCategory() const { return m_combatUnitCategory; }
+	
 	static const int numberOfCombatUnitCategories = static_cast<int>(ECombatUnitCategory::NUMBER_OF_CATEGORIES);
 
 	static const ECombatUnitCategory firstCombatUnitCategory = ECombatUnitCategory::GROUND_COMBAT;
@@ -295,30 +297,53 @@ enum class ETargetTypeCategory : int
 class AAICombatCategory
 {
 public:
-	AAICombatCategory(ETargetTypeCategory combatUnitCategory) : m_combatUnitCategory(combatUnitCategory) {};
+	AAICombatCategory(ETargetTypeCategory combatUnitCategory) : m_targetTypeCategory(combatUnitCategory) {};
 
 	AAICombatCategory() : AAICombatCategory(ETargetTypeCategory::UNKNOWN) {};
 
-	void setCategory(ETargetTypeCategory category) { m_combatUnitCategory = category; };
+	AAICombatCategory(const AAICombatUnitCategory& combatUnitCategory)
+	{
+		if( (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::GROUND_COMBAT) || (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::HOVER_COMBAT) )
+			m_targetTypeCategory = ETargetTypeCategory::SURFACE;
+		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::AIR_COMBAT)
+			m_targetTypeCategory = ETargetTypeCategory::AIR;
+		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::SEA_COMBAT)
+			m_targetTypeCategory = ETargetTypeCategory::FLOATER;
+		else
+			m_targetTypeCategory = ETargetTypeCategory::SUBMERGED;
+	}
 
-	bool IsValid()     const { return (m_combatUnitCategory != ETargetTypeCategory::UNKNOWN); };
+	void setCategory(ETargetTypeCategory category) { m_targetTypeCategory = category; };
 
-	bool IsGround()    const { return (m_combatUnitCategory == ETargetTypeCategory::SURFACE); };
+	bool IsValid()      const { return (m_targetTypeCategory != ETargetTypeCategory::UNKNOWN); };
 
-	bool IsAir()       const { return (m_combatUnitCategory == ETargetTypeCategory::AIR); };
+	bool IsSurface()    const { return (m_targetTypeCategory == ETargetTypeCategory::SURFACE); };
 
-	bool IsFloater()   const { return (m_combatUnitCategory == ETargetTypeCategory::FLOATER); };
+	bool IsAir()        const { return (m_targetTypeCategory == ETargetTypeCategory::AIR); };
 
-	bool IsSubmerged() const { return (m_combatUnitCategory == ETargetTypeCategory::SUBMERGED); };
+	bool IsFloater()    const { return (m_targetTypeCategory == ETargetTypeCategory::FLOATER); };
 
-	int GetArrayIndex() const {return static_cast<int>(m_combatUnitCategory); };
+	bool IsSubmerged()  const { return (m_targetTypeCategory == ETargetTypeCategory::SUBMERGED); };
+
+	const std::string& GetName() const { return m_combatCategoryNames[GetArrayIndex()]; }
+
+	int GetArrayIndex() const {return static_cast<int>(m_targetTypeCategory); };
 
 	static int GetArrayIndex(ETargetTypeCategory category) { return static_cast<int>(category); };
 
 	static const int numberOfCombatCategories = static_cast<int>(ETargetTypeCategory::NUMBER_OF_CATEGORIES);
 
+	const static std::vector<std::string> m_combatCategoryNames;
+	//const static std::vector<std::string> m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
+
+	static const ETargetTypeCategory first = ETargetTypeCategory::SURFACE;
+
+	void Next() { m_targetTypeCategory = static_cast<ETargetTypeCategory>( static_cast<int>(m_targetTypeCategory) + 1 ); }
+
+	bool End() const { return (m_targetTypeCategory == ETargetTypeCategory::NUMBER_OF_CATEGORIES); }
+
 private:
-	ETargetTypeCategory m_combatUnitCategory;
+	ETargetTypeCategory m_targetTypeCategory;
 };
 
 #endif

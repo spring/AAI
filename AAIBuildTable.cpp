@@ -23,7 +23,6 @@ using namespace springLegacyAI;
 
 // all the static vars
 vector< vector< vector<float> > > AAIBuildTable::attacked_by_category_learned;
-vector< vector<float> > AAIBuildTable::attacked_by_category_current;
 vector<UnitTypeStatic> AAIBuildTable::units_static;
 /*float* AAIBuildTable::max_builder_buildtime;
 float* AAIBuildTable::max_builder_cost;
@@ -59,7 +58,6 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 	if(ai->GetAAIInstance() == 1)
 	{
 		// set up attacked_by table
-		attacked_by_category_current.resize(GamePhase::numberOfGamePhases, vector<float>(combat_categories, 0));
 		attacked_by_category_learned.resize(3,  vector< vector<float> >(GamePhase::numberOfGamePhases, vector<float>(combat_categories, 0)));
 
 		// init eff stats
@@ -76,7 +74,6 @@ AAIBuildTable::~AAIBuildTable(void)
 	if(ai->GetNumberOfAAIInstances() == 0)
 	{
 		attacked_by_category_learned.clear();
-		attacked_by_category_current.clear();
 
 		avg_eff.clear();
 		max_eff.clear();
@@ -229,9 +226,6 @@ void AAIBuildTable::Init()
 
 		// precache stats
 		PrecacheStats();
-
-		// save to cache file
-		SaveBuildTable(GamePhase(0), LAND_MAP);
 
 		ai->LogConsole("New BuildTable has been created");
 	}
@@ -1330,7 +1324,7 @@ bool AAIBuildTable::LoadBuildTable()
 	return false;
 }
 
-void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const MapType& mapType)
+void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByFrequency& atackedByFrequencies, const MapType& mapType)
 {
 	// reset factory ratings
 	for(int s = 0; s < cfg->SIDES; ++s)
@@ -1355,13 +1349,13 @@ void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const MapType& ma
 	fprintf(save_file, "%s \n", MOD_LEARN_VERSION);
 
 	// update attacked_by values
-	for(int t = 0; t < gamePhase.GetArrayIndex(); ++t)
+	for(GamePhase updateGamePhase(0); updateGamePhase <= gamePhase; updateGamePhase.EnterNextGamePhase())
 	{
-		for(int cat = 0; cat < combat_categories; ++cat)
+		for(AAICombatUnitCategory category(AAICombatUnitCategory::firstCombatUnitCategory); category.End() == false; category.Next())
 		{
-				attacked_by_category_learned[mapType][t][cat] =
-						0.75f * attacked_by_category_learned[mapType][t][cat] +
-						0.25f * attacked_by_category_current[t][cat];
+				attacked_by_category_learned[mapType][updateGamePhase.GetArrayIndex()][category.GetArrayIndex()] =
+						0.75f * attacked_by_category_learned[mapType][updateGamePhase.GetArrayIndex()][category.GetArrayIndex()] +
+						0.25f * atackedByFrequencies.GetAttackFrequency(updateGamePhase, category);
 		}
 	}
 
@@ -1677,22 +1671,6 @@ bool AAIBuildTable::IsArty(int id)
 
 		if(GetUnitDef(id).highTrajectoryType == 1)
 			return true;
-	}
-
-	return false;
-}
-
-bool AAIBuildTable::IsScout(int id)
-{
-	if(GetUnitDef(id).speed > cfg->SCOUT_SPEED && !GetUnitDef(id).canfly)
-		return true;
-	else
-	{
-		for(list<int>::iterator i = cfg->SCOUTS.begin(); i != cfg->SCOUTS.end(); ++i)
-		{
-			if(*i == id)
-				return true;
-		}
 	}
 
 	return false;

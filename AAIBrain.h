@@ -21,7 +21,6 @@ class AAISector;
 
 enum SectorType {UNKNOWN_SECTOR, LAND_SECTOR, LAND_WATER_SECTOR, WATER_SECTOR};
 
-
 class AAIBrain
 {
 public:
@@ -53,7 +52,11 @@ public:
 
 	void UpdateAttackedByValues();
 
-	void AttackedBy(int combat_category_id);
+	//! @brief Update counters aftr AI has been attacked by a certain unit category
+	void AttackedBy(const AAIUnitCategory& categoryAttacker);
+
+	//! @brief Returns the frequencies of attacks by different combat unit categories in different phases of the game
+	const AttackedByFrequency& GetAttackedByFrequencies() const { return s_attackedBy; }
 
 	// recalculates def capabilities of all units
 	void UpdateDefenceCapabilities();
@@ -82,13 +85,14 @@ public:
 
 	void UpdatePressureByEnemy();
 
-	// returns the probability that units of specified combat category will be used to attack (determine value with respect to game period, current and learning data)
-	float GetAttacksBy(int combat_category, int game_period);
+	//! @brief Returns the frequency of attacks by units of specified combat category
+	//!        The value is determined according to to current game phase, data from this game and learned data.
+	float GetAttacksBy(const AAICombatUnitCategory& combatUnitCategory, const GamePhase& gamePhase) const;
 
 	//  0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	vector<list<AAISector*> > sectors;
 
-	// are there any free metal spots within the base
+	//! Indicates whether there are any free metal spots within the base
 	bool m_freeMetalSpotsInBase;
 
 	// holding max number of units of a category spotted at the same time
@@ -134,6 +138,9 @@ private:
 
 	//! Average energy income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_energyIncome;
+
+	//! Frequency of attacks by different combat unit categories
+	static AttackedByFrequency s_attackedBy;
 
 	AAI *ai;
 };

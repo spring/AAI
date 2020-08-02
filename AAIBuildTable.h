@@ -74,7 +74,7 @@ public:
 	// loads everything from a cache file or creates a new one
 	void Init();
 
-	void SaveBuildTable(const GamePhase& gamePhase, const MapType& mapType);
+	void SaveBuildTable(const GamePhase& gamePhase, const AttackedByFrequency& atackedByFrequencies, const MapType& mapType);
 
 	// cache for combat eff (needs side, thus initialized later)
 	void InitCombatEffCache(int side);
@@ -169,9 +169,6 @@ public:
 	// returns true, if unit is arty
 	bool IsArty(int id);
 
-	// returns true, if unit is a scout
-	bool IsScout(int id);
-
 	// returns true if the unit is marked as attacker (so that it won't be classed as something else even if it can build etc.)
 	bool IsAttacker(int id);
 
@@ -206,9 +203,6 @@ public:
 
 	// combat categories that attacked AI in certain game period attacked_by_category_learned[map_type][period][cat]
 	static vector< vector< vector<float> > > attacked_by_category_learned;
-
-	// combat categories that attacked AI in certain game period attacked_by_category_current[period][cat]
-	static vector< vector<float> > attacked_by_category_current;
 
 	// AAI unit defs (static things like id, side, etc.)
 	static vector<UnitTypeStatic> units_static;

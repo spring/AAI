@@ -21,6 +21,30 @@
 //! @todo Make this changeable via optinal mod config file
 const float energyToMetalConversionFactor = 60.0f;
 
+//! @brief This class stores the frequency the AI got attacked by a certain combat category (surface, air, floater, submerged)
+class AttackedByFrequency
+{
+public:
+	AttackedByFrequency() 
+	{ 
+		m_attackedByFrequency.resize(GamePhase::numberOfGamePhases, std::vector<float>(AAICombatCategory::numberOfCombatCategories, 0.0f));
+	}
+
+	void AddAttack(const GamePhase& gamePhase, const AAICombatCategory& attackerCategory)
+	{
+		m_attackedByFrequency[gamePhase.GetArrayIndex()][attackerCategory.GetArrayIndex()] += 1.0f;
+	}
+
+	float GetAttackFrequency(const GamePhase& gamePhase, const AAICombatCategory& attackerCategory) const
+	{
+		return m_attackedByFrequency[gamePhase.GetArrayIndex()][attackerCategory.GetArrayIndex()];
+	}
+
+private:
+	//! Frequency of attacks in a certain game phase -> m_attackedByFrequency[gamePhase][combatCategory]
+	std::vector< std::vector<float> > m_attackedByFrequency;
+};
+
 //! @brief This class stores the build-tree, this includes which unit builds another, to which side each unit belongs
 class AAIBuildTree
 {

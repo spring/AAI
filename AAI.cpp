@@ -25,6 +25,7 @@
 #include "AAIMap.h"
 #include "AAIGroup.h"
 #include "AAISector.h"
+#include "AAIUnitTypes.h"
 
 
 #include "System/SafeUtil.h"
@@ -40,6 +41,7 @@ using namespace springLegacyAI;
 // C++ < C++17 does not support initialization of static cont within class declaration
 const std::vector<int> GamePhase::m_startFrameOfGamePhase  = {0, 10800, 27000, 72000};
 const std::vector<std::string> GamePhase::m_gamePhaseNames = {"starting phase", "early phase", "mid phase", "late game"};
+const std::vector<std::string> AAICombatCategory::m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
 
 AAIBuildTree AAI::s_buildTree;
 
@@ -108,6 +110,20 @@ AAI::~AAI()
 	for(auto builder = s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side).begin(); builder != s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side).end(); ++builder)
 		Log("%-24s: %i\n", s_buildTree.GetUnitTypeProperties(*builder).m_name.c_str(), bt->units_dynamic[builder->id].requested);
 
+	GamePhase gamePhase(m_aiCallback->GetCurrentFrame());
+	const AttackedByFrequency& attackedBy = brain->GetAttackedByFrequencies();
+
+	Log("\nAttack frequencies (combat unit category / frequency) \n");
+	for(GamePhase gamePhaseIterator(0); gamePhaseIterator <= gamePhase; gamePhaseIterator.EnterNextGamePhase())
+	{
+		Log("Game phase %s:", gamePhaseIterator.GetName().c_str());
+		for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
+		{
+			Log("  %s: %f", category.GetName().c_str(), attackedBy.GetAttackFrequency(gamePhaseIterator, category));
+		}
+		Log("\n");
+	}
+
 	// delete buildtasks
 	for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
 	{
@@ -116,8 +132,7 @@ AAI::~AAI()
 	build_tasks.clear();
 
 	// save game learning data
-	GamePhase gamePhase(m_aiCallback->GetCurrentFrame());
-	bt->SaveBuildTable(gamePhase.GetArrayIndex(), map->map_type);
+	bt->SaveBuildTable(gamePhase, brain->GetAttackedByFrequencies(), map->map_type);
 
 	spring::SafeDelete(am);
 	spring::SafeDelete(af);
@@ -571,13 +586,15 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 			if (def_att)
 			{
-				const int killer = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(UnitDefId(def_att->id)) );
+				const AAIUnitCategory& categoryAttacker = s_buildTree.GetUnitCategory(UnitDefId(def_att->id));
+				const int killer = bt->GetIDOfAssaultCategory( categoryAttacker );
 				const int killed = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(unitDefId) );
 
 				// check if valid id
 				if (killer != -1)
 				{
-					brain->AttackedBy(killer);
+					if(categoryAttacker.isCombatUnit())
+						brain->AttackedBy(categoryAttacker);
 
 					if (killed != -1)
 						bt->UpdateTable(def_att, killer, def, killed);

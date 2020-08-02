@@ -1978,10 +1978,11 @@ void AAIExecute::CheckDefences()
 							rating = (1.0f + (*sector)->GetThreatByID(*cat, learned, current)) / ( 1.0f + (*sector)->GetMyDefencePowerAgainstAssaultCategory(*cat));
 
 							// how often did units of that category attack anywere in the current period of the game
-							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(*cat, gamePhase.GetArrayIndex()));
+							const AAICombatUnitCategory combatUnitCategory(static_cast<ECombatUnitCategory>(*cat)); //! @todo remove this after refactoring map_categories_id
+							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(combatUnitCategory, gamePhase));
 						}
 						else
-							rating = 0;
+							rating = 0.0f;
 
 						if(rating > highest_rating)
 						{
