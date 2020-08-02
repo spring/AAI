@@ -22,7 +22,7 @@
 #include "LegacyCpp/UnitDef.h"
 using namespace springLegacyAI;
 
-AttackedByFrequency AAIBrain::s_attackedBy;
+AttackedByRatesPerGamePhase AAIBrain::s_attackedByRates;
 
 AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	m_freeMetalSpotsInBase(false),
@@ -39,7 +39,6 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	sectors.resize(maxSectorDistanceToBase);
 
 	max_combat_units_spotted.resize(AAIBuildTable::ass_categories, 0.0f);
-	m_recentlyAttackedByCategory.resize(AAIBuildTable::combat_categories, 0.0f);
 	defence_power_vs.resize(AAIBuildTable::ass_categories, 0.0f);
 
 	enemy_pressure_estimation = 0;
@@ -541,23 +540,20 @@ void AAIBrain::UpdateMaxCombatUnitsSpotted(const std::vector<int>& spottedCombat
 
 void AAIBrain::UpdateAttackedByValues()
 {
-	for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-	{
-		m_recentlyAttackedByCategory[i] *= 0.95f;
-	}
+	m_recentlyAttackedByRates.DecreaseByFactor(0.95f);
 }
 
 void AAIBrain::AttackedBy(const AAIUnitCategory& categoryAttacker)
 {
-	AAICombatUnitCategory combatUnitCategory(categoryAttacker);
+	const AAICombatUnitCategory combatUnitCategory(categoryAttacker);
+	const AAICombatCategory combatCategory(combatUnitCategory);
+	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	// update counter for current game
-	m_recentlyAttackedByCategory[combatUnitCategory.GetArrayIndex()] += 1.0f;
-
+	m_recentlyAttackedByRates.AddAttack(combatCategory);
+	
 	// update counter for memory dependent on playtime
-	AAICombatCategory combatCategory(combatUnitCategory);;
-	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
-	s_attackedBy.AddAttack(gamePhase, combatCategory);
+	s_attackedByRates.AddAttack(gamePhase, combatCategory);
 }
 
 void AAIBrain::UpdateDefenceCapabilities()
@@ -903,10 +899,10 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 float AAIBrain::GetAttacksBy(const AAICombatUnitCategory& combatUnitCategory, const GamePhase& gamePhase) const
 {
 	AAICombatCategory combatCategory(combatUnitCategory);
-	const float attackedBy = s_attackedBy.GetAttackFrequency(gamePhase, combatCategory) 
+	const float attackedBy = s_attackedByRates.GetAttackRate(gamePhase, combatCategory) 
 					+ 2.0f * ai->Getbt()->attacked_by_category_learned[ai->Getmap()->map_type][gamePhase.GetArrayIndex()][combatUnitCategory.GetArrayIndex()];
 
-	return 0.25f * (attackedBy + m_recentlyAttackedByCategory[combatUnitCategory.GetArrayIndex()]);
+	return 0.25f * (attackedBy + m_recentlyAttackedByRates.GetAttackRate(combatCategory));
 }
 
 void AAIBrain::UpdatePressureByEnemy()

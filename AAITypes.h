@@ -14,6 +14,7 @@ typedef unsigned int   uint32_t;
 
 #include <vector>
 #include <string>
+#include "AAIUnitTypes.h"
 
 //! @brief An id identifying a unit type - used to prevent mixing ids referring to units and unit definitions
 class UnitDefId
@@ -134,6 +135,36 @@ public:
 private:
 	//! Movement type
 	EMovementType m_movementType;
+};
+
+//! Unit Type properties needed by AAI for internal decision making (i.e. unit type selection)
+struct UnitTypeProperties
+{
+	//! Name of the unit
+	std::string m_name;
+
+	//! Cost of unit (metal + energy / conversion_factor)
+	float m_totalCost;
+
+	//! Buildtime
+	float m_buildtime;
+
+	//! Range of unit category relevant ability: 
+	//! max range of weapons (Combat units, artillery and static defences), line of sight (scouts), radar/sonar/jammer range
+	//! buildspeed for mobile/static constructors
+	float m_range;
+
+	//! Movement type (land, sea, air, hover, submarine, ...)
+	AAIMovementType m_movementType;
+
+	//! Maximum movement speed
+	float m_maxSpeed;
+
+	//! The category of the unit
+	AAIUnitCategory m_unitCategory;
+
+	//! The type of the unit (may further specifiy the purpose of a unit, e.g. anti ground vs anti air for combat units)
+	AAIUnitType     m_unitType;
 };
 
 #endif

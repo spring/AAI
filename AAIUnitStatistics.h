@@ -12,8 +12,64 @@
 
 #include <vector>
 #include <list>
+#include "aidef.h"
+#include "AAITypes.h"
 #include "AAIUnitTypes.h"
 #include "LegacyCpp/UnitDef.h"
+
+//! @brief This class stores the frequency the AI got attacked by a certain combat category (surface, air, floater, submerged)
+class AttackedByRates
+{
+public:
+	AttackedByRates() 
+	{ 
+		m_attackedByRates.resize(GamePhase::numberOfGamePhases, 0.0f);
+	}
+
+	void AddAttack(const AAICombatCategory& attackerCategory)
+	{
+		m_attackedByRates[attackerCategory.GetArrayIndex()] += 1.0f;
+	}
+
+	float GetAttackRate(const AAICombatCategory& attackerCategory) const
+	{
+		return m_attackedByRates[attackerCategory.GetArrayIndex()];
+	}
+
+	void DecreaseByFactor(float factor)
+	{
+		for(int i = 0; i < m_attackedByRates.size(); ++i)
+			m_attackedByRates[i] *= factor;
+	}
+
+private:
+	//! Frequency of attacks
+	std::vector<float> m_attackedByRates;
+};
+
+//! @brief This class stores the frequency the AI got attacked by a certain combat category (surface, air, floater, submerged) in a certain game phase
+class AttackedByRatesPerGamePhase
+{
+public:
+	AttackedByRatesPerGamePhase() 
+	{ 
+		m_attackedByRatesPerGamePhase.resize(GamePhase::numberOfGamePhases);
+	}
+
+	void AddAttack(const GamePhase& gamePhase, const AAICombatCategory& attackerCategory)
+	{
+		m_attackedByRatesPerGamePhase[gamePhase.GetArrayIndex()].AddAttack(attackerCategory);
+	}
+
+	float GetAttackRate(const GamePhase& gamePhase, const AAICombatCategory& attackerCategory) const
+	{
+		return m_attackedByRatesPerGamePhase[gamePhase.GetArrayIndex()].GetAttackRate(attackerCategory);
+	}
+
+private:
+	//! Frequency of attacks in a certain game phase
+	std::vector< AttackedByRates > m_attackedByRatesPerGamePhase;
+};
 
 //! This class stores the statistical data (min, max, average) for each Unit Category (e.g. build cost)
 class StatisticalData

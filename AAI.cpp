@@ -111,7 +111,7 @@ AAI::~AAI()
 		Log("%-24s: %i\n", s_buildTree.GetUnitTypeProperties(*builder).m_name.c_str(), bt->units_dynamic[builder->id].requested);
 
 	GamePhase gamePhase(m_aiCallback->GetCurrentFrame());
-	const AttackedByFrequency& attackedBy = brain->GetAttackedByFrequencies();
+	const AttackedByRatesPerGamePhase& attackedByRates = brain->GetAttackedByRates();
 
 	Log("\nAttack frequencies (combat unit category / frequency) \n");
 	for(GamePhase gamePhaseIterator(0); gamePhaseIterator <= gamePhase; gamePhaseIterator.EnterNextGamePhase())
@@ -119,7 +119,7 @@ AAI::~AAI()
 		Log("Game phase %s:", gamePhaseIterator.GetName().c_str());
 		for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
 		{
-			Log("  %s: %f", category.GetName().c_str(), attackedBy.GetAttackFrequency(gamePhaseIterator, category));
+			Log("  %s: %f", category.GetName().c_str(), attackedByRates.GetAttackRate(gamePhaseIterator, category));
 		}
 		Log("\n");
 	}
@@ -132,7 +132,7 @@ AAI::~AAI()
 	build_tasks.clear();
 
 	// save game learning data
-	bt->SaveBuildTable(gamePhase, brain->GetAttackedByFrequencies(), map->map_type);
+	bt->SaveBuildTable(gamePhase, brain->GetAttackedByRates(), map->map_type);
 
 	spring::SafeDelete(am);
 	spring::SafeDelete(af);

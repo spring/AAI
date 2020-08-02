@@ -16,7 +16,7 @@ class AIIMap;
 class AAISector;
 
 #include "aidef.h"
-#include "AAIUnitTypes.h"
+#include "AAIUnitStatistics.h"
 #include "AAIBuildTable.h"
 
 enum SectorType {UNKNOWN_SECTOR, LAND_SECTOR, LAND_WATER_SECTOR, WATER_SECTOR};
@@ -56,7 +56,7 @@ public:
 	void AttackedBy(const AAIUnitCategory& categoryAttacker);
 
 	//! @brief Returns the frequencies of attacks by different combat unit categories in different phases of the game
-	const AttackedByFrequency& GetAttackedByFrequencies() const { return s_attackedBy; }
+	const AttackedByRatesPerGamePhase& GetAttackedByRates() const { return s_attackedByRates; }
 
 	// recalculates def capabilities of all units
 	void UpdateDefenceCapabilities();
@@ -124,9 +124,6 @@ private:
 	//! Center of base (mean value of centers of all base sectors)
 	float3 m_centerOfBase;
 
-	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
-	std::vector<float> m_recentlyAttackedByCategory;
-
 	//! Average metal surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_metalSurplus;
 
@@ -139,8 +136,11 @@ private:
 	//! Average energy income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_energyIncome;
 
-	//! Frequency of attacks by different combat unit categories
-	static AttackedByFrequency s_attackedBy;
+	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
+	AttackedByRates m_recentlyAttackedByRates;
+
+	//! Frequency of attacks by different combat categories throughout the gane
+	static AttackedByRatesPerGamePhase s_attackedByRates;
 
 	AAI *ai;
 };

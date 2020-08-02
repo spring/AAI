@@ -1324,7 +1324,7 @@ bool AAIBuildTable::LoadBuildTable()
 	return false;
 }
 
-void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByFrequency& atackedByFrequencies, const MapType& mapType)
+void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const MapType& mapType)
 {
 	// reset factory ratings
 	for(int s = 0; s < cfg->SIDES; ++s)
@@ -1355,7 +1355,7 @@ void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByF
 		{
 				attacked_by_category_learned[mapType][updateGamePhase.GetArrayIndex()][category.GetArrayIndex()] =
 						0.75f * attacked_by_category_learned[mapType][updateGamePhase.GetArrayIndex()][category.GetArrayIndex()] +
-						0.25f * atackedByFrequencies.GetAttackFrequency(updateGamePhase, category);
+						0.25f * atackedByRates.GetAttackRate(updateGamePhase, category);
 		}
 	}
 
