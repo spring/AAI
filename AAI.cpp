@@ -114,12 +114,12 @@ AAI::~AAI()
 	const AttackedByRatesPerGamePhase& attackedByRates = brain->GetAttackedByRates();
 
 	Log("\nAttack frequencies (combat unit category / frequency) \n");
-	for(GamePhase gamePhaseIterator(0); gamePhaseIterator <= gamePhase; gamePhaseIterator.EnterNextGamePhase())
+	for(GamePhase gamePhaseIterator(0); gamePhaseIterator <= gamePhase; gamePhaseIterator.Next())
 	{
 		Log("Game phase %s:", gamePhaseIterator.GetName().c_str());
 		for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
 		{
-			Log("  %s: %f", category.GetName().c_str(), attackedByRates.GetAttackRate(gamePhaseIterator, category));
+			Log("  %s: %f", category.GetName().c_str(), attackedByRates.GetAttackedByRate(gamePhaseIterator, category));
 		}
 		Log("\n");
 	}
@@ -132,7 +132,8 @@ AAI::~AAI()
 	build_tasks.clear();
 
 	// save game learning data
-	bt->SaveBuildTable(gamePhase, brain->GetAttackedByRates(), map->map_type);
+	AAIMapType mapType(static_cast<EMapType>(map->map_type)); //! @todo Will be removed after switching to new AAIMapType
+	bt->SaveBuildTable(gamePhase, brain->GetAttackedByRates(), mapType);
 
 	spring::SafeDelete(am);
 	spring::SafeDelete(af);
@@ -220,6 +221,12 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 
 	// init brain
 	brain = new AAIBrain(this, map->GetMaxSectorDistanceToBase());
+
+	if(GetAAIInstance() == 1)
+	{
+		const AAIMapType mapType( static_cast<EMapType>(map->map_type) );	
+		brain->InitAttackedByRates(bt->GetAttackedByRates(mapType));
+	}
 
 	// init executer
 	execute = new AAIExecute(this);
@@ -914,7 +921,7 @@ void AAI::Update()
 	}
 
 	// update sectors
-	if (!(tick % 323))
+	if (!(tick % 163))
 	{
 		AAI_SCOPED_TIMER("Update-Sectors")
 		brain->UpdateAttackedByValues();

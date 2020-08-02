@@ -22,16 +22,14 @@ using namespace springLegacyAI;
 
 
 // all the static vars
-vector< vector< vector<float> > > AAIBuildTable::attacked_by_category_learned;
 vector<UnitTypeStatic> AAIBuildTable::units_static;
-/*float* AAIBuildTable::max_builder_buildtime;
-float* AAIBuildTable::max_builder_cost;
-float* AAIBuildTable::max_builder_buildspeed;*/
 vector< vector< vector<float> > > AAIBuildTable::avg_eff;
 vector< vector< vector<float> > > AAIBuildTable::max_eff;
 vector< vector< vector<float> > > AAIBuildTable::min_eff;
 vector< vector< vector<float> > > AAIBuildTable::total_eff;
 vector< vector<float> > AAIBuildTable::fixed_eff;
+
+AttackedByRatesPerGamePhaseAndMapType AAIBuildTable::s_attackedByRates;
 
 AAIBuildTable::AAIBuildTable(AAI* ai) :
 	initialized(false)
@@ -57,9 +55,6 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 	// only set up static things if first aai instance is initialized
 	if(ai->GetAAIInstance() == 1)
 	{
-		// set up attacked_by table
-		attacked_by_category_learned.resize(3,  vector< vector<float> >(GamePhase::numberOfGamePhases, vector<float>(combat_categories, 0)));
-
 		// init eff stats
 		avg_eff.resize(numOfSides, vector< vector<float> >(combat_categories, vector<float>(combat_categories, 1.0f)));
 		max_eff.resize(numOfSides, vector< vector<float> >(combat_categories, vector<float>(combat_categories, 1.0f)));
@@ -73,8 +68,6 @@ AAIBuildTable::~AAIBuildTable(void)
 	// delete common data only if last AAI instance is deleted
 	if(ai->GetNumberOfAAIInstances() == 0)
 	{
-		attacked_by_category_learned.clear();
-
 		avg_eff.clear();
 		max_eff.clear();
 		min_eff.clear();
@@ -688,24 +681,37 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
 	return selectedFactoryDefId;
 }
 
-void AAIBuildTable::DetermineCombatPowerWeights(CombatPower& combatPowerWeights, const MapType mapType) const
+void AAIBuildTable::DetermineCombatPowerWeights(CombatPower& combatPowerWeights, const MapType oldMapType) const
 {
-	combatPowerWeights.vsAir       = 0.5f + (attacked_by_category_learned[mapType][0][1] + attacked_by_category_learned[mapType][1][1]);
-	combatPowerWeights.vsHover     = 0.5f + (attacked_by_category_learned[mapType][0][2] + attacked_by_category_learned[mapType][1][2]);
+	AAIMapType mapType(static_cast<EMapType>(oldMapType)); //! @todo Will be removed after switching to new AAIMapType
+	GamePhase startingPhase(0);
+	GamePhase earlyPhase(0);
+	earlyPhase.Next();
 
-	switch(mapType)
+	combatPowerWeights.vsAir       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::AIR) 
+	                                         + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::AIR)   );
+	combatPowerWeights.vsHover     = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SURFACE) 
+	                                         + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SURFACE) );
+
+	switch(oldMapType)
 	{
 		case LAND_MAP:
-			combatPowerWeights.vsGround    = 0.5f + (attacked_by_category_learned[mapType][0][0] + attacked_by_category_learned[mapType][1][0]);
+			combatPowerWeights.vsGround    = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SURFACE) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SURFACE) );
 			break;
 		case LAND_WATER_MAP:
-			combatPowerWeights.vsGround    = 0.5f + (attacked_by_category_learned[mapType][0][0] + attacked_by_category_learned[mapType][1][0]);
-			combatPowerWeights.vsSea       = 0.5f + (attacked_by_category_learned[mapType][0][3] + attacked_by_category_learned[mapType][1][3]);
-			combatPowerWeights.vsSubmarine = 0.5f + (attacked_by_category_learned[mapType][0][4] + attacked_by_category_learned[mapType][1][4]);
+			combatPowerWeights.vsGround    = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SURFACE) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SURFACE) );
+			combatPowerWeights.vsSea       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::FLOATER) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::FLOATER) );
+			combatPowerWeights.vsSubmarine = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SUBMERGED) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SUBMERGED) );
 			break;
 		case WATER_MAP:
-			combatPowerWeights.vsSea       = 0.5f + (attacked_by_category_learned[mapType][0][3] + attacked_by_category_learned[mapType][1][3]);
-			combatPowerWeights.vsSubmarine = 0.5f + (attacked_by_category_learned[mapType][0][4] + attacked_by_category_learned[mapType][1][4]);
+			combatPowerWeights.vsSea       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::FLOATER) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::FLOATER) );
+			combatPowerWeights.vsSubmarine = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SUBMERGED) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SUBMERGED) );
 			break;
 	}
 }
@@ -1283,17 +1289,16 @@ bool AAIBuildTable::LoadBuildTable()
 				return false;
 			}
 
-			int counter = 0;
-
 			// load attacked_by table
-			for(int map = 0; map <= (int)WATER_MAP; ++map)
+			for(AAIMapType mapType(AAIMapType::first); mapType.End() == false; mapType.Next())
 			{
-				for(int t = 0; t < 4; ++t)
+				for(GamePhase gamePhase(0); gamePhase.End() == false; gamePhase.Next())
 				{
-					for(int category = 0; category < combat_categories; ++category)
+					for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
 					{
-						++counter;
-						fscanf(load_file, "%f ", &attacked_by_category_learned[map][t][category]);
+						float atackedByRate;
+						fscanf(load_file, "%f ", &atackedByRate);
+						s_attackedByRates.SetAttackedByRate(mapType, gamePhase, category, atackedByRate);
 					}
 				}
 			}
@@ -1324,7 +1329,7 @@ bool AAIBuildTable::LoadBuildTable()
 	return false;
 }
 
-void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const MapType& mapType)
+void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& attackedByRates, const AAIMapType& mapType)
 {
 	// reset factory ratings
 	for(int s = 0; s < cfg->SIDES; ++s)
@@ -1349,26 +1354,20 @@ void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByR
 	fprintf(save_file, "%s \n", MOD_LEARN_VERSION);
 
 	// update attacked_by values
-	for(GamePhase updateGamePhase(0); updateGamePhase <= gamePhase; updateGamePhase.EnterNextGamePhase())
-	{
-		for(AAICombatUnitCategory category(AAICombatUnitCategory::firstCombatUnitCategory); category.End() == false; category.Next())
-		{
-				attacked_by_category_learned[mapType][updateGamePhase.GetArrayIndex()][category.GetArrayIndex()] =
-						0.75f * attacked_by_category_learned[mapType][updateGamePhase.GetArrayIndex()][category.GetArrayIndex()] +
-						0.25f * atackedByRates.GetAttackRate(updateGamePhase, category);
-		}
-	}
+	AttackedByRatesPerGamePhase& updateRates = s_attackedByRates.GetAttackedByRates(mapType);
+	updateRates = attackedByRates;
+	updateRates.DecreaseByFactor(gamePhase, 0.7f);
 
 	// save attacked_by table
-	for(int map = 0; map <= WATER_MAP; ++map)
+	for(AAIMapType mapTypeIterator(AAIMapType::first); mapTypeIterator.End() == false; mapTypeIterator.Next())
 	{
-		for(int t = 0; t < GamePhase::numberOfGamePhases; ++t)
+		for(GamePhase gamePhaseIterator(0); gamePhaseIterator.End() == false; gamePhaseIterator.Next())
 		{
-			for(int cat = 0; cat < combat_categories; ++cat)
+			for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
 			{
-				fprintf(save_file, "%f ", attacked_by_category_learned[map][t][cat]);
-				fprintf(save_file, "\n");
+				fprintf(save_file, "%f ", s_attackedByRates.GetAttackedByRate(mapTypeIterator, gamePhaseIterator, category));
 			}
+			fprintf(save_file, "\n");
 		}
 	}
 

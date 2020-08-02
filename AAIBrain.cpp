@@ -48,6 +48,11 @@ AAIBrain::~AAIBrain(void)
 {
 }
 
+void AAIBrain::InitAttackedByRates(const AttackedByRatesPerGamePhase& attackedByRates)
+{
+	s_attackedByRates = attackedByRates;
+}
+
 AAISector* AAIBrain::GetAttackDest(bool land, bool water)
 {
 	float best_rating = 0.0f, my_rating = 0.0f;
@@ -540,7 +545,7 @@ void AAIBrain::UpdateMaxCombatUnitsSpotted(const std::vector<int>& spottedCombat
 
 void AAIBrain::UpdateAttackedByValues()
 {
-	m_recentlyAttackedByRates.DecreaseByFactor(0.95f);
+	m_recentlyAttackedByRates.DecreaseByFactor(0.96f);
 }
 
 void AAIBrain::AttackedBy(const AAIUnitCategory& categoryAttacker)
@@ -899,10 +904,9 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 float AAIBrain::GetAttacksBy(const AAICombatUnitCategory& combatUnitCategory, const GamePhase& gamePhase) const
 {
 	AAICombatCategory combatCategory(combatUnitCategory);
-	const float attackedBy = s_attackedByRates.GetAttackRate(gamePhase, combatCategory) 
-					+ 2.0f * ai->Getbt()->attacked_by_category_learned[ai->Getmap()->map_type][gamePhase.GetArrayIndex()][combatUnitCategory.GetArrayIndex()];
 
-	return 0.25f * (attackedBy + m_recentlyAttackedByRates.GetAttackRate(combatCategory));
+	return (  0.3f * s_attackedByRates.GetAttackedByRate(gamePhase, combatCategory) 
+	        + 0.7f * m_recentlyAttackedByRates.GetAttackedByRate(combatCategory) );
 }
 
 void AAIBrain::UpdatePressureByEnemy()

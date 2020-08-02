@@ -31,7 +31,12 @@ public:
 		m_attackedByRates[attackerCategory.GetArrayIndex()] += 1.0f;
 	}
 
-	float GetAttackRate(const AAICombatCategory& attackerCategory) const
+	void SetAttackedByRate(const AAICombatCategory& attackerCategory, float rate)
+	{
+		m_attackedByRates[attackerCategory.GetArrayIndex()] = rate;
+	}
+
+	float GetAttackedByRate(const AAICombatCategory& attackerCategory) const
 	{
 		return m_attackedByRates[attackerCategory.GetArrayIndex()];
 	}
@@ -61,14 +66,54 @@ public:
 		m_attackedByRatesPerGamePhase[gamePhase.GetArrayIndex()].AddAttack(attackerCategory);
 	}
 
-	float GetAttackRate(const GamePhase& gamePhase, const AAICombatCategory& attackerCategory) const
+	void SetAttackedByRate(const GamePhase& gamePhase, const AAICombatCategory& attackerCategory, float rate)
 	{
-		return m_attackedByRatesPerGamePhase[gamePhase.GetArrayIndex()].GetAttackRate(attackerCategory);
+		m_attackedByRatesPerGamePhase[gamePhase.GetArrayIndex()].SetAttackedByRate(attackerCategory, rate);
+	}
+
+	float GetAttackedByRate(const GamePhase& gamePhase, const AAICombatCategory& attackerCategory) const
+	{
+		return m_attackedByRatesPerGamePhase[gamePhase.GetArrayIndex()].GetAttackedByRate(attackerCategory);
+	}
+
+	void DecreaseByFactor(const GamePhase& updateUntilGamePhase, float factor)
+	{
+		for(int i = 0; i <= updateUntilGamePhase.GetArrayIndex(); ++i)
+			m_attackedByRatesPerGamePhase[i].DecreaseByFactor(factor);
 	}
 
 private:
 	//! Frequency of attacks in a certain game phase
 	std::vector< AttackedByRates > m_attackedByRatesPerGamePhase;
+};
+
+//! @brief This class stores the frequency the AI got attacked by a certain combat category (surface, air, floater, submerged) in a certain game phase
+class AttackedByRatesPerGamePhaseAndMapType
+{
+public:
+	AttackedByRatesPerGamePhaseAndMapType() 
+	{ 
+		m_attackedByRatesPerGamePhaseAndMapType.resize(AAIMapType::numberOfMapTypes);
+	}
+
+	void SetAttackedByRate(const AAIMapType& mapType, const GamePhase& gamePhase, const AAICombatCategory& attackerCategory, float rate)
+	{
+		m_attackedByRatesPerGamePhaseAndMapType[mapType.GetArrayIndex()].SetAttackedByRate(gamePhase, attackerCategory, rate);
+	}
+
+	float GetAttackedByRate(const AAIMapType& mapType, const GamePhase& gamePhase, const AAICombatCategory& attackerCategory) const
+	{
+		return m_attackedByRatesPerGamePhaseAndMapType[mapType.GetArrayIndex()].GetAttackedByRate(gamePhase, attackerCategory);
+	}
+
+	AttackedByRatesPerGamePhase& GetAttackedByRates(const AAIMapType& mapType) 
+	{ 
+		return m_attackedByRatesPerGamePhaseAndMapType[mapType.GetArrayIndex()]; 
+	}
+
+private:
+	//! Frequency of attacks in a certain game phase
+	std::vector< AttackedByRatesPerGamePhase > m_attackedByRatesPerGamePhaseAndMapType;
 };
 
 //! This class stores the statistical data (min, max, average) for each Unit Category (e.g. build cost)

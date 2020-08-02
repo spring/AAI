@@ -153,8 +153,8 @@ void AAISector::Update()
 	// decrease values (so the ai "forgets" values from time to time)...
 	//ground_threat *= 0.995;
 	//air_threat *= 0.995;
-	m_lostUnits    *= 0.92f;
-	m_lostAirUnits *= 0.92f;
+	m_lostUnits    *= 0.95f;
+	m_lostAirUnits *= 0.95f;
 }
 
 AAIMetalSpot* AAISector::GetFreeMetalSpot()

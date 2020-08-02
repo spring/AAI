@@ -21,7 +21,7 @@
 #define AAI_VERSION aiexport_getVersion()
 #define MAP_CACHE_VERSION "MAP_DATA_0_91"
 #define MAP_LEARN_VERSION "MAP_LEARN_0_89"
-#define MOD_LEARN_VERSION "MOD_LEARN_0_90"
+#define MOD_LEARN_VERSION "MOD_LEARN_0_90b"
 #define CONTINENT_DATA_VERSION "MOVEMENT_MAPS_0_87"
 
 #define AILOG_PATH "log/"
@@ -152,11 +152,9 @@ public:
 
 	bool IsLatePhase()           const {return (m_gamePhase == 3); }
 
-	void EnterNextGamePhase() 
-	{ 
-		if(m_gamePhase < numberOfGamePhases-1)
-			++m_gamePhase;
-	}
+	void Next() { ++m_gamePhase; }
+
+	bool End() const { return (m_gamePhase >= numberOfGamePhases); }
 
 	static const int numberOfGamePhases = 4;
 

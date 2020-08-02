@@ -74,7 +74,7 @@ public:
 	// loads everything from a cache file or creates a new one
 	void Init();
 
-	void SaveBuildTable(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const MapType& mapType);
+	void SaveBuildTable(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const AAIMapType& mapType);
 
 	// cache for combat eff (needs side, thus initialized later)
 	void InitCombatEffCache(int side);
@@ -99,7 +99,7 @@ public:
 
 	//! @brief Determines the weight factor for every combat unit category based on map type and how often AI had been attacked by 
 	//!        this category in the first phase of the game in the past
-	void DetermineCombatPowerWeights(CombatPower& combatPowerWeights, const MapType mapType) const;
+	void DetermineCombatPowerWeights(CombatPower& combatPowerWeights, const MapType oldMapType) const;
 
 	//! @brief Updates counters/buildqueue if a buildorder for a certain factory has been given
 	void ConstructionOrderForFactoryGiven(const UnitDefId& factoryDefId)
@@ -110,6 +110,9 @@ public:
 	
 	//! @brief Returns the list containing which factories shall be built next
 	const std::list<UnitDefId>& GetFactoryBuildqueue() const { return m_factoryBuildqueue; }
+
+	//! @brief Returns the attackedByRates read from the mod learning file upon initialization
+	const AttackedByRatesPerGamePhase& GetAttackedByRates(const AAIMapType& mapType) const { return s_attackedByRates.GetAttackedByRates(mapType); }
 
 	// ******************************************************************************************************
 	// the following functions are used to determine units that suit a certain purpose
@@ -201,9 +204,6 @@ public:
 	// number of assault cat + arty & stat defences
 	static const int combat_categories = 6;
 
-	// combat categories that attacked AI in certain game period attacked_by_category_learned[map_type][period][cat]
-	static vector< vector< vector<float> > > attacked_by_category_learned;
-
 	// AAI unit defs (static things like id, side, etc.)
 	static vector<UnitTypeStatic> units_static;
 
@@ -274,6 +274,9 @@ private:
 
 	//! A list containing the next factories that shall be built
 	std::list<UnitDefId> m_factoryBuildqueue;
+
+	//! Rates of attacks by different combat categories per map and game phase
+	static AttackedByRatesPerGamePhaseAndMapType s_attackedByRates;
 
 	AAI *ai;
 

@@ -167,4 +167,44 @@ struct UnitTypeProperties
 	AAIUnitType     m_unitType;
 };
 
+//! Enum for the different types of maps
+enum class EMapType : int
+{
+	LAND_MAP              = 0, //!< Map primarily/only consists of land
+	LAND_WATER_MAP        = 1, //!< Mixed land & water map
+    WATER_MAP             = 2, //!< Pure water map (may contain small islands)
+	NUMBER_OF_MAP_TYPES   = 3,
+	UNKNOWN_MAP           = 4
+} ;
+
+//! @brief Map type (allows distinction of of behaviour based on map type) + helper functions
+class AAIMapType
+{
+public:
+	AAIMapType(EMapType mapType) : m_mapType(mapType) {}
+
+	AAIMapType() : AAIMapType(EMapType::UNKNOWN_MAP) {}
+
+	bool IsLandMap() const { return m_mapType == EMapType::LAND_MAP; }
+
+	bool IsLandWaterMap() const { return m_mapType == EMapType::LAND_WATER_MAP; }
+
+	bool IsWaterMap() const { return m_mapType == EMapType::WATER_MAP; }
+
+	int GetArrayIndex() const { return static_cast<int>(m_mapType); }
+
+	static const int numberOfMapTypes = static_cast<int>(EMapType::NUMBER_OF_MAP_TYPES);
+
+	static const EMapType first = EMapType::LAND_MAP;
+
+	void Next() { m_mapType = static_cast<EMapType>( static_cast<int>(m_mapType) + 1 ); }
+
+	bool End() const { return (m_mapType == EMapType::NUMBER_OF_MAP_TYPES); }
+
+	bool operator==(const AAIMapType& rhs) const { return (m_mapType == rhs.m_mapType); }
+
+private:
+	EMapType m_mapType;
+};
+
 #endif

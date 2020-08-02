@@ -27,6 +27,8 @@ public:
 	AAIBrain(AAI *ai, int maxSectorDistanceToBase);
 	~AAIBrain(void);
 
+	void InitAttackedByRates(const AttackedByRatesPerGamePhase& attackedByRates);
+
 	const SmoothedData& GetSmoothedMetalSurplus() const { return m_metalSurplus; }
 
 	float GetBaseFlatLandRatio() const { return m_baseFlatLandRatio; }
