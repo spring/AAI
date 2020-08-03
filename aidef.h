@@ -28,6 +28,16 @@
 #define MAP_LEARN_PATH "learn/mod/"
 #define MOD_LEARN_PATH "learn/mod/"
 
+//! Constants used within AAI
+class AAIConstants
+{
+public:
+	//! @todo Make this changeable via optinal mod config file
+    static constexpr float energyToMetalConversionFactor = 60.0f;
+
+	//! Minimum combat power for a unit to be considered effective against a certain target type
+	static constexpr float minAntiTargetTypeCombatPower = 0.5f;
+};
 
 class AAIMetalSpot
 {
@@ -97,9 +107,6 @@ SCOUT, MOBILE_TRANSPORT, MOBILE_JAMMER, MOBILE_LAUNCHER, MOBILE_CONSTRUCTOR};
 
 enum UnitTask {UNIT_IDLE, UNIT_ATTACKING, DEFENDING, GUARDING, MOVING, BUILDING, SCOUTING, ASSISTING, RECLAIMING, HEADING_TO_RALLYPOINT, UNIT_KILLED, ENEMY_UNIT, BOMB_TARGET};
 enum MapType {LAND_MAP, LAND_WATER_MAP, WATER_MAP, UNKNOWN_MAP};
-
-class AAIGroup;
-class AAIConstructor;
 
 //! @brief An id identifying a specific unit - used to prevent mixing ids referring to units and unit definitions
 struct UnitId
@@ -198,6 +205,8 @@ private:
 	int   m_nextIndex;
 };
 
+class AAIGroup;
+class AAIConstructor;
 struct AAIUnit
 {
 	int unit_id;

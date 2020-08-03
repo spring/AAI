@@ -18,8 +18,20 @@
 #include <list>
 #include <vector>
 
-//! @todo Make this changeable via optinal mod config file
-const float energyToMetalConversionFactor = 60.0f;
+
+//! Manages the combat power of a specific unit
+class AAICombatPower
+{
+public:
+	AAICombatPower() { m_combatPower.resize(AAITargetType::numberOfTargetTypes, 0.0f); }
+
+	void SetCombatPower(const AAITargetType& targetType, float value) { m_combatPower[targetType.GetArrayIndex()] = value; }
+
+	float GetCombatPowerVsTargetCategory(const AAITargetType& targetType) const { return m_combatPower[targetType.GetArrayIndex()]; }
+
+private:
+	std::vector<float> m_combatPower;
+};
 
 //! @brief This class stores the build-tree, this includes which unit builds another, to which side each unit belongs
 class AAIBuildTree
@@ -31,6 +43,12 @@ public:
 
 	//! @brief Generates buildtree for current game/mod
 	bool Generate(springLegacyAI::IAICallback* cb);
+
+	//! @brief Initializes the combat power of units and updates the unit types
+	void InitCombatPowerOfUnits(const std::vector<UnitTypeStatic>& combatPowerOfUnits);
+
+	//! @brief Prints summary of newly created buildtree
+	void PrintSummaryToFile(const std::string& filename, springLegacyAI::IAICallback* cb) const;
 
 	//! @brief Returns whether given the given unit type can be constructed by the given constructor unit type
 	bool CanBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const;
@@ -116,9 +134,6 @@ private:
 	//! @brief Determines and sets the unit types for the given unit.
 	void UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef);
 
-	//! @brief Prints summary of newly created buildtree
-	void PrintSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const;
-
 	//-----------------------------------------------------------------------------------------------------------------
 	// helper functions for determineUnitCategory(...)
 	//-----------------------------------------------------------------------------------------------------------------
@@ -171,6 +186,9 @@ private:
 
 	//! For each unit category, a human readable description of it
 	std::vector< std::string >                    m_unitCategoryNames;
+
+	//! The combat power of every unit
+	std::vector<AAICombatPower>                   m_combatPowerOfUnits;
 };
 
 #endif

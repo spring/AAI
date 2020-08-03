@@ -688,30 +688,30 @@ void AAIBuildTable::DetermineCombatPowerWeights(CombatPower& combatPowerWeights,
 	GamePhase earlyPhase(0);
 	earlyPhase.Next();
 
-	combatPowerWeights.vsAir       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::AIR) 
-	                                         + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::AIR)   );
-	combatPowerWeights.vsHover     = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SURFACE) 
-	                                         + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SURFACE) );
+	combatPowerWeights.vsAir       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::AIR) 
+	                                         + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::AIR)   );
+	combatPowerWeights.vsHover     = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SURFACE) 
+	                                         + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SURFACE) );
 
 	switch(oldMapType)
 	{
 		case LAND_MAP:
-			combatPowerWeights.vsGround    = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SURFACE) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SURFACE) );
+			combatPowerWeights.vsGround    = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SURFACE) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SURFACE) );
 			break;
 		case LAND_WATER_MAP:
-			combatPowerWeights.vsGround    = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SURFACE) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SURFACE) );
-			combatPowerWeights.vsSea       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::FLOATER) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::FLOATER) );
-			combatPowerWeights.vsSubmarine = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SUBMERGED) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SUBMERGED) );
+			combatPowerWeights.vsGround    = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SURFACE) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SURFACE) );
+			combatPowerWeights.vsSea       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::FLOATER) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::FLOATER) );
+			combatPowerWeights.vsSubmarine = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SUBMERGED) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SUBMERGED) );
 			break;
 		case WATER_MAP:
-			combatPowerWeights.vsSea       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::FLOATER) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::FLOATER) );
-			combatPowerWeights.vsSubmarine = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, ETargetTypeCategory::SUBMERGED) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    ETargetTypeCategory::SUBMERGED) );
+			combatPowerWeights.vsSea       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::FLOATER) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::FLOATER) );
+			combatPowerWeights.vsSubmarine = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SUBMERGED) 
+	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SUBMERGED) );
 			break;
 	}
 }

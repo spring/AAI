@@ -69,6 +69,36 @@ AAIBuildTree::~AAIBuildTree(void)
 	m_unitCategoryNames.clear();
 }
 
+void AAIBuildTree::InitCombatPowerOfUnits(const std::vector<UnitTypeStatic>& combatPowerOfUnits)
+{
+	for(int id = 1; id < combatPowerOfUnits.size(); ++id)
+	{
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::SURFACE, combatPowerOfUnits[id].efficiency[0]);
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::AIR, combatPowerOfUnits[id].efficiency[1]);
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::FLOATER, combatPowerOfUnits[id].efficiency[3]);
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::SUBMERGED, combatPowerOfUnits[id].efficiency[4]);
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::STATIC, combatPowerOfUnits[id].efficiency[5]);
+	}
+
+	for(int id = 1; id < m_unitTypeProperties.size(); ++id)
+	{
+		if(m_unitTypeProperties[id].m_unitCategory.isCombatUnit() || m_unitTypeProperties[id].m_unitCategory.isStaticDefence() )
+		{
+			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetCategory(ETargetType::SURFACE) > AAIConstants::minAntiTargetTypeCombatPower)
+				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
+
+			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetCategory(ETargetType::AIR) > AAIConstants::minAntiTargetTypeCombatPower)
+				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_AIR);
+
+			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetCategory(ETargetType::FLOATER) > AAIConstants::minAntiTargetTypeCombatPower)
+				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_SHIP);
+
+			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetCategory(ETargetType::SUBMERGED) > AAIConstants::minAntiTargetTypeCombatPower)
+				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_SUBMERGED);
+		}
+	} 
+}
+
 bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 {
 	// prevent buildtree from beeing initialized several times
@@ -87,6 +117,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 	m_unitTypeCanConstructLists.resize(numberOfUnitTypes+1);
 	m_unitTypeProperties.resize(numberOfUnitTypes+1);
 	m_sideOfUnitType.resize(numberOfUnitTypes+1, 0);
+	m_combatPowerOfUnits.resize(numberOfUnitTypes+1);
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// get list all of unit definitions for further analysis
@@ -154,7 +185,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 
 	for(int id = 1; id <= numberOfUnitTypes; ++id)
 	{
-		m_unitTypeProperties[id].m_totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / energyToMetalConversionFactor);
+		m_unitTypeProperties[id].m_totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / AAIConstants::energyToMetalConversionFactor);
 		m_unitTypeProperties[id].m_buildtime = unitDefs[id]->buildTime;
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
 		
@@ -177,18 +208,18 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 
 		// add combat units to combat category lists
 		if(unitCategory.isGroundCombat() == true)
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::SURFACE) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(EMobileTargetType::SURFACE) ].push_back(id);
 		else if(unitCategory.isAirCombat() == true)
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::AIR) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(EMobileTargetType::AIR) ].push_back(id);
 		else if(unitCategory.isHoverCombat() == true)
 		{
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::SURFACE) ].push_back(id);
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::FLOATER) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(EMobileTargetType::SURFACE) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(EMobileTargetType::FLOATER) ].push_back(id);
 		}
 		else if(unitCategory.isSeaCombat() == true)
 		{
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::FLOATER) ].push_back(id);
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(ETargetTypeCategory::SUBMERGED) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(EMobileTargetType::FLOATER) ].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][ AAICombatCategory::GetArrayIndex(EMobileTargetType::SUBMERGED) ].push_back(id);
 		}
 
 		// set primary and secondary abilities
@@ -207,23 +238,22 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		m_unitCategoryStatisticsOfSide[side].Init(unitDefs, m_unitTypeProperties, m_unitsInCategory[side], m_unitsInCombatCategory[side]);
 	}
 
-	//-----------------------------------------------------------------------------------------------------------------
-	// print info to file for debug purposes
-	//-----------------------------------------------------------------------------------------------------------------
-
-	std::string filename = cfg->GetFileName(cb, cfg->getUniqueName(cb, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
-	PrintSummaryToFile(filename, unitDefs);
-
     return true;
 }
 
-void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::vector<const springLegacyAI::UnitDef*>& unitDefs) const
+void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyAI::IAICallback* cb) const
 {
+	//spring first unitdef id is 1, we remap it so id = is position in array
+	const int numberOfUnitTypes = cb->GetNumUnitDefs();
+	std::vector<const springLegacyAI::UnitDef*> unitDefs(numberOfUnitTypes+1);
+	cb->GetUnitDefList(&unitDefs[1]);
+
 	const std::map<EUnitType, std::string> unitTypes {
 			{EUnitType::BUILDING, "building"},
 			{EUnitType::MOBILE_UNIT, "mobile unit"},
 			{EUnitType::ANTI_SURFACE, "anti surface"},
 			{EUnitType::ANTI_AIR, "anti air"},
+			{EUnitType::ANTI_SHIP, "anti ship"},
 			{EUnitType::ANTI_SUBMERGED, "anti submerged"},
 			{EUnitType::ANTI_STATIC, "anti building"},
 			{EUnitType::RADAR, "radar"},
@@ -251,7 +281,7 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, const std::ve
 		fprintf(file, "\nUnit List (human/internal name, side, category)\n");
 		for(int id = 1; id < unitDefs.size(); ++id)
 		{
-			fprintf(file, "ID: %-3i %-40s %-16s %-1i %-15s", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), GetSideOfUnitType(UnitDefId(id)), GetCategoryName(GetUnitCategory(UnitDefId(id))).c_str() );
+			fprintf(file, "ID: %-3i %-40s %-16s %-1i %-18s", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), GetSideOfUnitType(UnitDefId(id)), GetCategoryName(GetUnitCategory(UnitDefId(id))).c_str() );
 
 			for(auto unitType = unitTypes.begin(); unitType != unitTypes.end(); ++unitType)
 			{
@@ -456,21 +486,21 @@ void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::Un
 	if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isAirCombat())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
-		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_AIR);
+		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
+		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_AIR);
 	}
 	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.isGroundCombat()
 	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.isHoverCombat())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
+		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
 	}
 	else if(    m_unitTypeProperties[unitDefId.id].m_unitCategory.isSeaCombat()
 	         || m_unitTypeProperties[unitDefId.id].m_unitCategory.isSubmarineCombat())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
-		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SUBMERGED);
+		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
+		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SUBMERGED);
 	}
 	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticSensor())
 	{

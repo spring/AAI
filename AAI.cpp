@@ -224,6 +224,11 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 
 	if(GetAAIInstance() == 1)
 	{
+		s_buildTree.InitCombatPowerOfUnits(bt->units_static);
+
+		std::string filename = cfg->GetFileName(m_aiCallback, cfg->getUniqueName(m_aiCallback, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
+		s_buildTree.PrintSummaryToFile(filename, m_aiCallback);
+
 		const AAIMapType mapType( static_cast<EMapType>(map->map_type) );	
 		brain->InitAttackedByRates(bt->GetAttackedByRates(mapType));
 	}

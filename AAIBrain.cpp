@@ -739,10 +739,10 @@ void AAIBrain::BuildUnits()
 		// choose unit category dependend on map type
 		if(ai->Getmap()->map_type == LAND_MAP)
 		{
-			AAICombatCategory unitCategory(ETargetTypeCategory::SURFACE);
+			AAICombatCategory unitCategory(EMobileTargetType::SURFACE);
 		
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-				unitCategory.setCategory(ETargetTypeCategory::AIR);
+				unitCategory.setCategory(EMobileTargetType::AIR);
 
 			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
 		}
@@ -750,13 +750,13 @@ void AAIBrain::BuildUnits()
 		{
 			//! @todo Add selection of Submarines
 			int groundRatio = static_cast<int>(100.0f * ai->Getmap()->land_ratio);
-			AAICombatCategory unitCategory(ETargetTypeCategory::SURFACE);
+			AAICombatCategory unitCategory(EMobileTargetType::SURFACE);
 
 			if(rand()%100 < groundRatio)
-				unitCategory.setCategory(ETargetTypeCategory::FLOATER);
+				unitCategory.setCategory(EMobileTargetType::FLOATER);
 
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-				unitCategory.setCategory(ETargetTypeCategory::AIR);
+				unitCategory.setCategory(EMobileTargetType::AIR);
 			
 
 			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
@@ -764,10 +764,10 @@ void AAIBrain::BuildUnits()
 		else if(ai->Getmap()->map_type == WATER_MAP)
 		{
 			//! @todo Add selection of Submarines
-			AAICombatCategory unitCategory(ETargetTypeCategory::FLOATER);
+			AAICombatCategory unitCategory(EMobileTargetType::FLOATER);
 
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-				unitCategory.setCategory(ETargetTypeCategory::AIR);
+				unitCategory.setCategory(EMobileTargetType::AIR);
 
 			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
 		}
