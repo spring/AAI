@@ -166,16 +166,6 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
 					else if( (category.isHoverCombat() == true)  && (ai->Getbt()->units_static[def->id].efficiency[2] > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
-					else if(category.isAirCombat() == true)
-					{
-						float3 enemy_pos = ai->GetAICallback()->GetUnitPos(attacker);
-
-						// get a random unit of the group
-						int unit = GetRandomUnit();
-
-						if(unit)
-							ai->Getexecute()->DefendUnitVS(unit, ai->s_buildTree.GetUnitCategory(UnitDefId(def->id)), &enemy_pos, 100);
-					}
 				}
 			}
 
@@ -337,25 +327,25 @@ void AAIGroup::AttackSector(AAISector *dest, float importance)
 	task = GROUP_ATTACKING;
 }
 
-void AAIGroup::Defend(int unit, float3 *enemy_pos, int importance)
+void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance)
 {
-	Command cmd((enemy_pos != nullptr)? CMD_FIGHT: CMD_GUARD);
+	Command cmd((enemyPosition == ZeroVector) ? CMD_FIGHT: CMD_GUARD);
 
-	if(enemy_pos)
+	if(enemyPosition != ZeroVector)
 	{
-		cmd.PushPos(*enemy_pos);
+		cmd.PushPos(enemyPosition);
 
 		GiveOrderToGroup(&cmd, importance, DEFENDING, "Group::Defend");
 
-		target_sector = ai->Getmap()->GetSectorOfPos(*enemy_pos);
+		target_sector = ai->Getmap()->GetSectorOfPos(enemyPosition);
 	}
 	else
 	{
-		cmd.PushParam(unit);
+		cmd.PushParam(unitId.id);
 
 		GiveOrderToGroup(&cmd, importance, GUARDING, "Group::Defend");
 
-		float3 pos = ai->GetAICallback()->GetUnitPos(unit);
+		const float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
 
 		target_sector = ai->Getmap()->GetSectorOfPos(pos);
 	}

@@ -121,6 +121,10 @@ public:
 
 	bool isAmphibious() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AMPHIBIOUS); }
 
+	bool isShip() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_SEA_FLOATER); }
+
+	bool isSubmarine() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED); }
+
 	//! @brief Returns whether unit type can only move on sea (i.e. a floating or submerged unit)
 	bool isSeaUnit() const 
 	{ 
@@ -165,6 +169,9 @@ struct UnitTypeProperties
 
 	//! The type of the unit (may further specifiy the purpose of a unit, e.g. anti ground vs anti air for combat units)
 	AAIUnitType     m_unitType;
+
+	//! The target type - ground&hover=surface, air=air, ... 
+	AAITargetType   m_targetType;
 };
 
 //! Enum for the different types of maps

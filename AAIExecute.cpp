@@ -2725,8 +2725,10 @@ void AAIExecute::AddStartFactory()
 	}
 }
 
-AAIGroup* AAIExecute::GetClosestGroupForDefence(EUnitType groupType, const float3 *pos, int continent, int importance) const
+AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTargetType, const float3& pos, int importance) const
 {
+	const int continentId = ai->Getmap()->GetContinentID(pos);
+
 	AAIGroup *best_group = nullptr;
 	float bestRating(0.0f);
 
@@ -2734,21 +2736,21 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(EUnitType groupType, const float
 	{
 		for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 		{
-			if((*group)->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) && !(*group)->attack)
+			if( ((*group)->GetContinentId() == -1) || ((*group)->GetContinentId() == continentId) )
 			{
-				if((*group)->GetContinentId() == -1 || (*group)->GetContinentId() == continent)
+				const bool matchingType  = (*group)->CanFightTargetType(attackerTargetType);
+				const bool groupAvailble = ((*group)->task == GROUP_IDLE) || ((*group)->task_importance < importance); //!(*group)->attack
+
+				if(matchingType && groupAvailble)
 				{
-					if((*group)->task == GROUP_IDLE) // || (*group)->task_importance < importance)
+					const float3& group_pos = (*group)->GetGroupPos();
+
+					const float myRating = (*group)->avg_speed / ( 1.0f + fastmath::apxsqrt((pos.x - group_pos.x) * (pos.x - group_pos.x)  + (pos.z - group_pos.z) * (pos.z - group_pos.z) ));
+
+					if(myRating > bestRating)
 					{
-						const float3& group_pos = (*group)->GetGroupPos();
-
-						const float myRating = (*group)->avg_speed / ( 1.0 + fastmath::apxsqrt((pos->x - group_pos.x) * (pos->x - group_pos.x)  + (pos->z - group_pos.z) * (pos->z - group_pos.z) ));
-
-						if(myRating > bestRating)
-						{
-							best_group = *group;
-							bestRating = myRating;
-						}
+						best_group = *group;
+						bestRating = myRating;
 					}
 				}
 			}
@@ -2758,24 +2760,12 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(EUnitType groupType, const float
 	return best_group;
 }
 
-void AAIExecute::DefendUnitVS(int unit, const AAIUnitCategory& attackerCategory, float3 *enemy_pos, int importance) const
+void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const
 {
-	EUnitType groupType;
-	if( attackerCategory.isAirCombat() )
-		groupType = EUnitType::ANTI_AIR;
-	else if(attackerCategory.isSubmarineCombat() )
-		groupType = EUnitType::ANTI_SUBMERGED;
-	else if(attackerCategory.isCombatUnit())
-		groupType = EUnitType::ANTI_SURFACE;
-	else
-		return; // attacker is no combat unit
-
-	const int continentId = ai->Getmap()->GetContinentID(*enemy_pos);
-	
-	AAIGroup *support = GetClosestGroupForDefence(groupType, enemy_pos, continentId, 100);
+	AAIGroup *support = GetClosestGroupForDefence(attackerTargetType, attackerPosition, importance);
 
 	if(support)
-		support->Defend(unit, enemy_pos, importance);
+		support->Defend(unitId, attackerPosition, importance);
 }
 
 float3 AAIExecute::determineSafePos(UnitDefId unitDefId, float3 unit_pos)

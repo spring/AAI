@@ -47,8 +47,8 @@ public:
 
 	void AttackSector(AAISector *dest, float importance);
 
-	// defend unit vs enemy (0; zerovector if enemy unknown)
-	void Defend(int unit, float3 *enemy_pos, int importance);
+	//! @brief Defend unit vs enemy (enemyPosition equals ZeroVector if enemy unknown -> guard unit instead)
+	void Defend(UnitId unitId, const float3& enemyPosition, int importance);
 
 	//! @brief Retreat to rally point
 	void RetreatToRallyPoint()  { Retreat(m_rallyPoint); }
@@ -82,6 +82,11 @@ public:
 	float GetCombatPowerVsCategory(int assault_cat_id);
 
 	void GetCombatPower(vector<float> *combat_power);
+
+	bool CanFightTargetType(const AAITargetType& targetType) const 
+	{
+		return m_groupType.CanFightTargetType(targetType);
+	}
 
 	//! @brief Return the id of the continent the units of this group are stationed on (-1 for non-continent bound movement types)
 	int GetContinentId() const { return m_continentId; }

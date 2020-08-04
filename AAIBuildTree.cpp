@@ -190,6 +190,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
 		
 		m_unitTypeProperties[id].m_movementType.setMovementType( DetermineMovementType(unitDefs[id]) );
+		m_unitTypeProperties[id].m_targetType.setType( DetermineTargetType(m_unitTypeProperties[id].m_movementType) );
 	}
 
 	// second loop because movement type information for all units is needed to determine unit type
@@ -478,6 +479,20 @@ EMovementType AAIBuildTree::DetermineMovementType(const springLegacyAI::UnitDef*
     }
 
     return moveType;
+}
+
+ETargetType AAIBuildTree::DetermineTargetType(const AAIMovementType& moveType) const
+{
+	if(moveType.isGround() || moveType.isHover() || moveType.isAmphibious())
+		return ETargetType::SURFACE;
+	else if(moveType.isAir())
+		return ETargetType::AIR;
+	else if(moveType.isShip())
+		return ETargetType::FLOATER;
+	else if(moveType.isSubmarine())
+		return ETargetType::SUBMERGED;
+	else
+		return ETargetType::STATIC;
 }
 
 void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef)

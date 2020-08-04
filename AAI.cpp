@@ -254,23 +254,18 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 {
 	AAI_SCOPED_TIMER("UnitDamaged")
 
-	// filter out commander
-	if (ut->cmdr != -1)
-	{
-		if (damaged == ut->cmdr)
-			brain->DefendCommander(attacker);
-	}
-
 	const springLegacyAI::UnitDef* attackedDef = m_aiCallback->GetUnitDef(damaged);
+	if(attackedDef == nullptr)
+		return;
+		
+	const UnitDefId attackedDefId(attackedDef->id);
+	const AAIUnitCategory& attackedCategory =  s_buildTree.GetUnitCategory(attackedDefId);
 
-	if(attackedDef != nullptr)
-	{
-		const AAIUnitCategory& category =  s_buildTree.GetUnitCategory(UnitDefId(attackedDef->id));
-
-		// assault grups may be ordered to retreat
-		if (category.isCombatUnit() == true)
-			execute->CheckFallBack(damaged, attackedDef->id);
-	}
+	// assault groups may be ordered to retreat
+	if (attackedCategory.isCombatUnit() == true)
+		execute->CheckFallBack(damaged, attackedDefId.id);
+	else if(attackedCategory.isCommander())
+		brain->DefendCommander(attacker);
 
 	// known attacker
 	if (attacker >= 0)
@@ -281,35 +276,28 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 
 		const springLegacyAI::UnitDef* attackerDef = m_aiCallback->GetUnitDef(attacker);
 
-		if (attackerDef != nullptr)
+		if ( (attackerDef != nullptr) && (attackedDef != nullptr) )
 		{
-			const AAIUnitCategory& category =  s_buildTree.GetUnitCategory(UnitDefId(attackerDef->id));
+			const AAIUnitCategory& category           = s_buildTree.GetUnitCategory(UnitDefId(attackedDef->id));
+			const AAITargetType&   attackerTargetType = s_buildTree.GetTargetType(UnitDefId(attackerDef->id));
 
-			// retreat builders
-			if (ut->IsBuilder(UnitId(damaged)) == true)
+			const float3 pos = m_aiCallback->GetUnitPos(attacker);
+			
+			// building has been attacked
+			if (category.isBuilding() )
+				execute->DefendUnitVS(UnitId(damaged), attackerTargetType, pos, 115);
+			// builder
+			else if ( category.isMobileConstructor() )
+			{
+				execute->DefendUnitVS(UnitId(damaged), attackerTargetType, pos, 110);
 				ut->units[damaged].cons->Retreat(category);
+			}
+			// normal units
 			else
 			{
-				//if (att_cat >= GROUND_ASSAULT && att_cat <= SUBMARINE_ASSAULT)
-
-				float3 pos = m_aiCallback->GetUnitPos(attacker);
-				AAISector *sector = map->GetSectorOfPos(pos);
-
-				if (sector && !am->SufficientDefencePowerAt(sector, 1.2f))
-				{
-					const AAIUnitCategory& attackerCategory = s_buildTree.GetUnitCategory(UnitDefId(attackerDef->id));
-
-					// building has been attacked
-					if (category.isBuilding() == true)
-						execute->DefendUnitVS(damaged, attackerCategory, &pos, 115);
-					// builder
-					else if ( ut->IsBuilder(UnitId(damaged)) == true )
-						execute->DefendUnitVS(damaged, attackerCategory, &pos, 110);
-					// normal units
-					else
-						execute->DefendUnitVS(damaged, attackerCategory, &pos, 105);
-				}
-			}
+				if(attackerTargetType.IsAir() && (s_buildTree.GetUnitType(attackedDefId).CanFightTargetType(attackerTargetType) == false) ) 
+					execute->DefendUnitVS(UnitId(damaged), attackerTargetType, pos, 105);
+			}	
 		}
 	}
 	// unknown attacker

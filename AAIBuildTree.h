@@ -95,6 +95,9 @@ public:
 	//! @brief Returns the unit type
 	const AAIUnitType& GetUnitType(UnitDefId unitDefId)         const  { return m_unitTypeProperties[unitDefId.id].m_unitType; }
 
+	//! @brief Returns the target type
+	const AAITargetType& GetTargetType(UnitDefId unitDefId)     const  { return m_unitTypeProperties[unitDefId.id].m_targetType; }
+
 	//! @brief Return the maximum speed
 	const float GetMaxSpeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; }
 
@@ -127,6 +130,9 @@ private:
 	
 	//! @brief Returns movement type of given unit definition
 	EMovementType DetermineMovementType(const springLegacyAI::UnitDef* unitDef) const;
+
+	//! @brief Returns target type of given movement type
+	ETargetType DetermineTargetType(const AAIMovementType& moveType) const;
 
 	//! @brief Returns Unit Category for given unit definition
 	EUnitCategory DetermineUnitCategory(const springLegacyAI::UnitDef* unitDef) const;

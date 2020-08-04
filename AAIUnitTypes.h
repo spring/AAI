@@ -162,6 +162,72 @@ private:
 	ECombatUnitCategory m_combatUnitCategory;
 };
 
+//! The target category describes what kind of target class a unit belongs to
+enum class ETargetType : int
+{
+	SURFACE              = 0, //! Units on ground (move type ground, amphibious, hover, land buildings)
+	AIR                  = 1, //! Air units
+	FLOATER              = 2, //! Units moving above water (ships, hover) or floating buildings
+	SUBMERGED            = 3, //! Units moving below water (submarines) or submerged buildings
+	STATIC               = 4, //! Static units (= buildings)
+	NUMBER_OF_CATEGORIES = 5, //! The number of combat categories (unknown/invalid not used)
+	UNKNOWN              = 6, //! This value will be treated as invalid
+};
+
+//! This class handles the target category which describes
+class AAITargetType
+{
+public:
+	AAITargetType(ETargetType targetType) : m_targetType(targetType) {}
+
+	AAITargetType() : AAITargetType(ETargetType::UNKNOWN) {}
+
+	/*AAITargetType(const AAICombatUnitCategory& combatUnitCategory)
+	{
+		if( (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::GROUND_COMBAT) || (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::HOVER_COMBAT) )
+			m_targetType = ETargetType::SURFACE;
+		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::AIR_COMBAT)
+			m_targetType = ETargetType::AIR;
+		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::SEA_COMBAT)
+			m_targetType = ETargetType::FLOATER;
+		else
+			m_targetType = ETargetType::SUBMERGED;
+	}*/
+
+	void setType(ETargetType targetType) { m_targetType = targetType; }
+
+	bool IsValid()      const { return (m_targetType != ETargetType::UNKNOWN); }
+
+	bool IsSurface()    const { return (m_targetType == ETargetType::SURFACE); }
+
+	bool IsAir()        const { return (m_targetType == ETargetType::AIR); }
+
+	bool IsFloater()    const { return (m_targetType == ETargetType::FLOATER); }
+
+	bool IsSubmerged()  const { return (m_targetType == ETargetType::SUBMERGED); }
+
+	bool IsStatic()     const { return (m_targetType == ETargetType::STATIC); }
+
+	//const std::string& GetName() const { return m_combatCategoryNames[GetArrayIndex()]; }
+
+	int GetArrayIndex() const {return static_cast<int>(m_targetType); }
+
+	//static int GetArrayIndex(ETargetType targetType) { return static_cast<int>(targetType); }
+
+	static const int numberOfTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES);
+
+	//const static std::vector<std::string> m_targetTypeNames;
+	//const static std::vector<std::string> m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
+
+	/*static const ETargetType first = ETargetType::SURFACE;
+
+	void Next() { m_targetType = static_cast<ETargetType>( static_cast<int>(m_targetType) + 1 ); }
+
+	bool End() const { return (m_targetType == ETargetType::NUMBER_OF_CATEGORIES); }*/
+
+private:
+	ETargetType m_targetType;
+};
 
 //! The type of the unit (may further specifiy the purpose of a unit, e.g. anti ground vs anti air for combat units)
 enum class EUnitType : int
@@ -198,56 +264,66 @@ public:
 	//! @brief Adds the given unit type 
 	void AddUnitType(EUnitType unitType) { m_unitType |= static_cast<int>(unitType); }
 
-	//! Returns whether given unit type is set
+	//! @brief Returns whether given unit type is set
 	bool IsUnitTypeSet(EUnitType unitType) const { return static_cast<bool>(m_unitType & static_cast<int>(unitType)); }
 
-	//! Returns whether unit is a building (i.e. static)
+	//! @brief Returns whether unit is a building (i.e. static)
 	bool IsBuilding()        const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::BUILDING)); }
 
-	//! Returns whether unit is mobile
+	//! @brief Returns whether unit is mobile
 	bool IsMobileUnit()      const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::MOBILE_UNIT)); }
 
-	//! Returns whether unit is considered to be able to fight against surface units (ground, hover, ships)
+	//! @brief Returns whether unit is considered to be able to fight against surface units (ground, hover, ships)
 	bool IsAntiSurface()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_SURFACE)); }
 
-	//! Returns whether unit is considered to be an anti air unit
+	//! @brief Returns whether unit is considered to be an anti air unit
 	bool IsAntiAir()         const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_AIR)); }
 
-	//! Returns whether unit is considered to be able to fight submerged units (submarines)
+	//! @brief Returns whether unit is considered to be able to fight submerged units (submarines)
 	bool IsAntiShip()        const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_SHIP)); }
 
-	//! Returns whether unit is considered to be able to fight submerged units (submarines)
+	//! @brief Returns whether unit is considered to be able to fight submerged units (submarines)
 	bool IsAntiSubmerged()   const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_SUBMERGED)); }
 
-	//! Returns whether unit is considered to be able to fight static units more efficiently (e.g. bombers, missile launchers)
+	//! @brief Returns whether unit is considered to be able to fight static units more efficiently (e.g. bombers, missile launchers)
 	bool IsAntiStatic()      const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::ANTI_STATIC)); }
 
-	//! Returns true if radar flag is set
+	//! @brief Returns true if radar flag is set
 	bool IsRadar()           const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::RADAR)); }
 
-	//! Returns true if sonar flag is set
+	//! @brief Returns true if sonar flag is set
 	bool IsSonar()           const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::SONAR)); }
 
-	//! Returns true if seismic detector flag is set
+	//! @brief Returns true if seismic detector flag is set
 	bool IsSeismicDetector() const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::SEISMIC)); }
 
-	//! Returns true if radar jammer flag is set
+	//! @brief Returns true if radar jammer flag is set
 	bool IsRadarJammer()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::RADAR_JAMMER)); }
 
-	//! Returns true if radar jammer flag is set
+	//! @brief Returns true if radar jammer flag is set
 	bool IsSonarJammer()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::SONAR_JAMMER)); }
 
-	//! Returns true if unit can construct at least one building
+	//! @brief Returns true if unit can construct at least one building
 	bool IsBuilder()         const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::BUILDER)); }
 
-	//! Returns true if unit can construct at least one mobile unit
+	//! @brief Returns true if unit can construct at least one mobile unit
 	bool IsFactory()         const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::FACTORY)); }
 
-	//! Returns true if unit can help with costruction of other units/buildings
+	//! @brief Returns true if unit can help with costruction of other units/buildings
 	bool IsConstructionAssist()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::CONSTRUCTION_ASSIST)); }
 
-	//! Returns whether unit is considered to be able to fight against surface or submerged units (not anti air)
+	//! @brief Returns whether unit is considered to be able to fight against surface or submerged units (not anti air)
 	bool IsAssaultUnit()     const { return static_cast<bool>(m_unitType & (static_cast<int>(EUnitType::ANTI_SURFACE) + static_cast<int>(EUnitType::ANTI_SUBMERGED) )); }
+
+	//! @brief Returns whether unit type is suitable to gight given target type
+	bool CanFightTargetType(const AAITargetType& targetType) const
+	{
+		return (targetType.IsSurface()   && IsAntiSurface())
+			|| (targetType.IsAir()       && IsAntiAir())
+			|| (targetType.IsFloater()   && IsAntiShip())
+			|| (targetType.IsSubmerged() && IsAntiSubmerged())
+			|| (targetType.IsStatic()    && IsAntiStatic());
+	}
 
 private:
 	//! Unit type
@@ -316,73 +392,6 @@ public:
 
 private:
 	EMobileTargetType m_targetType;
-};
-
-//! The target category describes what kind of target class a unit belongs to
-enum class ETargetType : int
-{
-	SURFACE              = 0, //! Units on ground (move type ground, amphibious, hover, land buildings)
-	AIR                  = 1, //! Air units
-	FLOATER              = 2, //! Units moving above water (ships, hover) or floating buildings
-	SUBMERGED            = 3, //! Units moving below water (submarines) or submerged buildings
-	STATIC               = 4, //! Static units (= buildings)
-	NUMBER_OF_CATEGORIES = 5, //! The number of combat categories (unknown/invalid not used)
-	UNKNOWN              = 6, //! This value will be treated as invalid
-};
-
-//! This class handles the target category which describes
-class AAITargetType
-{
-public:
-	AAITargetType(ETargetType targetType) : m_targetType(targetType) {}
-
-	AAITargetType() : AAITargetType(ETargetType::UNKNOWN) {}
-
-	/*AAITargetType(const AAICombatUnitCategory& combatUnitCategory)
-	{
-		if( (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::GROUND_COMBAT) || (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::HOVER_COMBAT) )
-			m_targetType = ETargetType::SURFACE;
-		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::AIR_COMBAT)
-			m_targetType = ETargetType::AIR;
-		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::SEA_COMBAT)
-			m_targetType = ETargetType::FLOATER;
-		else
-			m_targetType = ETargetType::SUBMERGED;
-	}*/
-
-	void setType(ETargetType targetType) { m_targetType = targetType; }
-
-	/*bool IsValid()      const { return (m_targetType != ETargetType::UNKNOWN); }
-
-	bool IsSurface()    const { return (m_targetType == ETargetType::SURFACE); }
-
-	bool IsAir()        const { return (m_targetType == ETargetType::AIR); }
-
-	bool IsFloater()    const { return (m_targetType == ETargetType::FLOATER); }
-
-	bool IsSubmerged()  const { return (m_targetType == ETargetType::SUBMERGED); }
-
-	bool IsStatic()     const { return (m_targetType == ETargetType::STATIC); }*/
-
-	//const std::string& GetName() const { return m_combatCategoryNames[GetArrayIndex()]; }
-
-	int GetArrayIndex() const {return static_cast<int>(m_targetType); }
-
-	//static int GetArrayIndex(ETargetType targetType) { return static_cast<int>(targetType); }
-
-	static const int numberOfTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES);
-
-	//const static std::vector<std::string> m_targetTypeNames;
-	//const static std::vector<std::string> m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
-
-	/*static const ETargetType first = ETargetType::SURFACE;
-
-	void Next() { m_targetType = static_cast<ETargetType>( static_cast<int>(m_targetType) + 1 ); }
-
-	bool End() const { return (m_targetType == ETargetType::NUMBER_OF_CATEGORIES); }*/
-
-private:
-	ETargetType m_targetType;
 };
 
 // Can be removed when migration to new combat efficiency handling in AAIBuildTree is finished.
