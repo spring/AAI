@@ -44,26 +44,14 @@ AAIExecute::AAIExecute(AAI *ai) :
 	futureRequestedEnergy = 0;
 	futureAvailableMetal = 0;
 	futureAvailableEnergy = 0;
-	futureStoredMetal = 0;
-	futureStoredEnergy = 0;
 	averageMetalUsage = 0;
 	averageEnergyUsage = 0;
-	averageMetalSurplus = 0;
-	averageEnergySurplus = 0;
 	disabledMMakers = 0;
 
 	next_defence = nullptr;
 
 	for(int i = 0; i <= METAL_MAKER; ++i)
 		urgency[i] = 0;
-
-	for(int i = 0; i < 8; i++)
-	{
-		metalSurplus[i] = 0;
-		energySurplus[i] = 0;
-	}
-
-	counter = 0;
 }
 
 AAIExecute::~AAIExecute(void)
@@ -609,7 +597,7 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 				builder->GiveConstructionOrder(building, position);
 
 				if( ai->s_buildTree.GetUnitCategory(building).isPowerPlant() )
-					futureAvailableEnergy += ai->Getbt()->units_static[building.id].efficiency[0];
+					futureAvailableEnergy += ai->s_buildTree.GetPrimaryAbility(building);
 
 				return BuildOrderStatus::SUCCESSFUL;
 			}
@@ -687,9 +675,9 @@ bool AAIExecute::BuildExtractor()
 	}
 	else
 	{
-		const SmoothedData& metalSurplus = ai->Getbrain()->GetSmoothedMetalSurplus();
+		float metalSurplus = ai->Getbrain()->GetAverageMetalSurplus();
 
-		if(metalSurplus.GetAverageValue() < 0.5f && ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::METAL_EXTRACTOR) < 4)
+		if(metalSurplus < 0.5f && ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::METAL_EXTRACTOR) < 4)
 		{
 			efficiency = 1.0;
 			cost       = 2.0f;
@@ -877,7 +865,7 @@ bool AAIExecute::BuildPowerPlant()
 	// check if already one power_plant under construction and energy short
 	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(plant) > 0) 
 		&& (ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) > 6) 
-		&& (averageEnergySurplus < generatedPowerStats.GetMinValue()) )
+		&& (ai->Getbrain()->GetAveragEnergySurplus() < generatedPowerStats.GetMinValue()) )
 	{
 		buildtime = 3.0f;
 	}
@@ -929,7 +917,7 @@ bool AAIExecute::BuildMetalMaker()
 	float3 pos;
 	// urgency < 4
 
-	float urgency = GetMetalUrgency() / 2.0f;
+	float urgency = ai->Getbrain()->GetMetalUrgency() / 2.0f;
 
 	float cost = 0.25f + ai->Getbrain()->Affordable() / 2.0f;
 
@@ -1063,8 +1051,8 @@ bool AAIExecute::BuildStorage()
 	AAIConstructor *builder;
 	float3 pos;
 
-	float metal  = 4.0f / (ai->GetAICallback()->GetMetalStorage()  + futureStoredMetal - ai->GetAICallback()->GetMetal()  + 1.0f);
-	float energy = 4.0f / (ai->GetAICallback()->GetEnergyStorage() + futureStoredMetal - ai->GetAICallback()->GetEnergy() + 1.0f);
+	float metal  = 4.0f / (ai->GetAICallback()->GetMetalStorage()  - ai->GetAICallback()->GetMetal()  + 1.0f);
+	float energy = 4.0f / (ai->GetAICallback()->GetEnergyStorage() - ai->GetAICallback()->GetEnergy() + 1.0f);
 
 	const float cost = (ai->Getut()->GetNumberOfActiveUnitsOfCategory(storage) < 1) ? 1.5f : 0.75f;
 	const float buildtime (cost); 
@@ -1850,32 +1838,6 @@ void AAIExecute::DefendMex(int mex, int def_id)
 	}
 }
 
-void AAIExecute::UpdateRessources()
-{
-	// get current metal/energy surplus
-	metalSurplus[counter] = ai->GetAICallback()->GetMetalIncome() - ai->GetAICallback()->GetMetalUsage();
-	if(metalSurplus[counter] < 0) metalSurplus[counter] = 0;
-
-	energySurplus[counter] = ai->GetAICallback()->GetEnergyIncome() - ai->GetAICallback()->GetEnergyUsage();
-	if(energySurplus[counter] < 0) energySurplus[counter] = 0;
-
-	// calculate average value
-	averageMetalSurplus = 0;
-	averageEnergySurplus = 0;
-
-	for(int i = 0; i < 8; i++)
-	{
-		averageMetalSurplus += metalSurplus[i];
-		averageEnergySurplus += energySurplus[i];
-	}
-
-	averageEnergySurplus /= 8.0f;
-	averageMetalSurplus /= 8.0f;
-
-	// increase counter
-	counter = (counter + 1) % 8;
-}
-
 void AAIExecute::CheckStationaryArty()
 {
 	if(cfg->MAX_STAT_ARTY == 0)
@@ -2047,36 +2009,35 @@ void AAIExecute::CheckDefences()
 void AAIExecute::CheckRessources()
 {
 	// prevent float rounding errors
-	if(futureAvailableEnergy < 0)
-		futureAvailableEnergy = 0;
+	if(futureAvailableEnergy < 0.0f)
+		futureAvailableEnergy = 0.0f;
 
 	// determine how much metal/energy is needed based on net surplus
-	float temp = GetMetalUrgency();
+	const float extractorUrgency  = ai->Getbrain()->GetMetalUrgency();
+	if(urgency[EXTRACTOR] < extractorUrgency) // && urgency[EXTRACTOR] > 0.05)
+		urgency[EXTRACTOR] = extractorUrgency;
 
-	if(urgency[EXTRACTOR] < temp) // && urgency[EXTRACTOR] > 0.05)
-		urgency[EXTRACTOR] = temp;
-
-	temp = GetEnergyUrgency();
-	if(urgency[POWER_PLANT] < temp) // && urgency[POWER_PLANT] > 0.05)
-		urgency[POWER_PLANT] = temp;
+	const float plantUrgency = ai->Getbrain()->GetEnergyUrgency();
+	if(urgency[POWER_PLANT] < plantUrgency) // && urgency[POWER_PLANT] > 0.05)
+		urgency[POWER_PLANT] = plantUrgency;
 
 	// build storages if needed
 	const AAIUnitCategory storage(EUnitCategory::STORAGE);
 	if(    (ai->Getut()->GetTotalNumberOfUnitsOfCategory(storage) < cfg->MAX_STORAGE)
 		&& (ai->Getut()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE))
 	{
-		float temp = max(GetMetalStorageUrgency(), GetEnergyStorageUrgency());
+		const float storageUrgency = max(ai->Getbrain()->GetMetalStorageUrgency(), ai->Getbrain()->GetEnergyStorageUrgency());
 
-		if(temp > urgency[STORAGE])
-			urgency[STORAGE] = temp;
+		if(storageUrgency > urgency[STORAGE])
+			urgency[STORAGE] = storageUrgency;
 	}
 
 	// energy low
-	if(averageEnergySurplus < 1.5 * cfg->METAL_ENERGY_RATIO)
+	if(ai->Getbrain()->GetAveragEnergySurplus() < 0.1f * ai->GetAICallback()->GetEnergyIncome())
 	{
 		// try to accelerate power plant construction
 		const AAIUnitCategory plant(EUnitCategory::POWER_PLANT);
-		if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(plant) > 0)
+		if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(plant) > 0)
 			AssistConstructionOfCategory(plant);
 
 		// try to disbale some metal makers
@@ -2099,7 +2060,7 @@ void AAIExecute::CheckRessources()
 		}
 	}
 	// try to enable some metal makers
-	else if(averageEnergySurplus > cfg->MIN_METAL_MAKER_ENERGY && disabledMMakers > 0)
+	else if(ai->Getbrain()->GetAveragEnergySurplus() > cfg->MIN_METAL_MAKER_ENERGY && disabledMMakers > 0)
 	{
 		for(set<int>::iterator maker = ai->Getut()->metal_makers.begin(); maker != ai->Getut()->metal_makers.end(); ++maker)
 		{
@@ -2107,7 +2068,7 @@ void AAIExecute::CheckRessources()
 			{
 				float usage = ai->GetAICallback()->GetUnitDef(*maker)->energyUpkeep;
 
-				if(averageEnergySurplus > usage * 0.7f)
+				if(ai->Getbrain()->GetAveragEnergySurplus() > usage * 0.7f)
 				{
 					Command c(CMD_ONOFF);
 					c.PushParam(1);
@@ -2123,7 +2084,7 @@ void AAIExecute::CheckRessources()
 	}
 
 	// metal low
-	if(averageMetalSurplus < 15.0/cfg->METAL_ENERGY_RATIO)
+	if(ai->Getbrain()->GetAverageMetalSurplus() < AAIConstants::minMetalSurplusForConstructionAssist)
 	{
 		// try to accelerate mex construction
 		const AAIUnitCategory extractor(EUnitCategory::METAL_EXTRACTOR);
@@ -2132,7 +2093,7 @@ void AAIExecute::CheckRessources()
 
 		// try to accelerate mex construction
 		const AAIUnitCategory metalMaker(EUnitCategory::METAL_MAKER);
-		if( (ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(metalMaker) > 0) && (averageEnergySurplus > cfg->MIN_METAL_MAKER_ENERGY) )
+		if( (ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(metalMaker) > 0) && (ai->Getbrain()->GetAveragEnergySurplus() > cfg->MIN_METAL_MAKER_ENERGY) )
 			AssistConstructionOfCategory(metalMaker);
 	}
 }
@@ -2306,50 +2267,6 @@ void AAIExecute::CheckJammerUpgrade()
 			}
 		}
 	}*/
-}
-
-float AAIExecute::GetEnergyUrgency()
-{
-	float surplus = averageEnergySurplus + futureAvailableEnergy * 0.5f;
-
-	if(surplus < 0)
-		surplus = 0;
-
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) > 8)
-	{
-		if(averageEnergySurplus > 1000)
-			return 0;
-		else
-			return 8.0f / pow( surplus / cfg->METAL_ENERGY_RATIO + 2.0f, 2.0f);
-	}
-	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) > 0)
-		return 15.0f / pow( surplus / cfg->METAL_ENERGY_RATIO + 2.0f, 2.0f);
-	else
-		return 6.0f;
-}
-
-float AAIExecute::GetMetalUrgency()
-{
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR)) > 0)
-		return 20.0f / pow(averageMetalSurplus * cfg->METAL_ENERGY_RATIO + 2.0f, 2.0f);
-	else
-		return 7.0f;
-}
-
-float AAIExecute::GetEnergyStorageUrgency()
-{
-	if(averageEnergySurplus / cfg->METAL_ENERGY_RATIO > 4.0f)
-		return 0.2f;
-	else
-		return 0;
-}
-
-float AAIExecute::GetMetalStorageUrgency()
-{
-	if(averageMetalSurplus > 2.0f && (ai->GetAICallback()->GetMetalStorage() + futureStoredMetal - ai->GetAICallback()->GetMetal()) < 100.0f)
-		return 0.3f;
-	else
-		return 0;
 }
 
 void AAIExecute::CheckFactories()
@@ -2654,15 +2571,10 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 	}
 	else if(category.isPowerPlant())
 	{
-		futureAvailableEnergy -= ai->Getbt()->units_static[unitDefId.id].efficiency[0];
+		futureAvailableEnergy -= ai->s_buildTree.GetPrimaryAbility(unitDefId);
 
-		if(futureAvailableEnergy < 0)
-			futureAvailableEnergy = 0;
-	}
-	else if(category.isStorage())
-	{
-		futureStoredEnergy -= ai->Getbt()->GetUnitDef(def->id).energyStorage;
-		futureStoredMetal -= ai->Getbt()->GetUnitDef(def->id).metalStorage;
+		if(futureAvailableEnergy < 0.0f)
+			futureAvailableEnergy = 0.0f;
 	}
 	else if(category.isMetalMaker())
 	{

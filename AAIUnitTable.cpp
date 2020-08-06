@@ -211,10 +211,10 @@ void AAIUnitTable::RemoveScout(int unit_id)
 	scouts.erase(unit_id);
 }
 
-void AAIUnitTable::AddPowerPlant(int unit_id, int def_id)
+void AAIUnitTable::AddPowerPlant(UnitId unitId, UnitDefId unitDefId)
 {
-	power_plants.insert(unit_id);
-	ai->Getexecute()->futureAvailableEnergy -= ai->Getbt()->units_static[def_id].efficiency[0];
+	power_plants.insert(unitId.id);
+	ai->Getexecute()->futureAvailableEnergy -= ai->s_buildTree.GetPrimaryAbility(unitDefId);
 }
 
 void AAIUnitTable::RemovePowerPlant(int unit_id)

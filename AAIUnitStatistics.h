@@ -243,7 +243,7 @@ private:
 	//! Min,max,avg buildtime for every unit category
 	std::vector<StatisticalData> m_unitBuildtimeStatistics;
 
-	//! Min,max,avg:  sight range for scouts, radar/sonar/artillery range, build 
+	//! Min,max,avg:  sight range for scouts, radar/sonar/artillery range, build speed for construction units/factories
 	std::vector<StatisticalData> m_unitPrimaryAbilityStatistics;
 
 	//! Min,max,avg:  speed for scouts, mobile constructors, mobile artillery

@@ -58,7 +58,7 @@ public:
 	void AddExtractor(int unit_id);
 	void RemoveExtractor(int unit_id);
 
-	void AddPowerPlant(int unit_id, int def_id);
+	void AddPowerPlant(UnitId unitId, UnitDefId unitDefId);
 	void RemovePowerPlant(int unit_id);
 
 	void AddMetalMaker(int unit_id, int def_id);

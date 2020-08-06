@@ -156,7 +156,7 @@ struct UnitTypeProperties
 	//! Range of unit category relevant ability: 
 	//! max range of weapons (Combat units, artillery and static defences), line of sight (scouts), radar/sonar/jammer range
 	//! buildspeed for mobile/static constructors
-	float m_range;
+	float m_primaryAbility;
 
 	//! Movement type (land, sea, air, hover, submarine, ...)
 	AAIMovementType m_movementType;

@@ -224,7 +224,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		}
 
 		// set primary and secondary abilities
-		m_unitTypeProperties[id].m_range     = DeterminePrimaryAbility(unitDefs[id], unitCategory, cb);
+		m_unitTypeProperties[id].m_primaryAbility     = DeterminePrimaryAbility(unitDefs[id], unitCategory, cb);
 		m_unitTypeProperties[id].m_maxSpeed  = DetermineSecondaryAbility(unitDefs[id], unitCategory);
     }
 
@@ -757,7 +757,7 @@ bool AAIBuildTree::IsArtillery(const springLegacyAI::UnitDef* unitDef, float art
 	if(unitDef->weapons.empty() == true)
 		return false;
 
-	if(    (m_unitTypeProperties[unitDef->id].m_range > artilleryRangeThreshold)
+	if(    (m_unitTypeProperties[unitDef->id].m_primaryAbility > artilleryRangeThreshold)
 	    || (unitDef->highTrajectoryType == 1) )
 		return true;
 	else

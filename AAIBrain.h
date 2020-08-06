@@ -29,7 +29,9 @@ public:
 
 	void InitAttackedByRates(const AttackedByRatesPerGamePhase& attackedByRates);
 
-	const SmoothedData& GetSmoothedMetalSurplus() const { return m_metalSurplus; }
+	float GetAverageMetalSurplus() const { return m_metalSurplus.GetAverageValue(); }
+
+	float GetAveragEnergySurplus() const { return m_energySurplus.GetAverageValue(); }
 
 	float GetBaseFlatLandRatio() const { return m_baseFlatLandRatio; }
 
@@ -90,6 +92,21 @@ public:
 	//! @brief Returns the frequency of attacks by units of specified combat category
 	//!        The value is determined according to to current game phase, data from this game and learned data.
 	float GetAttacksBy(const AAICombatUnitCategory& combatUnitCategory, const GamePhase& gamePhase) const;
+
+	//! @brief Returns urgency to build power plant
+	float GetEnergyUrgency() const;
+
+	//! @brief Returns urgency to build metal extractor
+	float GetMetalUrgency() const;
+
+	//! @brief Returns urgency to build energy storage
+	float GetEnergyStorageUrgency() const;
+
+	//! @brief Returns urgency to build metal storage
+	float GetMetalStorageUrgency() const;
+
+	//! @brief Returns whether construction of unit of given category shall be assisted (taking current resources into account)
+	bool CheckConstructionAssist(const AAIUnitCategory& category) const;
 
 	//  0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	vector<list<AAISector*> > sectors;

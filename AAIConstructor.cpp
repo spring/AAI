@@ -265,21 +265,10 @@ void AAIConstructor::CheckAssistance()
 	if(m_isBuilder && build_task)
 	{
 		// prevent assisting when low on ressources
-		const SmoothedData& metalSurplus = ai->Getbrain()->GetSmoothedMetalSurplus();
-		if(metalSurplus.GetAverageValue() < 0.5f)
-		{
-			if(ai->s_buildTree.GetUnitCategory(m_constructedDefId).isMetalMaker())
-			{
-				if(ai->Getexecute()->averageEnergySurplus < 0.5 * ai->Getbt()->GetUnitDef(m_constructedDefId.id).energyUpkeep)
-					return;
-			}
-			else if(   (ai->s_buildTree.GetUnitCategory(m_constructedDefId).isMetalExtractor() == false) 
-			        && (ai->s_buildTree.GetUnitCategory(m_constructedDefId).isPowerPlant() == false ) )
-				return;
-		}
-
+		const bool  assistConstruction = ai->Getbrain()->CheckConstructionAssist(ai->s_buildTree.GetUnitCategory(m_constructedDefId));
 		const float buildspeed( ai->s_buildTree.GetBuildspeed(m_myDefId) ); 
-		if (buildspeed > 0.0f)
+
+		if (assistConstruction && (buildspeed > 0.0f))
 		{
 			const float buildtime = ai->s_buildTree.GetBuildtime(m_constructedDefId) / buildspeed;
 
@@ -288,10 +277,10 @@ void AAIConstructor::CheckAssistance()
 				// com only allowed if buildpos is inside the base
 				bool commander = false;
 
-				int x = m_buildPos.x / ai->Getmap()->xSectorSize;
-				int y = m_buildPos.z / ai->Getmap()->ySectorSize;
+				const int x = m_buildPos.x / ai->Getmap()->xSectorSize;
+				const int y = m_buildPos.z / ai->Getmap()->ySectorSize;
 
-				if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
+				if(ai->Getmap()->IsValidSector(x,y))
 				{
 					if(ai->Getmap()->sector[x][y].distance_to_base == 0)
 						commander = true;

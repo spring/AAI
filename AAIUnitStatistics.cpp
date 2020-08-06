@@ -46,7 +46,7 @@ void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& 
 		{
 			m_unitBuildtimeStatistics[cat].AddValue( unitProperties[defId->id].m_buildtime );
 			m_unitCostStatistics[cat].AddValue( unitProperties[defId->id].m_totalCost );
-			m_unitPrimaryAbilityStatistics[cat].AddValue( unitProperties[defId->id].m_range );
+			m_unitPrimaryAbilityStatistics[cat].AddValue( unitProperties[defId->id].m_primaryAbility );
 			m_unitSecondaryAbilityStatistics[cat].AddValue( unitProperties[defId->id].m_maxSpeed );
 		}
 
@@ -66,7 +66,7 @@ void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& 
 		{
 			m_combatCostStatistics[cat].AddValue( unitProperties[*id].m_totalCost );
 			m_combatBuildtimeStatistics[cat].AddValue( unitProperties[*id].m_buildtime );
-			m_combatRangeStatistics[cat].AddValue( unitProperties[*id].m_range );
+			m_combatRangeStatistics[cat].AddValue( unitProperties[*id].m_primaryAbility );
 			m_combatSpeedStatistics[cat].AddValue( unitProperties[*id].m_maxSpeed );
 		}
 

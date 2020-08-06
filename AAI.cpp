@@ -276,7 +276,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 
 		const springLegacyAI::UnitDef* attackerDef = m_aiCallback->GetUnitDef(attacker);
 
-		if ( (attackerDef != nullptr) && (attackedDef != nullptr) )
+		if ( (attackerDef != nullptr)  )
 		{
 			const AAIUnitCategory& category           = s_buildTree.GetUnitCategory(UnitDefId(attackedDef->id));
 			const AAITargetType&   attackerTargetType = s_buildTree.GetTargetType(UnitDefId(attackerDef->id));
@@ -440,12 +440,7 @@ void AAI::UnitFinished(int unit)
 		}
 		else if (category.isPowerPlant() == true)
 		{
-			ut->AddPowerPlant(unit, def->id);
-		}
-		else if (category.isStorage() == true)
-		{
-			execute->futureStoredEnergy -= def->energyStorage;
-			execute->futureStoredMetal  -= def->metalStorage;
+			ut->AddPowerPlant(UnitId(unit), unitDefId);
 		}
 		else if (category.isMetalMaker() == true)
 		{
@@ -939,7 +934,6 @@ void AAI::Update()
 	if (!(tick % 45))
 	{
 		AAI_SCOPED_TIMER("Update-Income")
-		execute->UpdateRessources();
 		brain->UpdateRessources(m_aiCallback);
 	}
 

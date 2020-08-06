@@ -70,9 +70,6 @@ public:
 	//! @brief Searches for a position to retreat unit of certain type
 	float3 determineSafePos(UnitDefId unitDefId, float3 unit_pos);
 
-	// updates average ressource usage
-	void UpdateRessources();
-
 	// checks if ressources are sufficient and orders construction of new buildings
 	void CheckRessources();
 
@@ -133,12 +130,7 @@ public:
 	float futureRequestedEnergy;
 	float futureAvailableMetal;
 	float futureAvailableEnergy;
-	float futureStoredMetal;
-	float futureStoredEnergy;
-	float averageMetalSurplus;
-	float averageEnergySurplus;
 	int disabledMMakers;
-
 
 	// urgency of construction of building of the different categories
 	float urgency[METAL_MAKER+1];
@@ -203,12 +195,6 @@ private:
 	void ConstructBuildingAt(int building, int builder, float3 position);
 	bool IsBusy(int unit);
 
-	float GetEnergyUrgency();
-
-	float GetMetalUrgency();
-	float GetEnergyStorageUrgency();
-	float GetMetalStorageUrgency();
-
 	//! @brief Tries to find a suitable buildsite and builder to start the construction of the given building;
 	BuildOrderStatus TryConstructionOf(UnitDefId building, const AAISector* sector);
 
@@ -227,9 +213,7 @@ private:
 
 	float averageMetalUsage;
 	float averageEnergyUsage;
-	int counter;
-	float metalSurplus[8];
-	float energySurplus[8];
+
 	AAISector *next_defence;
 
 	AAIUnitCategory m_nextDefenceVsCategory;

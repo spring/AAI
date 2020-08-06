@@ -864,7 +864,7 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildti
 
 			float myRating =  cost        * costs.GetNormalizedDeviationFromMax( unitData.m_totalCost )
 							+ buildtime   * buildtimes.GetNormalizedDeviationFromMax( unitData.m_buildtime )
-							+ range       * ranges.GetNormalizedDeviationFromMin( unitData.m_range )
+							+ range       * ranges.GetNormalizedDeviationFromMin( unitData.m_primaryAbility )
 							+ combatPower * combatPowerStat.GetNormalizedDeviationFromMin( myCombatPower )
 							+ 0.05f * ((float)(rand()%randomness));
 
@@ -1105,7 +1105,7 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& cat
 			float combatEff = combatPowerValues[i] / unitData.m_totalCost;
 
 			float myRating =  unitCriteria.cost  * costStatistics.GetNormalizedDeviationFromMax( unitData.m_totalCost )
-							+ unitCriteria.range * rangeStatistics.GetNormalizedDeviationFromMin( unitData.m_range )
+							+ unitCriteria.range * rangeStatistics.GetNormalizedDeviationFromMin( unitData.m_primaryAbility )
 							+ unitCriteria.speed * speedStatistics.GetNormalizedDeviationFromMin( unitData.m_maxSpeed )
 							+ unitCriteria.power * combatPowerStat.GetNormalizedDeviationFromMin( combatPowerValues[i] )
 							+ unitCriteria.efficiency * combatEfficiencyStat.GetNormalizedDeviationFromMin( combatEff )

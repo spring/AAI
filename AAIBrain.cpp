@@ -923,3 +923,58 @@ void AAIBrain::UpdatePressureByEnemy()
 	if(enemy_pressure_estimation > 1.0f)
 		enemy_pressure_estimation = 1.0f;
 }
+
+float AAIBrain::GetEnergyUrgency() const
+{
+	if(m_energySurplus.GetAverageValue() > 2000.0f)
+		return 0.0f;	
+	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) > 0)
+		return 4.0f / (2.0f * m_energySurplus.GetAverageValue() / AAIConstants::energyToMetalConversionFactor + 0.5f);
+	else
+		return 7.0f;
+}
+
+float AAIBrain::GetMetalUrgency() const
+{
+	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR)) > 0)
+		return 4.0f / (2.0f * m_metalSurplus.GetAverageValue() + 0.5f);
+	else
+		return 8.0f;
+}
+
+float AAIBrain::GetEnergyStorageUrgency() const
+{
+	const float unusedEnergyStorage = ai->GetAICallback()->GetEnergyStorage() - ai->GetAICallback()->GetEnergy();
+
+	if(    (m_energySurplus.GetAverageValue() / AAIConstants::energyToMetalConversionFactor > 4.0f)
+		&& (unusedEnergyStorage < AAIConstants::minUnusedEnergyStorageCapacityToBuildStorage)
+		&& (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0) )
+		return 0.15f;
+	else
+		return 0.0f;
+}
+
+float AAIBrain::GetMetalStorageUrgency() const
+{
+	const float unusedMetalStorage = ai->GetAICallback()->GetMetalStorage() - ai->GetAICallback()->GetMetal();
+
+	if( 	(m_metalSurplus.GetAverageValue() > 3.0f)
+	  	 && (unusedMetalStorage < AAIConstants::minUnusedMetalStorageCapacityToBuildStorage)
+		 && (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0) )
+		return 0.2f;
+	else
+		return 0.0f;
+}
+
+bool AAIBrain::CheckConstructionAssist(const AAIUnitCategory& category) const
+{
+	if(  category.isMetalExtractor() ||category.isPowerPlant() )
+		return true;
+	else if(   (m_metalSurplus.GetAverageValue()  > AAIConstants::minMetalSurplusForConstructionAssist)
+			&& (m_energySurplus.GetAverageValue() > AAIConstants::minEnergySurplusForConstructionAssist) )
+	{
+		return true;
+	}
+
+	return false;
+}

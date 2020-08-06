@@ -37,6 +37,18 @@ public:
 
 	//! Minimum combat power for a unit to be considered effective against a certain target type
 	static constexpr float minAntiTargetTypeCombatPower = 0.5f;
+
+	//! Minimum unused metal storage capcity befor construction of metal storage is taken into account
+	static constexpr float minUnusedMetalStorageCapacityToBuildStorage = 100.0f;
+
+	//! Minimum unused metal storage capcity befor construction of energy storage is taken into account
+	static constexpr float minUnusedEnergyStorageCapacityToBuildStorage = 600.0f;
+
+	//! Minimum averaged metal surplus before constrcution of non-resource generating units shall be assisted
+	static constexpr float minMetalSurplusForConstructionAssist = 0.5f;
+
+		//! Minimum averaged energy surplus before constrcution of non-resource generating units shall be assisted
+	static constexpr float minEnergySurplusForConstructionAssist = 40.0f;
 };
 
 class AAIMetalSpot
