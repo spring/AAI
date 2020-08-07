@@ -381,11 +381,11 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 			               + 3.0f * (*sector)->GetNumberOfBuildings(EUnitCategory::METAL_EXTRACTOR)
 						   + 4.0f / (2.0f + static_cast<float>( (*sector)->rally_points ) ); 
 			
-			if( moveType.isGround() )
+			if( moveType.IsGround() )
 			{
 				myRating += 3.0f * (*sector)->flat_ratio;
 			}
-			else if( moveType.isAir() || moveType.isAmphibious() || moveType.isHover())
+			else if( moveType.IsAir() || moveType.IsAmphibious() || moveType.IsHover())
 			{
 				myRating += 3.0f * ((*sector)->flat_ratio + (*sector)->water_ratio);
 			}
@@ -404,7 +404,7 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 	}
 
 	// continent bound units must get a rally point on their current continent
-	const bool continentBound = moveType.cannotMoveToOtherContinents();
+	const bool continentBound = moveType.CannotMoveToOtherContinents();
 	bool rallyPointFound(false);
 
 	if(bestSector)

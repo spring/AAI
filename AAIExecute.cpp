@@ -230,7 +230,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	int continentId = -1;
 	
 	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(unitDefId);
-	if( moveType.cannotMoveToOtherContinents() )
+	if( moveType.CannotMoveToOtherContinents() )
 	{
 		const float3 unitPos = ai->GetAICallback()->GetUnitPos(unitDefId.id);
 		continentId = ai->Getmap()->GetContinentID(unitPos);
@@ -380,7 +380,7 @@ float3 AAIExecute::GetUnitBuildsite(int builder, int unit)
 
 	for(list<AAISector*>::iterator s = ai->Getbrain()->sectors[1].begin(); s != ai->Getbrain()->sectors[1].end(); ++s)
 	{
-		bool water = ai->s_buildTree.GetMovementType(UnitDefId(unit)).isSeaUnit();
+		bool water = ai->s_buildTree.GetMovementType(UnitDefId(unit)).IsSeaUnit();
 
 		pos = (*s)->FindBuildsite(unit, water);
 
@@ -456,7 +456,7 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgen
 
 				// @todo rework criterion to reflect available buildspace instead of maptype
 				if(     (ai->Getmap()->map_type == WATER_MAP) 
-				    && !(ai->s_buildTree.GetMovementType(UnitDefId(*fac)).isStaticSea()  == true) )
+				    && !(ai->s_buildTree.GetMovementType(UnitDefId(*fac)).IsStaticSea()  == true) )
 					my_rating /= 10.0f;
 			}
 			else
@@ -609,7 +609,7 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 		}
 		else
 		{
-			if(ai->s_buildTree.GetMovementType(building).isStaticLand() )
+			if(ai->s_buildTree.GetMovementType(building).IsStaticLand() )
 				ai->Getbrain()->ExpandBase(LAND_SECTOR);
 			else
 				ai->Getbrain()->ExpandBase(WATER_SECTOR);
@@ -1525,7 +1525,7 @@ bool AAIExecute::BuildFactory()
 			}
 		}
 
-		const bool isSeaFactory( ai->s_buildTree.GetMovementType(*factory).isStaticSea() );
+		const bool isSeaFactory( ai->s_buildTree.GetMovementType(*factory).IsStaticSea() );
 	
 		if(isSeaFactory)
 			ai->Getbrain()->sectors[0].sort(suitable_for_sea_factory);
@@ -2139,7 +2139,7 @@ void AAIExecute::CheckMexUpgrade()
 				{
 					float extractedMetalGain;
 
-					if(ai->s_buildTree.GetMovementType( UnitDefId((*spot)->extractor_def) ).isStaticLand() )	// land mex
+					if(ai->s_buildTree.GetMovementType( UnitDefId((*spot)->extractor_def) ).IsStaticLand() )	// land mex
 						extractedMetalGain = landExtractedMetal - ai->s_buildTree.GetMaxRange( UnitDefId((*spot)->extractor_def) );
 					else	// water mex
 						extractedMetalGain = seaExtractedMetal  - ai->s_buildTree.GetMaxRange( UnitDefId((*spot)->extractor_def) );
@@ -2180,7 +2180,7 @@ void AAIExecute::CheckRadarUpgrade()
 	{
 		bool upgradeRadar(false);
 		
-		if(ai->s_buildTree.GetMovementType(UnitDefId(*sensor)).isStaticLand() == true )	// land recon
+		if(ai->s_buildTree.GetMovementType(UnitDefId(*sensor)).IsStaticLand() == true )	// land recon
 		{
 			if( (landRadar.isValid() == true) &&  (ai->s_buildTree.GetMaxRange(UnitDefId(*sensor)) < ai->s_buildTree.GetMaxRange(landRadar)) )
 			{
@@ -2680,14 +2680,14 @@ void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attacke
 		support->Defend(unitId, attackerPosition, importance);
 }
 
-float3 AAIExecute::determineSafePos(UnitDefId unitDefId, float3 unit_pos)
+float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos)
 {
 	float3 best_pos = ZeroVector;
 	float my_rating, best_rating = -10000.0f;
 
 	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(unitDefId);
 
-	if( moveType.cannotMoveToOtherContinents() )
+	if( moveType.CannotMoveToOtherContinents() )
 	{
 		// get continent id of the unit pos
 		int cont_id = ai->Getmap()->GetContinentID(unit_pos);

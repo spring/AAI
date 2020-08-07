@@ -82,7 +82,7 @@ void AAIAttackManager::LaunchAttack()
 			if( (*group)->AvailableForAttack() )
 			{
 				
-				if( (*group)->m_moveType.cannotMoveToOtherContinents() )
+				if( (*group)->m_moveType.CannotMoveToOtherContinents() )
 				{
 					if((*group)->GetUnitTypeOfGroup().IsAssaultUnit())
 					{

@@ -362,7 +362,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		if (s_buildTree.GetUnitType(unitDefId).IsFactory())
 			ut->futureFactories += 1;
 
-		if (s_buildTree.GetMovementType(unitDefId).isStatic())
+		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
 			float3 pos = m_aiCallback->GetUnitPos(unit);
 			execute->InitBuildingAt(def, pos);
@@ -371,7 +371,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	else
 	{
 		// construction of building started
-		if (s_buildTree.GetMovementType(unitDefId).isStatic())
+		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
 			float3 pos = m_aiCallback->GetUnitPos(unit);
 
@@ -412,7 +412,7 @@ void AAI::UnitFinished(int unit)
 	bt->units_dynamic[def->id].active += 1;
 
 	// building was completed
-	if (s_buildTree.GetMovementType(unitDefId).isStatic() == true)
+	if (s_buildTree.GetMovementType(unitDefId).IsStatic() == true)
 	{
 		// delete buildtask
 		for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
@@ -598,7 +598,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		}
 
 		// finished building has been killed
-		if (s_buildTree.GetMovementType(UnitDefId(def->id)).isStatic() == true)
+		if (s_buildTree.GetMovementType(UnitDefId(def->id)).IsStatic() == true)
 		{
 			// decrease number of units of that category in the target sector
 			if (validSector)

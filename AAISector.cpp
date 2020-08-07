@@ -548,7 +548,7 @@ float AAISector::GetEnemyDefencePowerAgainstAssaultCategory(int assault_category
 
 float AAISector::getEnemyThreatToMovementType(const AAIMovementType& movementType) const
 {
-	EMovementType moveType = movementType.getMovementType();
+	EMovementType moveType = movementType.GetMovementType();
 	switch( moveType )
 	{
 		case EMovementType::MOVEMENT_TYPE_AMPHIBIOUS: // fallthorugh intended
@@ -658,7 +658,7 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 			combats_this_game[category.GetArrayIndex()] += 1.0f;
 		}
 
-		if(ai->s_buildTree.GetMovementType(destroyedDefId).isAir())
+		if(ai->s_buildTree.GetMovementType(destroyedDefId).IsAir())
 			m_lostAirUnits += 1.0f;
 		else
 			m_lostUnits += 1.0f;

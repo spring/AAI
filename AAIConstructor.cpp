@@ -70,7 +70,7 @@ void AAIConstructor::Idle()
 				ai->Getut()->UnitRequestFailed(ai->s_buildTree.GetUnitCategory(m_constructedDefId));
 
 				// clear up buildmap etc. (make sure conctructor wanted to build a building and not a unit)
-				if( ai->s_buildTree.GetMovementType(m_constructedDefId).isStatic() == true )
+				if( ai->s_buildTree.GetMovementType(m_constructedDefId).IsStatic() == true )
 					ai->Getexecute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
 
 				// free builder
@@ -103,7 +103,7 @@ void AAIConstructor::Update()
 			UnitDefId constructedUnitDefId(*m_buildqueue->begin());
 
 			// check if mobile or stationary builder
-			if(ai->s_buildTree.GetMovementType(m_myDefId).isStatic() == true )  
+			if(ai->s_buildTree.GetMovementType(m_myDefId).IsStatic() == true )  
 			{
 				// give build order
 				Command c(-constructedUnitDefId.id);
@@ -405,7 +405,7 @@ void AAIConstructor::ConstructionFailed()
 	ai->Getut()->UnitRequestFailed(ai->s_buildTree.GetUnitCategory(m_constructedDefId));
 
 	// clear up buildmap etc.
-	if(ai->s_buildTree.GetMovementType(m_constructedDefId).isStatic() == true)
+	if(ai->s_buildTree.GetMovementType(m_constructedDefId).IsStatic() == true)
 		ai->Getexecute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
 
 	// tells the builder construction has finished
@@ -506,7 +506,7 @@ void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
 		}
 
 		// get safe position
-		pos = ai->Getexecute()->determineSafePos(m_myDefId, pos);
+		pos = ai->Getexecute()->DetermineSafePos(m_myDefId, pos);
 
 		if(pos.x > 0)
 		{

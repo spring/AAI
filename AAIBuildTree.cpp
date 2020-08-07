@@ -189,7 +189,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		m_unitTypeProperties[id].m_buildtime = unitDefs[id]->buildTime;
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
 		
-		m_unitTypeProperties[id].m_movementType.setMovementType( DetermineMovementType(unitDefs[id]) );
+		m_unitTypeProperties[id].m_movementType.SetMovementType( DetermineMovementType(unitDefs[id]) );
 		m_unitTypeProperties[id].m_targetType.setType( DetermineTargetType(m_unitTypeProperties[id].m_movementType) );
 	}
 
@@ -483,13 +483,13 @@ EMovementType AAIBuildTree::DetermineMovementType(const springLegacyAI::UnitDef*
 
 ETargetType AAIBuildTree::DetermineTargetType(const AAIMovementType& moveType) const
 {
-	if(moveType.isGround() || moveType.isHover() || moveType.isAmphibious())
+	if(moveType.IsGround() || moveType.IsHover() || moveType.IsAmphibious())
 		return ETargetType::SURFACE;
-	else if(moveType.isAir())
+	else if(moveType.IsAir())
 		return ETargetType::AIR;
-	else if(moveType.isShip())
+	else if(moveType.IsShip())
 		return ETargetType::FLOATER;
-	else if(moveType.isSubmarine())
+	else if(moveType.IsSubmarine())
 		return ETargetType::SUBMERGED;
 	else
 		return ETargetType::STATIC;
@@ -547,7 +547,7 @@ void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::Un
 	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticConstructor()
 			|| m_unitTypeProperties[unitDefId.id].m_unitCategory.isCommander() )
 	{
-		if( GetMovementType(unitDefId).isStatic() )
+		if( GetMovementType(unitDefId).IsStatic() )
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);
 		else
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
@@ -558,7 +558,7 @@ void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::Un
 		bool builder(false), factory(false);
 		for(auto unit = GetCanConstructList(unitDefId).begin(); unit != GetCanConstructList(unitDefId).end(); ++unit)
 		{
-			if(GetMovementType(*unit).isStatic())
+			if(GetMovementType(*unit).IsStatic())
 				builder = true;
 			else
 				factory = true;
@@ -582,7 +582,7 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 		return EUnitCategory::UNKNOWN;
 
 	// --------------- buildings --------------------------------------------------------------------------------------
-	if(m_unitTypeProperties[unitDef->id].m_movementType.isStatic() == true)
+	if(m_unitTypeProperties[unitDef->id].m_movementType.IsStatic() == true)
 	{
 		if(m_unitTypeCanConstructLists[unitDef->id].size() > 0)
 		{
@@ -680,26 +680,26 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 			}
 			else
 			{
-				if(    (m_unitTypeProperties[unitDef->id].m_movementType.isGround()     == true) 
-				    || (m_unitTypeProperties[unitDef->id].m_movementType.isAmphibious() == true) )
+				if(    (m_unitTypeProperties[unitDef->id].m_movementType.IsGround()     == true) 
+				    || (m_unitTypeProperties[unitDef->id].m_movementType.IsAmphibious() == true) )
 				{
 					if( IsArtillery(unitDef, cfg->GROUND_ARTY_RANGE) == true)
 						return EUnitCategory::MOBILE_ARTILLERY;
 					else
 						return EUnitCategory::GROUND_COMBAT;
 				}
-				else if(m_unitTypeProperties[unitDef->id].m_movementType.isHover() == true)
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsHover() == true)
 				{
 					if( IsArtillery(unitDef, cfg->HOVER_ARTY_RANGE) == true)
 						return EUnitCategory::MOBILE_ARTILLERY;
 					else
 						return EUnitCategory::HOVER_COMBAT;
 				}
-				else if(m_unitTypeProperties[unitDef->id].m_movementType.isAir() == true)
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsAir() == true)
 				{
 					return EUnitCategory::AIR_COMBAT;
 				}
-				else if(m_unitTypeProperties[unitDef->id].m_movementType.isSeaUnit() == true)
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsSeaUnit() == true)
 				{
 					//! @todo: Sea artillery is skipped on prupose - handling of sea artillery not implemented at the moment.
 					return EUnitCategory::SEA_COMBAT;

@@ -187,7 +187,7 @@ void AAIBuildTable::Init()
 					}
 					else if(category.isStaticDefence() == true)
 					{
-						if(ai->s_buildTree.GetMovementType(UnitDefId(i)).isStaticLand() == true)
+						if(ai->s_buildTree.GetMovementType(UnitDefId(i)).IsStaticLand() == true)
 						{
 							units_static[i].efficiency[0] = eff;
 							units_static[i].efficiency[2] = eff;
@@ -398,8 +398,8 @@ AAIUnitType AAIBuildTable::GetUnitType(UnitDefId unitDefId) const
 bool AAIBuildTable::IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const
 {
 	const bool constructablePassed = !mustBeConstructable || (units_dynamic[building.id].constructorsAvailable > 0);
-	const bool landCheckPassed     = !water    && ai->s_buildTree.GetMovementType(building.id).isStaticLand();
-	const bool seaCheckPassed      =  water    && ai->s_buildTree.GetMovementType(building.id).isStaticSea();
+	const bool landCheckPassed     = !water    && ai->s_buildTree.GetMovementType(building.id).IsStaticLand();
+	const bool seaCheckPassed      =  water    && ai->s_buildTree.GetMovementType(building.id).IsStaticSea();
 
 	return constructablePassed && (landCheckPassed || seaCheckPassed );
 }
@@ -763,12 +763,12 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 				++combatUnits;
 				break;
 			case EUnitCategory::MOBILE_CONSTRUCTOR:
-				if( ai->s_buildTree.GetMovementType(*unit).isSeaUnit() )
+				if( ai->s_buildTree.GetMovementType(*unit).IsSeaUnit() )
 				{
 					if(considerWater)
 						ratingData.canConstructBuilder = true;
 				}
-				else if(ai->s_buildTree.GetMovementType(*unit).isGround() )
+				else if(ai->s_buildTree.GetMovementType(*unit).IsGround() )
 				{
 					if(considerLand)
 						ratingData.canConstructBuilder = true;
@@ -779,12 +779,12 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 				}
 				break;
 			case EUnitCategory::SCOUT:
-				if( ai->s_buildTree.GetMovementType(*unit).isSeaUnit() )
+				if( ai->s_buildTree.GetMovementType(*unit).IsSeaUnit() )
 				{
 					if(considerWater)
 						ratingData.canConstructScout = true;
 				}
-				else if(ai->s_buildTree.GetMovementType(*unit).isGround() )
+				else if(ai->s_buildTree.GetMovementType(*unit).IsGround() )
 				{
 					if(considerLand)
 						ratingData.canConstructScout = true;
@@ -1422,14 +1422,14 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 				my_rating += 2.0f;
 
 			// prevent AAI from requesting factories that cannot be built within the current base
-			if(ai->s_buildTree.GetMovementType(*factory).isStaticLand() == true)
+			if(ai->s_buildTree.GetMovementType(*factory).IsStaticLand() == true)
 			{
 				if(ai->Getbrain()->GetBaseFlatLandRatio() > 0.1f)
 					my_rating *= ai->Getbrain()->GetBaseFlatLandRatio();
 				else
 					my_rating = -100000.0f;
 			}
-			else if(ai->s_buildTree.GetMovementType(*factory).isStaticSea() == true)
+			else if(ai->s_buildTree.GetMovementType(*factory).IsStaticSea() == true)
 			{
 				if(ai->Getbrain()->GetBaseWaterRatio() > 0.1f)
 					my_rating *= ai->Getbrain()->GetBaseWaterRatio();
@@ -1453,7 +1453,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 		m_factoryBuildqueue.push_back(UnitDefId(constructor));
 
 		// factory requested
-		if(ai->s_buildTree.GetMovementType(UnitDefId(constructor)).isStatic() == true)
+		if(ai->s_buildTree.GetMovementType(UnitDefId(constructor)).IsStatic() == true)
 		{
 			if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
 			{

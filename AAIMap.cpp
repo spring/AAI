@@ -1369,7 +1369,7 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 
 void AAIMap::UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool block)
 {
-	const bool water   = ai->s_buildTree.GetMovementType(UnitDefId(def->id)).isStaticSea();
+	const bool water   = ai->s_buildTree.GetMovementType(UnitDefId(def->id)).IsStaticSea();
 	const bool factory = ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory();
 	
 	float3 buildMapPos = buildPos;
@@ -2210,7 +2210,7 @@ void AAIMap::UpdateEnemyScoutingData()
 					if(unitDefId.isValid() == true)
 					{
 						// add building to sector (and update stat_combat_power if it's a stat defence)
-						if(ai->s_buildTree.GetMovementType(unitDefId).isStatic() == true)
+						if(ai->s_buildTree.GetMovementType(unitDefId).IsStatic() == true)
 						{
 							sector->enemy_structures += 1.0f;
 
@@ -2300,7 +2300,7 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 	}
 	else
 	{
-		if(ai->s_buildTree.GetMovementType(defence).isStaticSea())
+		if(ai->s_buildTree.GetMovementType(defence).IsStaticSea())
 			power = (ai->Getbt()->fixed_eff[defence.id][2] + ai->Getbt()->fixed_eff[defence.id][3]) / 2.0f;
 		else
 			power = ai->Getbt()->fixed_eff[defence.id][0];
@@ -2606,7 +2606,7 @@ int AAIMap::getSmartContinentID(float3 *pos, const AAIMovementType& moveType) co
 {
 	// check if non sea/amphib unit in shallow water
 	if(     (ai->GetAICallback()->GetElevation(pos->x, pos->z) < 0)
-	     && (moveType.getMovementType() == EMovementType::MOVEMENT_TYPE_GROUND) )
+	     && (moveType.GetMovementType() == EMovementType::MOVEMENT_TYPE_GROUND) )
 	{
 		//look for closest land cell
 		for(int k = 1; k < 10; ++k)

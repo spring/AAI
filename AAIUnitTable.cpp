@@ -128,7 +128,7 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 		++activeBuilders;
 	}
 
-	if( (IsFactory(unitDefId) == true) && (ai->s_buildTree.GetMovementType(unitDefId).isStatic() == true) )
+	if( (IsFactory(unitDefId) == true) && (ai->s_buildTree.GetMovementType(unitDefId).IsStatic() == true) )
 	{
 		--futureFactories;
 		++activeFactories;
@@ -144,7 +144,7 @@ void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 	if(IsBuilder(UnitDefId(def_id)) == true)
 		activeBuilders -= 1;
 
-	if( (IsFactory(UnitDefId(def_id)) == true) && (ai->s_buildTree.GetMovementType(UnitDefId(def_id)).isStatic() == true) )
+	if( (IsFactory(UnitDefId(def_id)) == true) && (ai->s_buildTree.GetMovementType(UnitDefId(def_id)).IsStatic() == true) )
 		activeFactories -= 1;
 
 	// decrease number of available builders for all buildoptions of the builder
@@ -324,7 +324,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, const float3 *pos
 				const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(builder->m_myDefId);
 
 				// check continent if necessary
-				if( moveType.cannotMoveToOtherContinents() )
+				if( moveType.CannotMoveToOtherContinents() )
 				{
 					if(ai->Getmap()->GetContinentID(builder_pos) == continent)
 						suitable = true;
@@ -380,7 +380,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 				const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(assistant->m_myDefId.id);
 
 				// check continent if necessary
-				if( moveType.cannotMoveToOtherContinents() )
+				if( moveType.CannotMoveToOtherContinents() )
 				{
 					if(ai->Getmap()->GetContinentID(assistant_pos) == continent)
 						suitable = true;
