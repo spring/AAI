@@ -106,7 +106,7 @@ void AAIAttackManager::LaunchAttack()
 		}
 	}
 
-	// stop planing an attack if there are no combat groups available at the moment
+	// stop planning an attack if there are no combat groups available at the moment
 	if(total_combat_groups == 0)
 		return;
 

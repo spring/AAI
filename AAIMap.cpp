@@ -114,11 +114,8 @@ AAIMap::~AAIMap(void)
 	air_defence_map.clear();
 	submarine_defence_map.clear();
 
-	scout_map.clear();
-	last_updated_map.clear();
-
-	sector_in_los.clear();
-	sector_in_los_with_enemies.clear();
+	m_scoutedEnemyUnitsMap.clear();
+	m_lastLOSUpdateInFrameMap.clear();
 
 	units_in_los.clear();
 	m_spottedEnemyCombatUnits.clear();
@@ -136,7 +133,7 @@ void AAIMap::Init()
 		xSize = xMapSize * SQUARE_SIZE;
 		ySize = yMapSize * SQUARE_SIZE;
 
-		losMapRes = ai->GetAICallback()->GetLosMapResolution();
+		losMapRes = std::sqrt(ai->GetAICallback()->GetLosMapResolution());
 		xLOSMapSize = xMapSize / losMapRes;
 		yLOSMapSize = yMapSize / losMapRes;
 
@@ -173,6 +170,8 @@ void AAIMap::Init()
 		ReadMapCacheFile();
 	}
 
+	ai->Log("Map size: %i x %i    LOS map size: %i x %i  (los res: %i)\n", xMapSize, yMapSize, xLOSMapSize, yLOSMapSize, losMapRes);
+
 	// create field of sectors
 	sector.resize(xSectors);
 
@@ -199,11 +198,8 @@ void AAIMap::Init()
 	readMapLearnFile();
 
 	// for scouting
-	scout_map.resize(xLOSMapSize*yLOSMapSize, 0);
-	last_updated_map.resize(xLOSMapSize*yLOSMapSize, 0);
-
-	sector_in_los.resize( (xSectors+1) * (ySectors+1) );
-	sector_in_los_with_enemies.resize( (xSectors+1) * (ySectors+1) );
+	m_scoutedEnemyUnitsMap.resize(xLOSMapSize*yLOSMapSize, 0u);
+	m_lastLOSUpdateInFrameMap.resize(xLOSMapSize*yLOSMapSize, 0);
 
 	units_in_los.resize(cfg->MAX_UNITS, 0);
 
@@ -2052,32 +2048,28 @@ void AAIMap::DetectMetalSpots()
 	spring::SafeDeleteArray(TempAverage);
 }
 
-void AAIMap::UpdateRecon()
+void AAIMap::UpdateEnemyUnitsInLOS()
 {
-	int frame = ai->GetAICallback()->GetCurrentFrame();
-
-	fill(sector_in_los.begin(), sector_in_los.end(), 0);
-	fill(sector_in_los_with_enemies.begin(), sector_in_los_with_enemies.end(), 0);
 	fill(m_spottedEnemyCombatUnits.begin(), m_spottedEnemyCombatUnits.end(), 0);
 
 	//
 	// reset scouted buildings for all cells within current los
 	//
-	const unsigned short *los_map = ai->GetAICallback()->GetLosMap();
+	const unsigned short *losMap = ai->GetAICallback()->GetLosMap();
 
 	for(int y = 0; y < yLOSMapSize; ++y)
 	{
 		for(int x = 0; x < xLOSMapSize; ++x)
 		{
-			if(los_map[x + y * xLOSMapSize] > 0)
+			const int cellIndex = x + y * xLOSMapSize;
+
+			if(losMap[cellIndex] > 0u)
 			{
-				scout_map[x + y * xLOSMapSize] = 0;
-				last_updated_map[x + y * xLOSMapSize] = frame;
-				++sector_in_los[(losMapRes*x / xSectorSizeMap) + (losMapRes*y / ySectorSizeMap) * (xSectors+1)];
+				m_scoutedEnemyUnitsMap[cellIndex]    = 0u;
+				m_lastLOSUpdateInFrameMap[cellIndex] = ai->GetAICallback()->GetCurrentFrame();;
 			}
 		}
 	}
-
 
 	for(int y = 0; y < ySectors; ++y)
 	{
@@ -2086,74 +2078,65 @@ void AAIMap::UpdateRecon()
 	}
 
 	// update enemy units
-	int number_of_units = ai->GetAICallback()->GetEnemyUnitsInRadarAndLos(&(units_in_los.front()));
-	int x_pos, y_pos;
+	const int numberOfEnemyUnits = ai->GetAICallback()->GetEnemyUnitsInRadarAndLos(&(units_in_los.front()));
 
-	for(int i = 0; i < number_of_units; ++i)
+	for(int i = 0; i < numberOfEnemyUnits; ++i)
 	{
-		float3 pos = ai->GetAICallback()->GetUnitPos(units_in_los[i]);
+		const float3   pos = ai->GetAICallback()->GetUnitPos(units_in_los[i]);
 		const UnitDef* def = ai->GetAICallback()->GetUnitDef(units_in_los[i]);
 
 		if(def) // unit is within los
 		{
-			x_pos = (int)pos.x / (losMapRes * SQUARE_SIZE);
-			y_pos = (int)pos.z / (losMapRes * SQUARE_SIZE);
+			const int x_pos = (int)pos.x / (losMapRes * SQUARE_SIZE);
+			const int y_pos = (int)pos.z / (losMapRes * SQUARE_SIZE);
 
 			// make sure unit is within the map (e.g. no aircraft that has flown outside of the map)
-			if(x_pos >= 0 && x_pos < xLOSMapSize && y_pos >= 0 && y_pos < yLOSMapSize)
+			if( (x_pos >= 0) && (x_pos < xLOSMapSize) && (y_pos >= 0) && (y_pos < yLOSMapSize) )
 			{
 				const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 				// add buildings/combat units to scout map
-				if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
+				if( category.isBuilding() || category.isCombatUnit() )
 				{
-					scout_map[x_pos + y_pos * xLOSMapSize] = def->id;
-					++sector_in_los_with_enemies[(losMapRes * x_pos) / xSectorSizeMap + (xSectors + 1) * ((losMapRes * y_pos) / ySectorSizeMap) ];
+					m_scoutedEnemyUnitsMap[x_pos + y_pos * xLOSMapSize] = def->id;
 				}
 
-				if(category.isCombatUnit() == true)
+				if(category.isCombatUnit())
 					m_spottedEnemyCombatUnits[ AAICombatUnitCategory(category).GetArrayIndex() ] += 1;
 			}
 		}
 		else // unit on radar only
 		{
-			x_pos = pos.x/xSectorSize;
-			y_pos = pos.z/ySectorSize;
+			const int x = pos.x/xSectorSize;
+			const int y = pos.z/ySectorSize;
 
-			if(x_pos >= 0 && y_pos >= 0 && x_pos < xSectors && y_pos < ySectors)
-				sector[x_pos][y_pos].enemies_on_radar += 1;
+			if(IsValidSector(x,y))
+				sector[x][y].enemies_on_radar += 1;
 		}
 	}
 
-	// map of known enemy buildings has been updated -> update sector data
+	ai->Getbrain()->UpdateMaxCombatUnitsSpotted(m_spottedEnemyCombatUnits);
+}
+
+void AAIMap::UpdateFriendlyUnitsInLos()
+{
 	for(int y = 0; y < ySectors; ++y)
 	{
 		for(int x = 0; x < xSectors; ++x)
-		{
-			// only update sector data if its within los
-			if(sector_in_los[x + y * (xSectors+1)])
-			{
-				sector[x][y].own_structures = 0;
-				sector[x][y].allied_structures = 0;
-
-				fill(sector[x][y].my_mobile_combat_power.begin(), sector[x][y].my_mobile_combat_power.end(), 0);
-				fill(sector[x][y].my_stat_combat_power.begin(),   sector[x][y].my_stat_combat_power.end(),   0);
-			}
-		}
+			sector[x][y].ResetLocalCombatPower();
 	}
 
-	// update own/friendly units
-	number_of_units = ai->GetAICallback()->GetFriendlyUnits(&(units_in_los.front()));
+	const int numberOfFriendlyUnits = ai->GetAICallback()->GetFriendlyUnits(&(units_in_los.front()));
 
-	for(int i = 0; i < number_of_units; ++i)
+	for(int i = 0; i < numberOfFriendlyUnits; ++i)
 	{
 		// get unit def & category
 		const UnitDef* def = ai->GetAICallback()->GetUnitDef(units_in_los[i]);
 		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
-		if( (category.isBuilding() == true) || (category.isCombatUnit() == true) )
+		if( category.isBuilding() || category.isCombatUnit() )
 		{
-			float3 pos = ai->GetAICallback()->GetUnitPos(units_in_los[i]);
+			const float3 pos = ai->GetAICallback()->GetUnitPos(units_in_los[i]);
 
 			const int x = pos.x/xSectorSize;
 			const int y = pos.z/ySectorSize;
@@ -2161,14 +2144,12 @@ void AAIMap::UpdateRecon()
 			if(IsValidSector(x,y))
 			{
 				// add building to sector (and update stat_combat_power if it's a stat defence)
-				if(category.isBuilding() == true)
+				if(category.isBuilding())
 				{
-					if(ai->GetAICallback()->GetUnitTeam(units_in_los[i]) == m_myTeamId)
-						++sector[x][y].own_structures;
-					else
+					if(ai->GetAICallback()->GetUnitTeam(units_in_los[i]) != m_myTeamId)
 						++sector[x][y].allied_structures;
 
-					if(category.isStaticDefence() == true)
+					if(category.isStaticDefence())
 					{
 						for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
 							sector[x][y].my_stat_combat_power[i] += ai->Getbt()->units_static[def->id].efficiency[i];
@@ -2183,8 +2164,6 @@ void AAIMap::UpdateRecon()
 			}
 		}
 	}
-
-	ai->Getbrain()->UpdateMaxCombatUnitsSpotted(m_spottedEnemyCombatUnits);
 }
 
 void AAIMap::UpdateEnemyScoutingData()
@@ -2205,7 +2184,7 @@ void AAIMap::UpdateEnemyScoutingData()
 			{
 				for(int x = sector->x * xSectorSizeMap/losMapRes; x < (sector->x + 1) * xSectorSizeMap/losMapRes; ++x)
 				{
-					const UnitDefId unitDefId( static_cast<int>(scout_map[x + y * xLOSMapSize]) );
+					const UnitDefId unitDefId( static_cast<int>(m_scoutedEnemyUnitsMap[x + y * xLOSMapSize]) );
 
 					if(unitDefId.isValid() == true)
 					{
@@ -2225,7 +2204,7 @@ void AAIMap::UpdateEnemyScoutingData()
 						{
 							// units that have been scouted long time ago matter less
 							const int frame = ai->GetAICallback()->GetCurrentFrame();
-							const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(last_updated_map[x + y * xLOSMapSize] - frame)) / 3600.0f  );
+							const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(m_lastLOSUpdateInFrameMap[x + y * xLOSMapSize] - frame)) / 3600.0f  );
 							const AAICombatUnitCategory category( ai->s_buildTree.GetUnitCategory(unitDefId) );
 
 							sector->AddEnemyCombatUnit(category, lastSeen);

@@ -74,7 +74,6 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 	// nothing sighted in that sector
 	enemy_structures = 0.0f;
 	enemies_on_radar = 0;
-	own_structures = 0.0f;
 	allied_structures = 0.0f;
 	failed_defences = 0;
 
@@ -146,6 +145,13 @@ bool AAISector::SetBase(bool base)
 
 		return true;
 	}
+}
+
+void AAISector::ResetLocalCombatPower() 
+{
+	allied_structures = 0;
+	std::fill(my_mobile_combat_power.begin(), my_mobile_combat_power.end(), 0.0f);
+	std::fill(my_stat_combat_power.begin(),   my_stat_combat_power.end(),   0.0f);
 }
 
 void AAISector::Update()

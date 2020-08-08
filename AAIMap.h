@@ -95,7 +95,9 @@ public:
 	int GetCliffyCells(int xPos, int yPos, int xSize, int ySize);
 
 	// updates spotted ennemy/ally buildings/units on the map
-	void UpdateRecon();
+	void UpdateEnemyUnitsInLOS();
+
+	void UpdateFriendlyUnitsInLos();
 
 	// updates enemy buildings/enemy stat. combat strength in sectors based on scouted_buildings_map
 	void UpdateEnemyScoutingData();
@@ -150,15 +152,11 @@ private:
 	//! @brief Converts the given position (in map coordinates) to a position in buildmap coordinates
 	void Pos2BuildMapPos(float3* position, const UnitDef* def) const;
 
-	// stores the def_id of the building or combat unit placed on that cell (0 if none), same resolution as los map (= 1/2 resolution of buildmap)
-	vector<unsigned short> scout_map;
+	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
+	std::vector<unsigned short> m_scoutedEnemyUnitsMap;
 
-	// stores the frame of the last update of a cell (same resolution as los map)
-	vector<int> last_updated_map;
-
-	// indicates whether sector is within los (to prevent unnecessary updates) 0 = no los, > 0 = los
-	vector<unsigned short> sector_in_los;
-	vector<unsigned short> sector_in_los_with_enemies;
+	//! Stores the frame of the last update of a cell (same resolution as los map)
+	std::vector<int>            m_lastLOSUpdateInFrameMap;
 
 	// temp for scouting
 	std::vector<int> m_spottedEnemyCombatUnits;

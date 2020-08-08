@@ -60,6 +60,9 @@ public:
 	//! @brief Returns the number of buildings of the given category in this sector
 	int GetNumberOfBuildings(const AAIUnitCategory& category) const { return m_ownBuildingsOfCategory[category.GetArrayIndex()]; };
 
+	//! @brief Resets the own combat power / number of allied buildings
+	void ResetLocalCombatPower();
+
 	//! @brief Resets the number of spotted enemy units
 	void ResetSpottedEnemiesData() { std::fill(m_enemyCombatUnits.begin(), m_enemyCombatUnits.end(), 0.0f); }; 
 
@@ -177,7 +180,6 @@ public:
 	uint32_t m_suitableMovementTypes;	
 
 	float enemy_structures;
-	float own_structures;
 	float allied_structures;
 
 	// how many groups got a rally point in that sector

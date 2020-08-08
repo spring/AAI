@@ -655,12 +655,12 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			map->UpdateBuildMap(pos, def, false);
 
 			// if no buildings left in that sector, remove from base sectors
-			if (map->sector[x][y].own_structures == 0 && brain->sectors[0].size() > 2)
+			/*if (map->sector[x][y].own_structures == 0 && brain->sectors[0].size() > 2)
 			{
 				brain->AssignSectorToBase(&map->sector[x][y], false);
 
 				Log("\nRemoving sector %i,%i from base; base size: " _STPF_ " \n", x, y, brain->sectors[0].size());
-			}
+			}*/
 		}
 		else // finished unit has been killed
 		{
@@ -817,55 +817,14 @@ void AAI::Update()
 	if (!(tick % cfg->SCOUT_UPDATE_FREQUENCY))
 	{
 		AAI_SCOPED_TIMER("Scouting_1")
-		map->UpdateRecon();
+		map->UpdateEnemyUnitsInLOS();
+		map->UpdateFriendlyUnitsInLos();
 	}
 
 	if (!((tick + 5) % cfg->SCOUT_UPDATE_FREQUENCY))
 	{
 		AAI_SCOPED_TIMER("Scouting_2")
 		map->UpdateEnemyScoutingData();
-
-		if(m_aaiInstance == 1)
-		{
-			FILE *file = fopen("Scout_debug.txt", "w+");
-
-			fprintf(file, "Enemy Structures:\n");
-			for(int y = 0; y < map->ySectors; ++y)
-			{
-				for(int x = 0; x < map->xSectors; ++x)
-				{
-					fprintf(file, "%f ", map->sector[x][y].enemy_structures);
-					
-				}
-				fprintf(file, "\n");
-			}
-
-			fprintf(file, "Enemy mobile/static combat power:\n");
-			for(int y = 0; y < map->ySectors; ++y)
-			{
-				for(int x = 0; x < map->xSectors; ++x)
-				{
-					fprintf(file, "%-5f/%-5f ", map->sector[x][y].enemy_mobile_combat_power[0], map->sector[x][y].enemy_stat_combat_power[0]);
-					
-				}
-				fprintf(file, "\n");
-			}
-
-			fprintf(file, "Flat ratio/last scout:\n");
-			for(int y = 0; y < map->ySectors; ++y)
-			{
-				for(int x = 0; x < map->xSectors; ++x)
-				{
-					fprintf(file, "%-3f/%-5f ", map->sector[x][y].flat_ratio, map->sector[x][y].last_scout);
-					
-				}
-				fprintf(file, "\n");
-			}
-
-
-		  	fclose(file);
-		}
-
 	}
 
 	// update groups
