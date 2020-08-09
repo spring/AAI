@@ -72,9 +72,9 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 	rally_points = 0;
 
 	// nothing sighted in that sector
-	enemy_structures = 0.0f;
 	enemies_on_radar = 0;
-	allied_structures = 0.0f;
+	m_enemyBuildings  = 0;
+	m_alliedBuildings = 0;
 	failed_defences = 0;
 
 	int categories = ai->Getbt()->assault_categories.size();
@@ -149,9 +149,69 @@ bool AAISector::SetBase(bool base)
 
 void AAISector::ResetLocalCombatPower() 
 {
-	allied_structures = 0;
+	m_alliedBuildings = 0;
 	std::fill(my_mobile_combat_power.begin(), my_mobile_combat_power.end(), 0.0f);
 	std::fill(my_stat_combat_power.begin(),   my_stat_combat_power.end(),   0.0f);
+}
+
+void AAISector::ResetScoutedEnemiesData() 
+{ 
+	m_enemyBuildings = 0;
+	std::fill(m_enemyCombatUnits.begin(),        m_enemyCombatUnits.end(),        0.0f); 
+	std::fill(enemy_stat_combat_power.begin(),   enemy_stat_combat_power.end(),   0.0f);
+	std::fill(enemy_mobile_combat_power.begin(), enemy_mobile_combat_power.end(), 0.0f);
+};
+
+void AAISector::AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly)
+{
+	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
+
+	// add building to sector (and update stat_combat_power if it's a stat defence)
+	if(category.isBuilding())
+	{
+		if(unitBelongsToAlly)
+			++m_alliedBuildings;
+
+		if(category.isStaticDefence())
+		{
+			for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
+				my_stat_combat_power[i] += ai->Getbt()->units_static[unitDefId.id].efficiency[i];
+		}
+	}
+	// add unit to sector and update mobile_combat_power
+	else
+	{
+		for(int i = 0; i < AAIBuildTable::combat_categories; ++i)
+			my_mobile_combat_power[i] += ai->Getbt()->units_static[unitDefId.id].efficiency[i];
+	}
+}
+
+void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
+{
+	const AAIUnitCategory& categoryOfEnemyUnit = ai->s_buildTree.GetUnitCategory(enemyDefId);
+	// add building to sector (and update stat_combat_power if it's a stat defence)
+	if(categoryOfEnemyUnit.isBuilding())
+	{
+		++m_enemyBuildings;
+
+		if(categoryOfEnemyUnit.isStaticDefence())
+		{
+			for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
+				enemy_stat_combat_power[i] += ai->Getbt()->units_static[enemyDefId.id].efficiency[i];
+		}
+	}
+	// add unit to sector and update mobile_combat_power
+	else if(categoryOfEnemyUnit.isCombatUnit())
+	{
+		// units that have been scouted long time ago matter less
+		const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(lastUpdateInFrame - ai->GetAICallback()->GetCurrentFrame())) / 3600.0f  );
+		const AAICombatUnitCategory& combatCategory( categoryOfEnemyUnit );
+
+		m_enemyCombatUnits[combatCategory.GetArrayIndex()] += lastSeen;
+
+		for(int i = 0; i < AAIBuildTable::combat_categories; ++i)
+			enemy_mobile_combat_power[i] += lastSeen * ai->Getbt()->units_static[enemyDefId.id].efficiency[i];
+	}
 }
 
 void AAISector::Update()
@@ -278,16 +338,16 @@ float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAIUnitCate
 		else
 		{
 			// filter out frontiers to other base sectors
-			if(x > 0 && ai->Getmap()->sector[x-1][y].distance_to_base > 0 && ai->Getmap()->sector[x-1][y].allied_structures < 100 && ai->Getmap()->team_sector_map[x-1][y] != my_team )
+			if(x > 0 && ai->Getmap()->sector[x-1][y].distance_to_base > 0 && (ai->Getmap()->sector[x-1][y].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x-1][y] != my_team )
 				directions.push_back(WEST);
 
-			if(x < ai->Getmap()->xSectors-1 && ai->Getmap()->sector[x+1][y].distance_to_base > 0 && ai->Getmap()->sector[x+1][y].allied_structures < 100 && ai->Getmap()->team_sector_map[x+1][y] != my_team)
+			if(x < ai->Getmap()->xSectors-1 && ai->Getmap()->sector[x+1][y].distance_to_base > 0 && (ai->Getmap()->sector[x+1][y].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x+1][y] != my_team)
 				directions.push_back(EAST);
 
-			if(y > 0 && ai->Getmap()->sector[x][y-1].distance_to_base > 0 && ai->Getmap()->sector[x][y-1].allied_structures < 100 && ai->Getmap()->team_sector_map[x][y-1] != my_team)
+			if(y > 0 && ai->Getmap()->sector[x][y-1].distance_to_base > 0 && (ai->Getmap()->sector[x][y-1].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x][y-1] != my_team)
 				directions.push_back(NORTH);
 
-			if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->sector[x][y+1].distance_to_base > 0 && ai->Getmap()->sector[x][y+1].allied_structures < 100 && ai->Getmap()->team_sector_map[x][y+1] != my_team)
+			if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->sector[x][y+1].distance_to_base > 0 && (ai->Getmap()->sector[x][y+1].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x][y+1] != my_team)
 				directions.push_back(SOUTH);
 		}
 	}
@@ -552,7 +612,7 @@ float AAISector::GetEnemyDefencePowerAgainstAssaultCategory(int assault_category
 	return enemy_stat_combat_power[assault_category];
 }
 
-float AAISector::getEnemyThreatToMovementType(const AAIMovementType& movementType) const
+float AAISector::GetEnemyThreatToMovementType(const AAIMovementType& movementType) const
 {
 	EMovementType moveType = movementType.GetMovementType();
 	switch( moveType )

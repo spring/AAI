@@ -198,7 +198,7 @@ void AAIGroup::Update()
 	// attacking groups recheck target
 	if(task == GROUP_ATTACKING && target_sector)
 	{
-		if(target_sector->enemy_structures <= 0.001f)
+		if(target_sector->GetNumberOfEnemyBuildings() <= 0)
 		{
 			task = GROUP_IDLE;
 			target_sector = 0;
@@ -490,7 +490,7 @@ void AAIGroup::UnitIdle(int unit)
 		if( (sector == target_sector) || (target_sector == nullptr) )
 		{
 			// combat groups
-			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && (attack->dest->enemy_structures <= 0.0f) )
+			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && (attack->dest->GetNumberOfEnemyBuildings() <= 0) )
 			{
 				ai->Getam()->GetNextDest(attack);
 				return;

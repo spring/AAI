@@ -2136,31 +2136,12 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 
 		if( category.isBuilding() || category.isCombatUnit() )
 		{
-			const float3 pos = ai->GetAICallback()->GetUnitPos(units_in_los[i]);
+			AAISector* sector = GetSectorOfPos( ai->GetAICallback()->GetUnitPos(units_in_los[i]) );
 
-			const int x = pos.x/xSectorSize;
-			const int y = pos.z/ySectorSize;
-
-			if(IsValidSector(x,y))
+			if(sector)
 			{
-				// add building to sector (and update stat_combat_power if it's a stat defence)
-				if(category.isBuilding())
-				{
-					if(ai->GetAICallback()->GetUnitTeam(units_in_los[i]) != m_myTeamId)
-						++sector[x][y].allied_structures;
-
-					if(category.isStaticDefence())
-					{
-						for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-							sector[x][y].my_stat_combat_power[i] += ai->Getbt()->units_static[def->id].efficiency[i];
-					}
-				}
-				// add unit to sector and update mobile_combat_power
-				else
-				{
-					for(int i = 0; i < AAIBuildTable::combat_categories; ++i)
-						sector[x][y].my_mobile_combat_power[i] += ai->Getbt()->units_static[def->id].efficiency[i];
-				}
+				const bool unitBelongsToAlly( ai->GetAICallback()->GetUnitTeam(units_in_los[i]) != m_myTeamId );
+				sector->AddFriendlyUnitData(UnitDefId(def->id), unitBelongsToAlly);
 			}
 		}
 	}
@@ -2173,46 +2154,17 @@ void AAIMap::UpdateEnemyScoutingData()
 	{
 		for(int x = 0; x < xSectors; ++x)
 		{
-			AAISector* sector = &this->sector[x][y];
-			sector->enemy_structures = 0.0f;
+			sector[x][y].ResetScoutedEnemiesData();
 
-			sector->ResetSpottedEnemiesData();
-			fill(sector->enemy_stat_combat_power.begin(), sector->enemy_stat_combat_power.end(), 0.0f);
-			fill(sector->enemy_mobile_combat_power.begin(), sector->enemy_mobile_combat_power.end(), 0.0f);
-
-			for(int y = sector->y * ySectorSizeMap/losMapRes; y < (sector->y + 1) * ySectorSizeMap/losMapRes; ++y)
+			for(int yCell = y * ySectorSizeMap/losMapRes; yCell < (y + 1) * ySectorSizeMap/losMapRes; ++yCell)
 			{
-				for(int x = sector->x * xSectorSizeMap/losMapRes; x < (sector->x + 1) * xSectorSizeMap/losMapRes; ++x)
+				for(int xCell = x * xSectorSizeMap/losMapRes; xCell < (x + 1) * xSectorSizeMap/losMapRes; ++xCell)
 				{
-					const UnitDefId unitDefId( static_cast<int>(m_scoutedEnemyUnitsMap[x + y * xLOSMapSize]) );
+					const int cellIndex = xCell + yCell * xLOSMapSize;
+					const UnitDefId unitDefId( static_cast<int>(m_scoutedEnemyUnitsMap[cellIndex]) );
 
-					if(unitDefId.isValid() == true)
-					{
-						// add building to sector (and update stat_combat_power if it's a stat defence)
-						if(ai->s_buildTree.GetMovementType(unitDefId).IsStatic() == true)
-						{
-							sector->enemy_structures += 1.0f;
-
-							if(ai->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence() == true)
-							{
-								for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-									sector->enemy_stat_combat_power[i] += ai->Getbt()->units_static[unitDefId.id].efficiency[i];
-							}
-						}
-						// add unit to sector and update mobile_combat_power
-						else if(ai->s_buildTree.GetUnitCategory(unitDefId).isCombatUnit() == true)
-						{
-							// units that have been scouted long time ago matter less
-							const int frame = ai->GetAICallback()->GetCurrentFrame();
-							const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(m_lastLOSUpdateInFrameMap[x + y * xLOSMapSize] - frame)) / 3600.0f  );
-							const AAICombatUnitCategory category( ai->s_buildTree.GetUnitCategory(unitDefId) );
-
-							sector->AddEnemyCombatUnit(category, lastSeen);
-
-							for(int i = 0; i < AAIBuildTable::combat_categories; ++i)
-								sector->enemy_mobile_combat_power[i] += lastSeen * ai->Getbt()->units_static[unitDefId.id].efficiency[i];
-						}
-					}
+					if(unitDefId.isValid())
+						sector[x][y].AddScoutedEnemyUnit(unitDefId, m_lastLOSUpdateInFrameMap[cellIndex]);
 				}
 			}
 		}
@@ -2254,13 +2206,13 @@ const char* AAIMap::GetMapTypeTextString(MapType map_type)
 
 AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 {
-	int x = pos.x/xSectorSize;
-	int y = pos.z/ySectorSize;
+	const int x = pos.x/xSectorSize;
+	const int y = pos.z/ySectorSize;
 
 	if(IsValidSector(x,y))
 		return &(sector[x][y]);
 	else
-		return 0;
+		return nullptr;
 }
 
 void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)

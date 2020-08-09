@@ -60,19 +60,29 @@ public:
 	//! @brief Returns the number of buildings of the given category in this sector
 	int GetNumberOfBuildings(const AAIUnitCategory& category) const { return m_ownBuildingsOfCategory[category.GetArrayIndex()]; };
 
+	//! @brief Returns the number of buildings belonging to allied players 
+	int GetNumberOfAlliedBuildings() const { return m_alliedBuildings; }
+
+	//! @brief Returns the number of buildings belonging to hostile players 
+	int GetNumberOfEnemyBuildings() const { return m_enemyBuildings; }
+
 	//! @brief Resets the own combat power / number of allied buildings
 	void ResetLocalCombatPower();
 
-	//! @brief Resets the number of spotted enemy units
-	void ResetSpottedEnemiesData() { std::fill(m_enemyCombatUnits.begin(), m_enemyCombatUnits.end(), 0.0f); }; 
+	//! @brief Adds an allied bulding to corresponding counter, adds combat power of any friendly units or static defences to respective combat power
+	void AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly);
+
+	//! @brief Resets the number / combat power of spotted enemy units
+	void ResetScoutedEnemiesData();
+
+	//! @brief Updates enemy combat power and counters
+	void AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame);
 
 	//! @brief Return the total number of enemy combat units
 	float GetTotalEnemyCombatUnits() const { return std::accumulate(m_enemyCombatUnits.begin(), m_enemyCombatUnits.end(), 0.0f); };
 
 	//! @brief Returns whether sector is supsected to be occupied by enemy units
-	bool IsOccupiedByEnemies() const{ return (GetTotalEnemyCombatUnits() > 0.1f) || (enemy_structures > 0.01f) || (enemies_on_radar > 0); }
-
-	void AddEnemyCombatUnit(const AAICombatUnitCategory& category, float value)  { m_enemyCombatUnits[category.GetArrayIndex()] += value; };
+	bool IsOccupiedByEnemies() const{ return (GetTotalEnemyCombatUnits() > 0.1f) || (m_enemyBuildings > 0) || (enemies_on_radar > 0); }
 
 	//! @brief Returns number of enemy units of given category spotted in this sector (float as number decreases over time if sector is not scouted)
 	float GetNumberOfEnemyCombatUnits(const AAICombatUnitCategory& category) const  { return m_enemyCombatUnits[category.GetArrayIndex()]; };
@@ -108,7 +118,7 @@ public:
 	float GetMyDefencePowerAgainstAssaultCategory(int assault_category);
 
 	//! @brief Returns enemy combat power of all known enemy units/stat defences in the sector
-	float getEnemyThreatToMovementType(const AAIMovementType& movementType) const;
+	float GetEnemyThreatToMovementType(const AAIMovementType& movementType) const;
 
 	// returns combat power of units in that and neighbouring sectors vs combat cat
 	float GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance) const;
@@ -179,9 +189,6 @@ public:
 	//! Bitmask storing movement types that may maneuver in this sector
 	uint32_t m_suitableMovementTypes;	
 
-	float enemy_structures;
-	float allied_structures;
-
 	// how many groups got a rally point in that sector
 	int rally_points;
 
@@ -250,17 +257,23 @@ private:
 	//! Minimum distance to one of the map edges (in sector sizes)
 	int m_minSectorDistanceToMapEdge;
 
+	//! How many non air units have recently been lost in that sector (float as the number decays over time)
+	float m_lostUnits;
+
+	//! How many air units have recently been lost in that sector (float as the number decays over time)
+	float m_lostAirUnits;
+
 	//! Number of own buildings of each category in the sector
 	std::vector<int> m_ownBuildingsOfCategory;
 
 	//! Number of spotted enemy combat units (float values as number decays over time)
 	std::vector<float> m_enemyCombatUnits; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine
 
-	//! How many non air units have recently been lost in that sector (float as the number decays over time)
-	float m_lostUnits;
+	//! Number of buildings enemy players have constructed in this sector
+	int m_enemyBuildings;
 
-	//! How many air units have recently been lost in that sector (float as the number decays over time)
-	float m_lostAirUnits;
+	//! Number of buildings allied players have constructed in this sector
+	int m_alliedBuildings;
 };
 
 #endif

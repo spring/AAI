@@ -670,9 +670,9 @@ void AAI::UnitDestroyed(int unit, int attacker)
 				ut->RemoveScout(unit);
 
 				// add enemy building to sector
-				if (validSector && map->sector[x][y].distance_to_base > 0)
-					map->sector[x][y].enemy_structures += 1.0f;
-
+				// @todo This will be overwritten on next "unit in LOS" update --> implement different mechanism!
+				//if (validSector && map->sector[x][y].distance_to_base > 0)
+				//	++map->sector[x][y].m_enemyBuildings;
 			}
 			// assault units
 			else if (category.isCombatUnit() == true)

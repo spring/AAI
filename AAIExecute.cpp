@@ -1211,7 +1211,7 @@ bool AAIExecute::BuildDefences()
 BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& category, const AAISector *dest)
 {
 	// dont build in sectors already occupied by allies
-	if(dest->allied_structures > 5)
+	if(dest->GetNumberOfAlliedBuildings() > 2)
 		return BuildOrderStatus::SUCCESSFUL;
 
 	// dont start construction of further defences if expensive defences are already under construction in this sector
@@ -1914,7 +1914,7 @@ void AAIExecute::CheckDefences()
 		{
 			// stop building further defences if maximum has been reached / sector contains allied buildings / is occupied by another aai instance
 			if(    ((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < cfg->MAX_DEFENCES) 
-				&& ((*sector)->allied_structures < 4)
+				&& ((*sector)->GetNumberOfAlliedBuildings() < 3)
 				&& (ai->Getmap()->team_sector_map[(*sector)->x][(*sector)->y] != ai->GetAICallback()->GetMyAllyTeam()) )
 			{
 				if((*sector)->failed_defences > 1)
@@ -2131,7 +2131,7 @@ void AAIExecute::CheckMexUpgrade()
 			for(auto spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
 			{
 				// quit when finding empty spots
-				if(!(*spot)->occupied && ((*sector)->enemy_structures <= 0.0f) && ((*sector)->GetLostUnits() < 0.2f) )
+				if(!(*spot)->occupied && ((*sector)->GetNumberOfEnemyBuildings() <= 0) && ((*sector)->GetLostUnits() < 0.2f) )
 					return;
 
 				if((*spot)->extractor_def > 0 && (*spot)->extractor > -1 && (*spot)->extractor < cfg->MAX_UNITS
@@ -2698,7 +2698,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos)
 
 			if(ai->Getmap()->GetContinentID(pos) == cont_id)
 			{
-				my_rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->getEnemyThreatToMovementType(moveType);
+				my_rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyThreatToMovementType(moveType);
 
 				if(my_rating > best_rating)
 				{
@@ -2713,7 +2713,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos)
 	{
 		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 		{
-			my_rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->getEnemyThreatToMovementType(moveType);
+			my_rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyThreatToMovementType(moveType);
 
 			if(my_rating > best_rating)
 			{

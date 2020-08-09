@@ -71,7 +71,7 @@ public:
 	//! @brief Returns whether the given sector is already occupied by another AAI player of the same team
 	bool IsAlreadyOccupiedByOtherAAI(const AAISector* sector) const { return (team_sector_map[sector->x][sector->y] != -1) && (team_sector_map[sector->x][sector->y] != m_myTeamId); }
 
-	// returns sector (0 if out of sector map -> e.g. aircraft flying outside of the map) of a position
+	//! @brief Returns the sector in which the given position lies (nullptr if out of sector map -> e.g. aircraft flying outside of the map) 
 	AAISector* GetSectorOfPos(const float3& pos);
 
 	float GetEdgeDistance(float3 *pos);

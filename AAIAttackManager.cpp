@@ -57,7 +57,7 @@ void AAIAttackManager::Update()
 		// check if sector cleared
 		if((*a)->dest)
 		{
-			if((*a)->dest->enemy_structures <= 0.0f)
+			if((*a)->dest->GetNumberOfEnemyBuildings() == 0)
 				GetNextDest(*a);
 		}
 	}
@@ -156,7 +156,7 @@ void AAIAttackManager::LaunchAttack()
 
 			float my_rating;
 
-			if((sector->distance_to_base == 0) || (sector->enemy_structures < 0.0001f) )
+			if((sector->distance_to_base == 0) || (sector->GetNumberOfEnemyBuildings() <= 0) )
 				my_rating = 0.0f;
 			else
 			{
@@ -178,7 +178,7 @@ void AAIAttackManager::LaunchAttack()
 				if(max_lost_units > 1.0f)
 					lostUnits = 2.0f - (sector->GetLostUnits() / max_lost_units);
 
-				my_rating = lostUnits * sector->enemy_structures * att_power / ( def_power * (float)(2 + sector->distance_to_base) );
+				my_rating = lostUnits * static_cast<float>(sector->GetNumberOfEnemyBuildings()) * att_power / ( def_power * (float)(2 + sector->distance_to_base) );
 
 				//if(SufficientAttackPowerVS(dest, &combat_available, 2))
 			}

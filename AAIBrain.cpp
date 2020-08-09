@@ -70,7 +70,7 @@ AAISector* AAIBrain::GetAttackDest(bool land, bool water)
 
 			const bool checkSector = (land && sector->water_ratio > 0.6f) || (water && sector->water_ratio < 0.4f);
 
-			if( checkSector && (sector->distance_to_base > 0) && (sector->enemy_structures > 0.1f) )
+			if( checkSector && (sector->distance_to_base > 0) && (sector->GetNumberOfEnemyBuildings() > 0) )
 			{
 				const CombatPower& defencePowerweights = sector->water_ratio < 0.6f ? defencePowerWeightsLand : defencePowerWeightsSea;
 
@@ -80,11 +80,11 @@ AAISector* AAIBrain::GetAttackDest(bool land, bool water)
 
 				if(defencePower > 0.1f) 
 				{
-					myRating = sector->enemy_structures / defencePower;
+					myRating = static_cast<float>(sector->GetNumberOfEnemyBuildings()) / defencePower;
 				} 
 				else 
 				{
-					myRating = sector->enemy_structures / pow(sector->GetLostUnits() + 1.0f, 1.5f);
+					myRating = static_cast<float>(sector->GetNumberOfEnemyBuildings()) / pow(sector->GetLostUnits() + 1.0f, 1.5f);
 				}
 				myRating /= static_cast<float>(5 + sector->distance_to_base);
 				
@@ -115,8 +115,8 @@ AAISector* AAIBrain::GetNextAttackDest(AAISector *current_sector, bool land, boo
 		{
 			sector = &ai->Getmap()->sector[x][y];
 
-			if(sector->distance_to_base == 0 || sector->enemy_structures < 0.001f)
-					my_rating = 0;
+			if( (sector->distance_to_base == 0) || (sector->GetNumberOfEnemyBuildings() <= 0) )
+				my_rating = 0;
 			else
 			{
 				if(land && sector->water_ratio < 0.35)
@@ -437,7 +437,7 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 		for(std::list<AAISector*>::iterator sector = sectors[search_dist].begin(); sector != sectors[search_dist].end(); ++sector)
 		{
 			// dont expand if enemy structures in sector && check for allied buildings
-			if(!(*sector)->IsOccupiedByEnemies() && (*sector)->allied_structures < 3.0f && !ai->Getmap()->IsAlreadyOccupiedByOtherAAI(*sector))
+			if(!(*sector)->IsOccupiedByEnemies() && (*sector)->GetNumberOfAlliedBuildings() < 3 && !ai->Getmap()->IsAlreadyOccupiedByOtherAAI(*sector))
 			{
 				float sectorDistance(0.0f);
 				for(list<AAISector*>::iterator baseSector = sectors[0].begin(); baseSector != sectors[0].end(); ++baseSector) 
