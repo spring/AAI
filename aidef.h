@@ -35,6 +35,15 @@ public:
 	//! @todo Make this changeable via optinal mod config file
     static constexpr float energyToMetalConversionFactor = 60.0f;
 
+	//! Minimum combat power value
+	static constexpr float minCombatPower = 0.01f;
+	
+	//! Maximum combat power value
+	static constexpr float maxCombatPower = 1000.0f;
+
+	//! The maximum change from a single combat (attacker killes certain unit) - prevent odd statistical values from "lucky kills" (e.g. weak units gets last shot on stong one)
+	static constexpr float maxCombatPowerChangeAfterSingleCombat = 0.5f;
+
 	//! Minimum combat power for a unit to be considered effective against a certain target type
 	static constexpr float minAntiTargetTypeCombatPower = 0.5f;
 

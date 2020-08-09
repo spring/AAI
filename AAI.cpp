@@ -581,6 +581,8 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 			if (def_att)
 			{
+				s_buildTree.UpdateCombatPowerStatistics(UnitDefId(def_att->id), unitDefId);
+
 				const AAIUnitCategory& categoryAttacker = s_buildTree.GetUnitCategory(UnitDefId(def_att->id));
 				const int killer = bt->GetIDOfAssaultCategory( categoryAttacker );
 				const int killed = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(unitDefId) );
@@ -765,23 +767,21 @@ void AAI::EnemyDestroyed(int enemy, int attacker)
 	// remove enemy from unittable
 	ut->EnemyKilled(enemy);
 
-	if (attacker)
+	if(attacker)
 	{
 		// get unit's id
-		const UnitDef* def = m_aiCallback->GetUnitDef(enemy);
-		const UnitDef* def_att = m_aiCallback->GetUnitDef(attacker);
+		const UnitDef* defKilled   = m_aiCallback->GetUnitDef(enemy);
+		const UnitDef* defAttacker = m_aiCallback->GetUnitDef(attacker);
 
-		if (def_att)
+		if (defAttacker && defKilled)
 		{
-			// unit was destroyed
-			if (def)
-			{
-				const int killer = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(UnitDefId(def_att->id)) );
-				const int killed = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(UnitDefId(def->id)) );
+			s_buildTree.UpdateCombatPowerStatistics(UnitDefId(defAttacker->id), UnitDefId(defKilled->id));
 
-				if (killer != -1 && killed != -1)
-					bt->UpdateTable(def_att, killer, def, killed);
-			}
+			const int killer = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(UnitDefId(defAttacker->id)) );
+			const int killed = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(UnitDefId(defKilled->id)) );
+
+			if (killer != -1 && killed != -1)
+				bt->UpdateTable(defAttacker, killer, defKilled, killed);
 		}
 	}
 }

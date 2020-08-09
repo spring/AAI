@@ -27,6 +27,22 @@ public:
 
 	void SetCombatPower(const AAITargetType& targetType, float value) { m_combatPower[targetType.GetArrayIndex()] = value; }
 
+	void IncreaseCombatPower(const AAITargetType& vsTargetType, float value)
+	{
+		m_combatPower[vsTargetType.GetArrayIndex()] += value;
+
+		if(m_combatPower[vsTargetType.GetArrayIndex()] > AAIConstants::maxCombatPower)
+			m_combatPower[vsTargetType.GetArrayIndex()] = AAIConstants::maxCombatPower;
+	}
+
+	void DecreaseCombatPower(const AAITargetType& vsTargetType, float value)
+	{
+		m_combatPower[vsTargetType.GetArrayIndex()] -= value;
+
+		if(m_combatPower[vsTargetType.GetArrayIndex()] < AAIConstants::minCombatPower)
+			m_combatPower[vsTargetType.GetArrayIndex()] = AAIConstants::minCombatPower;
+	}
+
 	float GetCombatPowerVsTargetCategory(const AAITargetType& targetType) const { return m_combatPower[targetType.GetArrayIndex()]; }
 
 private:
@@ -46,6 +62,9 @@ public:
 
 	//! @brief Initializes the combat power of units and updates the unit types
 	void InitCombatPowerOfUnits(const std::vector<UnitTypeStatic>& combatPowerOfUnits);
+
+	//! @brief Updates combat power statistics when a unit kills another
+	void UpdateCombatPowerStatistics(UnitDefId attackerDefId, UnitDefId killedUnitDefId);
 
 	//! @brief Prints summary of newly created buildtree
 	void PrintSummaryToFile(const std::string& filename, springLegacyAI::IAICallback* cb) const;
@@ -142,6 +161,9 @@ private:
 
 	//! @brief Determines and sets the unit types for the given unit.
 	void UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef);
+
+	//! @brief Calculates the value for the update of the combar power of the given attacker and killed unit type
+	float CalculateCombatPowerChange(UnitDefId attackerUnitDefId, UnitDefId killedUnitDefId) const;
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// helper functions for determineUnitCategory(...)

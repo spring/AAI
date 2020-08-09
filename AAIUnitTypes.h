@@ -194,7 +194,7 @@ public:
 			m_targetType = ETargetType::SUBMERGED;
 	}*/
 
-	void setType(ETargetType targetType) { m_targetType = targetType; }
+	void SetType(ETargetType targetType) { m_targetType = targetType; }
 
 	bool IsValid()      const { return (m_targetType != ETargetType::UNKNOWN); }
 

@@ -99,6 +99,36 @@ void AAIBuildTree::InitCombatPowerOfUnits(const std::vector<UnitTypeStatic>& com
 	} 
 }
 
+float AAIBuildTree::CalculateCombatPowerChange(UnitDefId attackerUnitDefId, UnitDefId killedUnitDefId) const
+{
+	const AAIUnitCategory& killedCategory = GetUnitCategory(killedUnitDefId);
+
+	const AAITargetType& attackerTargetType = GetTargetType(attackerUnitDefId);
+	const AAITargetType& killedTargetType   = GetTargetType(killedUnitDefId);
+
+	const float change = cfg->LEARN_SPEED * m_combatPowerOfUnits[killedUnitDefId.id].GetCombatPowerVsTargetCategory(attackerTargetType) /  m_combatPowerOfUnits[attackerUnitDefId.id].GetCombatPowerVsTargetCategory(killedTargetType);
+
+	if(change < AAIConstants::maxCombatPowerChangeAfterSingleCombat)
+		return change;
+	else
+		return AAIConstants::maxCombatPowerChangeAfterSingleCombat;
+}
+
+void AAIBuildTree::UpdateCombatPowerStatistics(UnitDefId attackerUnitDefId, UnitDefId killedUnitDefId)
+{
+	const AAIUnitCategory& attackerCategory = GetUnitCategory(attackerUnitDefId);
+	const AAIUnitCategory& killedCategory   = GetUnitCategory(killedUnitDefId);
+
+	if(    (attackerCategory.isCombatUnit() || attackerCategory.isStaticDefence())
+		&& (killedCategory.isCombatUnit()   || killedCategory.isStaticDefence()) )
+	{
+		const float combatPowerChange = CalculateCombatPowerChange(attackerUnitDefId, killedUnitDefId);
+
+		m_combatPowerOfUnits[attackerUnitDefId.id].IncreaseCombatPower(GetTargetType(killedUnitDefId), combatPowerChange);
+		m_combatPowerOfUnits[killedUnitDefId.id].DecreaseCombatPower(GetTargetType(attackerUnitDefId), combatPowerChange);
+	}
+}
+
 bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 {
 	// prevent buildtree from beeing initialized several times
@@ -190,7 +220,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
 		
 		m_unitTypeProperties[id].m_movementType.SetMovementType( DetermineMovementType(unitDefs[id]) );
-		m_unitTypeProperties[id].m_targetType.setType( DetermineTargetType(m_unitTypeProperties[id].m_movementType) );
+		m_unitTypeProperties[id].m_targetType.SetType( DetermineTargetType(m_unitTypeProperties[id].m_movementType) );
 	}
 
 	// second loop because movement type information for all units is needed to determine unit type
