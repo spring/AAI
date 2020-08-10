@@ -851,7 +851,7 @@ void AAI::Update()
 		execute->BuildScouts();
 	}
 
-	if (!(tick % 711))
+	if (!(tick % 611))
 	{
 		AAI_SCOPED_TIMER("Check-Attack")
 		// check attack
@@ -929,21 +929,18 @@ void AAI::Update()
 	if (!(tick % 1177))
 	{
 		execute->CheckRecon();
-		execute->CheckJammer();
+		//execute->CheckJammer();
 		execute->CheckStationaryArty();
-		execute->CheckAirBase();
+		//execute->CheckAirBase();
 	}
 
 	// upgrade mexes
 	if (!(tick % 1573))
 	{
 		AAI_SCOPED_TIMER("Upgrade-Mexes")
-		if (brain->enemy_pressure_estimation < 0.05f)
-		{
-			execute->CheckMexUpgrade();
-			execute->CheckRadarUpgrade();
-			execute->CheckJammerUpgrade();
-		}
+		execute->CheckMexUpgrade();
+		execute->CheckRadarUpgrade();
+		//execute->CheckJammerUpgrade();
 	}
 
 	// recheck rally points

@@ -179,8 +179,6 @@ void AAIAttackManager::LaunchAttack()
 					lostUnits = 2.0f - (sector->GetLostUnits() / max_lost_units);
 
 				my_rating = lostUnits * static_cast<float>(sector->GetNumberOfEnemyBuildings()) * att_power / ( def_power * (float)(2 + sector->distance_to_base) );
-
-				//if(SufficientAttackPowerVS(dest, &combat_available, 2))
 			}
 
 			if(my_rating > best_rating)
@@ -235,9 +233,6 @@ void AAIAttackManager::LaunchAttack()
 			attack->AddGroup(*group);
 			++aa_added;
 		}
-
-		// rally attacking groups
-		//RallyGroups(attack);
 
 		// start the attack
 		attack->AttackSector(dest);
@@ -307,7 +302,6 @@ bool AAIAttackManager::SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *
 	{
 		// check attack power
 		float attack_power = 0.5;
-		float sector_defence = 0;
 		int total_units = 1;
 
 		// store ammount and category of involved groups;
@@ -326,11 +320,8 @@ bool AAIAttackManager::SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *
 
 		attack_power += (float)total_units * 0.2f;
 
-		//  get expected def power
-		for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-			sector_defence += dest->enemy_stat_combat_power[i] * (float)available_combat_cat[i];
-
-		sector_defence /= (float)total_units;
+		//! @todo Fix to work for water units (attack behaviour must be completely reworked anyway)
+		const float sector_defence = dest->GetEnemyDefencePower(ETargetType::SURFACE) / (float)total_units;
 
 		//ai->Log("Checking attack power - att power / def power %f %f\n", aggressiveness * attack_power, sector_defence);
 
@@ -346,7 +337,7 @@ bool AAIAttackManager::SufficientCombatPowerAt(const AAISector *dest, set<AAIGro
 	if(dest && !combat_groups->empty())
 	{
 		// store ammount and category of involved groups;
-		double my_power = 0, enemy_power = 0;
+		double my_power = 0;
 		int total_units = 0;
 
 		// reset counter
@@ -391,10 +382,8 @@ bool AAIAttackManager::SufficientCombatPowerAt(const AAISector *dest, set<AAIGro
 		}
 
 		// get total enemy power
-		for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-			enemy_power += dest->GetEnemyAreaCombatPowerVs(i, 0.25f) * (float)available_combat_cat[i];
-
-		enemy_power /= (float)total_units;
+		//! @todo Fix for sea units (attacking needs to be completly reworked anyway)
+		const float enemy_power = dest->GetEnemyAreaCombatPowerVs(ETargetType::SURFACE, 0.25f) / (float)total_units;
 
 		//ai->Log("Checking combat power - att power / def power %f %f\n", aggressiveness * my_power, enemy_power);
 
@@ -405,37 +394,3 @@ bool AAIAttackManager::SufficientCombatPowerAt(const AAISector *dest, set<AAIGro
 	return false;
 }
 
-bool AAIAttackManager::SufficientDefencePowerAt(AAISector *dest, float aggressiveness)
-{
-	// store ammount and category of involved groups;
-	double my_power = 0;
-	//double enemy_power = 0;
-	float enemies = 0;
-
-	// get defence power
-	for(AAICombatUnitCategory category(AAICombatUnitCategory::firstCombatUnitCategory); category.End() == false; category.Next())
-	{
-		// only check if enemies of that category present
-		const float enemyCombatUnits = dest->GetNumberOfEnemyCombatUnits(category);
-		if( enemyCombatUnits> 0.0f)
-		{
-			
-			enemies += enemyCombatUnits;
-			my_power += dest->my_stat_combat_power[category.GetArrayIndex()] * enemyCombatUnits;
-		}
-	}
-
-	if(enemies > 0)
-	{
-		my_power /= enemies;
-
-		if(aggressiveness * my_power >= dest->GetEnemyAreaCombatPowerVs(5, 0.5))
-			return true;
-	}
-
-	return false;
-}
-
-void AAIAttackManager::RallyGroups(AAIAttack * /*attack*/)
-{
-}

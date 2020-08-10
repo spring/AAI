@@ -68,7 +68,7 @@ public:
 	unsigned int GetLinkingBuildTaskToBuilderFailedCounter() const { return m_linkingBuildTaskToBuilderFailed; };
 
 	//! @brief Searches for a position to retreat unit of certain type
-	float3 DetermineSafePos(UnitDefId unitDefId, float3 unit_pos);
+	float3 DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const;
 
 	// checks if ressources are sufficient and orders construction of new buildings
 	void CheckRessources();

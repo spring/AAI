@@ -39,9 +39,6 @@ public:
 	// true if combat groups have suffiecient attack power to face stationary defences
 	bool SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness);
 
-	// true if defences have sufficient combat power to push back mobile units in dest
-	bool SufficientDefencePowerAt(AAISector *dest, float aggressiveness);
-
 	void GetNextDest(AAIAttack *attack);
 
 	void Update();
@@ -49,9 +46,6 @@ private:
 
 	void LaunchAttack();
 	void StopAttack(AAIAttack *attack);
-
-	// sends all groups to a rallypoint
-	void RallyGroups(AAIAttack *attack);
 
 	list<AAIAttack*> attacks;
 

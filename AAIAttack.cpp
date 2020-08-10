@@ -42,7 +42,7 @@ bool AAIAttack::Failed()
 	if(!combat_groups.empty())
 	{
 		// check if still enough power to attack target sector
-		if(ai->Getam()->SufficientAttackPowerVS(dest, &combat_groups, 1.3f))
+		//if(ai->Getam()->SufficientAttackPowerVS(dest, &combat_groups, 1.3f))
 		{
 			// check if sufficient power to combat enemy units
 			float3 pos = (*combat_groups.begin())->GetGroupPos();

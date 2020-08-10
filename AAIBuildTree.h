@@ -47,6 +47,40 @@ public:
 
 private:
 	std::vector<float> m_combatPower;
+
+	friend class AAIMobileCombatPower;
+};
+
+//! Mobile combat power (does not include combat power vs target type "static")
+class AAIMobileCombatPower
+{
+public:
+	AAIMobileCombatPower() { m_mobileCombatPower.resize(AAITargetType::numberOfMobileTargetTypes, 0.0f); }
+
+	void SetCombatPower(const AAITargetType& targetType, float value) { m_mobileCombatPower[targetType.GetArrayIndex()] = value; }
+
+	float GetCombatPowerVsTargetCategory(const AAITargetType& targetType) const { return m_mobileCombatPower[targetType.GetArrayIndex()]; }
+
+	void Reset()
+	{
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		m_mobileCombatPower[0] = 0.0f;
+		m_mobileCombatPower[1] = 0.0f;
+		m_mobileCombatPower[2] = 0.0f;
+		m_mobileCombatPower[3] = 0.0f;
+	}
+
+	void AddCombatPowerOfUnitType(const AAICombatPower& combatPower, float modifier = 1.0f)
+	{
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		m_mobileCombatPower[0] += (modifier * combatPower.m_combatPower[0]);
+		m_mobileCombatPower[1] += (modifier * combatPower.m_combatPower[1]);
+		m_mobileCombatPower[2] += (modifier * combatPower.m_combatPower[2]);
+		m_mobileCombatPower[3] += (modifier * combatPower.m_combatPower[3]);
+	}
+
+private:
+	std::vector<float> m_mobileCombatPower;
 };
 
 //! @brief This class stores the build-tree, this includes which unit builds another, to which side each unit belongs

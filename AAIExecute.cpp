@@ -2680,30 +2680,28 @@ void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attacke
 		support->Defend(unitId, attackerPosition, importance);
 }
 
-float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos)
+float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 {
-	float3 best_pos = ZeroVector;
-	float my_rating, best_rating = -10000.0f;
+	float3 selectedPosition(ZeroVector);
+	float highestRating(-10000.0f);
 
-	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(unitDefId);
-
-	if( moveType.CannotMoveToOtherContinents() )
+	if( ai->s_buildTree.GetMovementType(unitDefId).CannotMoveToOtherContinents() )
 	{
 		// get continent id of the unit pos
-		int cont_id = ai->Getmap()->GetContinentID(unit_pos);
+		const int continentId = ai->Getmap()->GetContinentID(unit_pos);
 
-		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 		{
 			const float3 pos = (*sector)->GetCenter();
 
-			if(ai->Getmap()->GetContinentID(pos) == cont_id)
+			if(ai->Getmap()->GetContinentID(pos) == continentId)
 			{
-				my_rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyThreatToMovementType(moveType);
+				const float rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyDefencePower(ai->s_buildTree.GetTargetType(unitDefId));
 
-				if(my_rating > best_rating)
+				if(rating > highestRating)
 				{
-					best_rating = my_rating;
-					best_pos = pos;
+					highestRating    = rating;
+					selectedPosition = pos;
 				}
 			}
 		}
@@ -2711,19 +2709,19 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos)
 	}
 	else // non continent bound movement types (air, hover, amphibious)
 	{
-		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 		{
-			my_rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyThreatToMovementType(moveType);
+			const float rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyDefencePower(ai->s_buildTree.GetTargetType(unitDefId));
 
-			if(my_rating > best_rating)
+			if(rating > highestRating)
 			{
-				best_rating = my_rating;
-				best_pos = (*sector)->GetCenter();
+				highestRating    = rating;
+				selectedPosition = (*sector)->GetCenter();
 			}
 		}
 	}
 
-	return best_pos;
+	return selectedPosition;
 }
 
 void AAIExecute::ChooseDifferentStartingSector(int x, int y)

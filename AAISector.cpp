@@ -29,10 +29,8 @@ AAISector::~AAISector(void)
 	attacked_by_learned.clear();
 
 	my_stat_combat_power.clear();
-	enemy_stat_combat_power.clear();
 
 	my_mobile_combat_power.clear();
-	enemy_mobile_combat_power.clear();
 
 	m_enemyCombatUnits.clear();
 
@@ -88,10 +86,7 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 	attacked_by_learned.resize(categories, 0);
 
 	my_stat_combat_power.resize(categories, 0);
-	enemy_stat_combat_power.resize(categories, 0);
-
 	my_mobile_combat_power.resize(categories+1, 0);
-	enemy_mobile_combat_power.resize(categories+1, 0);
 
 	m_enemyCombatUnits.resize(AAICombatUnitCategory::numberOfCombatUnitCategories, 0.0f);
 
@@ -157,9 +152,9 @@ void AAISector::ResetLocalCombatPower()
 void AAISector::ResetScoutedEnemiesData() 
 { 
 	m_enemyBuildings = 0;
-	std::fill(m_enemyCombatUnits.begin(),        m_enemyCombatUnits.end(),        0.0f); 
-	std::fill(enemy_stat_combat_power.begin(),   enemy_stat_combat_power.end(),   0.0f);
-	std::fill(enemy_mobile_combat_power.begin(), enemy_mobile_combat_power.end(), 0.0f);
+	std::fill(m_enemyCombatUnits.begin(),  m_enemyCombatUnits.end(), 0.0f); 
+	m_enemyStaticCombatPower.Reset();
+	m_enemyMobileCombatPower.Reset();
 };
 
 void AAISector::AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly)
@@ -196,8 +191,7 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 
 		if(categoryOfEnemyUnit.isStaticDefence())
 		{
-			for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-				enemy_stat_combat_power[i] += ai->Getbt()->units_static[enemyDefId.id].efficiency[i];
+			m_enemyStaticCombatPower.AddCombatPowerOfUnitType( ai->s_buildTree.GetCombatPower(enemyDefId) );
 		}
 	}
 	// add unit to sector and update mobile_combat_power
@@ -209,8 +203,7 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 
 		m_enemyCombatUnits[combatCategory.GetArrayIndex()] += lastSeen;
 
-		for(int i = 0; i < AAIBuildTable::combat_categories; ++i)
-			enemy_mobile_combat_power[i] += lastSeen * ai->Getbt()->units_static[enemyDefId.id].efficiency[i];
+		m_enemyMobileCombatPower.AddCombatPowerOfUnitType( ai->s_buildTree.GetCombatPower(enemyDefId), lastSeen );
 	}
 }
 
@@ -518,35 +511,6 @@ void AAISector::SectorMapPos2Pos(float3 *pos, const UnitDef *def)
 	pos->z *= SQUARE_SIZE;
 }
 
-UnitCategory AAISector::GetWeakestCategory()
-{
-	UnitCategory weakest = UNKNOWN;
-	float importance, most_important = 0;
-
-	float learned = 60000 / (ai->GetAICallback()->GetCurrentFrame() + 30000) + 0.5;
-	float current = 2.5 - learned;
-
-	if(interior)
-	{
-		weakest = AIR_ASSAULT;
-	}
-	else
-	{
-		for(list<UnitCategory>::iterator cat = ai->Getbt()->assault_categories.begin(); cat != ai->Getbt()->assault_categories.end(); ++cat)
-		{
-			importance = GetThreatBy(*cat, learned, current) / ( 0.1f + GetMyDefencePowerAgainstAssaultCategory(*cat));
-
-			if(importance > most_important)
-			{
-				most_important = importance;
-				weakest = *cat;
-			}
-		}
-	}
-
-	return weakest;
-}
-
 float AAISector::GetThreatBy(UnitCategory category, float learned, float current)
 {
 	if(category == GROUND_ASSAULT)
@@ -568,38 +532,13 @@ float AAISector::GetThreatByID(int combat_cat_id, float learned, float current)
 	return (learned * attacked_by_learned[combat_cat_id] + current * attacked_by_this_game[combat_cat_id] ) / (learned + current);
 }
 
-float AAISector::GetMyCombatPower(float ground, float air, float hover, float sea, float submarine)
-{
-	return (ground * my_mobile_combat_power[0] + air * my_mobile_combat_power[1] + hover * my_mobile_combat_power[2] + sea * my_mobile_combat_power[3] + submarine * my_mobile_combat_power[4]);
-}
-
-float AAISector::GetEnemyCombatPower(float ground, float air, float hover, float sea, float submarine)
-{
-	return (ground * enemy_mobile_combat_power[0] + air * enemy_mobile_combat_power[1] + hover * enemy_mobile_combat_power[2] + sea * enemy_mobile_combat_power[3] + submarine * enemy_mobile_combat_power[4]);
-}
-
-float AAISector::GetMyCombatPowerAgainstCombatCategory(int combat_category)
-{
-	return my_mobile_combat_power[combat_category];
-}
-
-float AAISector::GetEnemyCombatPowerAgainstCombatCategory(int combat_category)
-{
-	return enemy_stat_combat_power[combat_category];
-}
-
-float AAISector::GetMyDefencePower(float ground, float air, float hover, float sea, float submarine)
-{
-	return (ground * my_stat_combat_power[0] + air * my_stat_combat_power[1] + hover * my_stat_combat_power[2] + sea * my_stat_combat_power[3] + submarine * my_stat_combat_power[4]);
-}
-
 float AAISector::GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const
 {
-	return (combatCategoryWeigths.vsGround  * (enemy_stat_combat_power[0] + enemy_mobile_combat_power[0])
-		+ combatCategoryWeigths.vsAir       * (enemy_stat_combat_power[1] + enemy_mobile_combat_power[1])
-		+ combatCategoryWeigths.vsHover     * (enemy_stat_combat_power[2] + enemy_mobile_combat_power[2])
-		+ combatCategoryWeigths.vsSea       * (enemy_stat_combat_power[3] + enemy_mobile_combat_power[3])
-		+ combatCategoryWeigths.vsSubmarine * (enemy_stat_combat_power[4] + enemy_mobile_combat_power[4]) );
+	return (combatCategoryWeigths.vsGround  * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE))
+		+ combatCategoryWeigths.vsAir       * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::AIR)       + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::AIR))
+		+ combatCategoryWeigths.vsHover     * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE))
+		+ combatCategoryWeigths.vsSea       * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::FLOATER)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::FLOATER))
+		+ combatCategoryWeigths.vsSubmarine * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SUBMERGED) + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SUBMERGED)) );
 }
 
 float AAISector::GetMyDefencePowerAgainstAssaultCategory(int assault_category)
@@ -607,60 +546,22 @@ float AAISector::GetMyDefencePowerAgainstAssaultCategory(int assault_category)
 	return my_stat_combat_power[assault_category];
 }
 
-float AAISector::GetEnemyDefencePowerAgainstAssaultCategory(int assault_category)
+float AAISector::GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const
 {
-	return enemy_stat_combat_power[assault_category];
-}
-
-float AAISector::GetEnemyThreatToMovementType(const AAIMovementType& movementType) const
-{
-	EMovementType moveType = movementType.GetMovementType();
-	switch( moveType )
-	{
-		case EMovementType::MOVEMENT_TYPE_AMPHIBIOUS: // fallthorugh intended
-		case EMovementType::MOVEMENT_TYPE_GROUND:
-		{
-			return enemy_stat_combat_power[0] + enemy_mobile_combat_power[0];
-		}
-		case EMovementType::MOVEMENT_TYPE_AIR:
-		{
-			return enemy_stat_combat_power[1] + enemy_mobile_combat_power[1];
-		}
-		case EMovementType::MOVEMENT_TYPE_HOVER:
-		{
-			return enemy_stat_combat_power[2] + enemy_mobile_combat_power[2];
-		}
-		case EMovementType::MOVEMENT_TYPE_SEA_FLOATER:
-		{
-			return enemy_stat_combat_power[3] + enemy_mobile_combat_power[3];
-		}
-		case EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED:
-		{
-			return enemy_stat_combat_power[4] + enemy_mobile_combat_power[4];
-		}
-		default:
-		{
-			return 0.0f;
-		}
-	}
-}
-
-float AAISector::GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance) const
-{
-	float result = enemy_mobile_combat_power[combat_category];
+	float result = GetEnemyDefencePower(targetType);
 
 	// take neighbouring sectors into account (if possible)
 	if(x > 0)
-		result += neighbour_importance * ai->Getmap()->sector[x-1][y].enemy_mobile_combat_power[combat_category];
+		result += neighbourImportance * ai->Getmap()->sector[x-1][y].GetEnemyDefencePower(targetType);
 
 	if(x < ai->Getmap()->xSectors-1)
-		result += neighbour_importance * ai->Getmap()->sector[x+1][y].enemy_mobile_combat_power[combat_category];
+		result += neighbourImportance * ai->Getmap()->sector[x+1][y].GetEnemyDefencePower(targetType);
 
 	if(y > 0)
-		result += neighbour_importance * ai->Getmap()->sector[x][y-1].enemy_mobile_combat_power[combat_category];
+		result += neighbourImportance * ai->Getmap()->sector[x][y-1].GetEnemyDefencePower(targetType);
 
 	if(y < ai->Getmap()->ySectors-1)
-		result += neighbour_importance * ai->Getmap()->sector[x][y+1].enemy_mobile_combat_power[combat_category];
+		result += neighbourImportance * ai->Getmap()->sector[x][y+1].GetEnemyDefencePower(targetType);
 
 	return result;
 }

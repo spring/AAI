@@ -15,6 +15,7 @@
 #include "aidef.h"
 #include "AAITypes.h"
 #include "AAIUnitTypes.h"
+#include "AAIBuildTree.h"
 
 #include <list>
 #include <vector>
@@ -115,13 +116,13 @@ public:
 	//! @brief Get total (mobile + static) defence power of enemy (according to spotted units)
 	float GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const;
 
+	//! @brief Get total (mobile + static) defence power vs given target type
+	float GetEnemyDefencePower(const AAITargetType& targetType) const { return m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(targetType) + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(targetType); }
+
 	float GetMyDefencePowerAgainstAssaultCategory(int assault_category);
 
-	//! @brief Returns enemy combat power of all known enemy units/stat defences in the sector
-	float GetEnemyThreatToMovementType(const AAIMovementType& movementType) const;
-
 	// returns combat power of units in that and neighbouring sectors vs combat cat
-	float GetEnemyAreaCombatPowerVs(int combat_category, float neighbour_importance) const;
+	float GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const;
 
 	//! @brief Updates threat map storing where own buildings/units got killed
 	void UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerDefId);
@@ -216,30 +217,10 @@ public:
 	vector<float> my_stat_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine @todo: Check if hover really makes sense or can be merged with ground
 	vector<float> my_mobile_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine, 5 building
 
-	// stores combat power of all stationary enemy defs/combat unit vs different categories
-	vector<float> enemy_stat_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine @todo: Check if hover really makes sense or can be merged with ground
-	vector<float> enemy_mobile_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine, 5 building
 	AAI* Getai() { return ai; }
 
 private:
-	float GetEnemyCombatPowerAgainstCombatCategory(int combat_category);
-
-	float GetMyCombatPowerAgainstCombatCategory(int combat_category);
-
-	float GetEnemyCombatPower(float ground, float air, float hover, float sea, float submarine);
-
-	// returns combat power of all own/known enemy units in the sector
-	float GetMyCombatPower(float ground, float air, float hover, float sea, float submarine);
-
 	float GetOverallThreat(float learned, float current);
-
-	// returns the category with the weakest defence in comparison with threat
-	UnitCategory GetWeakestCategory();
-
-	// returns defence power of all own/known enemy stat defences in the sector
-	float GetMyDefencePower(float ground, float air, float hover, float sea, float submarine);
-
-	float GetEnemyDefencePowerAgainstAssaultCategory(int assault_category);
 
 	// helper functions
 	void Pos2SectorMapPos(float3 *pos, const UnitDef* def);
@@ -274,6 +255,12 @@ private:
 
 	//! Number of buildings allied players have constructed in this sector
 	int m_alliedBuildings;
+
+	//! The combat power against mobile targets of all hostile static defences in this sector
+	AAIMobileCombatPower m_enemyStaticCombatPower;
+	
+	//! The combat power against mobile targets of all hostile combat units in this sector
+	AAIMobileCombatPower m_enemyMobileCombatPower;
 };
 
 #endif

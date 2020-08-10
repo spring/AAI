@@ -174,37 +174,40 @@ void AAIAirForceManager::RemoveTarget(int unit_id)
 
 void AAIAirForceManager::BombBestUnit(float cost, float danger)
 {
-	float best = 0, current;
-	int best_target = -1;
-	int x, y, i;
+	float highestRating(0.0f);
+	int   selectedTargetId(-1);
 
-	for(i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
+	for(int i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
 	{
 		if(targets[i].unit_id != -1)
 		{
-			x = targets[i].pos.x/ai->Getmap()->xSectorSize;
-			y = targets[i].pos.z/ai->Getmap()->ySectorSize;
+			AAISector* sector = ai->Getmap()->GetSectorOfPos(targets[i].pos);
 
-			current = pow(targets[i].cost, cost) / (1.0f + ai->Getmap()->sector[x][y].enemy_stat_combat_power[1] * danger) * targets[i].health / ai->Getbt()->GetUnitDef(targets[i].def_id).health ;
-
-			if(current > best)
+			if(sector)
 			{
-				best = current;
-				best_target = i;
+				const float healthRating = ai->Getbt()->GetUnitDef(targets[i].def_id).health / targets[i].health; // favor already damaged targets
+				//! @todo Check this formula
+				const float rating = pow(targets[i].cost, cost) / (1.0f + sector->GetEnemyDefencePower(ETargetType::AIR) * danger) * healthRating;
+
+				if(rating > highestRating)
+				{
+					highestRating = rating;
+					selectedTargetId = i;
+				}
 			}
 		}
 	}
 
-	if(best_target != -1)
+	if(selectedTargetId != -1)
 	{
 		AAIGroup *group = GetAirGroup(100.0, EUnitType::ANTI_STATIC);
 
 		if(group)
 		{
 			//ai->LogConsole("Bombing...");
-			group->BombTarget(targets[i].unit_id, &targets[i].pos);
+			group->BombTarget(targets[selectedTargetId].unit_id, &targets[selectedTargetId].pos);
 
-			targets[i].unit_id = -1;
+			targets[selectedTargetId].unit_id = -1;
 			--num_of_targets;
 		}
 	}

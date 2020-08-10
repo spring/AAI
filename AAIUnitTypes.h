@@ -182,18 +182,6 @@ public:
 
 	AAITargetType() : AAITargetType(ETargetType::UNKNOWN) {}
 
-	/*AAITargetType(const AAICombatUnitCategory& combatUnitCategory)
-	{
-		if( (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::GROUND_COMBAT) || (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::HOVER_COMBAT) )
-			m_targetType = ETargetType::SURFACE;
-		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::AIR_COMBAT)
-			m_targetType = ETargetType::AIR;
-		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::SEA_COMBAT)
-			m_targetType = ETargetType::FLOATER;
-		else
-			m_targetType = ETargetType::SUBMERGED;
-	}*/
-
 	void SetType(ETargetType targetType) { m_targetType = targetType; }
 
 	bool IsValid()      const { return (m_targetType != ETargetType::UNKNOWN); }
@@ -208,22 +196,11 @@ public:
 
 	bool IsStatic()     const { return (m_targetType == ETargetType::STATIC); }
 
-	//const std::string& GetName() const { return m_combatCategoryNames[GetArrayIndex()]; }
-
 	int GetArrayIndex() const {return static_cast<int>(m_targetType); }
 
-	//static int GetArrayIndex(ETargetType targetType) { return static_cast<int>(targetType); }
+	static const int numberOfMobileTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES)-1;
 
 	static const int numberOfTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES);
-
-	//const static std::vector<std::string> m_targetTypeNames;
-	//const static std::vector<std::string> m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
-
-	/*static const ETargetType first = ETargetType::SURFACE;
-
-	void Next() { m_targetType = static_cast<ETargetType>( static_cast<int>(m_targetType) + 1 ); }
-
-	bool End() const { return (m_targetType == ETargetType::NUMBER_OF_CATEGORIES); }*/
 
 private:
 	ETargetType m_targetType;
