@@ -28,10 +28,6 @@ AAISector::~AAISector(void)
 	attacked_by_this_game.clear();
 	attacked_by_learned.clear();
 
-	my_stat_combat_power.clear();
-
-	my_mobile_combat_power.clear();
-
 	m_enemyCombatUnits.clear();
 
 	m_ownBuildingsOfCategory.clear();
@@ -84,9 +80,6 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 
 	attacked_by_this_game.resize(categories, 0);
 	attacked_by_learned.resize(categories, 0);
-
-	my_stat_combat_power.resize(categories, 0);
-	my_mobile_combat_power.resize(categories+1, 0);
 
 	m_enemyCombatUnits.resize(AAICombatUnitCategory::numberOfCombatUnitCategories, 0.0f);
 
@@ -145,8 +138,7 @@ bool AAISector::SetBase(bool base)
 void AAISector::ResetLocalCombatPower() 
 {
 	m_alliedBuildings = 0;
-	std::fill(my_mobile_combat_power.begin(), my_mobile_combat_power.end(), 0.0f);
-	std::fill(my_stat_combat_power.begin(),   my_stat_combat_power.end(),   0.0f);
+	m_friendlyStaticCombatPower.Reset();
 }
 
 void AAISector::ResetScoutedEnemiesData() 
@@ -168,16 +160,7 @@ void AAISector::AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly)
 			++m_alliedBuildings;
 
 		if(category.isStaticDefence())
-		{
-			for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-				my_stat_combat_power[i] += ai->Getbt()->units_static[unitDefId.id].efficiency[i];
-		}
-	}
-	// add unit to sector and update mobile_combat_power
-	else
-	{
-		for(int i = 0; i < AAIBuildTable::combat_categories; ++i)
-			my_mobile_combat_power[i] += ai->Getbt()->units_static[unitDefId.id].efficiency[i];
+			m_friendlyStaticCombatPower.AddCombatPowerOfUnitType( ai->s_buildTree.GetCombatPower(unitDefId) );
 	}
 }
 
@@ -541,27 +524,22 @@ float AAISector::GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) 
 		+ combatCategoryWeigths.vsSubmarine * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SUBMERGED) + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SUBMERGED)) );
 }
 
-float AAISector::GetMyDefencePowerAgainstAssaultCategory(int assault_category)
-{
-	return my_stat_combat_power[assault_category];
-}
-
 float AAISector::GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const
 {
-	float result = GetEnemyDefencePower(targetType);
+	float result = GetEnemyCombatPower(targetType);
 
 	// take neighbouring sectors into account (if possible)
 	if(x > 0)
-		result += neighbourImportance * ai->Getmap()->sector[x-1][y].GetEnemyDefencePower(targetType);
+		result += neighbourImportance * ai->Getmap()->sector[x-1][y].GetEnemyCombatPower(targetType);
 
 	if(x < ai->Getmap()->xSectors-1)
-		result += neighbourImportance * ai->Getmap()->sector[x+1][y].GetEnemyDefencePower(targetType);
+		result += neighbourImportance * ai->Getmap()->sector[x+1][y].GetEnemyCombatPower(targetType);
 
 	if(y > 0)
-		result += neighbourImportance * ai->Getmap()->sector[x][y-1].GetEnemyDefencePower(targetType);
+		result += neighbourImportance * ai->Getmap()->sector[x][y-1].GetEnemyCombatPower(targetType);
 
 	if(y < ai->Getmap()->ySectors-1)
-		result += neighbourImportance * ai->Getmap()->sector[x][y+1].GetEnemyDefencePower(targetType);
+		result += neighbourImportance * ai->Getmap()->sector[x][y+1].GetEnemyCombatPower(targetType);
 
 	return result;
 }

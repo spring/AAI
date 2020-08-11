@@ -117,9 +117,10 @@ public:
 	float GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const;
 
 	//! @brief Get total (mobile + static) defence power vs given target type
-	float GetEnemyDefencePower(const AAITargetType& targetType) const { return m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(targetType) + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(targetType); }
+	float GetEnemyCombatPower(const AAITargetType& targetType) const { return m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(targetType) + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(targetType); }
 
-	float GetMyDefencePowerAgainstAssaultCategory(int assault_category);
+	//! @brief Returns cmbat power of own/allied static defences against given target type
+	float GetFriendlyStaticDefencePower(const AAITargetType& targetType) const { return m_friendlyStaticCombatPower.GetCombatPowerVsTargetCategory(targetType); }
 
 	// returns combat power of units in that and neighbouring sectors vs combat cat
 	float GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const;
@@ -213,10 +214,6 @@ public:
 
 	int enemies_on_radar;
 
-	// stores combat power of all stationary defs/combat unit vs different categories
-	vector<float> my_stat_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine @todo: Check if hover really makes sense or can be merged with ground
-	vector<float> my_mobile_combat_power; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine, 5 building
-
 	AAI* Getai() { return ai; }
 
 private:
@@ -261,6 +258,9 @@ private:
 	
 	//! The combat power against mobile targets of all hostile combat units in this sector
 	AAIMobileCombatPower m_enemyMobileCombatPower;
+
+	//! The combat power against mobile targets of all hostile static defences in this sector
+	AAIMobileCombatPower m_friendlyStaticCombatPower;
 };
 
 #endif

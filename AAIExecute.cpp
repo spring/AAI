@@ -1936,8 +1936,28 @@ void AAIExecute::CheckDefences()
 						//else if(!(*sector)->interior)
 						if(true) //(*sector)->distance_to_base > 0) // dont build anti ground/hover/sea defences in interior sectors
 						{
+							//! @todo This can be removed when GetThreatBy and GetAttacksBy has been changed to use AAITargetType as base
+							AAITargetType targetType;
+
+							switch(*cat)
+							{
+								case 0:
+								case 2:
+									targetType.SetType(ETargetType::SURFACE);
+									break;
+								case 1:
+									targetType.SetType(ETargetType::AIR);
+									break;
+								case 3:
+									targetType.SetType(ETargetType::FLOATER);
+									break;
+								case 4:
+									targetType.SetType(ETargetType::SUBMERGED);
+									break;
+							}
+
 							// how often did units of category attack that sector compared to current def power
-							rating = (1.0f + (*sector)->GetThreatByID(*cat, learned, current)) / ( 1.0f + (*sector)->GetMyDefencePowerAgainstAssaultCategory(*cat));
+							rating = (1.0f + (*sector)->GetThreatByID(*cat, learned, current)) / ( 1.0f + (*sector)->GetFriendlyStaticDefencePower(targetType));
 
 							// how often did units of that category attack anywere in the current period of the game
 							const AAICombatUnitCategory combatUnitCategory(static_cast<ECombatUnitCategory>(*cat)); //! @todo remove this after refactoring map_categories_id
@@ -2521,33 +2541,33 @@ bool AAIExecute::suitable_for_all_rallypoint(AAISector *left, AAISector *right)
 
 bool AAIExecute::defend_vs_ground(AAISector *left, AAISector *right)
 {
-	return ((2.0f + left->GetThreatBy(GROUND_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(0)+ 0.5f))
-		>  ((2.0f + right->GetThreatBy(GROUND_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(0)+ 0.5f));
+	return ((2.0f + left->GetThreatBy(GROUND_ASSAULT, learned, current)) / (left->GetFriendlyStaticDefencePower(ETargetType::SURFACE) + 0.5f))
+		>  ((2.0f + right->GetThreatBy(GROUND_ASSAULT, learned, current)) / (right->GetFriendlyStaticDefencePower(ETargetType::SURFACE) + 0.5f));
 }
 
 bool AAIExecute::defend_vs_air(AAISector *left, AAISector *right)
 {
-	return ((2.0f + left->GetThreatBy(AIR_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(1)+ 0.5f))
-		>  ((2.0f + right->GetThreatBy(AIR_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(1)+ 0.5f));
+	return ((2.0f + left->GetThreatBy(AIR_ASSAULT, learned, current)) / (left->GetFriendlyStaticDefencePower(ETargetType::AIR) + 0.5f))
+		>  ((2.0f + right->GetThreatBy(AIR_ASSAULT, learned, current)) / (right->GetFriendlyStaticDefencePower(ETargetType::AIR) + 0.5f));
 }
 
 bool AAIExecute::defend_vs_hover(AAISector *left, AAISector *right)
 {
-	return ((2.0f + left->GetThreatBy(HOVER_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(2)+ 0.5f))
-		>  ((2.0f + right->GetThreatBy(HOVER_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(2)+ 0.5f));
+	return ((2.0f + left->GetThreatBy(HOVER_ASSAULT, learned, current)) / (left->GetFriendlyStaticDefencePower(ETargetType::SURFACE) + 0.5f))
+		>  ((2.0f + right->GetThreatBy(HOVER_ASSAULT, learned, current)) / (right->GetFriendlyStaticDefencePower(ETargetType::SURFACE) + 0.5f));
 
 }
 
 bool AAIExecute::defend_vs_sea(AAISector *left, AAISector *right)
 {
-	return ((2.0f + left->GetThreatBy(SEA_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(3)+ 0.5f))
-		>  ((2.0f + right->GetThreatBy(SEA_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(3)+ 0.5f));
+	return ((2.0f + left->GetThreatBy(SEA_ASSAULT, learned, current)) / (left->GetFriendlyStaticDefencePower(ETargetType::FLOATER) + 0.5f))
+		>  ((2.0f + right->GetThreatBy(SEA_ASSAULT, learned, current)) / (right->GetFriendlyStaticDefencePower(ETargetType::FLOATER) + 0.5f));
 }
 
 bool AAIExecute::defend_vs_submarine(AAISector *left, AAISector *right)
 {
-	return ((2.0f + left->GetThreatBy(SUBMARINE_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(4)+ 0.5f))
-		>  ((2.0f + right->GetThreatBy(SUBMARINE_ASSAULT, learned, current)) / (left->GetMyDefencePowerAgainstAssaultCategory(4)+ 0.5f));
+	return ((2.0f + left->GetThreatBy(SUBMARINE_ASSAULT, learned, current)) / (left->GetFriendlyStaticDefencePower(ETargetType::SUBMERGED) + 0.5f))
+		>  ((2.0f + right->GetThreatBy(SUBMARINE_ASSAULT, learned, current)) / (right->GetFriendlyStaticDefencePower(ETargetType::SUBMERGED) + 0.5f));
 }
 
 void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
@@ -2696,7 +2716,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 
 			if(ai->Getmap()->GetContinentID(pos) == continentId)
 			{
-				const float rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyDefencePower(ai->s_buildTree.GetTargetType(unitDefId));
+				const float rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyCombatPower(ai->s_buildTree.GetTargetType(unitDefId));
 
 				if(rating > highestRating)
 				{
@@ -2711,7 +2731,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 	{
 		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 		{
-			const float rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyDefencePower(ai->s_buildTree.GetTargetType(unitDefId));
+			const float rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyCombatPower(ai->s_buildTree.GetTargetType(unitDefId));
 
 			if(rating > highestRating)
 			{

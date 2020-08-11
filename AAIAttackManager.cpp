@@ -321,7 +321,7 @@ bool AAIAttackManager::SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *
 		attack_power += (float)total_units * 0.2f;
 
 		//! @todo Fix to work for water units (attack behaviour must be completely reworked anyway)
-		const float sector_defence = dest->GetEnemyDefencePower(ETargetType::SURFACE) / (float)total_units;
+		const float sector_defence = dest->GetEnemyCombatPower(ETargetType::SURFACE) / (float)total_units;
 
 		//ai->Log("Checking attack power - att power / def power %f %f\n", aggressiveness * attack_power, sector_defence);
 

@@ -187,7 +187,7 @@ void AAIAirForceManager::BombBestUnit(float cost, float danger)
 			{
 				const float healthRating = ai->Getbt()->GetUnitDef(targets[i].def_id).health / targets[i].health; // favor already damaged targets
 				//! @todo Check this formula
-				const float rating = pow(targets[i].cost, cost) / (1.0f + sector->GetEnemyDefencePower(ETargetType::AIR) * danger) * healthRating;
+				const float rating = pow(targets[i].cost, cost) / (1.0f + sector->GetEnemyCombatPower(ETargetType::AIR) * danger) * healthRating;
 
 				if(rating > highestRating)
 				{
