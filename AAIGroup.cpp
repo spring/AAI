@@ -156,15 +156,16 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 				if(def && !cfg->AIR_ONLY_MOD)
 				{
 					UnitDefId attackerUnitDefId(def->id);
-					const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(attackerUnitDefId);
+					const AAIUnitCategory& category    = ai->s_buildTree.GetUnitCategory(attackerUnitDefId);
+					const AAICombatPower&  combatPower = ai->s_buildTree.GetCombatPower(attackerUnitDefId);
 
-					if(category.isStaticDefence() == true)
+					if(category.isStaticDefence())
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
-					else if( (category.isGroundCombat() == true) && (ai->Getbt()->units_static[def->id].efficiency[0] > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.isGroundCombat() && (combatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
-					else if( (category.isSeaCombat() == true)    && (ai->Getbt()->units_static[def->id].efficiency[3] > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.isSeaCombat()    && (combatPower.GetCombatPowerVsTargetCategory(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
-					else if( (category.isHoverCombat() == true)  && (ai->Getbt()->units_static[def->id].efficiency[2] > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.isHoverCombat()  && (combatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
 				}
 			}
@@ -242,14 +243,10 @@ void AAIGroup::Update()
 	}
 }
 
-float AAIGroup::GetCombatPowerVsCategory(int assault_cat_id)
+float AAIGroup::GetCombatPowerVsCategory(const AAITargetType& targetType) const
 {
-	float power = 0;
-
-	for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
-		power += ai->Getbt()->units_static[unit->y].efficiency[assault_cat_id];
-
-	return power;
+	const float combatPower = ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetCategory(targetType);
+	return static_cast<float>(units.size()) * combatPower;
 }
 
 void AAIGroup::GetCombatPower(vector<float> *combat_power)

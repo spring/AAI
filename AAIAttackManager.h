@@ -34,10 +34,10 @@ public:
 	void CheckAttack(AAIAttack *attack);
 
 	// true if units have sufficient combat power to face mobile units in dest
-	bool SufficientCombatPowerAt(const AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness);
+	bool SufficientCombatPowerAt(const AAISector *dest, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const;
 
-	// true if combat groups have suffiecient attack power to face stationary defences
-	bool SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness);
+	// true if combat groups have sufficient attack power to face stationary defences
+	bool SufficientAttackPowerVS(AAISector *dest, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const;
 
 	void GetNextDest(AAIAttack *attack);
 
@@ -48,9 +48,6 @@ private:
 	void StopAttack(AAIAttack *attack);
 
 	list<AAIAttack*> attacks;
-
-	// array stores number of combat groups per category (for SufficientAttackPowerVS(..) )
-	vector<int> available_combat_cat;
 
 	vector< list<AAIGroup*> > available_combat_groups_continent;
 	vector< list<AAIGroup*> > available_aa_groups_continent;

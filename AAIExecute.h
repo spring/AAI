@@ -176,12 +176,6 @@ private:
 	//! @brief Returns true if a construction unit was ordered to assist construction of a building of givn category
 	bool AssistConstructionOfCategory(const AAIUnitCategory& category);
 
-	// returns the the total ground offensive power of all units
-	float GetTotalGroundPower();
-
-	// returns the the total air defence power of all units
-	float GetTotalAirPower();
-
 	// chooses a starting sector close to specified sector
 	void ChooseDifferentStartingSector(int x, int y);
 

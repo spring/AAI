@@ -45,10 +45,10 @@ bool AAIAttack::Failed()
 		//if(ai->Getam()->SufficientAttackPowerVS(dest, &combat_groups, 1.3f))
 		{
 			// check if sufficient power to combat enemy units
-			float3 pos = (*combat_groups.begin())->GetGroupPos();
+			const float3 pos = (*combat_groups.begin())->GetGroupPos();
 			AAISector *sector = ai->Getmap()->GetSectorOfPos(pos);
 
-			if(sector && ai->Getam()->SufficientCombatPowerAt(sector, &combat_groups, 2))
+			if(sector && ai->Getam()->SufficientCombatPowerAt(sector, combat_groups, 2))
 				return false;
 		}
 	}

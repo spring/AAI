@@ -79,7 +79,7 @@ public:
 
 	void UnitIdle(int unit);
 
-	float GetCombatPowerVsCategory(int assault_cat_id);
+	float GetCombatPowerVsCategory(const AAITargetType& targetType) const;
 
 	void GetCombatPower(vector<float> *combat_power);
 

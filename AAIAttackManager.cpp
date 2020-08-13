@@ -21,8 +21,6 @@ AAIAttackManager::AAIAttackManager(AAI *ai, int continents)
 {
 	this->ai = ai;
 
-	available_combat_cat.resize(AAIBuildTable::ass_categories);
-
 	available_combat_groups_continent.resize(continents);
 	available_aa_groups_continent.resize(continents);
 
@@ -290,104 +288,53 @@ void AAIAttackManager::GetNextDest(AAIAttack *attack)
 	AAISector *dest = ai->Getbrain()->GetNextAttackDest(attack->dest, attack->land, attack->water);
 
 	//ai->Log("Getting next dest\n");
-	if(dest && SufficientAttackPowerVS(dest, &(attack->combat_groups), 2))
+	if(dest && SufficientAttackPowerVS(dest, attack->combat_groups, 2.0f))
 		attack->AttackSector(dest);
 	else
 		attack->StopAttack();
 }
 
-bool AAIAttackManager::SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness)
+bool AAIAttackManager::SufficientAttackPowerVS(AAISector *dest, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const
 {
-	if(dest && !combat_groups->empty())
+	if(dest && !combatGroups.empty())
 	{
-		// check attack power
-		float attack_power = 0.5;
-		int total_units = 1;
-
-		// store ammount and category of involved groups;
-		fill(available_combat_cat.begin(), available_combat_cat.end(), 0);
-
-		// get total att power
-		for(set<AAIGroup*>::iterator group = combat_groups->begin(); group != combat_groups->end(); ++group)
-		{
-			attack_power += (*group)->GetCombatPowerVsCategory(5);
-			
-			int combatCategoryIndex = ai->Getbt()->GetIDOfAssaultCategory((*group)->GetUnitCategoryOfGroup());
-
-			available_combat_cat[combatCategoryIndex] += (*group)->size;
-			total_units += (*group)->size;
-		}
-
-		attack_power += (float)total_units * 0.2f;
-
+		// determine attack power
+		float combatPowerVsBildings(0.0f);
+		for(auto group = combatGroups.begin(); group != combatGroups.end(); ++group)
+			combatPowerVsBildings += (*group)->GetCombatPowerVsCategory(ETargetType::STATIC);
+		
 		//! @todo Fix to work for water units (attack behaviour must be completely reworked anyway)
-		const float sector_defence = dest->GetEnemyCombatPower(ETargetType::SURFACE) / (float)total_units;
+		const float enemyDefencePower = dest->GetEnemyCombatPower(ETargetType::SURFACE);
 
-		//ai->Log("Checking attack power - att power / def power %f %f\n", aggressiveness * attack_power, sector_defence);
-
-		if(aggressiveness * attack_power >= sector_defence)
+		if(aggressiveness * combatPowerVsBildings > enemyDefencePower)
 			return true;
 	}
 
 	return false;
 }
 
-bool AAIAttackManager::SufficientCombatPowerAt(const AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness)
+bool AAIAttackManager::SufficientCombatPowerAt(const AAISector *dest, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const
 {
-	if(dest && !combat_groups->empty())
+	if(dest && !combatGroups.empty())
 	{
-		// store ammount and category of involved groups;
-		double my_power = 0;
-		int total_units = 0;
+		//! @todo Must be reworked to work with water units.
+		const AAITargetType targetType(ETargetType::SURFACE);
 
-		// reset counter
-		for(int i = 0; i < AAIBuildTable::ass_categories; ++i)
-			available_combat_cat[i] = 0;
+		const float enemyUnits =  dest->GetNumberOfEnemyCombatUnits(ECombatUnitCategory::GROUND_COMBAT) 
+		                        + dest->GetNumberOfEnemyCombatUnits(ECombatUnitCategory::HOVER_COMBAT);
 
-		// get total att power
-		for(AAICombatUnitCategory category(AAICombatUnitCategory::firstCombatUnitCategory); category.End() == false; category.Next())
-		{
-			// skip if no enemy units of that category present
-			const float enemyUnits = dest->GetNumberOfEnemyCombatUnits(category);
-			if(enemyUnits > 0.0f)
-			{
-				const int i = category.GetArrayIndex();
-				// filter out air in normal mods
-				if(i != 1 || cfg->AIR_ONLY_MOD)
-				{
-					for(set<AAIGroup*>::iterator group = combat_groups->begin(); group != combat_groups->end(); ++group)
-						my_power += (*group)->GetCombatPowerVsCategory(i) * enemyUnits;
+		if(enemyUnits <= 1.0f)
+			return true;	
 
-					total_units +=  enemyUnits;
-				}
-			}
-		}
+		// get total enemy combat power
+		const float enemyCombatPower = dest->GetEnemyAreaCombatPowerVs(targetType, 0.25f) / enemyUnits;		
 
-		// skip if no enemy units found
-		if(total_units == 0)
-			return true;
+		// get total combat power of available units for attack
+		float myCombatPower(0.0f);
+		for(std::set<AAIGroup*>::const_iterator group = combatGroups.begin(); group != combatGroups.end(); ++group)
+			myCombatPower += (*group)->GetCombatPowerVsCategory(targetType);
 
-		my_power += (float) total_units * 0.20f;
-
-		my_power /= (float)total_units;
-
-		// get ammount of involved groups per category
-		total_units = 1;
-
-		for(std::set<AAIGroup*>::iterator group = combat_groups->begin(); group != combat_groups->end(); ++group)
-		{
-			int combatCategoryIndex = ai->Getbt()->GetIDOfAssaultCategory((*group)->GetUnitCategoryOfGroup());
-			available_combat_cat[combatCategoryIndex] += (*group)->size;
-			total_units += (*group)->size;
-		}
-
-		// get total enemy power
-		//! @todo Fix for sea units (attacking needs to be completly reworked anyway)
-		const float enemy_power = dest->GetEnemyAreaCombatPowerVs(ETargetType::SURFACE, 0.25f) / (float)total_units;
-
-		//ai->Log("Checking combat power - att power / def power %f %f\n", aggressiveness * my_power, enemy_power);
-
-		if(aggressiveness * my_power >= enemy_power)
+		if(aggressiveness * myCombatPower > enemyCombatPower)
 			return true;
 	}
 

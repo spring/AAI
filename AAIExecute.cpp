@@ -399,34 +399,6 @@ float3 AAIExecute::GetUnitBuildsite(int builder, int unit)
 	return best_pos;
 }
 
-float AAIExecute::GetTotalGroundPower()
-{
-	float power = 0;
-
-	// get ground power of all ground assault units
-	for(list<AAIGroup*>::iterator group = ai->GetGroupList()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].begin(); group != ai->GetGroupList()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].end(); ++group)
-		power += (*group)->GetCombatPowerVsCategory(0);
-
-	for(list<AAIGroup*>::iterator group = ai->GetGroupList()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].begin(); group != ai->GetGroupList()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].end(); ++group)
-		power += (*group)->GetCombatPowerVsCategory(0);
-
-	return power;
-}
-
-float AAIExecute::GetTotalAirPower()
-{
-	float power = 0;
-
-	for(list<AAIGroup*>::iterator group = ai->GetGroupList()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].begin(); group != ai->GetGroupList()[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].end(); ++group)
-		power += (*group)->GetCombatPowerVsCategory(1);
-	
-	for(list<AAIGroup*>::iterator group = ai->GetGroupList()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].begin(); group != ai->GetGroupList()[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].end(); ++group)
-		power += (*group)->GetCombatPowerVsCategory(1);
-
-
-	return power;
-}
-
 list<int>* AAIExecute::GetBuildqueueOfFactory(int def_id)
 {
 	for(int i = 0; i < numOfFactories; ++i)
