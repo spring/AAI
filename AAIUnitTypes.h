@@ -198,6 +198,12 @@ public:
 
 	int GetArrayIndex() const {return static_cast<int>(m_targetType); }
 
+	static const int surfaceIndex   = static_cast<int>(ETargetType::SURFACE);
+	static const int airIndex       = static_cast<int>(ETargetType::AIR);
+	static const int floaterIndex   = static_cast<int>(ETargetType::FLOATER);
+	static const int submergedIndex = static_cast<int>(ETargetType::SUBMERGED);
+	static const int staticIndex    = static_cast<int>(ETargetType::STATIC);
+
 	static const int numberOfMobileTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES)-1;
 
 	static const int numberOfTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES);

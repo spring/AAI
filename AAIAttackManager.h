@@ -28,7 +28,7 @@ class AAISector;
 class AAIAttackManager
 {
 public:
-	AAIAttackManager(AAI *ai, int continents);
+	AAIAttackManager(AAI *ai);
 	~AAIAttackManager(void);
 
 	void CheckAttack(AAIAttack *attack);
@@ -41,23 +41,21 @@ public:
 
 	void GetNextDest(AAIAttack *attack);
 
-	void Update();
-private:
+	void Update(int numberOfContinents);
 
-	void LaunchAttack();
+private:
+	//! @brief Determines which groups would be available for an attack globally/on each continent and returns the total number of available assault groups
+	int DetermineCombatUnitGroupsAvailableForattack(std::list<AAIGroup*>& availableAssaultGroupsGlobal, std::list<AAIGroup*>& availableAAGroupsGlobal,
+													std::vector< std::list<AAIGroup*> >& availableAssaultGroupsOnContinent, std::vector< std::list<AAIGroup*> >& availableAAGroupsOnContinent) const;
+
+	//! @brief Determines the combat power against the different target types for the given list of groups
+	void DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& groups, std::vector<float>& combatPower, std::vector<float>& numberOfGroupsOfTargetType) const;
+
+	void TryToLaunchAttack(int numberOfContinents);
+
 	void StopAttack(AAIAttack *attack);
 
-	list<AAIAttack*> attacks;
-
-	vector< list<AAIGroup*> > available_combat_groups_continent;
-	vector< list<AAIGroup*> > available_aa_groups_continent;
-
-	list<AAIGroup*> available_combat_groups_global;
-	list<AAIGroup*> available_aa_groups_global;
-
-	// stores total attack power for different unit types on each continent
-	vector< vector<float> > attack_power_continent;
-	vector<float> attack_power_global;
+	std::list<AAIAttack*> attacks;
 
 	AAI *ai;
 };

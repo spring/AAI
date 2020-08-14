@@ -243,7 +243,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	af = new AAIAirForceManager(this);
 
 	// init attack manager
-	am = new AAIAttackManager(this, map->continents.size());
+	am = new AAIAttackManager(this);
 
 	Log("Tidal/Wind strength: %f / %f\n", m_aiCallback->GetTidalStrength(), (m_aiCallback->GetMaxWind() + m_aiCallback->GetMinWind()) * 0.5f);
 
@@ -855,7 +855,7 @@ void AAI::Update()
 	{
 		AAI_SCOPED_TIMER("Check-Attack")
 		// check attack
-		am->Update();
+		am->Update(map->continents.size());
 		af->BombBestUnit(2, 2);
 		return;
 	}

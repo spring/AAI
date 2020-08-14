@@ -573,11 +573,11 @@ void AAIBrain::UpdateDefenceCapabilities()
 		{
 			for(std::list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 			{
-				defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(ETargetType::SURFACE);
-				defence_power_vs[1] += (*group)->GetCombatPowerVsCategory(ETargetType::AIR);
-				defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(ETargetType::SURFACE);
-				defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(ETargetType::FLOATER);
-				defence_power_vs[4] += (*group)->GetCombatPowerVsCategory(ETargetType::SUBMERGED);
+				defence_power_vs[0] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
+				defence_power_vs[1] += (*group)->GetCombatPowerVsTargetType(ETargetType::AIR);
+				defence_power_vs[2] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
+				defence_power_vs[3] += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
+				defence_power_vs[4] += (*group)->GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
 			}
 		}
 	}
@@ -593,27 +593,27 @@ void AAIBrain::UpdateDefenceCapabilities()
 					switch((*group)->GetUnitCategoryOfGroup().getUnitCategory())
 					{
 						case EUnitCategory::GROUND_COMBAT:
-							defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(ETargetType::SURFACE);
-							defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(ETargetType::SURFACE);
+							defence_power_vs[0] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
+							defence_power_vs[2] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
 							break;
 						case EUnitCategory::HOVER_COMBAT:
-							defence_power_vs[0] += (*group)->GetCombatPowerVsCategory(ETargetType::SURFACE);
-							defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(ETargetType::SURFACE);
-							defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(ETargetType::FLOATER);
+							defence_power_vs[0] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
+							defence_power_vs[2] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
+							defence_power_vs[3] += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
 							break;
 						case EUnitCategory::SEA_COMBAT:
-							defence_power_vs[2] += (*group)->GetCombatPowerVsCategory(ETargetType::SURFACE);
-							defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(ETargetType::FLOATER);
-							defence_power_vs[4] += (*group)->GetCombatPowerVsCategory(ETargetType::SUBMERGED);
+							defence_power_vs[2] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
+							defence_power_vs[3] += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
+							defence_power_vs[4] += (*group)->GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
 							break;
 						case EUnitCategory::SUBMARINE_COMBAT:
-							defence_power_vs[3] += (*group)->GetCombatPowerVsCategory(ETargetType::FLOATER);
-							defence_power_vs[4] += (*group)->GetCombatPowerVsCategory(ETargetType::SUBMERGED);
+							defence_power_vs[3] += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
+							defence_power_vs[4] += (*group)->GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
 							break;
 					}	
 				}
 				else if((*group)->GetUnitTypeOfGroup().IsAntiAir())
-					defence_power_vs[1] += (*group)->GetCombatPowerVsCategory(ETargetType::AIR);
+					defence_power_vs[1] += (*group)->GetCombatPowerVsTargetType(ETargetType::AIR);
 			}
 		}
 	}

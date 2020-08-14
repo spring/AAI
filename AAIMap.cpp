@@ -2645,3 +2645,21 @@ float AAIMap::GetEdgeDistance(float3 *pos)
 
 	return edge_distance;
 }
+
+float AAIMap::GetMaximumNumberOfLostUnits() const
+{
+	float maxLostUnits(0.0f);
+
+	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
+	{
+		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
+		{
+			const float lostUnits = ai->Getmap()->sector[x][y].GetLostUnits();
+
+			if(lostUnits > maxLostUnits)
+				maxLostUnits = lostUnits;
+		}
+	}
+
+	return maxLostUnits;
+}

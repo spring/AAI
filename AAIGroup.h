@@ -79,9 +79,7 @@ public:
 
 	void UnitIdle(int unit);
 
-	float GetCombatPowerVsCategory(const AAITargetType& targetType) const;
-
-	void GetCombatPower(vector<float> *combat_power);
+	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const;
 
 	bool CanFightTargetType(const AAITargetType& targetType) const 
 	{
@@ -96,6 +94,9 @@ public:
 
 	//! @brief Returns the combat unit type of the units in the group 
 	const AAIUnitCategory& GetUnitCategoryOfGroup() const { return m_category; }
+
+	//! @brief Returns the target type of the units in the group
+	const AAITargetType& GetTargetType() const;
 
 	float3 GetGroupPos();
 

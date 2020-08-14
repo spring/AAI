@@ -243,19 +243,15 @@ void AAIGroup::Update()
 	}
 }
 
-float AAIGroup::GetCombatPowerVsCategory(const AAITargetType& targetType) const
+float AAIGroup::GetCombatPowerVsTargetType(const AAITargetType& targetType) const
 {
 	const float combatPower = ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetCategory(targetType);
 	return static_cast<float>(units.size()) * combatPower;
 }
 
-void AAIGroup::GetCombatPower(vector<float> *combat_power)
+const AAITargetType& AAIGroup::GetTargetType() const
 {
-	for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
-	{
-		for(int cat = 0; cat < AAIBuildTable::combat_categories; ++cat)
-			(*combat_power)[cat] += ai->Getbt()->units_static[unit->y].efficiency[cat];
-	}
+	return ai->s_buildTree.GetTargetType(m_groupDefId);
 }
 
 float3 AAIGroup::GetGroupPos()

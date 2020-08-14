@@ -59,6 +59,9 @@ public:
 	//! @brief Returns the id of continent the given position belongs to
 	int GetContinentID(const float3& pos) const;
 
+	//! @brief Returns whether continent to which given sector mainly belongs is sea 
+	bool IsSectorOnWaterContinent(const AAISector* sector) const { return continents[sector->continent].water; }
+
 	//! @brief Returns whether the position is located on a small continent (meant to detect "ponds" or "small islands")
 	bool LocatedOnSmallContinent(const float3& pos) { return (continents[GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); };
 
@@ -75,6 +78,9 @@ public:
 	AAISector* GetSectorOfPos(const float3& pos);
 
 	float GetEdgeDistance(float3 *pos);
+
+	//! @brief Returns the maximum number of units lost in any sector of the map
+	float GetMaximumNumberOfLostUnits() const;
 
 	// returns buildsites for normal and defence buildings
 	float3 GetHighestBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd);
