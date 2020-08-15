@@ -31,7 +31,7 @@ float AAIExecute::learned = 2.5;
 
 
 AAIExecute::AAIExecute(AAI *ai) :
-	m_nextDefenceVsCategory(EUnitCategory::UNKNOWN),
+	m_nextDefenceVsTargetType(ETargetType::UNKNOWN),
 	m_linkingBuildTaskToBuilderFailed(0u)
 {
 	issued_orders = 0;
@@ -48,7 +48,7 @@ AAIExecute::AAIExecute(AAI *ai) :
 	averageEnergyUsage = 0;
 	disabledMMakers = 0;
 
-	next_defence = nullptr;
+	m_sectorToBuildNextDefence = nullptr;
 
 	for(int i = 0; i <= METAL_MAKER; ++i)
 		urgency[i] = 0;
@@ -1163,24 +1163,23 @@ bool AAIExecute::BuildAirBase()
 
 bool AAIExecute::BuildDefences()
 {
-	const AAIUnitCategory staticDefence(EUnitCategory::STATIC_DEFENCE);
-	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(staticDefence) > 2) 
-		|| (next_defence == nullptr) )
+	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_DEFENCE) > 2) 
+		|| (m_sectorToBuildNextDefence == nullptr) )
 		return true;
 
-	BuildOrderStatus status = BuildStationaryDefenceVS(m_nextDefenceVsCategory, next_defence);
+	BuildOrderStatus status = BuildStationaryDefenceVS(m_nextDefenceVsTargetType, m_sectorToBuildNextDefence);
 
 	if(status == BuildOrderStatus::NO_BUILDER_AVAILABLE)
 		return false;
 	else if(status == BuildOrderStatus::NO_BUILDSITE_FOUND)
-		++next_defence->failed_defences;
+		++m_sectorToBuildNextDefence->failed_defences;
 
-	next_defence = nullptr;
+	m_sectorToBuildNextDefence = nullptr;
 
 	return true;
 }
 
-BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& category, const AAISector *dest)
+BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targetType, const AAISector *dest)
 {
 	// dont build in sectors already occupied by allies
 	if(dest->GetNumberOfAlliedBuildings() > 2)
@@ -1270,39 +1269,14 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 		cost      = 2.0f;
 		range     = 0.2f;
 	}
-	
-
-	CombatPower criteria(0.0f);
-	switch(category.getUnitCategory())
-	{
-		case EUnitCategory::GROUND_COMBAT:
-			criteria.vsGround    = 2.0f;
-			break;
-		case EUnitCategory::AIR_COMBAT:
-			criteria.vsAir       = 2.0f;
-			break;
-		case EUnitCategory::HOVER_COMBAT:
-			criteria.vsGround    = 0.5f;
-			criteria.vsHover     = 2.0f;
-			criteria.vsSea       = 0.5f;
-			break;
-		case EUnitCategory::SEA_COMBAT:
-			criteria.vsSea       = 1.5f;
-			criteria.vsSubmarine = 0.5f;
-			break;
-		case EUnitCategory::SUBMARINE_COMBAT:
-			criteria.vsSea       = 0.5f;
-			criteria.vsSubmarine = 1.5f;
-			break;		
-	}
 
 	if(checkGround)
 	{
 		int randomness(8);
-		if(staticDefences > 4 && (rand()%cfg->LEARN_RATE == 1) ) // select defence more randomly from time to time
+		if( (staticDefences > 4) && (rand()%cfg->LEARN_RATE == 1) ) // select defence more randomly from time to time
 			randomness = 20;
 
-		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, criteria, range, randomness, false);
+		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, targetType, range, randomness, false);
 
 		// stop building weak defences if urgency is too low (wait for better defences)
 		/*if(staticDefences > 3)
@@ -1318,7 +1292,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 
 		if(selectedDefence.isValid())
 		{
-			pos = dest->GetDefenceBuildsite(selectedDefence.id, category, terrain, false);
+			pos = dest->GetDefenceBuildsite(selectedDefence.id, targetType, terrain, false);
 
 			if(pos.x > 0)
 			{
@@ -1348,7 +1322,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 		if(staticDefences > 4 && (rand()%cfg->LEARN_RATE == 1) )// select defence more randomly from time to time
 			randomness = 20;
 
-		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, criteria, range, randomness, true);
+		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, targetType, range, randomness, true);
 
 		// stop building of weak defences if urgency is too low (wait for better defences)
 		/*if(staticDefences > 3)
@@ -1364,7 +1338,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAIUnitCategory& cat
 
 		if(selectedDefence.isValid())
 		{
-			pos = dest->GetDefenceBuildsite(selectedDefence.id, category, terrain, true);
+			pos = dest->GetDefenceBuildsite(selectedDefence.id, targetType, terrain, true);
 
 			if(pos.x > 0)
 			{
@@ -1738,37 +1712,18 @@ void AAIExecute::DefendMex(int mex, int def_id)
 	if(ai->Getmap()->LocatedOnSmallContinent(pos))
 		return;
 
-	const int x = pos.x/ai->Getmap()->xSectorSize;
-	const int y = pos.z/ai->Getmap()->ySectorSize;
+	const AAISector *sector = ai->Getmap()->GetSectorOfPos(pos); 
 
-	if( ai->Getmap()->IsValidSector(x, y) )
+	if(sector) 
 	{
-		const AAISector *sector = &ai->Getmap()->sector[x][y];
-
 		if(    (sector->distance_to_base > 0)
 			&& (sector->distance_to_base <= cfg->MAX_MEX_DEFENCE_DISTANCE)
 			&& (sector->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < 1) )
 		{
-			CombatPower combatPowerVs(0.0f);
-			
-			bool water;
+			const bool water = ai->s_buildTree.GetMovementType(UnitDefId(def_id)).IsStaticSea() ? true : false;
+			const AAITargetType targetType( water ? ETargetType::FLOATER : ETargetType::SURFACE); 
 
-			// get defence building dependend on water or land mex
-			if(ai->Getbt()->GetUnitDef(def_id).minWaterDepth > 0)
-			{
-				water = true;
-				combatPowerVs.vsHover     = 0.75f;
-				combatPowerVs.vsSea       = 1.0f;
-				combatPowerVs.vsSubmarine = 0.75f;
-			}
-			else
-			{
-				water = false;
-				combatPowerVs.vsGround    = 1.0f;
-				combatPowerVs.vsHover     = 0.5f;
-			}
-
-			UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), 2.0f, 2.0f, 1.0f, combatPowerVs, 0.2f, 1, water); 
+			UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), 2.0f, 2.0f, 1.0f, targetType, 0.2f, 1, water); 
 
 			// find closest builder
 			if(defence.isValid())
@@ -1873,14 +1828,13 @@ void AAIExecute::CheckDefences()
 
 	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
-	int max_dist = 2;
+	const int maxSectorDistToBase(2);
+	float highestRating(0);
 
-	float rating, highest_rating = 0;
+	AAISector *first = nullptr, *second = nullptr;
+	AAITargetType targetType1, targetType2;
 
-	AAISector *first = 0, *second = 0;
-	AAIUnitCategory cat1, cat2;
-
-	for(int dist = 0; dist <= max_dist; ++dist)
+	for(int dist = 0; dist <= maxSectorDistToBase; ++dist)
 	{
 		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
 		{
@@ -1929,44 +1883,47 @@ void AAIExecute::CheckDefences()
 							}
 
 							// how often did units of category attack that sector compared to current def power
-							rating = (1.0f + (*sector)->GetThreatByID(*cat, learned, current)) / ( 1.0f + (*sector)->GetFriendlyStaticDefencePower(targetType));
+							float rating = (1.0f + (*sector)->GetThreatByID(*cat, learned, current)) / ( 1.0f + (*sector)->GetFriendlyStaticDefencePower(targetType));
 
 							// how often did units of that category attack anywere in the current period of the game
 							const AAICombatUnitCategory combatUnitCategory(static_cast<ECombatUnitCategory>(*cat)); //! @todo remove this after refactoring map_categories_id
 							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(combatUnitCategory, gamePhase));
-						}
-						else
-							rating = 0.0f;
 
-						if(rating > highest_rating)
-						{
-							//! @todo remove/refactor this when handling combat efficiencies is reworked!
-							AAIUnitCategory category;
-							if(*cat == 0)
-								category.setUnitCategory(EUnitCategory::GROUND_COMBAT);
-							else if(*cat == 1)
-								category.setUnitCategory(EUnitCategory::AIR_COMBAT);
-							else if(*cat == 2)
-								category.setUnitCategory(EUnitCategory::HOVER_COMBAT);
-							else if(*cat == 3)
-								category.setUnitCategory(EUnitCategory::SEA_COMBAT);
-							else if(*cat == 4)
-								category.setUnitCategory(EUnitCategory::SUBMARINE_COMBAT);
-							else
-								category.setUnitCategory(EUnitCategory::UNKNOWN);
-
-							// dont block empty sectors with too much aa
-							if(    (category.isAirCombat() == false) 
-								|| ((*sector)->GetNumberOfBuildings(EUnitCategory::POWER_PLANT) > 0)
-								|| ((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_CONSTRUCTOR) > 0 ) ) 
+							if(rating > highestRating)
 							{
-								second = first;
-								cat2 = cat1;
+								//! @todo remove/refactor this when handling combat efficiencies is reworked!
+								AAITargetType targetType;
 
-								first = *sector;
-								cat1 = category;
+								switch(*cat)
+								{
+									case 0:
+									case 2:
+										targetType.SetType(ETargetType::SURFACE);
+										break;
+									case 1:
+										targetType.SetType(ETargetType::AIR);
+										break;
+									case 3:
+										targetType.SetType(ETargetType::FLOATER);
+										break;
+									case 4:
+										targetType.SetType(ETargetType::SUBMERGED);
+										break;
+								}
 
-								highest_rating = rating;
+								// dont block empty sectors with too much aa
+								if(    (targetType.IsAir() == false) 
+									|| ((*sector)->GetNumberOfBuildings(EUnitCategory::POWER_PLANT) > 0)
+									|| ((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_CONSTRUCTOR) > 0 ) ) 
+								{
+									second = first;
+									targetType2 = targetType1;
+
+									first = *sector;
+									targetType1 = targetType;
+
+									highestRating = rating;
+								}
 							}
 						}
 					}
@@ -1978,7 +1935,7 @@ void AAIExecute::CheckDefences()
 	if(first)
 	{
 		// if no builder available retry later
-		BuildOrderStatus status = BuildStationaryDefenceVS(cat1, first);
+		BuildOrderStatus status = BuildStationaryDefenceVS(targetType1, first);
 
 		if(status == BuildOrderStatus::NO_BUILDER_AVAILABLE)
 		{
@@ -1987,15 +1944,15 @@ void AAIExecute::CheckDefences()
 			if(urgency[STATIONARY_DEF] < temp)
 				urgency[STATIONARY_DEF] = temp;
 
-			next_defence = first;
-			m_nextDefenceVsCategory = cat1;
+			m_sectorToBuildNextDefence = first;
+			m_nextDefenceVsTargetType = targetType1;
 		}
 		else if(status == BuildOrderStatus::NO_BUILDSITE_FOUND)
 			++first->failed_defences;
 	}
 
 	if(second)
-		BuildStationaryDefenceVS(cat2, second);
+		BuildStationaryDefenceVS(targetType2, second);
 }
 
 void AAIExecute::CheckRessources()

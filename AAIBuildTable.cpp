@@ -807,22 +807,22 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 	}
 }
 
-UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water)
+UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const AAITargetType& targetType, float range, int randomness, bool water)
 {
-	UnitDefId selectedDefence = SelectStaticDefence(side, cost, buildtime, combatPower, combatCriteria, range, randomness, false, false);
+	UnitDefId selectedDefence = SelectStaticDefence(side, cost, buildtime, combatPower, targetType, range, randomness, false, false);
 
 	if(selectedDefence.isValid() && (units_dynamic[selectedDefence.id].constructorsAvailable <= 0))
 	{
 		if(units_dynamic[selectedDefence.id].constructorsRequested <= 0)
 			BuildBuilderFor(selectedDefence);
 
-		selectedDefence = SelectStaticDefence(side, cost, buildtime, combatPower, combatCriteria, range, randomness, false, true);
+		selectedDefence = SelectStaticDefence(side, cost, buildtime, combatPower, targetType, range, randomness, false, true);
 	}
 
 	return selectedDefence;
 }
 
-UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water, bool mustBeConstructable) const
+UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const AAITargetType& targetType, float range, int randomness, bool water, bool mustBeConstructable) const
 {
 	// get data needed for selection
 	AAIUnitCategory category(EUnitCategory::STATIC_DEFENCE);
@@ -837,12 +837,8 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildti
 
 	for(auto defence = unitList.begin(); defence != unitList.end(); ++defence)
 	{
-		const UnitTypeStatic *unit = &units_static[defence->id];
-
-		float combatPower = combatCriteria.vsGround    * unit->efficiency[0] + combatCriteria.vsAir * unit->efficiency[1] 
-						  + combatCriteria.vsHover     * unit->efficiency[2] + combatCriteria.vsSea * unit->efficiency[3] 
-						  + combatCriteria.vsSubmarine * unit->efficiency[4];
-		combatPowerStat.AddValue(combatPower);
+		const float defenceCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetCombatPowerVsTargetType(targetType);
+		combatPowerStat.AddValue(defenceCombatPower);
 	}
 
 	combatPowerStat.Finalize();
@@ -855,12 +851,9 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, float cost, float buildti
 	{
 		if( IsBuildingSelectable(*defence, water, mustBeConstructable) )
 		{
-			const UnitTypeStatic *unit = &units_static[defence->id];
 			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(*defence);
 
-			float myCombatPower =   combatCriteria.vsGround * unit->efficiency[0] + combatCriteria.vsAir * unit->efficiency[1] 
-								  + combatCriteria.vsHover  * unit->efficiency[2] + combatCriteria.vsSea * unit->efficiency[3] 
-						  		  + combatCriteria.vsSubmarine * unit->efficiency[4];
+			const float myCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetCombatPowerVsTargetType(targetType);
 
 			float myRating =  cost        * costs.GetNormalizedDeviationFromMax( unitData.m_totalCost )
 							+ buildtime   * buildtimes.GetNormalizedDeviationFromMax( unitData.m_buildtime )

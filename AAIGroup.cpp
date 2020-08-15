@@ -161,11 +161,11 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 
 					if(category.isStaticDefence())
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
-					else if( category.isGroundCombat() && (combatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.isGroundCombat() && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
-					else if( category.isSeaCombat()    && (combatPower.GetCombatPowerVsTargetCategory(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.isSeaCombat()    && (combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
-					else if( category.isHoverCombat()  && (combatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.isHoverCombat()  && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
 				}
 			}
@@ -245,7 +245,7 @@ void AAIGroup::Update()
 
 float AAIGroup::GetCombatPowerVsTargetType(const AAITargetType& targetType) const
 {
-	const float combatPower = ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetCategory(targetType);
+	const float combatPower = ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(targetType);
 	return static_cast<float>(units.size()) * combatPower;
 }
 

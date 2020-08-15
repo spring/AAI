@@ -292,7 +292,7 @@ float3 AAISector::FindBuildsite(int building, bool water) const
 	return ai->Getmap()->GetBuildSiteInRect(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, water);
 }
 
-float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAIUnitCategory& category, float terrainModifier, bool water) const
+float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetType& targetType, float terrainModifier, bool water) const
 {
 	float3 best_pos = ZeroVector, pos;
 	
@@ -300,10 +300,10 @@ float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAIUnitCate
 
 	float my_rating, best_rating = -10000;
 
-	list<Direction> directions;
+	std::list<Direction> directions;
 
 	// get possible directions
-	if(category.isAirCombat() && !cfg->AIR_ONLY_MOD)
+	if(targetType.IsAir() && !cfg->AIR_ONLY_MOD)
 	{
 		directions.push_back(CENTER);
 	}
@@ -375,7 +375,7 @@ float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAIUnitCate
 
 		//
 		const UnitDef *def = &ai->Getbt()->GetUnitDef(buildingDefId.id);
-		my_rating = ai->Getmap()->GetDefenceBuildsite(&pos, def, xStart, xEnd, yStart, yEnd, category, terrainModifier, water);
+		my_rating = ai->Getmap()->GetDefenceBuildsite(&pos, def, xStart, xEnd, yStart, yEnd, targetType, terrainModifier, water);
 
 		if(my_rating > best_rating)
 		{

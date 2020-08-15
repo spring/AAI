@@ -97,7 +97,7 @@ public:
 	float3 FindBuildsite(int building, bool water = false) const;
 
 	// returns a buildsite for a defence building
-	float3 GetDefenceBuildsite(UnitDefId buildingDefId, const AAIUnitCategory& category, float terrainModifier, bool water) const ;
+	float3 GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetType& targetType, float terrainModifier, bool water) const ;
 
 	float3 GetRandomBuildsite(int building, int tries, bool water = false);
 	float3 GetCenterBuildsite(int building, bool water = false);

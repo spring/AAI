@@ -20,6 +20,7 @@ using namespace springLegacyAI;
 
 #include "aidef.h"
 #include "AAIBuildTree.h"
+#include "AAIUnitTypes.h"
 #include <assert.h>
 #include <list>
 #include <vector>
@@ -123,7 +124,7 @@ public:
 	UnitDefId SelectRadar(int side, float cost, float range, bool water);
 
 	//! @brief Selects a static defence according to given criteria; a builder is requested if none available and a different static defence is chosen.
-	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water);
+	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const AAITargetType& targetType, float range, int randomness, bool water);
 
 	// returns a metal maker
 	int GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild);
@@ -255,7 +256,7 @@ private:
 	UnitDefId SelectRadar(int side, float cost, float range, bool water, bool canBuild) const;
 
 	//! @brief Selects a defence building according to given criteria
-	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const CombatPower& combatCriteria, float range, int randomness, bool water, bool constructable) const;
+	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const AAITargetType& targetType, float range, int randomness, bool water, bool constructable) const;
 
 	//! @brief Selects a storage according to given criteria
 	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;

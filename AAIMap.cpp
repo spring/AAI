@@ -2432,7 +2432,7 @@ void AAIMap::RemoveDefence(float3 *pos, int defence)
 	}
 }
 
-float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAIUnitCategory& category, float terrainModifier, bool water) const
+float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAITargetType& targetType, float terrainModifier, bool water) const
 {
 	*buildPos = ZeroVector;
 	float my_rating, best_rating = -10000.0f;
@@ -2443,16 +2443,9 @@ float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xSta
 
 	const std::vector<float> *map = &defence_map;
 
-	if(cfg->AIR_ONLY_MOD)
-	{
-		if(category.isAirCombat() || category.isHoverCombat())
-			map = &air_defence_map;
-		else if(category.isSeaCombat())
-			map = &submarine_defence_map;
-	}
-	else if(category.isAirCombat() )
+	if(targetType.IsAir() )
 		map = &air_defence_map;
-	else if(category.isSubmarineCombat() )
+	else if(targetType.IsSubmerged() )
 		map = &submarine_defence_map;
 
 	float range =  ai->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;

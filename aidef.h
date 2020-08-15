@@ -45,7 +45,7 @@ public:
 	static constexpr float maxCombatPowerChangeAfterSingleCombat = 0.5f;
 
 	//! Minimum combat power for a unit to be considered effective against a certain target type
-	static constexpr float minAntiTargetTypeCombatPower = 0.5f;
+	static constexpr float minAntiTargetTypeCombatPower = 0.25f;
 
 	//! Minimum unused metal storage capcity befor construction of metal storage is taken into account
 	static constexpr float minUnusedMetalStorageCapacityToBuildStorage = 100.0f;

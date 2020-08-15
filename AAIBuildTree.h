@@ -43,7 +43,7 @@ public:
 			m_combatPower[vsTargetType.GetArrayIndex()] = AAIConstants::minCombatPower;
 	}
 
-	float GetCombatPowerVsTargetCategory(const AAITargetType& targetType) const { return m_combatPower[targetType.GetArrayIndex()]; }
+	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const { return m_combatPower[targetType.GetArrayIndex()]; }
 
 private:
 	std::vector<float> m_combatPower;

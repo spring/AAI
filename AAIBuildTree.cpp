@@ -84,16 +84,16 @@ void AAIBuildTree::InitCombatPowerOfUnits(const std::vector<UnitTypeStatic>& com
 	{
 		if(m_unitTypeProperties[id].m_unitCategory.isCombatUnit() || m_unitTypeProperties[id].m_unitCategory.isStaticDefence() )
 		{
-			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetCategory(ETargetType::SURFACE) > AAIConstants::minAntiTargetTypeCombatPower)
+			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::SURFACE) > AAIConstants::minAntiTargetTypeCombatPower)
 				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
 
-			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetCategory(ETargetType::AIR) > AAIConstants::minAntiTargetTypeCombatPower)
+			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::AIR) > AAIConstants::minAntiTargetTypeCombatPower)
 				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_AIR);
 
-			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetCategory(ETargetType::FLOATER) > AAIConstants::minAntiTargetTypeCombatPower)
+			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::FLOATER) > AAIConstants::minAntiTargetTypeCombatPower)
 				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_SHIP);
 
-			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetCategory(ETargetType::SUBMERGED) > AAIConstants::minAntiTargetTypeCombatPower)
+			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::SUBMERGED) > AAIConstants::minAntiTargetTypeCombatPower)
 				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_SUBMERGED);
 		}
 	} 
@@ -106,7 +106,7 @@ float AAIBuildTree::CalculateCombatPowerChange(UnitDefId attackerUnitDefId, Unit
 	const AAITargetType& attackerTargetType = GetTargetType(attackerUnitDefId);
 	const AAITargetType& killedTargetType   = GetTargetType(killedUnitDefId);
 
-	const float change = cfg->LEARN_SPEED * m_combatPowerOfUnits[killedUnitDefId.id].GetCombatPowerVsTargetCategory(attackerTargetType) /  m_combatPowerOfUnits[attackerUnitDefId.id].GetCombatPowerVsTargetCategory(killedTargetType);
+	const float change = cfg->LEARN_SPEED * m_combatPowerOfUnits[killedUnitDefId.id].GetCombatPowerVsTargetType(attackerTargetType) /  m_combatPowerOfUnits[attackerUnitDefId.id].GetCombatPowerVsTargetType(killedTargetType);
 
 	if(change < AAIConstants::maxCombatPowerChangeAfterSingleCombat)
 		return change;

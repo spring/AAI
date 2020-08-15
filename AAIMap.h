@@ -92,7 +92,7 @@ public:
 	float3 GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, float range, bool water);
 
 	// return rating of a the best buidliste fpr a def. building vs category within specified rect (and stores pos in pointer)
-	float GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAIUnitCategory& category, float terrainModifier, bool water) const;
+	float GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAITargetType& targetType, float terrainModifier, bool water) const;
 
 	//! @brief Updates the buildmap: (un)block cells + insert/remove spaces (factory exits get some extra space)
 	void UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool block);

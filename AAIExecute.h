@@ -169,9 +169,9 @@ private:
 
 	int numOfFactories;
 
-	//! @brief Tries to build a defence building vs category in the specified sector
+	//! @brief Tries to build a defence building vs target type in the specified sector
 	//!        returns BUILDORDER_SUCCESSFUL if successful
-	BuildOrderStatus BuildStationaryDefenceVS(const AAIUnitCategory& category, const AAISector *dest);
+	BuildOrderStatus BuildStationaryDefenceVS(const AAITargetType& targetType, const AAISector *dest);
 
 	//! @brief Returns true if a construction unit was ordered to assist construction of a building of givn category
 	bool AssistConstructionOfCategory(const AAIUnitCategory& category);
@@ -208,9 +208,11 @@ private:
 	float averageMetalUsage;
 	float averageEnergyUsage;
 
-	AAISector *next_defence;
+	//! Sector where next static defence shall be build (nullptr if none)
+	AAISector*    m_sectorToBuildNextDefence;
 
-	AAIUnitCategory m_nextDefenceVsCategory;
+	//! Target type against which which next defence shall be effective
+	AAITargetType m_nextDefenceVsTargetType;
 
 	int issued_orders;
 
