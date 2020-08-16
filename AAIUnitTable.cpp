@@ -132,10 +132,6 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 	{
 		--futureFactories;
 		++activeFactories;
-
-		// remove future ressource demand now factory has been finished
-		ai->Getexecute()->futureRequestedMetal  -= ai->Getbt()->units_static[unitDefId.id].efficiency[0];
-		ai->Getexecute()->futureRequestedEnergy -= ai->Getbt()->units_static[unitDefId.id].efficiency[1];
 	}
 }
 
@@ -225,7 +221,6 @@ void AAIUnitTable::RemovePowerPlant(int unit_id)
 void AAIUnitTable::AddMetalMaker(int unit_id, int def_id)
 {
 	metal_makers.insert(unit_id);
-	ai->Getexecute()->futureRequestedEnergy -= ai->Getbt()->GetUnitDef(def_id).energyUpkeep;
 }
 
 void AAIUnitTable::RemoveMetalMaker(int unit_id)
@@ -239,8 +234,6 @@ void AAIUnitTable::RemoveMetalMaker(int unit_id)
 void AAIUnitTable::AddRecon(int unit_id, int def_id)
 {
 	recon.insert(unit_id);
-
-	ai->Getexecute()->futureRequestedEnergy -= ai->Getbt()->units_static[def_id].efficiency[0];
 }
 
 void AAIUnitTable::RemoveRecon(int unit_id)
@@ -251,8 +244,6 @@ void AAIUnitTable::RemoveRecon(int unit_id)
 void AAIUnitTable::AddJammer(int unit_id, int def_id)
 {
 	jammers.insert(unit_id);
-
-	ai->Getexecute()->futureRequestedEnergy -= ai->Getbt()->units_static[def_id].efficiency[0];
 }
 
 void AAIUnitTable::RemoveJammer(int unit_id)

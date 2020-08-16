@@ -40,8 +40,6 @@ AAIExecute::AAIExecute(AAI *ai) :
 
 	unitProductionRate = 1;
 
-	futureRequestedMetal = 0;
-	futureRequestedEnergy = 0;
 	futureAvailableMetal = 0;
 	futureAvailableEnergy = 0;
 	averageMetalUsage = 0;
@@ -945,7 +943,6 @@ bool AAIExecute::BuildMetalMaker()
 
 					if(builder)
 					{
-						futureRequestedEnergy += ai->Getbt()->GetUnitDef(maker).energyUpkeep;
 						builder->GiveConstructionOrder(UnitDefId(maker), pos);
 						return true;
 					}
@@ -987,7 +984,6 @@ bool AAIExecute::BuildMetalMaker()
 
 					if(builder)
 					{
-						futureRequestedEnergy += ai->Getbt()->GetUnitDef(maker).energyUpkeep;
 						builder->GiveConstructionOrder(UnitDefId(maker), pos);
 						return true;
 					}
@@ -1510,10 +1506,6 @@ bool AAIExecute::BuildFactory()
 				// give build order
 				builder->GiveConstructionOrder(*factory, buildpos);
 
-				// add average ressource usage
-				futureRequestedMetal  += ai->Getbt()->units_static[factory->id].efficiency[0];
-				futureRequestedEnergy += ai->Getbt()->units_static[factory->id].efficiency[1];
-
 				ai->Getbt()->ConstructionOrderForFactoryGiven(*factory);
 				return true;
 			}
@@ -2001,7 +1993,6 @@ void AAIExecute::CheckRessources()
 					//ai->Getcb()->GiveOrder(*maker, &c);
 					GiveOrder(&c, *maker, "ToggleMMaker");
 
-					futureRequestedEnergy += ai->GetAICallback()->GetUnitDef(*maker)->energyUpkeep;
 					++disabledMMakers;
 					break;
 				}
@@ -2024,7 +2015,6 @@ void AAIExecute::CheckRessources()
 					//ai->Getcb()->GiveOrder(*maker, &c);
 					GiveOrder(&c, *maker, "ToggleMMaker");
 
-					futureRequestedEnergy -= usage;
 					--disabledMMakers;
 					break;
 				}
@@ -2525,27 +2515,6 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 		if(futureAvailableEnergy < 0.0f)
 			futureAvailableEnergy = 0.0f;
 	}
-	else if(category.isMetalMaker())
-	{
-		futureRequestedEnergy -= ai->Getbt()->GetUnitDef(def->id).energyUpkeep;
-
-		if(futureRequestedEnergy < 0)
-			futureRequestedEnergy = 0;
-	}
-	/*else if(category == STATIONARY_JAMMER)
-	{
-		futureRequestedEnergy -= ai->Getbt()->units_static[def->id].efficiency[0];
-
-		if(futureRequestedEnergy < 0)
-			futureRequestedEnergy = 0;
-	}*/
-	else if(category.isStaticSensor())
-	{
-		futureRequestedEnergy -= ai->Getbt()->units_static[def->id].efficiency[0];
-
-		if(futureRequestedEnergy < 0)
-			futureRequestedEnergy = 0;
-	}
 	else if(category.isStaticDefence())
 	{
 		ai->Getmap()->RemoveDefence(&build_pos, unitDefId.id);
@@ -2555,16 +2524,6 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 		ai->Getut()->futureFactories -= 1;
 
 		ai->Getbt()->UnfinishedConstructorKilled(unitDefId);
-
-		// remove future ressource demand since factory is no longer being built
-		futureRequestedMetal -= ai->Getbt()->units_static[def->id].efficiency[0];
-		futureRequestedEnergy -= ai->Getbt()->units_static[def->id].efficiency[1];
-
-		if(futureRequestedEnergy < 0)
-			futureRequestedEnergy = 0;
-
-		if(futureRequestedMetal < 0)
-			futureRequestedMetal = 0;
 	}
 
 	// update buildmap of sector

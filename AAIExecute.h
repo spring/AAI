@@ -126,8 +126,6 @@ public:
 
 	// ressource management
 	// tells ai, how many times additional metal/energy has been requested
-	float futureRequestedMetal;
-	float futureRequestedEnergy;
 	float futureAvailableMetal;
 	float futureAvailableEnergy;
 	int disabledMMakers;

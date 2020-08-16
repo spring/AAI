@@ -94,7 +94,6 @@ AAI::~AAI()
 	Log("\nSea Groups:       " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::SEA_COMBAT).GetArrayIndex()].size());
 	Log("\nSubmarine Groups: " _STPF_ "\n\n", group_list[AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT).GetArrayIndex()].size());
 
-	Log("Future metal/energy request: %i / %i\n", (int)execute->futureRequestedMetal, (int)execute->futureRequestedEnergy);
 	Log("Future metal/energy supply:  %i / %i\n\n", (int)execute->futureAvailableMetal, (int)execute->futureAvailableEnergy);
 
 	Log("Future/active builders:      %i / %i\n", ut->futureBuilders, ut->activeBuilders);
