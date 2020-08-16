@@ -132,7 +132,8 @@ private:
 
 	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatPower& combatCriteria, bool urgent);
 
-	vector<float> defence_power_vs;
+	//! The combat power of all mobile units against the different target types
+	AAIMobileCombatPower m_totalMobileCombatPower;
 
 	//! Ratio of cells with flat land of all base sectors (ranging from 0 (none) to 1(all))
 	float m_baseFlatLandRatio;

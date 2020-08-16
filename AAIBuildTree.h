@@ -59,7 +59,7 @@ public:
 
 	void SetCombatPower(const AAITargetType& targetType, float value) { m_mobileCombatPower[targetType.GetArrayIndex()] = value; }
 
-	float GetCombatPowerVsTargetCategory(const AAITargetType& targetType) const { return m_mobileCombatPower[targetType.GetArrayIndex()]; }
+	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const { return m_mobileCombatPower[targetType.GetArrayIndex()]; }
 
 	void Reset()
 	{
@@ -70,13 +70,18 @@ public:
 		m_mobileCombatPower[3] = 0.0f;
 	}
 
-	void AddCombatPowerOfUnitType(const AAICombatPower& combatPower, float modifier = 1.0f)
+	void AddCombatPower(const AAICombatPower& combatPower, float modifier = 1.0f)
 	{
 		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
 		m_mobileCombatPower[0] += (modifier * combatPower.m_combatPower[0]);
 		m_mobileCombatPower[1] += (modifier * combatPower.m_combatPower[1]);
 		m_mobileCombatPower[2] += (modifier * combatPower.m_combatPower[2]);
 		m_mobileCombatPower[3] += (modifier * combatPower.m_combatPower[3]);
+	}
+
+	void AddCombatPowerVsTargetType(const AAITargetType& targetType, float combatPower)
+	{
+		m_mobileCombatPower[targetType.GetArrayIndex()] += combatPower;
 	}
 
 private:

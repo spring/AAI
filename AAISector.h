@@ -117,10 +117,10 @@ public:
 	float GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const;
 
 	//! @brief Get total (mobile + static) defence power vs given target type
-	float GetEnemyCombatPower(const AAITargetType& targetType) const { return m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(targetType) + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(targetType); }
+	float GetEnemyCombatPower(const AAITargetType& targetType) const { return m_enemyStaticCombatPower.GetCombatPowerVsTargetType(targetType) + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(targetType); }
 
 	//! @brief Returns cmbat power of own/allied static defences against given target type
-	float GetFriendlyStaticDefencePower(const AAITargetType& targetType) const { return m_friendlyStaticCombatPower.GetCombatPowerVsTargetCategory(targetType); }
+	float GetFriendlyStaticDefencePower(const AAITargetType& targetType) const { return m_friendlyStaticCombatPower.GetCombatPowerVsTargetType(targetType); }
 
 	// returns combat power of units in that and neighbouring sectors vs combat cat
 	float GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const;

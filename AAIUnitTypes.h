@@ -182,6 +182,28 @@ public:
 
 	AAITargetType() : AAITargetType(ETargetType::UNKNOWN) {}
 
+	AAITargetType(const AAICombatUnitCategory& combatCategory)
+	{
+		switch(combatCategory.GetCombatUnitCategory())
+		{
+			case ECombatUnitCategory::GROUND_COMBAT:
+			case ECombatUnitCategory::HOVER_COMBAT:
+				m_targetType = ETargetType::SURFACE;
+				break;
+			case ECombatUnitCategory::AIR_COMBAT:
+				m_targetType = ETargetType::AIR;
+				break;
+			case ECombatUnitCategory::SEA_COMBAT:
+				m_targetType = ETargetType::FLOATER;
+				break;
+			case ECombatUnitCategory::SUBMARINE_COMBAT:
+				m_targetType = ETargetType::SUBMERGED;
+				break;
+			default:
+				m_targetType = ETargetType::UNKNOWN;
+		}
+	}
+
 	void SetType(ETargetType targetType) { m_targetType = targetType; }
 
 	bool IsValid()      const { return (m_targetType != ETargetType::UNKNOWN); }

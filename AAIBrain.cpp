@@ -39,7 +39,6 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	sectors.resize(maxSectorDistanceToBase);
 
 	max_combat_units_spotted.resize(AAIBuildTable::ass_categories, 0.0f);
-	defence_power_vs.resize(AAIBuildTable::ass_categories, 0.0f);
 
 	enemy_pressure_estimation = 0;
 }
@@ -563,61 +562,40 @@ void AAIBrain::AttackedBy(const AAIUnitCategory& categoryAttacker)
 
 void AAIBrain::UpdateDefenceCapabilities()
 {
-	for(int i = 0; i < ai->Getbt()->assault_categories.size(); ++i)
-		defence_power_vs[i] = 0;
-	fill(defence_power_vs.begin(), defence_power_vs.end(), 0.0f);
+	m_totalMobileCombatPower.Reset();
 
-	if(cfg->AIR_ONLY_MOD)
+	// anti air power
+	for(auto category = ai->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 	{
-		for(auto category = ai->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
+		for(auto group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 		{
-			for(std::list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
+			if((*group)->GetUnitTypeOfGroup().IsAssaultUnit())
 			{
-				defence_power_vs[0] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
-				defence_power_vs[1] += (*group)->GetCombatPowerVsTargetType(ETargetType::AIR);
-				defence_power_vs[2] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
-				defence_power_vs[3] += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
-				defence_power_vs[4] += (*group)->GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
-			}
-		}
-	}
-	else
-	{
-		// anti air power
-		for(auto category = ai->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
-		{
-			for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
-			{
-				if((*group)->GetUnitTypeOfGroup().IsAssaultUnit())
+				switch((*group)->GetUnitCategoryOfGroup().getUnitCategory())
 				{
-					switch((*group)->GetUnitCategoryOfGroup().getUnitCategory())
-					{
-						case EUnitCategory::GROUND_COMBAT:
-							defence_power_vs[0] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
-							defence_power_vs[2] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
-							break;
-						case EUnitCategory::HOVER_COMBAT:
-							defence_power_vs[0] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
-							defence_power_vs[2] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
-							defence_power_vs[3] += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
-							break;
-						case EUnitCategory::SEA_COMBAT:
-							defence_power_vs[2] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
-							defence_power_vs[3] += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
-							defence_power_vs[4] += (*group)->GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
-							break;
-						case EUnitCategory::SUBMARINE_COMBAT:
-							defence_power_vs[3] += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
-							defence_power_vs[4] += (*group)->GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
-							break;
-					}	
-				}
-				else if((*group)->GetUnitTypeOfGroup().IsAntiAir())
-					defence_power_vs[1] += (*group)->GetCombatPowerVsTargetType(ETargetType::AIR);
+					case EUnitCategory::GROUND_COMBAT:
+						m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SURFACE, (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE));
+						break;
+					case EUnitCategory::HOVER_COMBAT:
+						m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SURFACE, (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE));
+						m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::FLOATER, (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER));
+						break;
+					case EUnitCategory::SEA_COMBAT:
+						m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SURFACE,   (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE));
+						m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::FLOATER,   (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER));
+						m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SUBMERGED, (*group)->GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+						break;
+					case EUnitCategory::SUBMARINE_COMBAT:
+						m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::FLOATER,   (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER));
+						m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SUBMERGED, (*group)->GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+						break;
+				}	
 			}
+			else if((*group)->GetUnitTypeOfGroup().IsAntiAir())
+				m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::AIR, (*group)->GetCombatPowerVsTargetType(ETargetType::AIR));
 		}
 	}
-
+	
 	// debug
 	/*ai->Log("Defence capabilities:\n");
 
@@ -628,53 +606,43 @@ void AAIBrain::UpdateDefenceCapabilities()
 
 void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 {
-	if(cfg->AIR_ONLY_MOD)
-	{
-		defence_power_vs[0] += ai->Getbt()->units_static[unitDefId.id].efficiency[0];
-		defence_power_vs[1] += ai->Getbt()->units_static[unitDefId.id].efficiency[1];
-		defence_power_vs[2] += ai->Getbt()->units_static[unitDefId.id].efficiency[2];
-		defence_power_vs[3] += ai->Getbt()->units_static[unitDefId.id].efficiency[3];
-	}
-	else
-	{
-		if(ai->Getbt()->GetUnitType(unitDefId.id).IsAssaultUnit())
-		{
-			const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
+	const AAICombatPower& combatPower = ai->s_buildTree.GetCombatPower(unitDefId);
 
-			switch (category.getUnitCategory())
+	if(ai->s_buildTree.GetUnitType(unitDefId).IsAssaultUnit())
+	{
+		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
+
+		switch (category.getUnitCategory())
+		{
+			case EUnitCategory::GROUND_COMBAT:
 			{
-				case EUnitCategory::GROUND_COMBAT:
-				{
-					defence_power_vs[0] += ai->Getbt()->units_static[unitDefId.id].efficiency[0];
-					defence_power_vs[2] += ai->Getbt()->units_static[unitDefId.id].efficiency[2];
-					break;
-				}
-				case EUnitCategory::HOVER_COMBAT:
-				{
-					defence_power_vs[0] += ai->Getbt()->units_static[unitDefId.id].efficiency[0];
-					defence_power_vs[2] += ai->Getbt()->units_static[unitDefId.id].efficiency[2];
-					defence_power_vs[3] += ai->Getbt()->units_static[unitDefId.id].efficiency[3];
-					break;
-				}
-				case EUnitCategory::SEA_COMBAT:
-				{
-					defence_power_vs[2] += ai->Getbt()->units_static[unitDefId.id].efficiency[2];
-					defence_power_vs[3] += ai->Getbt()->units_static[unitDefId.id].efficiency[3];
-					defence_power_vs[4] += ai->Getbt()->units_static[unitDefId.id].efficiency[4];
-					break;
-				}
-				case EUnitCategory::SUBMARINE_COMBAT:
-				{
-					defence_power_vs[3] += ai->Getbt()->units_static[unitDefId.id].efficiency[3];
-					defence_power_vs[4] += ai->Getbt()->units_static[unitDefId.id].efficiency[4];
-				}
-				default:
-					break;
+				m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SURFACE, combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				break;
 			}
+			case EUnitCategory::HOVER_COMBAT:
+			{
+				m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SURFACE, combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::FLOATER, combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				break;
+			}
+			case EUnitCategory::SEA_COMBAT:
+			{
+				m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SURFACE,   combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::FLOATER,   combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SUBMERGED, combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+				break;
+			}
+			case EUnitCategory::SUBMARINE_COMBAT:
+			{
+				m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::FLOATER,   combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::SUBMERGED, combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+			}
+			default:
+				break;
 		}
-		else if(ai->Getbt()->GetUnitType(unitDefId.id).IsAntiAir())
-			defence_power_vs[1] += ai->Getbt()->units_static[unitDefId.id].efficiency[1];
 	}
+	else if(ai->Getbt()->GetUnitType(unitDefId.id).IsAntiAir())
+		m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::AIR, combatPower.GetCombatPowerVsTargetType(ETargetType::AIR));
 }
 
 float AAIBrain::Affordable()
@@ -702,26 +670,28 @@ void AAIBrain::BuildUnits()
 		attackedByCatStatistics.AddValue( attackedByCategory[category.GetArrayIndex()] );
 
 		unitsSpottedStatistics.AddValue(max_combat_units_spotted[category.GetArrayIndex()]);
-		defenceStatistics.AddValue(defence_power_vs[category.GetArrayIndex()]);
+
+		AAITargetType targetType(category);
+		defenceStatistics.AddValue(m_totalMobileCombatPower.GetCombatPowerVsTargetType(targetType));
 	}
 
 	attackedByCatStatistics.Finalize();
 	unitsSpottedStatistics.Finalize();
 	defenceStatistics.Finalize();
 
-	
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate urgency to counter each of the different combat categories
 	//-----------------------------------------------------------------------------------------------------------------
 	float urgency[AAIBuildTable::ass_categories];
 
-	for(int cat = 0; cat < AAIBuildTable::ass_categories; ++cat)
+	for(AAICombatUnitCategory category(AAICombatUnitCategory::firstCombatUnitCategory); category.End() == false; category.Next())
 	{
-		urgency[cat] =    attackedByCatStatistics.GetNormalizedDeviationFromMin(attackedByCategory[cat]) 
-	                    + unitsSpottedStatistics.GetNormalizedDeviationFromMin(max_combat_units_spotted[cat])
-	                    + 1.5f * defenceStatistics.GetNormalizedDeviationFromMax(defence_power_vs[cat]);
-	}
-								 
+		AAITargetType targetType(category);
+		urgency[category.GetArrayIndex()] =    
+						  attackedByCatStatistics.GetNormalizedDeviationFromMin(attackedByCategory[category.GetArrayIndex()]) 
+	                    + unitsSpottedStatistics.GetNormalizedDeviationFromMin(max_combat_units_spotted[category.GetArrayIndex()])
+	                    + 1.5f * defenceStatistics.GetNormalizedDeviationFromMax(m_totalMobileCombatPower.GetCombatPowerVsTargetType(targetType));
+	}						 
 
 	CombatPower combatCriteria;
 	combatCriteria.vsGround    = urgency[0];
@@ -773,46 +743,6 @@ void AAIBrain::BuildUnits()
 			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
 		}
 	}
-	
-	/*if(cfg->AIR_ONLY_MOD)
-	{
-		// determine effectiveness vs several other units
-		anti_ground_urgency = (int)( 2 + (0.05f + ground) * (2.0f * attacked_by[0] + 1.0f) * (4.0f * max_combat_units_spotted[0] + 0.2f) / (4.0f * defence_power_vs[0] + 1));
-		anti_air_urgency = (int)( 2 + (0.05f + air) * (2.0f * attacked_by[1] + 1.0f) * (4.0f * max_combat_units_spotted[1] + 0.2f) / (4.0f * defence_power_vs[1] + 1));
-		anti_hover_urgency = (int)( 2 + (0.05f + hover) * (2.0f * attacked_by[2] + 1.0f) * (4.0f * max_combat_units_spotted[2] + 0.2f) / (4.0f * defence_power_vs[2] + 1));
-		anti_sea_urgency = (int) (2 + (0.05f + sea) * (2.0f * attacked_by[3] + 1.0f) * (4.0f * max_combat_units_spotted[3] + 0.2f) / (4.0f * defence_power_vs[3] + 1));
-
-		for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
-		{
-			ground_eff = 0;
-			air_eff = 0;
-			hover_eff = 0;
-			sea_eff = 0;
-
-			k = rand()%(anti_ground_urgency + anti_air_urgency + anti_hover_urgency + anti_sea_urgency);
-
-			if(k < anti_ground_urgency)
-			{
-				ground_eff = 4;
-			}
-			else if(k < anti_ground_urgency + anti_air_urgency)
-			{
-				air_eff = 4;
-			}
-			else if(k < anti_ground_urgency + anti_air_urgency + anti_hover_urgency)
-			{
-				hover_eff = 4;
-			}
-			else
-			{
-				sea_eff = 4;
-			}
-
-			allowedMoveTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR);
-
-			BuildUnitOfMovementType(allowedMoveTypes, cost, ground_eff, air_eff, hover_eff, sea_eff, submarine_eff, stat_eff, urgent);
-		}
-	}*/
 }
 
 void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatPower& combatCriteria, bool urgent)

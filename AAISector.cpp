@@ -160,7 +160,7 @@ void AAISector::AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly)
 			++m_alliedBuildings;
 
 		if(category.isStaticDefence())
-			m_friendlyStaticCombatPower.AddCombatPowerOfUnitType( ai->s_buildTree.GetCombatPower(unitDefId) );
+			m_friendlyStaticCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(unitDefId) );
 	}
 }
 
@@ -174,7 +174,7 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 
 		if(categoryOfEnemyUnit.isStaticDefence())
 		{
-			m_enemyStaticCombatPower.AddCombatPowerOfUnitType( ai->s_buildTree.GetCombatPower(enemyDefId) );
+			m_enemyStaticCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(enemyDefId) );
 		}
 	}
 	// add unit to sector and update mobile_combat_power
@@ -186,7 +186,7 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 
 		m_enemyCombatUnits[combatCategory.GetArrayIndex()] += lastSeen;
 
-		m_enemyMobileCombatPower.AddCombatPowerOfUnitType( ai->s_buildTree.GetCombatPower(enemyDefId), lastSeen );
+		m_enemyMobileCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(enemyDefId), lastSeen );
 	}
 }
 
@@ -517,11 +517,11 @@ float AAISector::GetThreatByID(int combat_cat_id, float learned, float current)
 
 float AAISector::GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const
 {
-	return (combatCategoryWeigths.vsGround  * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE))
-		+ combatCategoryWeigths.vsAir       * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::AIR)       + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::AIR))
-		+ combatCategoryWeigths.vsHover     * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SURFACE))
-		+ combatCategoryWeigths.vsSea       * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::FLOATER)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::FLOATER))
-		+ combatCategoryWeigths.vsSubmarine * (m_enemyStaticCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SUBMERGED) + m_enemyMobileCombatPower.GetCombatPowerVsTargetCategory(ETargetType::SUBMERGED)) );
+	return (combatCategoryWeigths.vsGround  * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE))
+		+ combatCategoryWeigths.vsAir       * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::AIR)       + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::AIR))
+		+ combatCategoryWeigths.vsHover     * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE))
+		+ combatCategoryWeigths.vsSea       * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER))
+		+ combatCategoryWeigths.vsSubmarine * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED) + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED)) );
 }
 
 float AAISector::GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const
