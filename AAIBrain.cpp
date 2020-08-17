@@ -641,7 +641,7 @@ void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 				break;
 		}
 	}
-	else if(ai->Getbt()->GetUnitType(unitDefId.id).IsAntiAir())
+	else if(ai->s_buildTree.GetUnitType(unitDefId).IsAntiAir())
 		m_totalMobileCombatPower.AddCombatPowerVsTargetType(ETargetType::AIR, combatPower.GetCombatPowerVsTargetType(ETargetType::AIR));
 }
 

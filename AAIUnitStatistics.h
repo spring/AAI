@@ -82,6 +82,12 @@ public:
 			m_attackedByRatesPerGamePhase[i].DecreaseByFactor(factor);
 	}
 
+	float GetAttackedByRateUntilEarlyPhase(const AAICombatCategory& attackerCategory) const
+	{
+		static_assert(GamePhase::numberOfGamePhases >= 2, "Number of game phases does not fit to implementation");
+		return (m_attackedByRatesPerGamePhase[0].GetAttackedByRate(attackerCategory) + m_attackedByRatesPerGamePhase[1].GetAttackedByRate(attackerCategory));
+	}
+
 private:
 	//! Frequency of attacks in a certain game phase
 	std::vector< AttackedByRates > m_attackedByRatesPerGamePhase;
@@ -109,6 +115,11 @@ public:
 	AttackedByRatesPerGamePhase& GetAttackedByRates(const AAIMapType& mapType) 
 	{ 
 		return m_attackedByRatesPerGamePhaseAndMapType[mapType.GetArrayIndex()]; 
+	}
+
+	float GetAttackedByRateUntilEarlyPhase(const AAIMapType& mapType, const AAICombatCategory& attackerCategory) const
+	{
+		return m_attackedByRatesPerGamePhaseAndMapType[mapType.GetArrayIndex()].GetAttackedByRateUntilEarlyPhase(attackerCategory);
 	}
 
 private:

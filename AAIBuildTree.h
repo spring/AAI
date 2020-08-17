@@ -84,6 +84,14 @@ public:
 		m_mobileCombatPower[targetType.GetArrayIndex()] += combatPower;
 	}
 
+	float CalculateWeightedSum(const AAIMobileCombatPower& mobileCombatPowerWeights) const
+	{		
+		return 	  (m_mobileCombatPower[0] * mobileCombatPowerWeights.m_mobileCombatPower[0])
+				+ (m_mobileCombatPower[1] * mobileCombatPowerWeights.m_mobileCombatPower[1])
+				+ (m_mobileCombatPower[2] * mobileCombatPowerWeights.m_mobileCombatPower[2])
+		     	+ (m_mobileCombatPower[3] * mobileCombatPowerWeights.m_mobileCombatPower[3]);
+	}
+
 private:
 	std::vector<float> m_mobileCombatPower;
 };

@@ -23,10 +23,6 @@ using namespace springLegacyAI;
 
 // all the static vars
 vector<UnitTypeStatic> AAIBuildTable::units_static;
-vector< vector< vector<float> > > AAIBuildTable::avg_eff;
-vector< vector< vector<float> > > AAIBuildTable::max_eff;
-vector< vector< vector<float> > > AAIBuildTable::min_eff;
-vector< vector< vector<float> > > AAIBuildTable::total_eff;
 vector< vector<float> > AAIBuildTable::fixed_eff;
 
 AttackedByRatesPerGamePhaseAndMapType AAIBuildTable::s_attackedByRates;
@@ -51,28 +47,10 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 	assault_categories.push_back(HOVER_ASSAULT);
 	assault_categories.push_back(SEA_ASSAULT);
 	assault_categories.push_back(SUBMARINE_ASSAULT);
-
-	// only set up static things if first aai instance is initialized
-	if(ai->GetAAIInstance() == 1)
-	{
-		// init eff stats
-		avg_eff.resize(numOfSides, vector< vector<float> >(combat_categories, vector<float>(combat_categories, 1.0f)));
-		max_eff.resize(numOfSides, vector< vector<float> >(combat_categories, vector<float>(combat_categories, 1.0f)));
-		min_eff.resize(numOfSides, vector< vector<float> >(combat_categories, vector<float>(combat_categories, 1.0f)));
-		total_eff.resize(numOfSides, vector< vector<float> >(combat_categories, vector<float>(combat_categories, 1.0f)));
-	}
 }
 
 AAIBuildTable::~AAIBuildTable(void)
 {
-	// delete common data only if last AAI instance is deleted
-	if(ai->GetNumberOfAAIInstances() == 0)
-	{
-		avg_eff.clear();
-		max_eff.clear();
-		min_eff.clear();
-		total_eff.clear();
-	}
 	unitList.clear();
 }
 
@@ -217,16 +195,7 @@ void AAIBuildTable::Init()
 			}
 		}
 
-		// precache stats
-		PrecacheStats();
-
 		ai->LogConsole("New BuildTable has been created");
-	}
-
-	// only once
-	if(ai->GetAAIInstance() == 1)
-	{
-		UpdateMinMaxAvgEfficiency();
 	}
 
 	// buildtable is initialized
@@ -278,120 +247,6 @@ void AAIBuildTable::UnfinishedConstructorKilled(UnitDefId constructor)
 	for(std::list<UnitDefId>::const_iterator id = ai->s_buildTree.GetCanConstructList(constructor).begin();  id != ai->s_buildTree.GetCanConstructList(constructor).end(); ++id)
 	{
 		--units_dynamic[(*id).id].constructorsRequested;
-	}
-}
-
-void AAIBuildTable::PrecacheStats()
-{
-	for(int side = 1; side <= numOfSides; ++side)
-	{
-		// precache efficiency of metalmakers
-		for(auto metalMaker = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_MAKER, side).begin(); metalMaker != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_MAKER, side).end(); ++metalMaker)
-		{
-			if (GetUnitDef(metalMaker->id).makesMetal <= 0.1f) {
-				units_static[metalMaker->id].efficiency[0] = 12.0f/600.0f; //FIXME: this somehow is broken...
-			} else {
-				units_static[metalMaker->id].efficiency[0] = GetUnitDef(metalMaker->id).makesMetal/(GetUnitDef(metalMaker->id).energyUpkeep+1);
-			}
-		}
-
-		// precache average metal and energy consumption of factories
-		float average_metal, average_energy;
-		for(auto factory = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); factory != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++factory)
-		{
-			average_metal = average_energy = 0;
-
-			for(auto unit = ai->s_buildTree.GetCanConstructList(UnitDefId(factory->id)).begin(); unit != ai->s_buildTree.GetCanConstructList(UnitDefId(factory->id)).end(); ++unit)
-			{
-				average_metal += ( GetUnitDef((*unit).id).metalCost * GetUnitDef(factory->id).buildSpeed ) / GetUnitDef((*unit).id).buildTime;
-				average_energy += ( GetUnitDef((*unit).id).energyCost * GetUnitDef(factory->id).buildSpeed ) / GetUnitDef((*unit).id).buildTime;
-			}
-
-			units_static[factory->id].efficiency[0] = average_metal  / ai->s_buildTree.GetCanConstructList(UnitDefId(factory->id)).size();
-			units_static[factory->id].efficiency[1] = average_energy / ai->s_buildTree.GetCanConstructList(UnitDefId(factory->id)).size();
-		}
-
-		// precache usage of jammers
-		for(auto jammer = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SUPPORT, side).begin(); jammer != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SUPPORT, side).end(); ++jammer)
-		{
-			if(ai->s_buildTree.GetUnitType(*jammer).IsRadarJammer() && (GetUnitDef(jammer->id).energyUpkeep - GetUnitDef(jammer->id).energyMake > 0))
-				units_static[jammer->id].efficiency[0] = GetUnitDef(jammer->id).energyUpkeep - GetUnitDef(jammer->id).energyMake;
-		}
-
-		// precache usage of radar
-		for(auto radar = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SENSOR, side).begin(); radar != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SENSOR, side).end(); ++radar)
-		{
-			if(GetUnitDef(radar->id).energyUpkeep - GetUnitDef(radar->id).energyMake > 0)
-				units_static[radar->id].efficiency[0] = GetUnitDef(radar->id).energyUpkeep - GetUnitDef(radar->id).energyMake;
-		}
-	}
-}
-
-AAIUnitType AAIBuildTable::GetUnitType(UnitDefId unitDefId) const
-{
-	if(cfg->AIR_ONLY_MOD)
-	{
-		return AAIUnitType(EUnitType::ANTI_SURFACE);
-	}
-	else
-	{
-		if (units_static.empty()) 
-			return AAIUnitType(EUnitType::UNKNOWN);
-
-		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
-
-		int side = ai->s_buildTree.GetSideOfUnitType(unitDefId)-1;
-
-		if(side < 0)
-			return AAIUnitType(EUnitType::UNKNOWN);
-
-		if(category.isGroundCombat())
-		{
-			if( units_static[unitDefId.id].efficiency[1] / max_eff[side][0][1]  > 6.0f * units_static[unitDefId.id].efficiency[0] / max_eff[side][0][0] )
-				return AAIUnitType(EUnitType::ANTI_AIR);
-			else
-				return AAIUnitType(EUnitType::ANTI_SURFACE);
-		}
-		else if(category.isAirCombat())
-		{
-			float vs_building = units_static[unitDefId.id].efficiency[5] / max_eff[side][1][5];
-
-			float vs_units = (units_static[unitDefId.id].efficiency[0] / max_eff[side][1][0]
-							+ units_static[unitDefId.id].efficiency[3] / max_eff[side][1][3]) / 2.0f;
-
-			if( units_static[unitDefId.id].efficiency[1]  / max_eff[side][1][1] > 2 * (vs_building + vs_units) )
-				return AAIUnitType(EUnitType::ANTI_AIR);
-			else
-			{
-				if(vs_building > 4 * vs_units || GetUnitDef(unitDefId.id).type == string("Bomber"))
-					return AAIUnitType(EUnitType::ANTI_STATIC);
-				else
-					return AAIUnitType(EUnitType::ANTI_SURFACE);
-			}
-		}
-		else if(category.isHoverCombat())
-		{
-			if( units_static[unitDefId.id].efficiency[1] / max_eff[side][2][1] > 6.0f * units_static[unitDefId.id].efficiency[0] / max_eff[side][2][0] )
-				return AAIUnitType(EUnitType::ANTI_AIR);
-			else
-				return AAIUnitType(EUnitType::ANTI_SURFACE);
-		}
-		else if(category.isSeaCombat())
-		{
-			if( units_static[unitDefId.id].efficiency[1] / max_eff[side][3][1] > 6.0f * units_static[unitDefId.id].efficiency[3] / max_eff[side][3][3] )
-				return AAIUnitType(EUnitType::ANTI_AIR);
-			else
-				return AAIUnitType(EUnitType::ANTI_SURFACE);
-		}
-		else if(category.isSubmarineCombat())
-		{
-			if( units_static[unitDefId.id].efficiency[1] / max_eff[side][4][1] > 6 * units_static[unitDefId.id].efficiency[3] / max_eff[side][4][3] )
-				return AAIUnitType(EUnitType::ANTI_AIR);
-			else
-				return AAIUnitType(EUnitType::ANTI_SURFACE);
-		}
-		else
-			return AAIUnitType(EUnitType::UNKNOWN);
 	}
 }
 
@@ -566,57 +421,28 @@ UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, fl
 	return selectedStorage;
 }
 
-int AAIBuildTable::GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild)
+UnitDefId AAIBuildTable::GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild) const
 {
-	int best_maker = 0;
-	float best_rating = 0, my_rating;
+	UnitDefId selectedMetalMaker;
 
 	for(auto maker = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_MAKER, side).begin(); maker != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_MAKER, side).end(); ++maker)
 	{
-
-		//ai->LogConsole("MakesMetal: %f", GetUnitDef(*maker).makesMetal);
-		//this somehow got broken in spring... :(
-		float makesMetal = GetUnitDef(maker->id).makesMetal;
-		if (makesMetal <= 0.1f) {
-			makesMetal = 12.0f/600.0f;
-		}
-
-		if(canBuild && units_dynamic[maker->id].constructorsAvailable <= 0)
-			my_rating = 0;
-		else if(!water && GetUnitDef(maker->id).minWaterDepth <= 0)
-		{
-			my_rating = (pow((long double) efficiency * units_static[maker->id].efficiency[0], (long double) 1.4) + pow((long double) metal * makesMetal, (long double) 1.6))
-				/(pow((long double) cost * ai->s_buildTree.GetTotalCost(*maker),(long double) 1.4) + pow((long double) urgency * ai->s_buildTree.GetBuildtime(*maker),(long double) 1.4));
-		}
-		else if(water && GetUnitDef(maker->id).minWaterDepth > 0)
-		{
-			my_rating = (pow((long double) efficiency * units_static[maker->id].efficiency[0], (long double) 1.4) + pow((long double) metal * makesMetal, (long double) 1.6))
-				/(pow((long double) cost * ai->s_buildTree.GetTotalCost(*maker),(long double) 1.4) + pow((long double) urgency * ai->s_buildTree.GetBuildtime(*maker),(long double) 1.4));
-		}
-		else
-			my_rating = 0;
-
-
-		if(my_rating > best_rating)
-		{
-			best_rating = my_rating;
-			best_maker = maker->id;
-		}
+		//! @todo reimplement selection of metal makers
 	}
 
-	return best_maker;
+	return selectedMetalMaker;
 }
 
-UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
+UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapType)
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// create list with all factories that can be built (i.e. can be constructed by the start unit)
 	//-----------------------------------------------------------------------------------------------------------------
 
-	std::list<FactoryRatingInputData> factoryList;
-	CombatPower combatPowerWeights(0.0f);
-	DetermineCombatPowerWeights(combatPowerWeights, mapType);
+	AAIMobileCombatPower  mobileCombatPowerWeights;
+	DetermineCombatPowerWeights(mobileCombatPowerWeights, mapType);
 
+	std::list<FactoryRatingInputData> factoryList;
 	StatisticalData combatPowerRatingStatistics;
 
 	for(auto factory = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); factory != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++factory)
@@ -624,7 +450,7 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
 		if(units_dynamic[factory->id].constructorsAvailable > 0)
 		{
 			FactoryRatingInputData data;
-			CalculateFactoryRating(data, *factory, combatPowerWeights, mapType);
+			CalculateFactoryRating(data, *factory, mobileCombatPowerWeights, mapType);
 			factoryList.push_back(data);
 
 			combatPowerRatingStatistics.AddValue(data.combatPowerRating);
@@ -681,52 +507,29 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, MapType mapType)
 	return selectedFactoryDefId;
 }
 
-void AAIBuildTable::DetermineCombatPowerWeights(CombatPower& combatPowerWeights, const MapType oldMapType) const
+void AAIBuildTable::DetermineCombatPowerWeights(AAIMobileCombatPower& combatPowerWeights, const AAIMapType& mapType) const
 {
-	AAIMapType mapType(static_cast<EMapType>(oldMapType)); //! @todo Will be removed after switching to new AAIMapType
-	GamePhase startingPhase(0);
-	GamePhase earlyPhase(0);
-	earlyPhase.Next();
-
-	combatPowerWeights.vsAir       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::AIR) 
-	                                         + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::AIR)   );
-	combatPowerWeights.vsHover     = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SURFACE) 
-	                                         + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SURFACE) );
-
-	switch(oldMapType)
+	combatPowerWeights.SetCombatPower(ETargetType::AIR,     0.5f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::AIR));
+	combatPowerWeights.SetCombatPower(ETargetType::SURFACE, 0.5f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::SURFACE));
+	
+	if(!mapType.IsLandMap())
 	{
-		case LAND_MAP:
-			combatPowerWeights.vsGround    = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SURFACE) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SURFACE) );
-			break;
-		case LAND_WATER_MAP:
-			combatPowerWeights.vsGround    = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SURFACE) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SURFACE) );
-			combatPowerWeights.vsSea       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::FLOATER) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::FLOATER) );
-			combatPowerWeights.vsSubmarine = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SUBMERGED) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SUBMERGED) );
-			break;
-		case WATER_MAP:
-			combatPowerWeights.vsSea       = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::FLOATER) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::FLOATER) );
-			combatPowerWeights.vsSubmarine = 0.5f + (  s_attackedByRates.GetAttackedByRate(mapType, startingPhase, EMobileTargetType::SUBMERGED) 
-	                                                 + s_attackedByRates.GetAttackedByRate(mapType, earlyPhase,    EMobileTargetType::SUBMERGED) );
-			break;
+		combatPowerWeights.SetCombatPower(ETargetType::FLOATER,   0.5f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::FLOATER));
+		combatPowerWeights.SetCombatPower(ETargetType::SUBMERGED, 0.5f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::SUBMERGED));
 	}
 }
 
-void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const CombatPower& combatPowerWeights, const MapType mapType) const
+void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const AAIMobileCombatPower& combatPowerWeights, const AAIMapType& mapType) const
 {
 	ratingData.canConstructBuilder = false;
 	ratingData.canConstructScout   = false;
 	ratingData.factoryDefId        = factoryDefId;
 
-	CombatPower combatPowerOfConstructedUnits(0.0f);
+	AAIMobileCombatPower combatPowerOfConstructedUnits;
 	int         combatUnits(0);
 
-	const bool considerLand  = (mapType == LAND_WATER_MAP) || (mapType == LAND_MAP);
-	const bool considerWater = (mapType == LAND_WATER_MAP) || (mapType == WATER_MAP);
+	const bool considerLand  = !mapType.IsWaterMap();
+	const bool considerWater = !mapType.IsLandMap();
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// go through buildoptions to determine input values for calculation of factory rating
@@ -734,32 +537,32 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 
 	for(auto unit = ai->s_buildTree.GetCanConstructList(factoryDefId).begin(); unit != ai->s_buildTree.GetCanConstructList(factoryDefId).end(); ++unit)
 	{
+		const AAICombatPower& combatPowerOfUnit = ai->s_buildTree.GetCombatPower(*unit);
+
 		switch(ai->s_buildTree.GetUnitCategory(*unit).getUnitCategory())
 		{
 			case EUnitCategory::GROUND_COMBAT:
-				combatPowerOfConstructedUnits.vsGround += units_static[(*unit).id].efficiency[0];
-				combatPowerOfConstructedUnits.vsAir    += units_static[(*unit).id].efficiency[1];
-				combatPowerOfConstructedUnits.vsHover  += units_static[(*unit).id].efficiency[2];
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::AIR,     combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
 				++combatUnits;
 				break;
 			case EUnitCategory::AIR_COMBAT:     // same calculation as for hover
 			case EUnitCategory::HOVER_COMBAT:
-				combatPowerOfConstructedUnits.vsGround += units_static[(*unit).id].efficiency[0];
-				combatPowerOfConstructedUnits.vsAir    += units_static[(*unit).id].efficiency[1];
-				combatPowerOfConstructedUnits.vsHover  += units_static[(*unit).id].efficiency[2];
-				combatPowerOfConstructedUnits.vsSea    += units_static[(*unit).id].efficiency[3];
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::AIR,     combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::FLOATER, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
 				++combatUnits;
 				break;
 			case EUnitCategory::SEA_COMBAT:
-				combatPowerOfConstructedUnits.vsAir       += units_static[(*unit).id].efficiency[1];
-				combatPowerOfConstructedUnits.vsHover     += units_static[(*unit).id].efficiency[2];
-				combatPowerOfConstructedUnits.vsSea       += units_static[(*unit).id].efficiency[3];
-				combatPowerOfConstructedUnits.vsSubmarine += units_static[(*unit).id].efficiency[4];
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SURFACE,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::AIR,       combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
 				++combatUnits;
 				break;
 			case EUnitCategory::SUBMARINE_COMBAT:
-				combatPowerOfConstructedUnits.vsSea       += units_static[(*unit).id].efficiency[3];
-				combatPowerOfConstructedUnits.vsSubmarine += units_static[(*unit).id].efficiency[4];
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
 				++combatUnits;
 				break;
 			case EUnitCategory::MOBILE_CONSTRUCTOR:
@@ -1174,84 +977,10 @@ void AAIBuildTable::UpdateTable(const UnitDef* def_killer, int killer, const Uni
 	}
 }
 
-void AAIBuildTable::UpdateMinMaxAvgEfficiency()
-{
-	int counter;
-	float min, max, sum;
-
-	for(int side = 0; side < numOfSides; ++side)
-	{
-		for(int i = 0; i < combat_categories; ++i)
-		{
-			for(int j = 0; j < combat_categories; ++j)
-			{
-				const AAIUnitCategory& killerUnitCategory    = GetUnitCategoryOfCombatUnitIndex(i);
-				const AAIUnitCategory& destroyedUnitCategory = GetUnitCategoryOfCombatUnitIndex(j);
-				counter = 0;
-
-				// update max and avg efficiency of i versus j
-				max = 0;
-				min = 100000;
-				sum = 0;
-
-				for(auto unit = ai->s_buildTree.GetUnitsInCategory(killerUnitCategory, side+1).begin(); unit != ai->s_buildTree.GetUnitsInCategory(killerUnitCategory, side+1).end(); ++unit)
-				{
-					// only count anti air units vs air and assault units vs non air
-					if(    (destroyedUnitCategory.isAirCombat()  && ai->s_buildTree.GetUnitType(*unit).IsAntiAir()) 
-					    || (!destroyedUnitCategory.isAirCombat() && !ai->s_buildTree.GetUnitType(*unit).IsAntiAir()) )
-					{
-						sum += units_static[unit->id].efficiency[j];
-
-						if(units_static[unit->id].efficiency[j] > max)
-							max = units_static[unit->id].efficiency[j];
-
-						if(units_static[unit->id].efficiency[j] < min)
-							min = units_static[unit->id].efficiency[j];
-
-						++counter;
-					}
-				}
-
-				if(counter > 0)
-				{
-					avg_eff[side][i][j] = sum / counter;
-					max_eff[side][i][j] = max;
-					min_eff[side][i][j] = min;
-
-					total_eff[side][i][j] = max - min;
-
-					if(total_eff[side][i][j] <= 0)
-						total_eff[side][i][j] = 1;
-
-					if(max_eff[side][i][j] <= 0)
-						max_eff[side][i][j] = 1;
-
-					if(avg_eff[side][i][j] <= 0)
-						avg_eff[side][i][j] = 1;
-
-					if(min_eff[side][i][j] <= 0)
-						min_eff[side][i][j] = 1;
-				}
-				else
-				{
-					// set to 1 to prevent division by zero crashes
-					max_eff[side][i][j] = 1;
-					min_eff[side][i][j] = 1;
-					avg_eff[side][i][j] = 1;
-					total_eff[side][i][j] = 1;
-				}
-
-				//ai->Log("min_eff[%i][%i] %f;  max_eff[%i][%i] %f\n", i, j, this->min_eff[i][j], i, j, this->max_eff[i][j]);
-			}
-		}
-	}
-}
-
 std::string AAIBuildTable::GetBuildCacheFileName()
 {
 	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
 }
-
 
 // returns true if cache found
 bool AAIBuildTable::LoadBuildTable()
@@ -1324,22 +1053,6 @@ bool AAIBuildTable::LoadBuildTable()
 
 void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& attackedByRates, const AAIMapType& mapType)
 {
-	// reset factory ratings
-	for(int s = 0; s < cfg->SIDES; ++s)
-	{
-		for(auto fac = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, s+1).begin(); fac != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, s+1).end(); ++fac)
-		{
-			units_static[fac->id].efficiency[5] = -1;
-			units_static[fac->id].efficiency[4] = 0;
-		}
-	}
-	// reset builder ratings
-	for(int s = 0; s < cfg->SIDES; ++s)
-	{
-		for(auto builder = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, s+1).begin(); builder != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, s+1).end(); ++builder)
-			units_static[builder->id].efficiency[5] = -1;
-	}
-
 	const std::string filename = GetBuildCacheFileName();
 	FILE *save_file = fopen(filename.c_str(), "w+");
 

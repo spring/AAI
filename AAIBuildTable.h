@@ -74,9 +74,6 @@ public:
 	// cache for combat eff (needs side, thus initialized later)
 	void InitCombatEffCache(int side);
 
-	//! @brief Determines the unit type
-	AAIUnitType GetUnitType(UnitDefId unitDefId) const;
-
 	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
 	void ConstructorRequested(UnitDefId constructor);
 
@@ -90,11 +87,11 @@ public:
 	void UnfinishedConstructorKilled(UnitDefId constructor);
 
 	//! @brief Determines the first type of factory to be built and orders its contsruction (selected factory is returned)
-	UnitDefId RequestInitialFactory(int side, MapType mapType);
+	UnitDefId RequestInitialFactory(int side, const AAIMapType& mapType);
 
 	//! @brief Determines the weight factor for every combat unit category based on map type and how often AI had been attacked by 
 	//!        this category in the first phase of the game in the past
-	void DetermineCombatPowerWeights(CombatPower& combatPowerWeights, const MapType oldMapType) const;
+	void DetermineCombatPowerWeights(AAIMobileCombatPower& combatPowerWeights, const AAIMapType& mapType) const;
 
 	//! @brief Updates counters/buildqueue if a buildorder for a certain factory has been given
 	void ConstructionOrderForFactoryGiven(const UnitDefId& factoryDefId)
@@ -126,8 +123,8 @@ public:
 	//! @brief Selects a static defence according to given criteria; a builder is requested if none available and a different static defence is chosen.
 	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const AAITargetType& targetType, float range, int randomness, bool water);
 
-	// returns a metal maker
-	int GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild);
+	//! @brief Selects a metal maker - currently not implemented (returns no valid unit def id)
+	UnitDefId GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild) const;
 
 	//! @brief Selects a storage according to given criteria; a builder is requested if none available and a different storage is chosen.
 	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water);
@@ -157,9 +154,6 @@ public:
 
 	// updates unit table
 	void UpdateTable(const UnitDef* def_killer, int killer, const UnitDef *def_killed, int killed);
-
-	// updates max and average eff. values of the different categories
-	void UpdateMinMaxAvgEfficiency();
 
 	//! @brief Returns metal extractor with the largest yardmap
 	UnitDefId GetLargestExtractor() const;
@@ -202,12 +196,6 @@ public:
 	// AAI unit defs (static things like id, side, etc.)
 	static vector<UnitTypeStatic> units_static;
 
-	// cached combat efficiencies
-	static vector< vector< vector<float> > > avg_eff;
-	static vector< vector< vector<float> > > max_eff;
-	static vector< vector< vector<float> > > min_eff;
-	static vector< vector< vector<float> > > total_eff;
-
 	// stores the combat eff. of units at the beginning of the game. due to learning these values will change during the game
 	// however for some purposes its necessary to have constant values (e.g. adding and subtracting stationary defences to/from the defense map)
 	static vector< vector<float> > fixed_eff;
@@ -238,8 +226,6 @@ public:
 
 private:
 	std::string GetBuildCacheFileName();
-	// precaches speed/cost/buildtime/range stats
-	void PrecacheStats();
 
 	bool LoadBuildTable();
 
@@ -262,7 +248,7 @@ private:
 	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;
 
 	//! @brief Calculates the rating of the given factory for the given map type
-	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const CombatPower& combatPowerWeights, const MapType mapType) const;
+	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const AAIMobileCombatPower& combatPowerWeights, const AAIMapType& mapType) const;
 
 	//! @brief Calculates the combat statistics needed for unit selection
 	void CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const CombatPower& combatCriteria, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);

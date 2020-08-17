@@ -367,72 +367,38 @@ int AAIGroup::GetRandomUnit()
 		return units.begin()->x;
 }
 
-bool AAIGroup::SufficientAttackPower()
+bool AAIGroup::SufficientAttackPower() const
 {
 	//! @todo Check if this criteria are really sensible
-	if(units.size() >= 2)
+	if(units.size() >= 3)
 		return true;
 
-	if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAntiAir() )
+	if(m_groupType.IsAntiAir())
 	{
-		const float avg_combat_power = static_cast<float>(units.size()) * ai->Getbt()->units_static[m_groupDefId.id].efficiency[1];
-
-		//! @todo check this
-		//if(avg_combat_power > ai->Getbt()->avg_eff[ai->GetSide()-1][category][1] * (float)units.size())
+		if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(ETargetType::AIR) > AAIConstants::minCombatPowerForSoloAttack)
 			return true;
 	}
-	else // anti surface/submarine unit type
+	else 
 	{
-		float avg_combat_power = 0;
+		const AAITargetType& targetType = GetTargetType();
 
-		if(m_category.isGroundCombat())
+		if(targetType.IsSurface())
 		{
-			float ground = 1.0f;
-			float hover = 0.2f;
-
-			for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
-				avg_combat_power += ground * ai->Getbt()->units_static[unit->y].efficiency[0] + hover * ai->Getbt()->units_static[unit->y].efficiency[2];
-
-			if( avg_combat_power > (ground * ai->Getbt()->avg_eff[ai->GetSide()-1][0][0] + hover * ai->Getbt()->avg_eff[ai->GetSide()-1][0][2]) * (float)units.size() )
+			if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(ETargetType::SURFACE) > AAIConstants::minCombatPowerForSoloAttack)
 				return true;
 		}
-		else if(m_category.isHoverCombat())
+		else if(targetType.IsFloater())
 		{
-			float ground = 1.0f;
-			float hover = 0.2f;
-			float sea = 1.0f;
-
-			for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
-				avg_combat_power += ground * ai->Getbt()->units_static[unit->y].efficiency[0] + hover * ai->Getbt()->units_static[unit->y].efficiency[2] + sea * ai->Getbt()->units_static[unit->y].efficiency[3];
-
-			if( avg_combat_power > (ground * ai->Getbt()->avg_eff[ai->GetSide()-1][2][0] + hover * ai->Getbt()->avg_eff[ai->GetSide()-1][2][2] + sea * ai->Getbt()->avg_eff[ai->GetSide()-1][2][3]) * (float)units.size() )
+			if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(ETargetType::FLOATER) > AAIConstants::minCombatPowerForSoloAttack)
 				return true;
 		}
-		else if(m_category.isSeaCombat())
+		else if(targetType.IsSubmerged())
 		{
-			float hover = 0.3f;
-			float sea = 1.0f;
-			float submarine = 0.8f;
-
-			for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
-				avg_combat_power += hover * ai->Getbt()->units_static[unit->y].efficiency[2] + sea * ai->Getbt()->units_static[unit->y].efficiency[3] + submarine * ai->Getbt()->units_static[unit->y].efficiency[4];
-
-			if( avg_combat_power > (hover * ai->Getbt()->avg_eff[ai->GetSide()-1][3][2] + sea * ai->Getbt()->avg_eff[ai->GetSide()-1][3][3] + submarine * ai->Getbt()->avg_eff[ai->GetSide()-1][3][4]) * (float)units.size() )
-				return true;
-		}
-		else if(m_category.isSubmarineCombat())
-		{
-			float sea = 1.0f;
-			float submarine = 0.8f;
-
-			for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
-				avg_combat_power += sea * ai->Getbt()->units_static[unit->y].efficiency[3] + submarine * ai->Getbt()->units_static[unit->y].efficiency[4];
-
-			if( avg_combat_power > (sea * ai->Getbt()->avg_eff[ai->GetSide()-1][4][3] + submarine * ai->Getbt()->avg_eff[ai->GetSide()-1][4][4]) * (float)units.size() )
+			if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(ETargetType::SUBMERGED) > AAIConstants::minCombatPowerForSoloAttack)
 				return true;
 		}
 	}
-
+	
 	return false;
 }
 
@@ -440,22 +406,13 @@ bool AAIGroup::AvailableForAttack()
 {
 	if(!attack)
 	{
-		if( ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() )
-		{
-			if(SufficientAttackPower())
-				return true;
-			else
-			{
-				return false;
-			}
-		}
-		else
+		if( m_groupType.IsAssaultUnit() && SufficientAttackPower())
+			return true;
+		else if( m_groupType.IsAntiAir() )
 			return true;
 	}
-	else
-	{
-		return false;
-	}
+	
+	return false;
 }
 
 void AAIGroup::UnitIdle(int unit)

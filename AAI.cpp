@@ -954,16 +954,6 @@ void AAI::Update()
 			}
 		}
 	}
-
-	// recalculate efficiency stats
-	if (!(tick % 2927))
-	{
-		AAI_SCOPED_TIMER("Recalculate-Efficiency-Stats")
-		if (m_aaiInstance == 1) // only update statistics once (if multiple instances off AAI are running)
-		{
-			bt->UpdateMinMaxAvgEfficiency();
-		}
-	}
 }
 
 int AAI::HandleEvent(int msg, const void* data)

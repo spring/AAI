@@ -47,6 +47,9 @@ public:
 	//! Minimum combat power for a unit to be considered effective against a certain target type
 	static constexpr float minAntiTargetTypeCombatPower = 0.25f;
 
+	//! Minimum combat power vs specific target type such that a group of only one unit may participate in attacks
+	static constexpr float minCombatPowerForSoloAttack  = 2.5f;
+
 	//! Minimum unused metal storage capcity befor construction of metal storage is taken into account
 	static constexpr float minUnusedMetalStorageCapacityToBuildStorage = 100.0f;
 
@@ -101,16 +104,6 @@ public:
 	float CalculateSum() const
 	{
 		return vsGround + vsAir + vsHover + vsSea + vsSubmarine + vsBuildings;
-	}
-
-	float CalculateWeightedSum(const CombatPower& weights) const
-	{
-		return 	  (weights.vsGround    * vsGround)
-				+ (weights.vsAir       * vsAir)
-				+ (weights.vsHover     * vsHover)
-		     	+ (weights.vsSea       * vsSea)
-				+ (weights.vsSubmarine * vsSubmarine)
-				+ (weights.vsBuildings * vsBuildings);
 	}
 
 	float vsGround;

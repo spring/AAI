@@ -120,8 +120,8 @@ public:
 	AAIAttack *attack;
 
 private:
-	// returns true if group is strong enough to attack
-	bool SufficientAttackPower();
+	//! @brief Returns whether unit group is considered to be strong enough to attack
+	bool SufficientAttackPower() const;
 
 	//! @brief Helper function used to determine the exact attack location when issueing attack orders
 	void DeterminePositionForAttackOrder(Command& c, const AAISector* targetSector, const float3& currentUnitPos) const;

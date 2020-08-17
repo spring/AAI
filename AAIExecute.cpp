@@ -882,7 +882,6 @@ bool AAIExecute::BuildMetalMaker()
 		return true;
 
 	bool checkWater, checkGround;
-	int maker;
 	AAIConstructor *builder;
 	float3 pos;
 	// urgency < 4
@@ -921,34 +920,34 @@ bool AAIExecute::BuildMetalMaker()
 
 		if(checkGround)
 		{
-			maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), cost,  efficiency, metal, urgency, false, false);
+			UnitDefId maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), cost,  efficiency, metal, urgency, false, false);
 
 			// currently aai cannot build this building
-			if(maker && ai->Getbt()->units_dynamic[maker].constructorsAvailable <= 0)
+			if(maker.isValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
 			{
-				if(ai->Getbt()->units_dynamic[maker].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(UnitDefId(maker));
+				if(ai->Getbt()->units_dynamic[maker.id].constructorsRequested <= 0)
+					ai->Getbt()->BuildBuilderFor(maker);
 
 				maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), cost, efficiency, metal, urgency, false, true);
 			}
 
-			if(maker)
+			if(maker.isValid())
 			{
-				pos = (*sector)->FindBuildsite(maker, false);
+				pos = (*sector)->FindBuildsite(maker.id, false);
 
 				if(pos.x > 0)
 				{
 					float min_dist;
-					builder = ai->Getut()->FindClosestBuilder(maker, &pos, true, &min_dist);
+					builder = ai->Getut()->FindClosestBuilder(maker.id, &pos, true, &min_dist);
 
 					if(builder)
 					{
-						builder->GiveConstructionOrder(UnitDefId(maker), pos);
+						builder->GiveConstructionOrder(maker, pos);
 						return true;
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(UnitDefId(maker));
+						ai->Getbt()->BuildBuilderFor(maker);
 						return false;
 					}
 				}
@@ -962,34 +961,34 @@ bool AAIExecute::BuildMetalMaker()
 
 		if(checkWater)
 		{
-			maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), ai->Getbrain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, false);
+			UnitDefId maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), ai->Getbrain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, false);
 
 			// currently aai cannot build this building
-			if(maker && ai->Getbt()->units_dynamic[maker].constructorsAvailable <= 0)
+			if(maker.isValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
 			{
-				if(ai->Getbt()->units_dynamic[maker].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(UnitDefId(maker));
+				if(ai->Getbt()->units_dynamic[maker.id].constructorsRequested <= 0)
+					ai->Getbt()->BuildBuilderFor(maker);
 
 				maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), ai->Getbrain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, true);
 			}
 
-			if(maker)
+			if(maker.isValid())
 			{
-				pos = (*sector)->FindBuildsite(maker, true);
+				pos = (*sector)->FindBuildsite(maker.id, true);
 
 				if(pos.x > 0)
 				{
 					float min_dist;
-					builder = ai->Getut()->FindClosestBuilder(maker, &pos, true, &min_dist);
+					builder = ai->Getut()->FindClosestBuilder(maker.id, &pos, true, &min_dist);
 
 					if(builder)
 					{
-						builder->GiveConstructionOrder(UnitDefId(maker), pos);
+						builder->GiveConstructionOrder(maker, pos);
 						return true;
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(UnitDefId(maker));
+						ai->Getbt()->BuildBuilderFor(maker);
 						return false;
 					}
 				}
@@ -1221,14 +1220,6 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 		checkGround = false;
 	}
 
-	/*float dynDef  = dest->GetMyDefencePowerAgainstAssaultCategory(ai->Getbt()->GetIDOfAssaultCategory(category));
-	float baseDef = dest->my_buildings[STATIONARY_DEF];
-	float urgency = 0.25f + 10.0f / (std::max(0.0f, dynDef + baseDef) + 1.0f);
-	float power = 0.5f + baseDef;
-	float eff = 0.2f + 2.5f / (urgency + 1.0f);
-	float range = 0.2f + 0.6f / (urgency + 1.0f);
-	float cost = 0.5 + ai->Getbrain()->Affordable()/5.0f;*/
-
 	float range       = 0.5f;
 	float combatPower = 1.0f;
 	float cost        = 1.0f;
@@ -1274,18 +1265,6 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 
 		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, targetType, range, randomness, false);
 
-		// stop building weak defences if urgency is too low (wait for better defences)
-		/*if(staticDefences > 3)
-		{
-			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ]  < 0.75f * ai->Getbt()->avg_eff[ai->GetSide()-1][5][  ai->Getbt()->GetIDOfAssaultCategory(category) ] )
-				building = 0;
-		}
-		else if(staticDefences > 6)
-		{
-			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ] < ai->Getbt()->avg_eff[ai->GetSide()-1][5][ ai->Getbt()->GetIDOfAssaultCategory(category) ] )
-				building = 0;
-		}*/
-
 		if(selectedDefence.isValid())
 		{
 			pos = dest->GetDefenceBuildsite(selectedDefence.id, targetType, terrain, false);
@@ -1320,17 +1299,6 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 
 		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, targetType, range, randomness, true);
 
-		// stop building of weak defences if urgency is too low (wait for better defences)
-		/*if(staticDefences > 3)
-		{
-			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ]  < 0.75f * ai->Getbt()->avg_eff[ai->GetSide()-1][5][  ai->Getbt()->GetIDOfAssaultCategory(category) ] )
-				building = 0;
-		}
-		else if(staticDefences > 6)
-		{
-			if(ai->Getbt()->units_static[building].efficiency[ ai->Getbt()->GetIDOfAssaultCategory(category) ]  < ai->Getbt()->avg_eff[ai->GetSide()-1][5][  ai->Getbt()->GetIDOfAssaultCategory(category) ] )
-				building = 0;
-		}*/
 
 		if(selectedDefence.isValid())
 		{
@@ -2532,7 +2500,8 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 
 void AAIExecute::AddStartFactory()
 {
-	UnitDefId factoryDefId = ai->Getbt()->RequestInitialFactory(ai->GetSide(), ai->Getmap()->map_type);
+	AAIMapType mapType(static_cast<EMapType>(ai->Getmap()->map_type)); //! @todo Will be removed after switching to new AAIMapType
+	UnitDefId factoryDefId = ai->Getbt()->RequestInitialFactory(ai->GetSide(), mapType);
 
 	if(factoryDefId.isValid())
 	{
