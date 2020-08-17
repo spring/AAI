@@ -837,7 +837,7 @@ UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uin
 	return selectedScout;
 }
 
-void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const CombatPower& combatCriteria, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
+void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
 {
 	int i = 0;
 	for(std::list<int>::const_iterator id = unitList.begin(); id != unitList.end(); ++id)
@@ -845,13 +845,9 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList,
 		const UnitTypeStatic *unit = &units_static[*id];
 		const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(UnitDefId(*id));
 
-		float combatPower =	  combatCriteria.vsGround    * unit->efficiency[0] 
-							+ combatCriteria.vsAir       * unit->efficiency[1] 
-							+ combatCriteria.vsHover     * unit->efficiency[2]
-							+ combatCriteria.vsSea       * unit->efficiency[3] 
-							+ combatCriteria.vsSubmarine * unit->efficiency[4] 
-							+ combatCriteria.vsBuildings * unit->efficiency[5];
-		float combatEff = combatPower / unitData.m_totalCost;
+		const float combatPower = combatPowerWeights.CalculateWeightedSum(ai->s_buildTree.GetCombatPower(UnitDefId(*id))); 
+
+		const float combatEff   = combatPower / unitData.m_totalCost;
 
 		combatPowerStat.AddValue(combatPower);
 		combatEfficiencyStat.AddValue(combatEff);
@@ -864,7 +860,7 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList,
 	combatEfficiencyStat.Finalize();
 }
 
-UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& category, const CombatPower& combatCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild)
+UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& category, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild)
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// get data needed for selection
@@ -879,7 +875,7 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& cat
 	StatisticalData combatEfficiencyStat;	               // combat power related to unit cost
 	std::vector<float> combatPowerValues(unitList.size()); // values for individual units (in order of appearance in unitList)
 
-	CalculateCombatPowerForUnits(unitList, category, combatCriteria, combatPowerValues, combatPowerStat, combatEfficiencyStat);
+	CalculateCombatPowerForUnits(unitList, category, combatPowerCriteria, combatPowerValues, combatPowerStat, combatEfficiencyStat);
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// begin with selection

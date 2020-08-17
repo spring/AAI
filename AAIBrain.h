@@ -130,7 +130,8 @@ private:
 	// returns true if sufficient ressources to build unit are availbale
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
-	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatPower& combatCriteria, bool urgent);
+	//! @brief Selects combat unit according to given criteria and tries to order its construction
+	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const AAICombatPower& combatPowerCriteria, bool urgent);
 
 	//! The combat power of all mobile units against the different target types
 	AAIMobileCombatPower m_totalMobileCombatPower;

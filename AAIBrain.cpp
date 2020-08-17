@@ -693,13 +693,12 @@ void AAIBrain::BuildUnits()
 	                    + 1.5f * defenceStatistics.GetNormalizedDeviationFromMax(m_totalMobileCombatPower.GetCombatPowerVsTargetType(targetType));
 	}						 
 
-	CombatPower combatCriteria;
-	combatCriteria.vsGround    = urgency[0];
-	combatCriteria.vsAir       = urgency[1];
-	combatCriteria.vsHover     = urgency[2];
-	combatCriteria.vsSea       = urgency[3];
-	combatCriteria.vsSubmarine = urgency[4];
-	combatCriteria.vsBuildings = urgency[0] + urgency[3];
+	AAICombatPower combatPowerCriteria;
+	combatPowerCriteria.SetCombatPower(ETargetType::SURFACE,   urgency[0]);
+	combatPowerCriteria.SetCombatPower(ETargetType::AIR,       urgency[1]);
+	combatPowerCriteria.SetCombatPower(ETargetType::FLOATER,   urgency[3]);
+	combatPowerCriteria.SetCombatPower(ETargetType::SUBMERGED, urgency[4]);
+	combatPowerCriteria.SetCombatPower(ETargetType::STATIC,    urgency[0] + urgency[3]);
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Order building of units according to determined threat/own defence capabilities
@@ -715,7 +714,7 @@ void AAIBrain::BuildUnits()
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
 				unitCategory.setCategory(EMobileTargetType::AIR);
 
-			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
+			BuildCombatUnitOfCategory(unitCategory, combatPowerCriteria, urgent);
 		}
 		else if(ai->Getmap()->map_type == LAND_WATER_MAP)
 		{
@@ -730,7 +729,7 @@ void AAIBrain::BuildUnits()
 				unitCategory.setCategory(EMobileTargetType::AIR);
 			
 
-			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
+			BuildCombatUnitOfCategory(unitCategory, combatPowerCriteria, urgent);
 		}
 		else if(ai->Getmap()->map_type == WATER_MAP)
 		{
@@ -740,12 +739,12 @@ void AAIBrain::BuildUnits()
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
 				unitCategory.setCategory(EMobileTargetType::AIR);
 
-			BuildCombatUnitOfCategory(unitCategory, combatCriteria, urgent);
+			BuildCombatUnitOfCategory(unitCategory, combatPowerCriteria, urgent);
 		}
 	}
 }
 
-void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const CombatPower& combatCriteria, bool urgent)
+void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const AAICombatPower& combatPowerCriteria, bool urgent)
 {
 	UnitSelectionCriteria unitCriteria;
 	unitCriteria.speed      = 0.25f;
@@ -789,14 +788,14 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 			unitCriteria.power = 2.0f;
 	}
 
-	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatCriteria, unitCriteria, 6, false);
+	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatPowerCriteria, unitCriteria, 6, false);
 
 	if( (unitDefId.isValid() == true) && (ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0) )
 	{
 		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
 			ai->Getbt()->BuildFactoryFor(unitDefId.id);
 
-		unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatCriteria, unitCriteria, 6, true);
+		unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatPowerCriteria, unitCriteria, 6, true);
 	}
 
 	if(unitDefId.isValid() == true)
