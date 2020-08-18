@@ -113,7 +113,8 @@ public:
 	//! @brief Adds a defence buidling to the defence map
 	void AddStaticDefence(const float3& position, UnitDefId defence);
 
-	void RemoveDefence(float3 *pos, int defence);
+	//! @brief Removes a defence buidling from the defence map
+	void RemoveDefence(const float3& pos, UnitDefId defence);
 
 	// sectors
 	vector<vector<AAISector> > sector;

@@ -196,10 +196,6 @@ public:
 	// AAI unit defs (static things like id, side, etc.)
 	static vector<UnitTypeStatic> units_static;
 
-	// stores the combat eff. of units at the beginning of the game. due to learning these values will change during the game
-	// however for some purposes its necessary to have constant values (e.g. adding and subtracting stationary defences to/from the defense map)
-	static vector< vector<float> > fixed_eff;
-
 	//
 	//	non static variales
 	//

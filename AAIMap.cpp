@@ -2218,37 +2218,10 @@ AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 {
 	const int range = static_cast<int>( ai->s_buildTree.GetMaxRange(defence) ) / (SQUARE_SIZE * 4);
-
-	float power;
-	float air_power;
-	float submarine_power;
-
-	if(cfg->AIR_ONLY_MOD)
-	{
-		power = ai->Getbt()->fixed_eff[defence.id][0];
-		air_power = (ai->Getbt()->fixed_eff[defence.id][1] + ai->Getbt()->fixed_eff[defence.id][2])/2.0f;
-		submarine_power = ai->Getbt()->fixed_eff[defence.id][3];
-	}
-	else
-	{
-		if(ai->s_buildTree.GetMovementType(defence).IsStaticSea())
-			power = (ai->Getbt()->fixed_eff[defence.id][2] + ai->Getbt()->fixed_eff[defence.id][3]) / 2.0f;
-		else
-			power = ai->Getbt()->fixed_eff[defence.id][0];
-
-		air_power = ai->Getbt()->fixed_eff[defence.id][1];
-		submarine_power = ai->Getbt()->fixed_eff[defence.id][4];
-	}
-
 	const int xPos = (position.x + ai->Getbt()->GetUnitDef(defence.id).xsize/2)/ (SQUARE_SIZE * 4);
 	const int yPos = (position.z + ai->Getbt()->GetUnitDef(defence.id).zsize/2)/ (SQUARE_SIZE * 4);
 
-	// x range will change from line to line
-	int xStart;
-	int xEnd;
-	int xRange;
-
-	// y range is const
+	// x range will change from line to line -  y range is const
 	int yStart = yPos - range;
 	int yEnd = yPos + range;
 
@@ -2260,10 +2233,10 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 	for(int y = yStart; y < yEnd; ++y)
 	{
 		// determine x-range
-		xRange = (int) floor( fastmath::apxsqrt2( (float) ( std::max(1, range * range - (y - yPos) * (y - yPos)) ) ) + 0.5f );
+		int xRange = (int) floor( fastmath::apxsqrt2( (float) ( std::max(1, range * range - (y - yPos) * (y - yPos)) ) ) + 0.5f );
 
-		xStart = xPos - xRange;
-		xEnd = xPos + xRange;
+		int xStart = xPos - xRange;
+		int xEnd = xPos + xRange;
 
 		if(xStart < 0)
 			xStart = 0;
@@ -2274,15 +2247,17 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 		{
 			const int cell = x + xDefMapSize*y;
 
-			defence_map[cell] += power;
-			air_defence_map[cell] += air_power;
-			submarine_defence_map[cell] += submarine_power;
+			const AAICombatPower& combatPower = ai->s_buildTree.GetCombatPower(defence);
+
+			defence_map[cell]           += combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
+			air_defence_map[cell]       += combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
+			submarine_defence_map[cell] += combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER) + combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
 		}
 	}
 
 	// further increase values close around the bulding (to prevent aai from packing buildings too close together)
-	xStart = xPos - 2;
-	xEnd = xPos + 2;
+	int xStart = xPos - 2;
+	int xEnd = xPos + 2;
 	yStart = yPos - 2;
 	yEnd = yPos + 2;
 
@@ -2332,34 +2307,12 @@ void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
 	fclose(file);
 }
 
-void AAIMap::RemoveDefence(float3 *pos, int defence)
+void AAIMap::RemoveDefence(const float3& pos, UnitDefId defence)
 {
-	int cell;
-	int range = static_cast<int>( ai->s_buildTree.GetMaxRange( UnitDefId(defence)) ) / (SQUARE_SIZE * 4);
+	const int range = static_cast<int>( ai->s_buildTree.GetMaxRange(defence) ) / (SQUARE_SIZE * 4);
 
-	float power;
-	float air_power;
-	float submarine_power;
-
-	if(cfg->AIR_ONLY_MOD)
-	{
-		power = ai->Getbt()->fixed_eff[defence][0];
-		air_power = (ai->Getbt()->fixed_eff[defence][1] + ai->Getbt()->fixed_eff[defence][2])/2.0f;
-		submarine_power = ai->Getbt()->fixed_eff[defence][3];
-	}
-	else
-	{
-		if(ai->Getbt()->GetUnitDef(defence).minWaterDepth > 0)
-			power = (ai->Getbt()->fixed_eff[defence][2] + ai->Getbt()->fixed_eff[defence][3]) / 2.0f;
-		else
-			power = ai->Getbt()->fixed_eff[defence][0];
-
-		air_power = ai->Getbt()->fixed_eff[defence][1];
-		submarine_power = ai->Getbt()->fixed_eff[defence][4];
-	}
-
-	int xPos = (pos->x + ai->Getbt()->GetUnitDef(defence).xsize/2) / (SQUARE_SIZE * 4);
-	int yPos = (pos->z + ai->Getbt()->GetUnitDef(defence).zsize/2) / (SQUARE_SIZE * 4);
+	int xPos = (pos.x + ai->Getbt()->GetUnitDef(defence.id).xsize/2) / (SQUARE_SIZE * 4);
+	int yPos = (pos.z + ai->Getbt()->GetUnitDef(defence.id).zsize/2) / (SQUARE_SIZE * 4);
 
 	// further decrease values close around the bulding (to prevent aai from packing buildings too close together)
 	int xStart = xPos - 2;
@@ -2381,7 +2334,7 @@ void AAIMap::RemoveDefence(float3 *pos, int defence)
 	{
 		for(int x = xStart; x <= xEnd; ++x)
 		{
-			cell = x + xDefMapSize*y;
+			const int cell = x + xDefMapSize*y;
 
 			defence_map[cell] -= 5000.0f;
 			air_defence_map[cell] -= 5000.0f;
@@ -2390,7 +2343,6 @@ void AAIMap::RemoveDefence(float3 *pos, int defence)
 	}
 
 	// y range is const
-	int xRange;
 	yStart = yPos - range;
 	yEnd = yPos + range;
 
@@ -2402,7 +2354,7 @@ void AAIMap::RemoveDefence(float3 *pos, int defence)
 	for(int y = yStart; y < yEnd; ++y)
 	{
 		// determine x-range
-		xRange = (int) floor( fastmath::apxsqrt2( (float) ( std::max(1, range * range - (y - yPos) * (y - yPos)) ) ) + 0.5f );
+		int xRange = (int) floor( fastmath::apxsqrt2( (float) ( std::max(1, range * range - (y - yPos) * (y - yPos)) ) ) + 0.5f );
 
 		xStart = xPos - xRange;
 		xEnd = xPos + xRange;
@@ -2414,20 +2366,22 @@ void AAIMap::RemoveDefence(float3 *pos, int defence)
 
 		for(int x = xStart; x < xEnd; ++x)
 		{
-			cell = x + xDefMapSize*y;
+			const int cell = x + xDefMapSize*y;
+			
+			const AAICombatPower& combatPower = ai->s_buildTree.GetCombatPower(defence);
 
-			defence_map[cell] -= power;
-			air_defence_map[cell] -= air_power;
-			submarine_defence_map[cell] -= submarine_power;
+			defence_map[cell]           -= combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
+			air_defence_map[cell]       -= combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
+			submarine_defence_map[cell] -= (combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER) + combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
 
-			if(defence_map[cell] < 0)
-				defence_map[cell] = 0;
+			if(defence_map[cell] < 0.0f)
+				defence_map[cell] = 0.0f;
 
-			if(air_defence_map[cell] < 0)
-				air_defence_map[cell] = 0;
+			if(air_defence_map[cell] < 0.0f)
+				air_defence_map[cell] = 0.0f;
 
-			if(submarine_defence_map[cell] < 0)
-				submarine_defence_map[cell] = 0;
+			if(submarine_defence_map[cell] < 0.0f)
+				submarine_defence_map[cell] = 0.0f;
 		}
 	}
 }

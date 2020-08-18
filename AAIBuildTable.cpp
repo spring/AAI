@@ -23,7 +23,6 @@ using namespace springLegacyAI;
 
 // all the static vars
 vector<UnitTypeStatic> AAIBuildTable::units_static;
-vector< vector<float> > AAIBuildTable::fixed_eff;
 
 AttackedByRatesPerGamePhaseAndMapType AAIBuildTable::s_attackedByRates;
 
@@ -92,7 +91,6 @@ void AAIBuildTable::Init()
 		// one more than needed because 0 is dummy object
 		// (so UnitDef->id can be used to address that unit in the array)
 		units_static.resize(numOfUnits+1);
-		fixed_eff.resize(numOfUnits+1, vector<float>(combat_categories));
 
 		// now calculate efficiency of combat units and get max range
 		for(int i = 1; i <= numOfUnits; i++)
@@ -115,9 +113,6 @@ void AAIBuildTable::Init()
 						units_static[i].efficiency[0] = eff;
 						units_static[i].efficiency[2] = eff;
 						units_static[i].efficiency[5] = eff;
-						fixed_eff[i][0] = eff;
-						fixed_eff[i][2] = eff;
-						fixed_eff[i][5] = eff;
 					}
 					if(category.isAirCombat() == true)
 					{
@@ -126,11 +121,6 @@ void AAIBuildTable::Init()
 						units_static[i].efficiency[2] = 0.5f * eff;
 						units_static[i].efficiency[3] = 0.5f * eff;
 						units_static[i].efficiency[5] = 0.5f * eff;
-						fixed_eff[i][0] = eff;
-						fixed_eff[i][1] = eff;
-						fixed_eff[i][2] = eff;
-						fixed_eff[i][3] = eff;
-						fixed_eff[i][5] = eff;
 					}
 					else if(category.isHoverCombat() == true)
 					{
@@ -138,10 +128,6 @@ void AAIBuildTable::Init()
 						units_static[i].efficiency[2] = eff;
 						units_static[i].efficiency[3] = eff;
 						units_static[i].efficiency[5] = eff;
-						fixed_eff[i][0] = eff;
-						fixed_eff[i][2] = eff;
-						fixed_eff[i][3] = eff;
-						fixed_eff[i][5] = eff;
 					}
 					else if(category.isSeaCombat() == true)
 					{
@@ -149,37 +135,25 @@ void AAIBuildTable::Init()
 						units_static[i].efficiency[3] = eff;
 						units_static[i].efficiency[4] = eff;
 						units_static[i].efficiency[5] = eff;
-						fixed_eff[i][2] = eff;
-						fixed_eff[i][3] = eff;
-						fixed_eff[i][4] = eff;
-						fixed_eff[i][5] = eff;
 					}
 					else if(category.isSubmarineCombat() == true)
 					{
 						units_static[i].efficiency[3] = eff;
 						units_static[i].efficiency[4] = eff;
 						units_static[i].efficiency[5] = eff;
-						fixed_eff[i][3] = eff;
-						fixed_eff[i][4] = eff;
-						fixed_eff[i][5] = eff;
 					}
 					else if(category.isStaticDefence() == true)
 					{
 						if(ai->s_buildTree.GetMovementType(UnitDefId(i)).IsStaticLand() == true)
 						{
 							units_static[i].efficiency[0] = eff;
-							units_static[i].efficiency[2] = eff;
-							fixed_eff[i][0] = eff;
-							fixed_eff[i][2] = eff;
+							units_static[i].efficiency[2] = eff;;
 						}
 						else
 						{
 							units_static[i].efficiency[2] = eff;
 							units_static[i].efficiency[3] = eff;
 							units_static[i].efficiency[4] = eff;
-							fixed_eff[i][2] = eff;
-							fixed_eff[i][3] = eff;
-							fixed_eff[i][4] = eff;
 						}
 					}
 				}
@@ -989,17 +963,15 @@ bool AAIBuildTable::LoadBuildTable()
 	else 
 	{
 		// load data
-		FILE *load_file;
-
-		int tmp = 0, cat = 0;
-		size_t bo = 0, bb = 0;
 		const std::string filename = GetBuildCacheFileName();
 		// load units if file exists
-		if((load_file = fopen(filename.c_str(), "r")))
+		FILE *inputFile = fopen(filename.c_str(), "r");
+
+		if(inputFile)
 		{
 			char buffer[1024];
 			// check if correct version
-			fscanf(load_file, "%s", buffer);
+			fscanf(inputFile, "%s", buffer);
 
 			if(strcmp(buffer, MOD_LEARN_VERSION))
 			{
@@ -1015,14 +987,13 @@ bool AAIBuildTable::LoadBuildTable()
 					for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
 					{
 						float atackedByRate;
-						fscanf(load_file, "%f ", &atackedByRate);
+						fscanf(inputFile, "%f ", &atackedByRate);
 						s_attackedByRates.SetAttackedByRate(mapType, gamePhase, category, atackedByRate);
 					}
 				}
 			}
 
 			units_static.resize(unitList.size());
-			fixed_eff.resize(unitList.size(), vector<float>(combat_categories));
 
 			for(int i = 1; i < unitList.size(); ++i)
 			{
@@ -1032,12 +1003,11 @@ bool AAIBuildTable::LoadBuildTable()
 				// load eff
 				for(int k = 0; k < combat_categories; ++k)
 				{
-					fscanf(load_file, "%f ", &units_static[i].efficiency[k]);
-					fixed_eff[i][k] = units_static[i].efficiency[k];
+					fscanf(inputFile, "%f ", &units_static[i].efficiency[k]);
 				}
 			}
 
-			fclose(load_file);
+			fclose(inputFile);
 			return true;
 		}
 	}

@@ -2485,7 +2485,7 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 	}
 	else if(category.isStaticDefence())
 	{
-		ai->Getmap()->RemoveDefence(&build_pos, unitDefId.id);
+		ai->Getmap()->RemoveDefence(build_pos, unitDefId);
 	}
 	else if(category.isStaticConstructor())
 	{
