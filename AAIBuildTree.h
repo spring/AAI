@@ -15,9 +15,9 @@
 #include "AAIUnitStatistics.h"
 #include "LegacyCpp/IAICallback.h"
 
+#include <stdio.h>
 #include <list>
 #include <vector>
-
 
 //! Manages the combat power of a specific unit
 class AAICombatPower
@@ -26,6 +26,16 @@ public:
 	AAICombatPower() { m_combatPower.resize(AAITargetType::numberOfTargetTypes, 0.0f); }
 
 	void SetCombatPower(const AAITargetType& targetType, float value) { m_combatPower[targetType.GetArrayIndex()] = value; }
+
+	void SetCombatPower(const AAICombatPower& combatPower)
+	{
+		static_assert(AAITargetType::numberOfTargetTypes == 5, "Number of target types does not fit to implementation");
+		m_combatPower[0] = combatPower.m_combatPower[0];
+		m_combatPower[1] = combatPower.m_combatPower[1];
+		m_combatPower[2] = combatPower.m_combatPower[2];
+		m_combatPower[3] = combatPower.m_combatPower[3];
+		m_combatPower[4] = combatPower.m_combatPower[4];
+	}
 
 	void IncreaseCombatPower(const AAITargetType& vsTargetType, float value)
 	{
@@ -118,8 +128,14 @@ public:
 	//! @brief Generates buildtree for current game/mod
 	bool Generate(springLegacyAI::IAICallback* cb);
 
-	//! @brief Initializes the combat power of units and updates the unit types
-	void InitCombatPowerOfUnits(const std::vector<UnitTypeStatic>& combatPowerOfUnits);
+	//! @brief Saves the combat power of units to given 
+	void SaveCombatPowerOfUnits(FILE* saveFile);
+
+	//! @brief Initializes the combat power of units and invokes update of the unit types (returns true if successful)
+	bool LoadCombatPowerOfUnits(FILE* inputFile);
+
+	//! @brief Initializes the combat power (called if no saved data from previous games available)
+	void InitCombatPowerOfUnits();
 
 	//! @brief Updates combat power statistics when a unit kills another
 	void UpdateCombatPowerStatistics(UnitDefId attackerDefId, UnitDefId killedUnitDefId);
@@ -219,6 +235,9 @@ private:
 
 	//! @brief Determines and sets the unit types for the given unit.
 	void UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef);
+
+	//! @brief Determines the unit type of combat units (called after combat power has been loaded/initialized)
+	void UpdateUnitTypesOfCombatUnits();
 
 	//! @brief Calculates the value for the update of the combar power of the given attacker and killed unit type
 	float CalculateCombatPowerChange(UnitDefId attackerUnitDefId, UnitDefId killedUnitDefId) const;

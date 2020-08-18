@@ -21,9 +21,6 @@
 using namespace springLegacyAI;
 
 
-// all the static vars
-vector<UnitTypeStatic> AAIBuildTable::units_static;
-
 AttackedByRatesPerGamePhaseAndMapType AAIBuildTable::s_attackedByRates;
 
 AAIBuildTable::AAIBuildTable(AAI* ai) :
@@ -85,91 +82,15 @@ void AAIBuildTable::Init()
 		#endif
 	}
 
-	// Try to load buildtable; if not possible, create a new one
-	if(LoadBuildTable() == false)
+	// If first instance of AAI: Try to load combat power&attacked by rates; if no stored data availble init with default values
+	// (combat power and attacked by rates are both static)
+	if(ai->GetAAIInstance() == 1)
 	{
-		// one more than needed because 0 is dummy object
-		// (so UnitDef->id can be used to address that unit in the array)
-		units_static.resize(numOfUnits+1);
-
-		// now calculate efficiency of combat units and get max range
-		for(int i = 1; i <= numOfUnits; i++)
+		if(LoadModLearnData() == false)
 		{
-			const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(i));
-			if( (category.isCombatUnit() == true) || (category.isStaticDefence() == true) )
-			{
-				const int side                  = ai->s_buildTree.GetSideOfUnitType(UnitDefId(i));
-				const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(i));
-				const float cost                = ai->s_buildTree.GetTotalCost(UnitDefId(i));
-
-				if(side > 0)
-				{
-					units_static[i].efficiency.resize(combat_categories, 0.2f);
-
-					const float eff = 1.0f + 5.0f * ai->s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
-
-					if(category.isGroundCombat() == true)
-					{
-						units_static[i].efficiency[0] = eff;
-						units_static[i].efficiency[2] = eff;
-						units_static[i].efficiency[5] = eff;
-					}
-					if(category.isAirCombat() == true)
-					{
-						units_static[i].efficiency[0] = 0.5f * eff;
-						units_static[i].efficiency[1] = eff;
-						units_static[i].efficiency[2] = 0.5f * eff;
-						units_static[i].efficiency[3] = 0.5f * eff;
-						units_static[i].efficiency[5] = 0.5f * eff;
-					}
-					else if(category.isHoverCombat() == true)
-					{
-						units_static[i].efficiency[0] = eff;
-						units_static[i].efficiency[2] = eff;
-						units_static[i].efficiency[3] = eff;
-						units_static[i].efficiency[5] = eff;
-					}
-					else if(category.isSeaCombat() == true)
-					{
-						units_static[i].efficiency[2] = eff;
-						units_static[i].efficiency[3] = eff;
-						units_static[i].efficiency[4] = eff;
-						units_static[i].efficiency[5] = eff;
-					}
-					else if(category.isSubmarineCombat() == true)
-					{
-						units_static[i].efficiency[3] = eff;
-						units_static[i].efficiency[4] = eff;
-						units_static[i].efficiency[5] = eff;
-					}
-					else if(category.isStaticDefence() == true)
-					{
-						if(ai->s_buildTree.GetMovementType(UnitDefId(i)).IsStaticLand() == true)
-						{
-							units_static[i].efficiency[0] = eff;
-							units_static[i].efficiency[2] = eff;;
-						}
-						else
-						{
-							units_static[i].efficiency[2] = eff;
-							units_static[i].efficiency[3] = eff;
-							units_static[i].efficiency[4] = eff;
-						}
-					}
-				}
-				else
-				{
-					units_static[i].efficiency.resize(combat_categories, 0.0f);
-				}
-			}
-			else
-			{
-				// get memory for eff
-				units_static[i].efficiency.resize(combat_categories, 0.0f);
-			}
+			ai->s_buildTree.InitCombatPowerOfUnits();
+			ai->LogConsole("New BuildTable has been created");
 		}
-
-		ai->LogConsole("New BuildTable has been created");
 	}
 
 	// buildtable is initialized
@@ -442,8 +363,11 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapTy
 
 	const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
 
-	//ai->Log("Combat power weights: ground %f   air %f   hover %f   sea %f   submarine %f\n", combatPowerWeights.vsGround, combatPowerWeights.vsAir, combatPowerWeights.vsHover, combatPowerWeights.vsSea, combatPowerWeights.vsSubmarine);
-	//ai->Log("Factory ratings (max combat power rating %f):", combatPowerRatingStatistics.GetMaxValue());
+	ai->Log("Combat power weights: ground %f   air %f   sea %f   submarine %f\n",   mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::SURFACE),
+																					mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::AIR),
+																					mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::FLOATER),
+																					mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+	ai->Log("Factory ratings (max combat power rating %f):", combatPowerRatingStatistics.GetMaxValue());
 
 	for(auto factory = factoryList.begin(); factory != factoryList.end(); ++factory)
 	{
@@ -456,7 +380,7 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapTy
 		if(factory->canConstructScout)
 			myRating += 0.4f;
 
-		//ai->Log(" %s %f %f", ai->s_buildTree.GetUnitTypeProperties(factory->factoryDefId).m_name.c_str(), myRating, factory->combatPowerRating);
+		ai->Log(" %s %f %f", ai->s_buildTree.GetUnitTypeProperties(factory->factoryDefId).m_name.c_str(), myRating, factory->combatPowerRating);
 	
 		if(myRating > bestRating)
 		{
@@ -465,7 +389,7 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapTy
 		}
 	}
 
-	//ai->Log("\n");
+	ai->Log("\n");
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// order construction
@@ -483,13 +407,13 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapTy
 
 void AAIBuildTable::DetermineCombatPowerWeights(AAIMobileCombatPower& combatPowerWeights, const AAIMapType& mapType) const
 {
-	combatPowerWeights.SetCombatPower(ETargetType::AIR,     0.5f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::AIR));
-	combatPowerWeights.SetCombatPower(ETargetType::SURFACE, 0.5f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::SURFACE));
+	combatPowerWeights.SetCombatPower(ETargetType::AIR,     0.25f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::AIR));
+	combatPowerWeights.SetCombatPower(ETargetType::SURFACE, 1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::SURFACE));
 	
 	if(!mapType.IsLandMap())
 	{
-		combatPowerWeights.SetCombatPower(ETargetType::FLOATER,   0.5f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::FLOATER));
-		combatPowerWeights.SetCombatPower(ETargetType::SUBMERGED, 0.5f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::SUBMERGED));
+		combatPowerWeights.SetCombatPower(ETargetType::FLOATER,   1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::FLOATER));
+		combatPowerWeights.SetCombatPower(ETargetType::SUBMERGED, 0.75f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::SUBMERGED));
 	}
 }
 
@@ -816,7 +740,6 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList,
 	int i = 0;
 	for(std::list<int>::const_iterator id = unitList.begin(); id != unitList.end(); ++id)
 	{
-		const UnitTypeStatic *unit = &units_static[*id];
 		const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(UnitDefId(*id));
 
 		const float combatPower = combatPowerWeights.CalculateWeightedSum(ai->s_buildTree.GetCombatPower(UnitDefId(*id))); 
@@ -865,7 +788,6 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& cat
 		if(    (canBuild == false)
 			|| ((canBuild == true) && (units_dynamic[*id].constructorsAvailable > 0)) )
 		{
-			const UnitTypeStatic *unit = &units_static[*id];
 			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(UnitDefId(*id));
 
 			float combatEff = combatPowerValues[i] / unitData.m_totalCost;
@@ -896,134 +818,60 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& cat
 	return selectedUnitType;
 }
 
-void AAIBuildTable::UpdateTable(const UnitDef* def_killer, int killer, const UnitDef *def_killed, int killed)
-{
-	// buidling killed
-	if(killed == 5)
-	{
-		// stationary defence killed
-		if(ai->s_buildTree.GetUnitCategory(UnitDefId(def_killed->id)).isStaticDefence() == true)
-		{
-			float change = cfg->LEARN_SPEED * units_static[def_killed->id].efficiency[killer] / units_static[def_killer->id].efficiency[killed];
-
-			if(change > 0.5)
-				change = 0.5;
-			else if(change < cfg->MIN_EFFICIENCY/2.0f)
-				change = cfg->MIN_EFFICIENCY/2.0f;
-
-			units_static[def_killer->id].efficiency[killed] += change;
-			units_static[def_killed->id].efficiency[killer] -= change;
-
-			if(units_static[def_killed->id].efficiency[killer] < cfg->MIN_EFFICIENCY)
-				units_static[def_killed->id].efficiency[killer] = cfg->MIN_EFFICIENCY;
-		}
-		// other building killed
-		else
-		{
-			if(units_static[def_killer->id].efficiency[5] < 8)
-			{
-				if(killer == 1)	// aircraft
-					units_static[def_killer->id].efficiency[5] += cfg->LEARN_SPEED / 3.0f;
-				else			// other assault units
-					units_static[def_killer->id].efficiency[5] += cfg->LEARN_SPEED / 9.0f;
-			}
-		}
-	}
-	// unit killed
-	else
-	{
-		float change = cfg->LEARN_SPEED * units_static[def_killed->id].efficiency[killer] / units_static[def_killer->id].efficiency[killed];
-
-		if(change > 0.5)
-			change = 0.5;
-		else if(change < cfg->MIN_EFFICIENCY/2.0f)
-			change = cfg->MIN_EFFICIENCY/2.0f;
-
-		units_static[def_killer->id].efficiency[killed] += change;
-		units_static[def_killed->id].efficiency[killer] -= change;
-
-		if(units_static[def_killed->id].efficiency[killer] < cfg->MIN_EFFICIENCY)
-			units_static[def_killed->id].efficiency[killer] = cfg->MIN_EFFICIENCY;
-	}
-}
-
 std::string AAIBuildTable::GetBuildCacheFileName()
 {
 	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
 }
 
-// returns true if cache found
-bool AAIBuildTable::LoadBuildTable()
+bool AAIBuildTable::LoadModLearnData()
 {
-	// stop further loading if already done
-	if(units_static.empty() == false)
-	{
-		return true;
-	}
-	else 
-	{
-		// load data
-		const std::string filename = GetBuildCacheFileName();
-		// load units if file exists
-		FILE *inputFile = fopen(filename.c_str(), "r");
+	// load data
+	const std::string filename = GetBuildCacheFileName();
+	// load units if file exists
+	FILE *inputFile = fopen(filename.c_str(), "r");
 
-		if(inputFile)
+	if(inputFile)
+	{
+		char buffer[1024];
+		// check if correct version
+		fscanf(inputFile, "%s", buffer);
+
+		if(strcmp(buffer, MOD_LEARN_VERSION))
 		{
-			char buffer[1024];
-			// check if correct version
-			fscanf(inputFile, "%s", buffer);
-
-			if(strcmp(buffer, MOD_LEARN_VERSION))
-			{
-				ai->LogConsole("Buildtable version out of date - creating new one");
-				return false;
-			}
-
-			// load attacked_by table
-			for(AAIMapType mapType(AAIMapType::first); mapType.End() == false; mapType.Next())
-			{
-				for(GamePhase gamePhase(0); gamePhase.End() == false; gamePhase.Next())
-				{
-					for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
-					{
-						float atackedByRate;
-						fscanf(inputFile, "%f ", &atackedByRate);
-						s_attackedByRates.SetAttackedByRate(mapType, gamePhase, category, atackedByRate);
-					}
-				}
-			}
-
-			units_static.resize(unitList.size());
-
-			for(int i = 1; i < unitList.size(); ++i)
-			{
-				// get memory for eff
-				units_static[i].efficiency.resize(combat_categories);
-
-				// load eff
-				for(int k = 0; k < combat_categories; ++k)
-				{
-					fscanf(inputFile, "%f ", &units_static[i].efficiency[k]);
-				}
-			}
-
-			fclose(inputFile);
-			return true;
+			ai->LogConsole("Buildtable version out of date - creating new one");
+			return false;
 		}
+
+		// load attacked_by table
+		for(AAIMapType mapType(AAIMapType::first); mapType.End() == false; mapType.Next())
+		{
+			for(GamePhase gamePhase(0); gamePhase.End() == false; gamePhase.Next())
+			{
+				for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
+				{
+					float atackedByRate;
+					fscanf(inputFile, "%f ", &atackedByRate);
+					s_attackedByRates.SetAttackedByRate(mapType, gamePhase, category, atackedByRate);
+				}
+			}
+		}
+
+		const bool combatPowerLoaded = ai->s_buildTree.LoadCombatPowerOfUnits(inputFile);
+
+		fclose(inputFile);
+		return combatPowerLoaded;
 	}
-
-
-
+	
 	return false;
 }
 
 void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& attackedByRates, const AAIMapType& mapType)
 {
 	const std::string filename = GetBuildCacheFileName();
-	FILE *save_file = fopen(filename.c_str(), "w+");
+	FILE *saveFile = fopen(filename.c_str(), "w+");
 
 	// file version
-	fprintf(save_file, "%s \n", MOD_LEARN_VERSION);
+	fprintf(saveFile, "%s \n", MOD_LEARN_VERSION);
 
 	// update attacked_by values
 	AttackedByRatesPerGamePhase& updateRates = s_attackedByRates.GetAttackedByRates(mapType);
@@ -1037,22 +885,15 @@ void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByR
 		{
 			for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
 			{
-				fprintf(save_file, "%f ", s_attackedByRates.GetAttackedByRate(mapTypeIterator, gamePhaseIterator, category));
+				fprintf(saveFile, "%f ", s_attackedByRates.GetAttackedByRate(mapTypeIterator, gamePhaseIterator, category));
 			}
-			fprintf(save_file, "\n");
+			fprintf(saveFile, "\n");
 		}
 	}
 
-	for(int i = 1; i < unitList.size(); ++i)
-	{
-		// save combat eff
-		for(int k = 0; k < combat_categories; ++k)
-			fprintf(save_file, "%f ", units_static[i].efficiency[k]);
+	ai->s_buildTree.SaveCombatPowerOfUnits(saveFile);
 
-		fprintf(save_file, "\n");
-	}
-
-	fclose(save_file);
+	fclose(saveFile);
 }
 
 void AAIBuildTable::BuildFactoryFor(int unit_def_id)
@@ -1412,19 +1253,6 @@ bool AAIBuildTable::IsDeflectionShieldEmitter(int def_id)
 	}
 
 	return false;
-}
-
-int AAIBuildTable::GetIDOfAssaultCategory(const AAIUnitCategory& category) const
-{
-	if(category.isCombatUnit() == true)
-	{
-		AAICombatUnitCategory cat(category);
-		return cat.GetArrayIndex();
-	}
-	else if(category.isBuilding() == true)
-		return 5;
-	else
-		return -1;
 }
 
 AAIUnitCategory AAIBuildTable::GetUnitCategoryOfCombatUnitIndex(int index) const

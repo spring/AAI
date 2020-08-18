@@ -69,17 +69,130 @@ AAIBuildTree::~AAIBuildTree(void)
 	m_unitCategoryNames.clear();
 }
 
-void AAIBuildTree::InitCombatPowerOfUnits(const std::vector<UnitTypeStatic>& combatPowerOfUnits)
+void AAIBuildTree::SaveCombatPowerOfUnits(FILE* saveFile)
 {
-	for(int id = 1; id < combatPowerOfUnits.size(); ++id)
+	fprintf(saveFile, "%i\n", static_cast<int>(m_combatPowerOfUnits.size()));
+
+	for(int id = 1; id < m_combatPowerOfUnits.size(); ++id)
 	{
-		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::SURFACE, combatPowerOfUnits[id].efficiency[0]);
-		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::AIR, combatPowerOfUnits[id].efficiency[1]);
-		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::FLOATER, combatPowerOfUnits[id].efficiency[3]);
-		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::SUBMERGED, combatPowerOfUnits[id].efficiency[4]);
-		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::STATIC, combatPowerOfUnits[id].efficiency[5]);
+		fprintf(saveFile, "%f %f %f %f %f\n", m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::SURFACE),
+											  m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::AIR),
+											  m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::FLOATER),
+											  m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::SUBMERGED),
+											  m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::STATIC));
+	}
+}
+
+bool AAIBuildTree::LoadCombatPowerOfUnits(FILE* inputFile)
+{
+	// abort loading if number of stored combat power data does not match number of units
+	int numOfData;
+	fscanf(inputFile, "%i", &numOfData);
+
+	if(numOfData != static_cast<int>(m_combatPowerOfUnits.size()) )
+		return false;
+
+	float inputValues[5];
+
+	for(int id = 1; id < m_combatPowerOfUnits.size(); ++id)
+	{
+		fscanf(inputFile, "%f %f %f %f %f", &inputValues[0], &inputValues[1], &inputValues[2], &inputValues[3], &inputValues[4]);
+	
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::SURFACE,   inputValues[0]);
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::AIR,       inputValues[1]);
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::FLOATER,   inputValues[2]);
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::SUBMERGED, inputValues[3]);
+		m_combatPowerOfUnits[id].SetCombatPower(ETargetType::STATIC,    inputValues[4]);
 	}
 
+	UpdateUnitTypesOfCombatUnits();
+
+	return true;
+}
+
+void AAIBuildTree::InitCombatPowerOfUnits()
+{
+	for(int id = 1; id < m_combatPowerOfUnits.size(); ++id)
+	{
+		const int side = GetSideOfUnitType(UnitDefId(id));
+		
+		if(side > 0)
+		{
+			const AAIUnitCategory& category = GetUnitCategory(UnitDefId(id));
+
+			const float cost = GetTotalCost(UnitDefId(id));
+			const float eff = 1.0f + 9.0f * GetUnitStatistics(side).GetUnitCostStatistics(category).GetNormalizedDeviationFromMin(cost);
+
+			AAICombatPower combatPower;
+
+			if(category.isGroundCombat())
+			{
+				combatPower.SetCombatPower(ETargetType::SURFACE,   eff);
+				combatPower.SetCombatPower(ETargetType::AIR,       0.2f);
+				combatPower.SetCombatPower(ETargetType::FLOATER,   0.2f);
+				combatPower.SetCombatPower(ETargetType::SUBMERGED, 0.2f);
+				combatPower.SetCombatPower(ETargetType::STATIC,    eff);
+			}
+			else if(category.isAirCombat())
+			{
+				combatPower.SetCombatPower(ETargetType::SURFACE,   0.5f * eff);
+				combatPower.SetCombatPower(ETargetType::AIR,       eff);
+				combatPower.SetCombatPower(ETargetType::FLOATER,   0.5f * eff);
+				combatPower.SetCombatPower(ETargetType::SUBMERGED, 0.2f);
+				combatPower.SetCombatPower(ETargetType::STATIC,    0.5f * eff);
+			}
+			else if(category.isHoverCombat())
+			{
+				combatPower.SetCombatPower(ETargetType::SURFACE,   eff);
+				combatPower.SetCombatPower(ETargetType::AIR,       0.2f);
+				combatPower.SetCombatPower(ETargetType::FLOATER,   eff);
+				combatPower.SetCombatPower(ETargetType::SUBMERGED, 0.2f);
+				combatPower.SetCombatPower(ETargetType::STATIC,    eff);
+			}
+			else if(category.isSeaCombat())
+			{
+				combatPower.SetCombatPower(ETargetType::SURFACE,   eff);
+				combatPower.SetCombatPower(ETargetType::AIR,       0.2f);
+				combatPower.SetCombatPower(ETargetType::FLOATER,   eff);
+				combatPower.SetCombatPower(ETargetType::SUBMERGED, eff);
+				combatPower.SetCombatPower(ETargetType::STATIC,    eff);
+			}
+			else if(category.isSubmarineCombat())
+			{
+				combatPower.SetCombatPower(ETargetType::SURFACE,   0.2f);
+				combatPower.SetCombatPower(ETargetType::AIR,       0.2f);
+				combatPower.SetCombatPower(ETargetType::FLOATER,   eff);
+				combatPower.SetCombatPower(ETargetType::SUBMERGED, eff);
+				combatPower.SetCombatPower(ETargetType::STATIC,    eff);
+			}
+			else if(category.isStaticDefence())
+			{
+				if(GetMovementType(UnitDefId(id)).IsStaticLand())
+				{
+					combatPower.SetCombatPower(ETargetType::SURFACE,   eff);
+					combatPower.SetCombatPower(ETargetType::FLOATER,   0.5f * eff);
+					combatPower.SetCombatPower(ETargetType::SUBMERGED, 0.2f);
+				}
+				else
+				{
+					combatPower.SetCombatPower(ETargetType::SURFACE,   eff);
+					combatPower.SetCombatPower(ETargetType::FLOATER,   eff);
+					combatPower.SetCombatPower(ETargetType::SUBMERGED, eff);
+				}
+
+				combatPower.SetCombatPower(ETargetType::AIR,    0.2f);
+				combatPower.SetCombatPower(ETargetType::STATIC, 0.2f);
+			}
+
+			m_combatPowerOfUnits[id].SetCombatPower(combatPower);
+		}
+	}
+
+	UpdateUnitTypesOfCombatUnits();
+}
+
+void AAIBuildTree::UpdateUnitTypesOfCombatUnits()
+{
 	for(int id = 1; id < m_unitTypeProperties.size(); ++id)
 	{
 		if(m_unitTypeProperties[id].m_unitCategory.isCombatUnit() || m_unitTypeProperties[id].m_unitCategory.isStaticDefence() )

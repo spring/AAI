@@ -152,9 +152,6 @@ public:
 	// @brief Tries to build an assistant for the specified kind of unit
 	//void AddAssistant(uint32_t allowedMovementTypes, bool mustBeConstructable);
 
-	// updates unit table
-	void UpdateTable(const UnitDef* def_killer, int killer, const UnitDef *def_killed, int killed);
-
 	//! @brief Returns metal extractor with the largest yardmap
 	UnitDefId GetLargestExtractor() const;
 
@@ -177,9 +174,6 @@ public:
 	// returns true, if unit is a transporter
 	bool IsTransporter(int id);
 
-	//! @brief Returns target type id of given unit category
-	int GetIDOfAssaultCategory(const AAIUnitCategory& category) const;
-
 	//! @brief Returns the unit category for a given index (0 to 5) of an combat unit type (ground, air, hover, sea, submarine, static)
 	AAIUnitCategory GetUnitCategoryOfCombatUnitIndex(int index) const;
 
@@ -192,9 +186,6 @@ public:
 
 	// number of assault cat + arty & stat defences
 	static const int combat_categories = 6;
-
-	// AAI unit defs (static things like id, side, etc.)
-	static vector<UnitTypeStatic> units_static;
 
 	//
 	//	non static variales
@@ -223,7 +214,8 @@ public:
 private:
 	std::string GetBuildCacheFileName();
 
-	bool LoadBuildTable();
+	//! @brief Loads mod learn data from file
+	bool LoadModLearnData();
 
 	//! @brief Helper function used for building selection
 	bool IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const;

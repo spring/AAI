@@ -223,8 +223,6 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 
 	if(GetAAIInstance() == 1)
 	{
-		s_buildTree.InitCombatPowerOfUnits(bt->units_static);
-
 		std::string filename = cfg->GetFileName(m_aiCallback, cfg->getUniqueName(m_aiCallback, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
 		s_buildTree.PrintSummaryToFile(filename, m_aiCallback);
 
@@ -576,78 +574,62 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		// update buildtable
 		if (attacker)
 		{
-			const springLegacyAI::UnitDef* def_att = m_aiCallback->GetUnitDef(attacker);
+			const springLegacyAI::UnitDef* defAttacker = m_aiCallback->GetUnitDef(attacker);
 
-			if (def_att)
-			{
-				s_buildTree.UpdateCombatPowerStatistics(UnitDefId(def_att->id), unitDefId);
-
-				const AAIUnitCategory& categoryAttacker = s_buildTree.GetUnitCategory(UnitDefId(def_att->id));
-				const int killer = bt->GetIDOfAssaultCategory( categoryAttacker );
-				const int killed = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(unitDefId) );
-
-				// check if valid id
-				if (killer != -1)
-				{
-					if(categoryAttacker.isCombatUnit())
-						brain->AttackedBy(categoryAttacker);
-
-					if (killed != -1)
-						bt->UpdateTable(def_att, killer, def, killed);
-				}
-			}
+			if(defAttacker)
+				s_buildTree.UpdateCombatPowerStatistics(UnitDefId(defAttacker->id), unitDefId);
 		}
 
 		// finished building has been killed
-		if (s_buildTree.GetMovementType(UnitDefId(def->id)).IsStatic() == true)
+		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
 			// decrease number of units of that category in the target sector
 			if (validSector)
 				map->sector[x][y].RemoveBuilding(category);
 
 			// check if building belongs to one of this groups
-			if (category.isStaticDefence() == true)
+			if (category.isStaticDefence())
 			{
 				// remove defence from map
 				map->RemoveDefence(pos, unitDefId);
 			}
-			else if (category.isMetalExtractor() == true)
+			else if (category.isMetalExtractor())
 			{
 				ut->RemoveExtractor(unit);
 
 				// mark spots of destroyed mexes as unoccupied
 				map->sector[x][y].FreeMetalSpot(m_aiCallback->GetUnitPos(unit), def);
 			}
-			else if (category.isPowerPlant() == true)
+			else if (category.isPowerPlant())
 			{
 				ut->RemovePowerPlant(unit);
 			}
-			else if (category.isStaticArtillery() == true)
+			else if (category.isStaticArtillery())
 			{
 				ut->RemoveStationaryArty(unit);
 			}
-			else if (category.isStaticSensor() == true)
+			else if (category.isStaticSensor())
 			{
 				ut->RemoveRecon(unit);
 			}
-			else if (category.isStaticSupport() == true)
+			else if (category.isStaticSupport())
 			{
 				ut->RemoveJammer(unit);
 			}
-			else if (category.isMetalMaker() == true)
+			else if (category.isMetalMaker())
 			{
 				ut->RemoveMetalMaker(unit);
 			}
 
 			// clean up buildmap & some other stuff
-			if (category.isStaticConstructor() == true)
+			if (category.isStaticConstructor())
 			{
 				ut->RemoveConstructor(unit, def->id);
 				// speed up reconstruction
 				execute->urgency[STATIONARY_CONSTRUCTOR] += 1.5;
 			}
 			// hq
-			else if (category.isCommander() == true)
+			else if (category.isCommander())
 			{
 				ut->RemoveCommander(unit, def->id);
 			}
@@ -666,7 +648,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		else // finished unit has been killed
 		{
 			// scout
-			if (category.isScout() == true)
+			if (category.isScout())
 			{
 				ut->RemoveScout(unit);
 
@@ -676,7 +658,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 				//	++map->sector[x][y].m_enemyBuildings;
 			}
 			// assault units
-			else if (category.isCombatUnit() == true)
+			else if (category.isCombatUnit())
 			{
 				// look for a safer rallypoint if units get killed on their way
 				if (ut->units[unit].status == HEADING_TO_RALLYPOINT)
@@ -689,7 +671,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			{
 				ut->RemoveConstructor(unit, def->id);
 			}
-			else if (category.isCommander() == true)
+			else if (category.isCommander())
 			{
 				ut->RemoveCommander(unit, def->id);
 			}
@@ -773,15 +755,7 @@ void AAI::EnemyDestroyed(int enemy, int attacker)
 		const UnitDef* defAttacker = m_aiCallback->GetUnitDef(attacker);
 
 		if (defAttacker && defKilled)
-		{
 			s_buildTree.UpdateCombatPowerStatistics(UnitDefId(defAttacker->id), UnitDefId(defKilled->id));
-
-			const int killer = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(UnitDefId(defAttacker->id)) );
-			const int killed = bt->GetIDOfAssaultCategory( s_buildTree.GetUnitCategory(UnitDefId(defKilled->id)) );
-
-			if (killer != -1 && killed != -1)
-				bt->UpdateTable(defAttacker, killer, defKilled, killed);
-		}
 	}
 }
 
