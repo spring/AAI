@@ -69,7 +69,7 @@ public:
 	// loads everything from a cache file or creates a new one
 	void Init();
 
-	void SaveBuildTable(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const AAIMapType& mapType);
+	void SaveModLearnData(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const AAIMapType& mapType) const;
 
 	// cache for combat eff (needs side, thus initialized later)
 	void InitCombatEffCache(int side);
@@ -212,7 +212,7 @@ public:
 	bool IsValidUnitDefID(int i) { return (i>=0) && (i<=unitList.size()); }
 
 private:
-	std::string GetBuildCacheFileName();
+	std::string GetBuildCacheFileName() const;
 
 	//! @brief Loads mod learn data from file
 	bool LoadModLearnData();

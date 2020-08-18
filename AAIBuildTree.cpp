@@ -69,7 +69,7 @@ AAIBuildTree::~AAIBuildTree(void)
 	m_unitCategoryNames.clear();
 }
 
-void AAIBuildTree::SaveCombatPowerOfUnits(FILE* saveFile)
+void AAIBuildTree::SaveCombatPowerOfUnits(FILE* saveFile) const
 {
 	fprintf(saveFile, "%i\n", static_cast<int>(m_combatPowerOfUnits.size()));
 

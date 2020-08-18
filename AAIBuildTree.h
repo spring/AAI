@@ -129,7 +129,7 @@ public:
 	bool Generate(springLegacyAI::IAICallback* cb);
 
 	//! @brief Saves the combat power of units to given 
-	void SaveCombatPowerOfUnits(FILE* saveFile);
+	void SaveCombatPowerOfUnits(FILE* saveFile) const;
 
 	//! @brief Initializes the combat power of units and invokes update of the unit types (returns true if successful)
 	bool LoadCombatPowerOfUnits(FILE* inputFile);

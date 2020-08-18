@@ -131,8 +131,11 @@ AAI::~AAI()
 	build_tasks.clear();
 
 	// save game learning data
-	AAIMapType mapType(static_cast<EMapType>(map->map_type)); //! @todo Will be removed after switching to new AAIMapType
-	bt->SaveBuildTable(gamePhase, brain->GetAttackedByRates(), mapType);
+	if(GetAAIInstance() == 1)
+	{
+		AAIMapType mapType(static_cast<EMapType>(map->map_type)); //! @todo Will be removed after switching to new AAIMapType
+		bt->SaveModLearnData(gamePhase, brain->GetAttackedByRates(), mapType);
+	}
 
 	spring::SafeDelete(am);
 	spring::SafeDelete(af);

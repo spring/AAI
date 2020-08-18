@@ -363,11 +363,11 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapTy
 
 	const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
 
-	ai->Log("Combat power weights: ground %f   air %f   sea %f   submarine %f\n",   mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::SURFACE),
+	/*ai->Log("Combat power weights: ground %f   air %f   sea %f   submarine %f\n",   mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::SURFACE),
 																					mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::AIR),
 																					mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::FLOATER),
 																					mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
-	ai->Log("Factory ratings (max combat power rating %f):", combatPowerRatingStatistics.GetMaxValue());
+	ai->Log("Factory ratings (max combat power rating %f):", combatPowerRatingStatistics.GetMaxValue());*/
 
 	for(auto factory = factoryList.begin(); factory != factoryList.end(); ++factory)
 	{
@@ -380,7 +380,7 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapTy
 		if(factory->canConstructScout)
 			myRating += 0.4f;
 
-		ai->Log(" %s %f %f", ai->s_buildTree.GetUnitTypeProperties(factory->factoryDefId).m_name.c_str(), myRating, factory->combatPowerRating);
+		//ai->Log(" %s %f %f", ai->s_buildTree.GetUnitTypeProperties(factory->factoryDefId).m_name.c_str(), myRating, factory->combatPowerRating);
 	
 		if(myRating > bestRating)
 		{
@@ -389,7 +389,7 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapTy
 		}
 	}
 
-	ai->Log("\n");
+	//ai->Log("\n");
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// order construction
@@ -818,7 +818,7 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& cat
 	return selectedUnitType;
 }
 
-std::string AAIBuildTable::GetBuildCacheFileName()
+std::string AAIBuildTable::GetBuildCacheFileName() const
 {
 	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
 }
@@ -865,7 +865,7 @@ bool AAIBuildTable::LoadModLearnData()
 	return false;
 }
 
-void AAIBuildTable::SaveBuildTable(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& attackedByRates, const AAIMapType& mapType)
+void AAIBuildTable::SaveModLearnData(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& attackedByRates, const AAIMapType& mapType) const
 {
 	const std::string filename = GetBuildCacheFileName();
 	FILE *saveFile = fopen(filename.c_str(), "w+");
