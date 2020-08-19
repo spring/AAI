@@ -21,7 +21,7 @@
 #define AAI_VERSION aiexport_getVersion()
 #define MAP_CACHE_VERSION "MAP_DATA_0_91"
 #define MAP_LEARN_VERSION "MAP_LEARN_0_89"
-#define MOD_LEARN_VERSION "MOD_LEARN_0_90c"
+#define MOD_LEARN_VERSION "MOD_LEARN_0_92"
 #define CONTINENT_DATA_VERSION "MOVEMENT_MAPS_0_87"
 
 #define AILOG_PATH "log/"
@@ -130,9 +130,9 @@ public:
 
 	UnitId() : id(-1) { };
 
-	bool isValid() const { return (id >= 0) ? true : false; };
+	bool IsValid() const { return (id >= 0) ? true : false; };
 
-	void invalidate() { id = -1; };
+	void Invalidate() { id = -1; };
 
 	int id;
 };

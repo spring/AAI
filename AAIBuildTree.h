@@ -10,112 +10,14 @@
 #ifndef AAI_BUILDTREE_H
 #define AAI_BUILDTREE_H
 
-#include "AAITypes.h"
 #include "AAIUnitTypes.h"
+#include "AAITypes.h"
 #include "AAIUnitStatistics.h"
 #include "LegacyCpp/IAICallback.h"
 
 #include <stdio.h>
 #include <list>
 #include <vector>
-
-//! Manages the combat power of a specific unit
-class AAICombatPower
-{
-public:
-	AAICombatPower() { m_combatPower.resize(AAITargetType::numberOfTargetTypes, 0.0f); }
-
-	void SetCombatPower(const AAITargetType& targetType, float value) { m_combatPower[targetType.GetArrayIndex()] = value; }
-
-	void SetCombatPower(const AAICombatPower& combatPower)
-	{
-		static_assert(AAITargetType::numberOfTargetTypes == 5, "Number of target types does not fit to implementation");
-		m_combatPower[0] = combatPower.m_combatPower[0];
-		m_combatPower[1] = combatPower.m_combatPower[1];
-		m_combatPower[2] = combatPower.m_combatPower[2];
-		m_combatPower[3] = combatPower.m_combatPower[3];
-		m_combatPower[4] = combatPower.m_combatPower[4];
-	}
-
-	void IncreaseCombatPower(const AAITargetType& vsTargetType, float value)
-	{
-		m_combatPower[vsTargetType.GetArrayIndex()] += value;
-
-		if(m_combatPower[vsTargetType.GetArrayIndex()] > AAIConstants::maxCombatPower)
-			m_combatPower[vsTargetType.GetArrayIndex()] = AAIConstants::maxCombatPower;
-	}
-
-	void DecreaseCombatPower(const AAITargetType& vsTargetType, float value)
-	{
-		m_combatPower[vsTargetType.GetArrayIndex()] -= value;
-
-		if(m_combatPower[vsTargetType.GetArrayIndex()] < AAIConstants::minCombatPower)
-			m_combatPower[vsTargetType.GetArrayIndex()] = AAIConstants::minCombatPower;
-	}
-
-	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const { return m_combatPower[targetType.GetArrayIndex()]; }
-
-	float CalculateWeightedSum(const AAICombatPower& combatPowerWeights) const
-	{		
-		static_assert(AAITargetType::numberOfTargetTypes == 5, "Number of target types does not fit to implementation");
-		return 	  (m_combatPower[0] * combatPowerWeights.m_combatPower[0])
-				+ (m_combatPower[1] * combatPowerWeights.m_combatPower[1])
-				+ (m_combatPower[2] * combatPowerWeights.m_combatPower[2])
-		     	+ (m_combatPower[3] * combatPowerWeights.m_combatPower[3])
-				+ (m_combatPower[4] * combatPowerWeights.m_combatPower[4]);
-	}
-
-private:
-	std::vector<float> m_combatPower;
-
-	friend class AAIMobileCombatPower;
-};
-
-//! Mobile combat power (does not include combat power vs target type "static")
-class AAIMobileCombatPower
-{
-public:
-	AAIMobileCombatPower() { m_mobileCombatPower.resize(AAITargetType::numberOfMobileTargetTypes, 0.0f); }
-
-	void SetCombatPower(const AAITargetType& targetType, float value) { m_mobileCombatPower[targetType.GetArrayIndex()] = value; }
-
-	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const { return m_mobileCombatPower[targetType.GetArrayIndex()]; }
-
-	void Reset()
-	{
-		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
-		m_mobileCombatPower[0] = 0.0f;
-		m_mobileCombatPower[1] = 0.0f;
-		m_mobileCombatPower[2] = 0.0f;
-		m_mobileCombatPower[3] = 0.0f;
-	}
-
-	void AddCombatPower(const AAICombatPower& combatPower, float modifier = 1.0f)
-	{
-		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
-		m_mobileCombatPower[0] += (modifier * combatPower.m_combatPower[0]);
-		m_mobileCombatPower[1] += (modifier * combatPower.m_combatPower[1]);
-		m_mobileCombatPower[2] += (modifier * combatPower.m_combatPower[2]);
-		m_mobileCombatPower[3] += (modifier * combatPower.m_combatPower[3]);
-	}
-
-	void AddCombatPowerVsTargetType(const AAITargetType& targetType, float combatPower)
-	{
-		m_mobileCombatPower[targetType.GetArrayIndex()] += combatPower;
-	}
-
-	float CalculateWeightedSum(const AAIMobileCombatPower& mobileCombatPowerWeights) const
-	{		
-		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
-		return 	  (m_mobileCombatPower[0] * mobileCombatPowerWeights.m_mobileCombatPower[0])
-				+ (m_mobileCombatPower[1] * mobileCombatPowerWeights.m_mobileCombatPower[1])
-				+ (m_mobileCombatPower[2] * mobileCombatPowerWeights.m_mobileCombatPower[2])
-		     	+ (m_mobileCombatPower[3] * mobileCombatPowerWeights.m_mobileCombatPower[3]);
-	}
-
-private:
-	std::vector<float> m_mobileCombatPower;
-};
 
 //! @brief This class stores the build-tree, this includes which unit builds another, to which side each unit belongs
 class AAIBuildTree

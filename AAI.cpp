@@ -42,6 +42,7 @@ using namespace springLegacyAI;
 const std::vector<int> GamePhase::m_startFrameOfGamePhase  = {0, 10800, 27000, 72000};
 const std::vector<std::string> GamePhase::m_gamePhaseNames = {"starting phase", "early phase", "mid phase", "late game"};
 const std::vector<std::string> AAICombatCategory::m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
+const std::vector<std::string> AAITargetType::m_targetTypeNames = {"surface", "air", "floater", "submerged"};
 
 AAIBuildTree AAI::s_buildTree;
 
@@ -116,15 +117,15 @@ AAI::~AAI()
 	for(GamePhase gamePhaseIterator(0); gamePhaseIterator <= gamePhase; gamePhaseIterator.Next())
 	{
 		Log("Game phase %s:", gamePhaseIterator.GetName().c_str());
-		for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
+		for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
 		{
-			Log("  %s: %f", category.GetName().c_str(), attackedByRates.GetAttackedByRate(gamePhaseIterator, category));
+			Log("  %s: %f", targetType.GetName().c_str(), attackedByRates.GetAttackedByRate(gamePhaseIterator, targetType));
 		}
 		Log("\n");
 	}
 
 	// delete buildtasks
-	for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
+	for(std::list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
 	{
 		delete (*task);
 	}
@@ -575,12 +576,17 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		assert(bt->units_dynamic[def->id].active >= 0);
 
 		// update buildtable
-		if (attacker)
+		if(UnitId(attacker).IsValid() )
 		{
 			const springLegacyAI::UnitDef* defAttacker = m_aiCallback->GetUnitDef(attacker);
+			UnitDefId attackerDefId(defAttacker->id);
 
 			if(defAttacker)
-				s_buildTree.UpdateCombatPowerStatistics(UnitDefId(defAttacker->id), unitDefId);
+				s_buildTree.UpdateCombatPowerStatistics(attackerDefId, unitDefId);
+
+			const AAIUnitCategory& categoryAttacker = s_buildTree.GetUnitCategory(attackerDefId);
+			if(categoryAttacker.isCombatUnit())
+					brain->AttackedBy( s_buildTree.GetTargetType(attackerDefId) );
 		}
 
 		// finished building has been killed
@@ -749,9 +755,10 @@ void AAI::EnemyDestroyed(int enemy, int attacker)
 {
 	AAI_SCOPED_TIMER("EnemyDestroyed")
 	// remove enemy from unittable
-	ut->EnemyKilled(enemy);
+	if(UnitId(enemy).IsValid())
+		ut->EnemyKilled(enemy);
 
-	if(attacker)
+	if(UnitId(attacker).IsValid())
 	{
 		// get unit's id
 		const UnitDef* defKilled   = m_aiCallback->GetUnitDef(enemy);

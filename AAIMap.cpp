@@ -118,7 +118,6 @@ AAIMap::~AAIMap(void)
 	m_lastLOSUpdateInFrameMap.clear();
 
 	units_in_los.clear();
-	m_spottedEnemyCombatUnits.clear();
 }
 
 void AAIMap::Init()
@@ -202,8 +201,6 @@ void AAIMap::Init()
 	m_lastLOSUpdateInFrameMap.resize(xLOSMapSize*yLOSMapSize, 0);
 
 	units_in_los.resize(cfg->MAX_UNITS, 0);
-
-	m_spottedEnemyCombatUnits.resize(AAICombatUnitCategory::numberOfCombatUnitCategories, 0);
 
 	// create defence
 	defence_map.resize(xDefMapSize*yDefMapSize, 0);
@@ -2050,8 +2047,6 @@ void AAIMap::DetectMetalSpots()
 
 void AAIMap::UpdateEnemyUnitsInLOS()
 {
-	fill(m_spottedEnemyCombatUnits.begin(), m_spottedEnemyCombatUnits.end(), 0);
-
 	//
 	// reset scouted buildings for all cells within current los
 	//
@@ -2078,6 +2073,7 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 	}
 
 	// update enemy units
+	AAIValuesForMobileTargetTypes spottedEnemyCombatUnitsByTargetType;
 	const int numberOfEnemyUnits = ai->GetAICallback()->GetEnemyUnitsInRadarAndLos(&(units_in_los.front()));
 
 	for(int i = 0; i < numberOfEnemyUnits; ++i)
@@ -2102,7 +2098,10 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 				}
 
 				if(category.isCombatUnit())
-					m_spottedEnemyCombatUnits[ AAICombatUnitCategory(category).GetArrayIndex() ] += 1;
+				{
+					const AAITargetType& targetType = ai->s_buildTree.GetTargetType(UnitDefId(def->id));
+					spottedEnemyCombatUnitsByTargetType.AddValueForTargetType(targetType, 1.0f);
+				}
 			}
 		}
 		else // unit on radar only
@@ -2115,7 +2114,7 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 		}
 	}
 
-	ai->Getbrain()->UpdateMaxCombatUnitsSpotted(m_spottedEnemyCombatUnits);
+	ai->Getbrain()->UpdateMaxCombatUnitsSpotted(spottedEnemyCombatUnitsByTargetType);
 }
 
 void AAIMap::UpdateFriendlyUnitsInLos()

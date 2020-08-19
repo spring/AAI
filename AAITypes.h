@@ -214,4 +214,111 @@ private:
 	EMapType m_mapType;
 };
 
+//! Manages the combat power of a specific unit
+class AAICombatPower
+{
+public:
+	AAICombatPower() { m_combatPower.resize(AAITargetType::numberOfTargetTypes, 0.0f); }
+
+	void SetCombatPower(const AAITargetType& targetType, float value) { m_combatPower[targetType.GetArrayIndex()] = value; }
+
+	void SetCombatPower(const AAICombatPower& combatPower)
+	{
+		static_assert(AAITargetType::numberOfTargetTypes == 5, "Number of target types does not fit to implementation");
+		m_combatPower[0] = combatPower.m_combatPower[0];
+		m_combatPower[1] = combatPower.m_combatPower[1];
+		m_combatPower[2] = combatPower.m_combatPower[2];
+		m_combatPower[3] = combatPower.m_combatPower[3];
+		m_combatPower[4] = combatPower.m_combatPower[4];
+	}
+
+	void IncreaseCombatPower(const AAITargetType& vsTargetType, float value)
+	{
+		m_combatPower[vsTargetType.GetArrayIndex()] += value;
+
+		if(m_combatPower[vsTargetType.GetArrayIndex()] > AAIConstants::maxCombatPower)
+			m_combatPower[vsTargetType.GetArrayIndex()] = AAIConstants::maxCombatPower;
+	}
+
+	void DecreaseCombatPower(const AAITargetType& vsTargetType, float value)
+	{
+		m_combatPower[vsTargetType.GetArrayIndex()] -= value;
+
+		if(m_combatPower[vsTargetType.GetArrayIndex()] < AAIConstants::minCombatPower)
+			m_combatPower[vsTargetType.GetArrayIndex()] = AAIConstants::minCombatPower;
+	}
+
+	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const { return m_combatPower[targetType.GetArrayIndex()]; }
+
+	float CalculateWeightedSum(const AAICombatPower& combatPowerWeights) const
+	{		
+		static_assert(AAITargetType::numberOfTargetTypes == 5, "Number of target types does not fit to implementation");
+		return 	  (m_combatPower[0] * combatPowerWeights.m_combatPower[0])
+				+ (m_combatPower[1] * combatPowerWeights.m_combatPower[1])
+				+ (m_combatPower[2] * combatPowerWeights.m_combatPower[2])
+		     	+ (m_combatPower[3] * combatPowerWeights.m_combatPower[3])
+				+ (m_combatPower[4] * combatPowerWeights.m_combatPower[4]);
+	}
+
+private:
+	std::vector<float> m_combatPower;
+
+	friend class AAIValuesForMobileTargetTypes;
+};
+
+//! Data structure storing values for mobile target types (i.e. does not include target type "static")
+class AAIValuesForMobileTargetTypes
+{
+public:
+	AAIValuesForMobileTargetTypes() { m_values.resize(AAITargetType::numberOfMobileTargetTypes, 0.0f); }
+
+	float GetValueOfTargetType(const AAITargetType& targetType) const { return m_values[targetType.GetArrayIndex()]; }
+
+	void SetValueForTargetType(const AAITargetType& targetType, float value) { m_values[targetType.GetArrayIndex()] = value; }
+
+	void AddValueForTargetType(const AAITargetType& targetType, float value)
+	{
+		m_values[targetType.GetArrayIndex()] += value;
+	}
+
+	void DecreaseByFactor(float factor)
+	{
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		m_values[0] *= factor;
+		m_values[1] *= factor;
+		m_values[2] *= factor;
+		m_values[3] *= factor;
+	}
+
+	void Reset()
+	{
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		m_values[0] = 0.0f;
+		m_values[1] = 0.0f;
+		m_values[2] = 0.0f;
+		m_values[3] = 0.0f;
+	}
+
+	void AddCombatPower(const AAICombatPower& combatPower, float modifier = 1.0f)
+	{
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		m_values[0] += (modifier * combatPower.m_combatPower[0]);
+		m_values[1] += (modifier * combatPower.m_combatPower[1]);
+		m_values[2] += (modifier * combatPower.m_combatPower[2]);
+		m_values[3] += (modifier * combatPower.m_combatPower[3]);
+	}
+
+	float CalculateWeightedSum(const AAIValuesForMobileTargetTypes& mobileCombatPowerWeights) const
+	{		
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		return 	  (m_values[0] * mobileCombatPowerWeights.m_values[0])
+				+ (m_values[1] * mobileCombatPowerWeights.m_values[1])
+				+ (m_values[2] * mobileCombatPowerWeights.m_values[2])
+		     	+ (m_values[3] * mobileCombatPowerWeights.m_values[3]);
+	}
+
+private:
+	std::vector<float> m_values;
+};
+
 #endif

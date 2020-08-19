@@ -149,7 +149,7 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 					ai->Getam()->CheckAttack(attack);
 			}
 				
-			if(attacker)
+			if(UnitId(attacker).IsValid())
 			{
 				const springLegacyAI::UnitDef *def = ai->GetAICallback()->GetUnitDef(attacker);
 

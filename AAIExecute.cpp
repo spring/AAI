@@ -1846,31 +1846,10 @@ void AAIExecute::CheckDefences()
 							float rating = (1.0f + (*sector)->GetThreatByID(*cat, learned, current)) / ( 1.0f + (*sector)->GetFriendlyStaticDefencePower(targetType));
 
 							// how often did units of that category attack anywere in the current period of the game
-							const AAICombatUnitCategory combatUnitCategory(static_cast<ECombatUnitCategory>(*cat)); //! @todo remove this after refactoring map_categories_id
-							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(combatUnitCategory, gamePhase));
+							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(targetType, gamePhase));
 
 							if(rating > highestRating)
 							{
-								//! @todo remove/refactor this when handling combat efficiencies is reworked!
-								AAITargetType targetType;
-
-								switch(*cat)
-								{
-									case 0:
-									case 2:
-										targetType.SetType(ETargetType::SURFACE);
-										break;
-									case 1:
-										targetType.SetType(ETargetType::AIR);
-										break;
-									case 3:
-										targetType.SetType(ETargetType::FLOATER);
-										break;
-									case 4:
-										targetType.SetType(ETargetType::SUBMERGED);
-										break;
-								}
-
 								// dont block empty sectors with too much aa
 								if(    (targetType.IsAir() == false) 
 									|| ((*sector)->GetNumberOfBuildings(EUnitCategory::POWER_PLANT) > 0)

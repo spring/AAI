@@ -230,6 +230,16 @@ public:
 
 	static const int numberOfTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES);
 
+	static const ETargetType first = ETargetType::SURFACE;
+
+	void Next() { m_targetType = static_cast<ETargetType>( static_cast<int>(m_targetType) + 1 ); }
+
+	bool MobileTargetTypeEnd() const { return (static_cast<int>(m_targetType) >= numberOfMobileTargetTypes); }
+
+	const std::string& GetName() const { return m_targetTypeNames[GetArrayIndex()]; }
+
+	const static std::vector<std::string> m_targetTypeNames;
+	//const static std::vector<std::string> m_targetTypeNames = {"surface", "air", "floater", "submerged"};
 private:
 	ETargetType m_targetType;
 };

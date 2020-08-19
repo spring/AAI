@@ -52,12 +52,12 @@ public:
 	void UpdateRessources(springLegacyAI::IAICallback* cb);
 
 	//! @brief Updates the maximum number of spotted combat units for each category (old max values decrease over time)
-	void UpdateMaxCombatUnitsSpotted(const std::vector<int>& spottedCombatUnits);
+	void UpdateMaxCombatUnitsSpotted(const AAIValuesForMobileTargetTypes& spottedCombatUnits);
 
 	void UpdateAttackedByValues();
 
-	//! @brief Update counters aftr AI has been attacked by a certain unit category
-	void AttackedBy(const AAIUnitCategory& categoryAttacker);
+	//! @brief Update counters after AAI has been attacked by a certain unit
+	void AttackedBy(const AAITargetType& attackerTargetType);
 
 	//! @brief Returns the frequencies of attacks by different combat unit categories in different phases of the game
 	const AttackedByRatesPerGamePhase& GetAttackedByRates() const { return s_attackedByRates; }
@@ -91,7 +91,7 @@ public:
 
 	//! @brief Returns the frequency of attacks by units of specified combat category
 	//!        The value is determined according to to current game phase, data from this game and learned data.
-	float GetAttacksBy(const AAICombatUnitCategory& combatUnitCategory, const GamePhase& gamePhase) const;
+	float GetAttacksBy(const AAITargetType& targetType, const GamePhase& gamePhase) const;
 
 	//! @brief Returns urgency to build power plant
 	float GetEnergyUrgency() const;
@@ -109,13 +109,13 @@ public:
 	bool CheckConstructionAssist(const AAIUnitCategory& category) const;
 
 	//  0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
-	vector<list<AAISector*> > sectors;
+	std::vector< std::list<AAISector*> > sectors;
 
 	//! Indicates whether there are any free metal spots within the base
 	bool m_freeMetalSpotsInBase;
 
-	// holding max number of units of a category spotted at the same time
-	vector<float> max_combat_units_spotted;
+	//! Holding max number of units of a category spotted at the same time (float as maximum values will slowly decay over time)
+	AAIValuesForMobileTargetTypes m_maxSpottedCombatUnitsOfTargetType;
 
 	// current estimations of game situation , values ranging from 0 (min) to 1 max
 	float enemy_pressure_estimation;	// how much pressure done to the ai by enemy units
@@ -134,7 +134,7 @@ private:
 	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const AAICombatPower& combatPowerCriteria, bool urgent);
 
 	//! The combat power of all mobile units against the different target types
-	AAIMobileCombatPower m_totalMobileCombatPower;
+	AAIValuesForMobileTargetTypes m_totalMobileCombatPower;
 
 	//! Ratio of cells with flat land of all base sectors (ranging from 0 (none) to 1(all))
 	float m_baseFlatLandRatio;
@@ -158,7 +158,7 @@ private:
 	SmoothedData m_energyIncome;
 
 	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
-	AttackedByRates m_recentlyAttackedByRates;
+	AAIValuesForMobileTargetTypes m_recentlyAttackedByRates;
 
 	//! Frequency of attacks by different combat categories throughout the gane
 	static AttackedByRatesPerGamePhase s_attackedByRates;

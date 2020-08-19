@@ -153,7 +153,7 @@ void AAIAttackManager::TryToLaunchAttack(int numberOfContinents)
 		int numberOfSupportingAntirAirGroups = 0;
 
 		// check how much aa sensible
-		const int maxNumberOfAntiAirGroups = (ai->Getbrain()->max_combat_units_spotted[1] < 0.2f) ? 0 : 1;
+		const int maxNumberOfAntiAirGroups = (ai->Getbrain()->m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(ETargetType::AIR) < 0.2f) ? 0 : 1;
 
 		for(auto group = availableAAGroupsOnContinent[selectedSector->continent].begin(); group != availableAAGroupsOnContinent[selectedSector->continent].end(); ++group)
 		{

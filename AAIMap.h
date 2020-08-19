@@ -165,9 +165,6 @@ private:
 	//! Stores the frame of the last update of a cell (same resolution as los map)
 	std::vector<int>            m_lastLOSUpdateInFrameMap;
 
-	// temp for scouting
-	std::vector<int> m_spottedEnemyCombatUnits;
-
 	// krogothe's metal spot finder
 	void DetectMetalSpots();
 

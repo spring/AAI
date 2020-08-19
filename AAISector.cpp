@@ -517,11 +517,11 @@ float AAISector::GetThreatByID(int combat_cat_id, float learned, float current)
 
 float AAISector::GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const
 {
-	return (combatCategoryWeigths.vsGround  * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE))
-		+ combatCategoryWeigths.vsAir       * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::AIR)       + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::AIR))
-		+ combatCategoryWeigths.vsHover     * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE))
-		+ combatCategoryWeigths.vsSea       * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER)   + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER))
-		+ combatCategoryWeigths.vsSubmarine * (m_enemyStaticCombatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED) + m_enemyMobileCombatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED)) );
+	return (combatCategoryWeigths.vsGround  * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::SURFACE))
+		+ combatCategoryWeigths.vsAir       * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::AIR)       + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::AIR))
+		+ combatCategoryWeigths.vsHover     * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::SURFACE))
+		+ combatCategoryWeigths.vsSea       * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::FLOATER)   + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::FLOATER))
+		+ combatCategoryWeigths.vsSubmarine * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::SUBMERGED) + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::SUBMERGED)) );
 }
 
 float AAISector::GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const

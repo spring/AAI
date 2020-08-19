@@ -63,7 +63,7 @@ void AAIConstructor::Idle()
 	{
 		if(m_activity.IsCarryingOutConstructionOrder() == true)
 		{
-			if(m_constructedUnitId.isValid() == false)
+			if(m_constructedUnitId.IsValid() == false)
 			{
 				//ai->Getbt()->units_dynamic[construction_def_id].active -= 1;
 				//assert(ai->Getbt()->units_dynamic[construction_def_id].active >= 0);
@@ -80,7 +80,7 @@ void AAIConstructor::Idle()
 		else if(m_activity.IsDestroyed() == false)
 		{
 			m_activity.SetActivity(EConstructorActivity::IDLE);
-			m_assistUnitId.invalidate();
+			m_assistUnitId.Invalidate();
 
 			ReleaseAllAssistants();
 		}
@@ -151,7 +151,7 @@ void AAIConstructor::Update()
 		if(m_activity.IsCarryingOutConstructionOrder() == true)
 		{
 			// if building has begun, check for possible assisters
-			if(m_constructedUnitId.isValid() == true)
+			if(m_constructedUnitId.IsValid() == true)
 				CheckAssistance();
 			// if building has not yet begun, check if something unexpected happened (buildsite blocked)
 			else if(isBusy() == false) // && !ai->Getbt()->IsValidUnitDefID(construction_unit_id))
@@ -300,10 +300,10 @@ void AAIConstructor::CheckAssistance()
 
 void AAIConstructor::GiveReclaimOrder(int unit_id)
 {
-	if(m_assistUnitId.isValid() == true)
+	if(m_assistUnitId.IsValid() == true)
 	{
 		ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
-		m_assistUnitId.invalidate();
+		m_assistUnitId.Invalidate();
 	}
 
 	m_activity.SetActivity(EConstructorActivity::RECLAIMING);
@@ -326,10 +326,10 @@ void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos
 	if(buildingInitializationSuccessful)
 	{
 		// check if builder was previously assisting other builders/factories
-		if(m_assistUnitId.isValid())
+		if(m_assistUnitId.IsValid())
 		{
 			ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
-			m_assistUnitId.invalidate();
+			m_assistUnitId.Invalidate();
 		}
 
 		// set building as current task and order construction
@@ -370,16 +370,16 @@ void AAIConstructor::AssistConstruction(UnitId constructorUnitId)
 
 void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 {
-	if(m_assistUnitId.isValid())
+	if(m_assistUnitId.IsValid())
 	{
 		ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
-		m_assistUnitId.invalidate();
+		m_assistUnitId.Invalidate();
 	}
 
 	m_constructedDefId.id  = build_task->def_id;
 	m_constructedUnitId.id = build_task->unit_id;
 	assert(m_constructedDefId.isValid());
-	assert(m_constructedUnitId.isValid());
+	assert(m_constructedUnitId.IsValid());
 
 	m_buildPos = build_task->build_pos;
 
@@ -392,7 +392,7 @@ void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 
 void AAIConstructor::CheckIfConstructionFailed()
 {
-	if( (m_activity.IsCarryingOutConstructionOrder() == true) && (m_constructedUnitId.isValid() == false))
+	if( (m_activity.IsCarryingOutConstructionOrder() == true) && (m_constructedUnitId.IsValid() == false))
 	{
 		ConstructionFailed();
 	}
@@ -426,7 +426,7 @@ void AAIConstructor::ConstructionFinished()
   	m_activity.SetActivity(EConstructorActivity::IDLE);
 
 	m_buildPos = ZeroVector;
-	m_constructedUnitId.invalidate();
+	m_constructedUnitId.Invalidate();
 	m_constructedDefId.invalidate();
 
 	build_task = nullptr;
@@ -450,7 +450,7 @@ void AAIConstructor::ReleaseAllAssistants()
 void AAIConstructor::StopAssisting()
 {
 	m_activity.SetActivity(EConstructorActivity::IDLE);
-	m_assistUnitId.invalidate();
+	m_assistUnitId.Invalidate();
 
 	Command c(CMD_STOP);
 	//ai->Getcb()->GiveOrder(unit_id, &c);

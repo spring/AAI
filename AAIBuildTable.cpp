@@ -334,7 +334,7 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapTy
 	// create list with all factories that can be built (i.e. can be constructed by the start unit)
 	//-----------------------------------------------------------------------------------------------------------------
 
-	AAIMobileCombatPower  mobileCombatPowerWeights;
+	AAIValuesForMobileTargetTypes  mobileCombatPowerWeights;
 	DetermineCombatPowerWeights(mobileCombatPowerWeights, mapType);
 
 	std::list<FactoryRatingInputData> factoryList;
@@ -405,25 +405,25 @@ UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapTy
 	return selectedFactoryDefId;
 }
 
-void AAIBuildTable::DetermineCombatPowerWeights(AAIMobileCombatPower& combatPowerWeights, const AAIMapType& mapType) const
+void AAIBuildTable::DetermineCombatPowerWeights(AAIValuesForMobileTargetTypes& combatPowerWeights, const AAIMapType& mapType) const
 {
-	combatPowerWeights.SetCombatPower(ETargetType::AIR,     0.25f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::AIR));
-	combatPowerWeights.SetCombatPower(ETargetType::SURFACE, 1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::SURFACE));
+	combatPowerWeights.SetValueForTargetType(ETargetType::AIR,     0.25f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::AIR));
+	combatPowerWeights.SetValueForTargetType(ETargetType::SURFACE, 1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SURFACE));
 	
 	if(!mapType.IsLandMap())
 	{
-		combatPowerWeights.SetCombatPower(ETargetType::FLOATER,   1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::FLOATER));
-		combatPowerWeights.SetCombatPower(ETargetType::SUBMERGED, 0.75f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, EMobileTargetType::SUBMERGED));
+		combatPowerWeights.SetValueForTargetType(ETargetType::FLOATER,   1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::FLOATER));
+		combatPowerWeights.SetValueForTargetType(ETargetType::SUBMERGED, 0.75f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SUBMERGED));
 	}
 }
 
-void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const AAIMobileCombatPower& combatPowerWeights, const AAIMapType& mapType) const
+void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const AAIValuesForMobileTargetTypes& combatPowerWeights, const AAIMapType& mapType) const
 {
 	ratingData.canConstructBuilder = false;
 	ratingData.canConstructScout   = false;
 	ratingData.factoryDefId        = factoryDefId;
 
-	AAIMobileCombatPower combatPowerOfConstructedUnits;
+	AAIValuesForMobileTargetTypes combatPowerOfConstructedUnits;
 	int         combatUnits(0);
 
 	const bool considerLand  = !mapType.IsWaterMap();
@@ -440,27 +440,27 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 		switch(ai->s_buildTree.GetUnitCategory(*unit).getUnitCategory())
 		{
 			case EUnitCategory::GROUND_COMBAT:
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::AIR,     combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::AIR,     combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
 				++combatUnits;
 				break;
 			case EUnitCategory::AIR_COMBAT:     // same calculation as for hover
 			case EUnitCategory::HOVER_COMBAT:
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::AIR,     combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::FLOATER, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::AIR,     combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::FLOATER, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
 				++combatUnits;
 				break;
 			case EUnitCategory::SEA_COMBAT:
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SURFACE,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::AIR,       combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::AIR,       combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
 				++combatUnits;
 				break;
 			case EUnitCategory::SUBMARINE_COMBAT:
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
-				combatPowerOfConstructedUnits.AddCombatPowerVsTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
 				++combatUnits;
 				break;
 			case EUnitCategory::MOBILE_CONSTRUCTOR:
@@ -847,17 +847,16 @@ bool AAIBuildTable::LoadModLearnData()
 		{
 			for(GamePhase gamePhase(0); gamePhase.End() == false; gamePhase.Next())
 			{
-				for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
+				for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
 				{
 					float atackedByRate;
 					fscanf(inputFile, "%f ", &atackedByRate);
-					s_attackedByRates.SetAttackedByRate(mapType, gamePhase, category, atackedByRate);
+					s_attackedByRates.SetAttackedByRate(mapType, gamePhase, targetType, atackedByRate);
 				}
 			}
 		}
 
 		const bool combatPowerLoaded = ai->s_buildTree.LoadCombatPowerOfUnits(inputFile);
-
 		fclose(inputFile);
 		return combatPowerLoaded;
 	}
@@ -883,9 +882,9 @@ void AAIBuildTable::SaveModLearnData(const GamePhase& gamePhase, const AttackedB
 	{
 		for(GamePhase gamePhaseIterator(0); gamePhaseIterator.End() == false; gamePhaseIterator.Next())
 		{
-			for(AAICombatCategory category(AAICombatCategory::first); category.End() == false; category.Next())
+			for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
 			{
-				fprintf(saveFile, "%f ", s_attackedByRates.GetAttackedByRate(mapTypeIterator, gamePhaseIterator, category));
+				fprintf(saveFile, "%f ", s_attackedByRates.GetAttackedByRate(mapTypeIterator, gamePhaseIterator, targetType));
 			}
 			fprintf(saveFile, "\n");
 		}
