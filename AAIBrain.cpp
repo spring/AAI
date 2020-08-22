@@ -678,22 +678,17 @@ void AAIBrain::BuildUnits()
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate urgency to counter each of the different combat categories
 	//-----------------------------------------------------------------------------------------------------------------
-	float urgency[AAITargetType::numberOfMobileTargetTypes];
+	AAICombatPower threatByTargetType;
 
 	for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
 	{
-		urgency[targetType.GetArrayIndex()] =    
-						  attackedByCatStatistics.GetNormalizedDeviationFromMin( attackedByCategory.GetValueOfTargetType(targetType) ) 
-	                    + unitsSpottedStatistics.GetNormalizedDeviationFromMin( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )
-	                    + 1.5f * defenceStatistics.GetNormalizedDeviationFromMax( m_totalMobileCombatPower.GetValueOfTargetType(targetType)) ;
+		const float threat =  attackedByCatStatistics.GetNormalizedDeviationFromMin( attackedByCategory.GetValueOfTargetType(targetType) ) 
+	                    	+ unitsSpottedStatistics.GetNormalizedDeviationFromMin( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )
+	                    	+ 1.5f * defenceStatistics.GetNormalizedDeviationFromMax( m_totalMobileCombatPower.GetValueOfTargetType(targetType)) ;
+		threatByTargetType.SetCombatPower(targetType, threat);
 	}						 
 
-	AAICombatPower combatPowerCriteria;
-	combatPowerCriteria.SetCombatPower(ETargetType::SURFACE,   urgency[0]);
-	combatPowerCriteria.SetCombatPower(ETargetType::AIR,       urgency[1]);
-	combatPowerCriteria.SetCombatPower(ETargetType::FLOATER,   urgency[3]);
-	combatPowerCriteria.SetCombatPower(ETargetType::SUBMERGED, urgency[4]);
-	combatPowerCriteria.SetCombatPower(ETargetType::STATIC,    urgency[0] + urgency[3]);
+	threatByTargetType.SetCombatPower(ETargetType::STATIC, threatByTargetType.GetCombatPowerVsTargetType(ETargetType::SURFACE) + threatByTargetType.GetCombatPowerVsTargetType(ETargetType::FLOATER) );
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Order building of units according to determined threat/own defence capabilities
@@ -709,7 +704,7 @@ void AAIBrain::BuildUnits()
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
 				unitCategory.setCategory(EMobileTargetType::AIR);
 
-			BuildCombatUnitOfCategory(unitCategory, combatPowerCriteria, urgent);
+			BuildCombatUnitOfCategory(unitCategory, threatByTargetType, urgent);
 		}
 		else if(ai->Getmap()->map_type == LAND_WATER_MAP)
 		{
@@ -724,7 +719,7 @@ void AAIBrain::BuildUnits()
 				unitCategory.setCategory(EMobileTargetType::AIR);
 			
 
-			BuildCombatUnitOfCategory(unitCategory, combatPowerCriteria, urgent);
+			BuildCombatUnitOfCategory(unitCategory, threatByTargetType, urgent);
 		}
 		else if(ai->Getmap()->map_type == WATER_MAP)
 		{
@@ -734,7 +729,7 @@ void AAIBrain::BuildUnits()
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
 				unitCategory.setCategory(EMobileTargetType::AIR);
 
-			BuildCombatUnitOfCategory(unitCategory, combatPowerCriteria, urgent);
+			BuildCombatUnitOfCategory(unitCategory, threatByTargetType, urgent);
 		}
 	}
 }

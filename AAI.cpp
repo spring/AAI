@@ -579,14 +579,18 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		if(UnitId(attacker).IsValid() )
 		{
 			const springLegacyAI::UnitDef* defAttacker = m_aiCallback->GetUnitDef(attacker);
-			UnitDefId attackerDefId(defAttacker->id);
 
 			if(defAttacker)
-				s_buildTree.UpdateCombatPowerStatistics(attackerDefId, unitDefId);
+			{
+				UnitDefId attackerDefId(defAttacker->id);
 
-			const AAIUnitCategory& categoryAttacker = s_buildTree.GetUnitCategory(attackerDefId);
-			if(categoryAttacker.isCombatUnit())
-					brain->AttackedBy( s_buildTree.GetTargetType(attackerDefId) );
+				if(defAttacker)
+					s_buildTree.UpdateCombatPowerStatistics(attackerDefId, unitDefId);
+
+				const AAIUnitCategory& categoryAttacker = s_buildTree.GetUnitCategory(attackerDefId);
+				if(categoryAttacker.isCombatUnit())
+						brain->AttackedBy( s_buildTree.GetTargetType(attackerDefId) );
+			}
 		}
 
 		// finished building has been killed
