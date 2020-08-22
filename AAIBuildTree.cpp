@@ -595,11 +595,10 @@ EMovementType AAIBuildTree::DetermineMovementType(const springLegacyAI::UnitDef*
         // ship
         else if(unitDef->movedata->moveFamily == MoveData::Ship)
         {
-            if(unitDef->categoryString.find("UNDERWATER") != std::string::npos) {
+            if(unitDef->movedata->subMarine) // categoryString.find("UNDERWATER") != std::string::npos) {
                 moveType = EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED;
-            } else {
-                moveType = EMovementType::MOVEMENT_TYPE_SEA_FLOATER;
-            }
+            else 
+                moveType = EMovementType::MOVEMENT_TYPE_SEA_FLOATER;  
         }
     }
     // aircraft
@@ -823,29 +822,33 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 			}
 			else
 			{
-				if(    (m_unitTypeProperties[unitDef->id].m_movementType.IsGround()     == true) 
-				    || (m_unitTypeProperties[unitDef->id].m_movementType.IsAmphibious() == true) )
+				if(    (m_unitTypeProperties[unitDef->id].m_movementType.IsGround()) 
+				    || (m_unitTypeProperties[unitDef->id].m_movementType.IsAmphibious()) )
 				{
 					if( IsArtillery(unitDef, cfg->GROUND_ARTY_RANGE) == true)
 						return EUnitCategory::MOBILE_ARTILLERY;
 					else
 						return EUnitCategory::GROUND_COMBAT;
 				}
-				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsHover() == true)
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsHover())
 				{
 					if( IsArtillery(unitDef, cfg->HOVER_ARTY_RANGE) == true)
 						return EUnitCategory::MOBILE_ARTILLERY;
 					else
 						return EUnitCategory::HOVER_COMBAT;
 				}
-				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsAir() == true)
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsAir())
 				{
 					return EUnitCategory::AIR_COMBAT;
 				}
-				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsSeaUnit() == true)
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsShip())
 				{
-					//! @todo: Sea artillery is skipped on prupose - handling of sea artillery not implemented at the moment.
+					//! @todo: Sea artillery is skipped on purpose - handling of sea artillery not implemented at the moment.
 					return EUnitCategory::SEA_COMBAT;
+				}
+				else if(m_unitTypeProperties[unitDef->id].m_movementType.IsSubmarine())
+				{
+					return EUnitCategory::SUBMARINE_COMBAT;
 				}
 			}
 		}
