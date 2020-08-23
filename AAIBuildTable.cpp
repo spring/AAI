@@ -88,7 +88,7 @@ void AAIBuildTable::Init()
 	{
 		if(LoadModLearnData() == false)
 		{
-			ai->s_buildTree.InitCombatPowerOfUnits();
+			ai->s_buildTree.InitCombatPowerOfUnits(ai->GetAICallback());
 			ai->LogConsole("New BuildTable has been created");
 		}
 	}
@@ -328,86 +328,9 @@ UnitDefId AAIBuildTable::GetMetalMaker(int side, float cost, float efficiency, f
 	return selectedMetalMaker;
 }
 
-UnitDefId AAIBuildTable::RequestInitialFactory(int side, const AAIMapType& mapType)
-{
-	//-----------------------------------------------------------------------------------------------------------------
-	// create list with all factories that can be built (i.e. can be constructed by the start unit)
-	//-----------------------------------------------------------------------------------------------------------------
-
-	AAIValuesForMobileTargetTypes  mobileCombatPowerWeights;
-	DetermineCombatPowerWeights(mobileCombatPowerWeights, mapType);
-
-	std::list<FactoryRatingInputData> factoryList;
-	StatisticalData combatPowerRatingStatistics;
-
-	for(auto factory = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); factory != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++factory)
-	{
-		if(units_dynamic[factory->id].constructorsAvailable > 0)
-		{
-			FactoryRatingInputData data;
-			CalculateFactoryRating(data, *factory, mobileCombatPowerWeights, mapType);
-			factoryList.push_back(data);
-
-			combatPowerRatingStatistics.AddValue(data.combatPowerRating);
-		}
-	}
-
-	combatPowerRatingStatistics.Finalize();
-
-	//-----------------------------------------------------------------------------------------------------------------
-	// calculate final ratings and select highest rated factory
-	//-----------------------------------------------------------------------------------------------------------------
-	
-	float bestRating(0.0f);
-	UnitDefId selectedFactoryDefId;
-
-	const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
-
-	/*ai->Log("Combat power weights: ground %f   air %f   sea %f   submarine %f\n",   mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::SURFACE),
-																					mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::AIR),
-																					mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::FLOATER),
-																					mobileCombatPowerWeights.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
-	ai->Log("Factory ratings (max combat power rating %f):", combatPowerRatingStatistics.GetMaxValue());*/
-
-	for(auto factory = factoryList.begin(); factory != factoryList.end(); ++factory)
-	{
-		float myRating =  0.5f * costStatistics.GetNormalizedDeviationFromMax(ai->s_buildTree.GetTotalCost(factory->factoryDefId))
-		                + 1.0f * combatPowerRatingStatistics.GetNormalizedDeviationFromMin(factory->combatPowerRating);  
-
-		if(factory->canConstructBuilder)
-			myRating += 0.2f;
-
-		if(factory->canConstructScout)
-			myRating += 0.4f;
-
-		//ai->Log(" %s %f %f", ai->s_buildTree.GetUnitTypeProperties(factory->factoryDefId).m_name.c_str(), myRating, factory->combatPowerRating);
-	
-		if(myRating > bestRating)
-		{
-			bestRating = myRating;
-			selectedFactoryDefId = factory->factoryDefId;
-		}
-	}
-
-	//ai->Log("\n");
-
-	//-----------------------------------------------------------------------------------------------------------------
-	// order construction
-	//-----------------------------------------------------------------------------------------------------------------
-
-	if(selectedFactoryDefId.isValid())
-	{
-		units_dynamic[selectedFactoryDefId.id].requested += 1;
-		m_factoryBuildqueue.push_front(selectedFactoryDefId);
-		ConstructorRequested(selectedFactoryDefId);
-	}
-
-	return selectedFactoryDefId;
-}
-
 void AAIBuildTable::DetermineCombatPowerWeights(AAIValuesForMobileTargetTypes& combatPowerWeights, const AAIMapType& mapType) const
 {
-	combatPowerWeights.SetValueForTargetType(ETargetType::AIR,     0.25f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::AIR));
+	combatPowerWeights.SetValueForTargetType(ETargetType::AIR,     0.1f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::AIR));
 	combatPowerWeights.SetValueForTargetType(ETargetType::SURFACE, 1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SURFACE));
 	
 	if(!mapType.IsLandMap())
@@ -735,7 +658,7 @@ UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uin
 	return selectedScout;
 }
 
-void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatCategory& category, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
+void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
 {
 	int i = 0;
 	for(std::list<int>::const_iterator id = unitList.begin(); id != unitList.end(); ++id)
@@ -762,7 +685,9 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& cat
 	//-----------------------------------------------------------------------------------------------------------------
 	// get data needed for selection
 	//-----------------------------------------------------------------------------------------------------------------
-	const std::list<int> unitList = ai->s_buildTree.GetUnitsInCombatCategory(category, side);
+	AAITargetType targetType(category);
+
+	const std::list<int> unitList = ai->s_buildTree.GetCombatUnitsOfTargetType(targetType, side);
 
 	const StatisticalData& costStatistics  = ai->s_buildTree.GetUnitStatistics(side).GetCombatCostStatistics(category);
 	const StatisticalData& rangeStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatRangeStatistics(category);
@@ -772,17 +697,15 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& cat
 	StatisticalData combatEfficiencyStat;	               // combat power related to unit cost
 	std::vector<float> combatPowerValues(unitList.size()); // values for individual units (in order of appearance in unitList)
 
-	CalculateCombatPowerForUnits(unitList, category, combatPowerCriteria, combatPowerValues, combatPowerStat, combatEfficiencyStat);
+	CalculateCombatPowerForUnits(unitList, combatPowerCriteria, combatPowerValues, combatPowerStat, combatEfficiencyStat);
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// begin with selection
 	//-----------------------------------------------------------------------------------------------------------------
 	UnitDefId selectedUnitType;
-	float bestRating = 0.0f;
+	float bestRating(0.0f);
 
-	//ai->Log("Selecting ground unit:\n");
-
-	int i = 0;
+	int i(0);
 	for(std::list<int>::const_iterator id = unitList.begin(); id != unitList.end(); ++id)
 	{
 		if(    (canBuild == false)
@@ -792,18 +715,12 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& cat
 
 			float combatEff = combatPowerValues[i] / unitData.m_totalCost;
 
-			float myRating =  unitCriteria.cost  * costStatistics.GetNormalizedDeviationFromMax( unitData.m_totalCost )
-							+ unitCriteria.range * rangeStatistics.GetNormalizedDeviationFromMin( unitData.m_primaryAbility )
-							+ unitCriteria.speed * speedStatistics.GetNormalizedDeviationFromMin( unitData.m_maxSpeed )
-							+ unitCriteria.power * combatPowerStat.GetNormalizedDeviationFromMin( combatPowerValues[i] )
-							+ unitCriteria.efficiency * combatEfficiencyStat.GetNormalizedDeviationFromMin( combatEff )
+			float myRating =  unitCriteria.cost  * costStatistics.GetNormalizedSquaredDeviationFromMax( unitData.m_totalCost )
+							+ unitCriteria.range * rangeStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_primaryAbility )
+							+ unitCriteria.speed * speedStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_maxSpeed )
+							+ unitCriteria.power * combatPowerStat.GetNormalizedSquaredDeviationFromMin( combatPowerValues[i] )
+							+ unitCriteria.efficiency * combatEfficiencyStat.GetNormalizedSquaredDeviationFromMin( combatEff )
 							+ 0.05f * ((float)(rand()%randomness));
-
-			/*ai->Log("%s %f %f %f %f %f %i %i\n", unitData.m_name.c_str(), 
-			costStatistics.GetNormalizedDeviationFromMax( unitData.m_totalCost ), combatPowerStat.GetNormalizedDeviationFromMin( combatPower ),
-			speedStatistics.GetNormalizedDeviationFromMin( unitData.m_maxSpeed ), combatPowerStat.GetNormalizedDeviationFromMin( combatPower ),
-			combatEfficiencyStat.GetNormalizedDeviationFromMin( combatEff ), units_dynamic[*id].constructorsRequested, units_dynamic[*id].constructorsAvailable
-			);*/
 
 			if(myRating > bestRating)
 			{

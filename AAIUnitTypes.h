@@ -162,6 +162,70 @@ private:
 	ECombatUnitCategory m_combatUnitCategory;
 };
 
+//! The mobile target category describes what kind of target class a unit belongs to
+enum class EMobileTargetType : int
+{
+	SURFACE              = 0, //! Units on ground (move type ground, amphibious, hover, land buildings)
+	AIR                  = 1, //! Air units
+	FLOATER              = 2, //! Units moving above water (ships, hover) or floating buildings
+	SUBMERGED            = 3, //! Units moving below water (submarines) or submerged buildings
+	NUMBER_OF_CATEGORIES = 4, //! The number of combat categories (unknown/invalid not used)
+	UNKNOWN              = 5, //! This value will be treated as invalid
+};
+
+//! This class handles the target category which describes
+class AAICombatCategory
+{
+public:
+	AAICombatCategory(EMobileTargetType combatUnitCategory) : m_targetType(combatUnitCategory) {}
+
+	AAICombatCategory() : AAICombatCategory(EMobileTargetType::UNKNOWN) {}
+
+	AAICombatCategory(const AAICombatUnitCategory& combatUnitCategory)
+	{
+		if( (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::GROUND_COMBAT) || (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::HOVER_COMBAT) )
+			m_targetType = EMobileTargetType::SURFACE;
+		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::AIR_COMBAT)
+			m_targetType = EMobileTargetType::AIR;
+		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::SEA_COMBAT)
+			m_targetType = EMobileTargetType::FLOATER;
+		else
+			m_targetType = EMobileTargetType::SUBMERGED;
+	}
+
+	void setCategory(EMobileTargetType category) { m_targetType = category; }
+
+	bool IsValid()      const { return (m_targetType != EMobileTargetType::UNKNOWN); }
+
+	bool IsSurface()    const { return (m_targetType == EMobileTargetType::SURFACE); }
+
+	bool IsAir()        const { return (m_targetType == EMobileTargetType::AIR); }
+
+	bool IsFloater()    const { return (m_targetType == EMobileTargetType::FLOATER); }
+
+	bool IsSubmerged()  const { return (m_targetType == EMobileTargetType::SUBMERGED); }
+
+	const std::string& GetName() const { return m_combatCategoryNames[GetArrayIndex()]; }
+
+	int GetArrayIndex() const {return static_cast<int>(m_targetType); }
+
+	static int GetArrayIndex(EMobileTargetType category) { return static_cast<int>(category); }
+
+	static const int numberOfCombatCategories = static_cast<int>(EMobileTargetType::NUMBER_OF_CATEGORIES);
+
+	const static std::vector<std::string> m_combatCategoryNames;
+	//const static std::vector<std::string> m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
+
+	static const EMobileTargetType first = EMobileTargetType::SURFACE;
+
+	void Next() { m_targetType = static_cast<EMobileTargetType>( static_cast<int>(m_targetType) + 1 ); }
+
+	bool End() const { return (m_targetType == EMobileTargetType::NUMBER_OF_CATEGORIES); }
+
+private:
+	EMobileTargetType m_targetType;
+};
+
 //! The target category describes what kind of target class a unit belongs to
 enum class ETargetType : int
 {
@@ -202,6 +266,21 @@ public:
 			default:
 				m_targetType = ETargetType::UNKNOWN;
 		}
+	}
+
+	//! @todo This can be removed when AAICombatCategory is fully replaced by AAITargetType
+	AAITargetType(const AAICombatCategory& combatCategory)
+	{
+		if(combatCategory.IsSurface())
+			m_targetType = ETargetType::SURFACE;
+		else if(combatCategory.IsAir())
+			m_targetType = ETargetType::AIR;
+		else if(combatCategory.IsFloater())
+			m_targetType = ETargetType::FLOATER;
+		else if(combatCategory.IsSubmerged())
+			m_targetType = ETargetType::SUBMERGED;
+		else
+			m_targetType = ETargetType::UNKNOWN;
 	}
 
 	void SetType(ETargetType targetType) { m_targetType = targetType; }
@@ -343,70 +422,6 @@ public:
 private:
 	//! Unit type
 	int m_unitType;
-};
-
-//! The mobile target category describes what kind of target class a unit belongs to
-enum class EMobileTargetType : int
-{
-	SURFACE              = 0, //! Units on ground (move type ground, amphibious, hover, land buildings)
-	AIR                  = 1, //! Air units
-	FLOATER              = 2, //! Units moving above water (ships, hover) or floating buildings
-	SUBMERGED            = 3, //! Units moving below water (submarines) or submerged buildings
-	NUMBER_OF_CATEGORIES = 4, //! The number of combat categories (unknown/invalid not used)
-	UNKNOWN              = 5, //! This value will be treated as invalid
-};
-
-//! This class handles the target category which describes
-class AAICombatCategory
-{
-public:
-	AAICombatCategory(EMobileTargetType combatUnitCategory) : m_targetType(combatUnitCategory) {}
-
-	AAICombatCategory() : AAICombatCategory(EMobileTargetType::UNKNOWN) {}
-
-	AAICombatCategory(const AAICombatUnitCategory& combatUnitCategory)
-	{
-		if( (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::GROUND_COMBAT) || (combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::HOVER_COMBAT) )
-			m_targetType = EMobileTargetType::SURFACE;
-		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::AIR_COMBAT)
-			m_targetType = EMobileTargetType::AIR;
-		else if(combatUnitCategory.GetCombatUnitCategory() == ECombatUnitCategory::SEA_COMBAT)
-			m_targetType = EMobileTargetType::FLOATER;
-		else
-			m_targetType = EMobileTargetType::SUBMERGED;
-	}
-
-	void setCategory(EMobileTargetType category) { m_targetType = category; }
-
-	bool IsValid()      const { return (m_targetType != EMobileTargetType::UNKNOWN); }
-
-	bool IsSurface()    const { return (m_targetType == EMobileTargetType::SURFACE); }
-
-	bool IsAir()        const { return (m_targetType == EMobileTargetType::AIR); }
-
-	bool IsFloater()    const { return (m_targetType == EMobileTargetType::FLOATER); }
-
-	bool IsSubmerged()  const { return (m_targetType == EMobileTargetType::SUBMERGED); }
-
-	const std::string& GetName() const { return m_combatCategoryNames[GetArrayIndex()]; }
-
-	int GetArrayIndex() const {return static_cast<int>(m_targetType); }
-
-	static int GetArrayIndex(EMobileTargetType category) { return static_cast<int>(category); }
-
-	static const int numberOfCombatCategories = static_cast<int>(EMobileTargetType::NUMBER_OF_CATEGORIES);
-
-	const static std::vector<std::string> m_combatCategoryNames;
-	//const static std::vector<std::string> m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
-
-	static const EMobileTargetType first = EMobileTargetType::SURFACE;
-
-	void Next() { m_targetType = static_cast<EMobileTargetType>( static_cast<int>(m_targetType) + 1 ); }
-
-	bool End() const { return (m_targetType == EMobileTargetType::NUMBER_OF_CATEGORIES); }
-
-private:
-	EMobileTargetType m_targetType;
 };
 
 #endif

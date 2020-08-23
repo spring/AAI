@@ -139,9 +139,6 @@ public:
 	void GiveOrder(Command *c, int unit, const char *owner);
 
 private:
-	// accelerates game startup
-	void AddStartFactory();
-
 	// custom relations
 	float static sector_threat(AAISector *);
 

@@ -37,7 +37,7 @@ public:
 	bool LoadCombatPowerOfUnits(FILE* inputFile);
 
 	//! @brief Initializes the combat power (called if no saved data from previous games available)
-	void InitCombatPowerOfUnits();
+	void InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb);
 
 	//! @brief Updates combat power statistics when a unit kills another
 	void UpdateCombatPowerStatistics(UnitDefId attackerDefId, UnitDefId killedUnitDefId);
@@ -103,7 +103,7 @@ public:
 	const std::list<UnitDefId>& GetUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; }
 
 	//! @brief Returns the list of units of the given combat category for given side
-	const std::list<int>& GetUnitsInCombatCategory(const AAICombatCategory& category, int side) const { return m_unitsInCombatCategory[side-1][category.GetArrayIndex()]; }
+	const std::list<int>& GetCombatUnitsOfTargetType(const AAITargetType& targetType, int side) const { return m_unitsInCombatCategory[side-1][targetType.GetArrayIndex()]; }
 
 	//! @brief Returns the unit category statistics for given side
 	const AAIUnitStatistics& GetUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; }

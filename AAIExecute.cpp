@@ -120,9 +120,6 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 
 	ai->Getut()->AddCommander(UnitId(commander_unit_id), UnitDefId(commander_def->id));
 
-	// add the highest rated, buildable factory
-	AddStartFactory();
-
 	// get economy working
 	CheckRessources();
 }
@@ -2475,22 +2472,6 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 
 	// update buildmap of sector
 	ai->Getmap()->UpdateBuildMap(build_pos, def, false);
-}
-
-void AAIExecute::AddStartFactory()
-{
-	AAIMapType mapType(static_cast<EMapType>(ai->Getmap()->map_type)); //! @todo Will be removed after switching to new AAIMapType
-	UnitDefId factoryDefId = ai->Getbt()->RequestInitialFactory(ai->GetSide(), mapType);
-
-	if(factoryDefId.isValid())
-	{
-		urgency[STATIONARY_CONSTRUCTOR] = 3.0f;
-		ai->Log("%s selected as initial factory\n", ai->s_buildTree.GetUnitTypeProperties(factoryDefId).m_name.c_str());	
-	}
-	else
-	{
-		ai->Log("ERROR: Selection of first factory to be built failed!\nCheck if start unit is able to build factories.");
-	}
 }
 
 AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTargetType, const float3& pos, int importance) const

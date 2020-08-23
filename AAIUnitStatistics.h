@@ -141,10 +141,34 @@ public:
 	}
 
 	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
+	float GetNormalizedSquaredDeviationFromMax(float value) const
+	{
+		if(m_valueRange != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
+		{
+			const float x = 1.0f - (m_maxValue - value) / m_valueRange;
+			return (1.0f - x*x);
+		}
+		else
+			return 0.0f;
+	}
+
+	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
 	float GetNormalizedDeviationFromMin(float value) const
 	{
 		if(m_valueRange != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
 			return (value - m_minValue) / m_valueRange;
+		else
+			return 0.0f;
+	}
+
+	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
+	float GetNormalizedSquaredDeviationFromMin(float value) const
+	{
+		if(m_valueRange != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
+		{
+			const float x = 1.0f - (value - m_minValue) / m_valueRange;
+			return (1.0f - x*x);
+		}
 		else
 			return 0.0f;
 	}
