@@ -459,7 +459,8 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 	{
 		// sectors that result in more compact bases or with more metal spots are rated higher
 		float myRating = static_cast<float>( (candidate->first)->GetNumberOfMetalSpots() );
-		                + 4.0f * sectorDistances.GetNormalizedDeviationFromMax(candidate->second);
+		                + 4.0f * sectorDistances.GetNormalizedDeviationFromMax(candidate->second)
+						+ 3.0f / static_cast<float>( (candidate->first)->GetEdgeDistance() + 1 );
 
 		if(sectorType == LAND_SECTOR)
 			// prefer flat sectors without water
@@ -467,7 +468,7 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 		else if(sectorType == WATER_SECTOR)
 		{
 			// check for continent size (to prevent aai to expand into little ponds instead of big ocean)
-			if((candidate->first)->water_ratio > 0.1f &&  (candidate->first)->ConnectedToOcean())
+			if( ((candidate->first)->water_ratio > 0.1f) && (candidate->first)->ConnectedToOcean() )
 				myRating += 16.0f * (candidate->first)->water_ratio;
 			else
 				myRating = 0.0f;

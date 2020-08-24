@@ -50,6 +50,9 @@ public:
 	//! Minimum combat power vs specific target type such that a group of only one unit may participate in attacks
 	static constexpr float minCombatPowerForSoloAttack  = 2.5f;
 
+	//! Minimum weapons range difference to shorter ranged attacked before combat units try to keep their distance
+	static constexpr float minWeaponRangeDiffToKeepDistance = 50.0f;
+
 	//! Minimum unused metal storage capcity befor construction of metal storage is taken into account
 	static constexpr float minUnusedMetalStorageCapacityToBuildStorage = 100.0f;
 

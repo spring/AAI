@@ -220,7 +220,7 @@ void AAIGroup::Update()
 		float3 pos;
 		Command c(CMD_MOVE);
 
-		for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
+		/*for(list<int2>::iterator unit = units.begin(); unit != units.end(); ++unit)
 		{
 			range = ai->s_buildTree.GetMaxRange(UnitDefId(unit->y));
 
@@ -239,7 +239,7 @@ void AAIGroup::Update()
 					ai->Getexecute()->GiveOrder(&c, unit->x, "GroupFallBack");
 				}
 			}
-		}
+		}*/
 	}
 }
 

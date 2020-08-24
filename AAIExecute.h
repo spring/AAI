@@ -105,11 +105,12 @@ public:
 	// builds defences around mex spot if necessary
 	void DefendMex(int mex, int def_id);
 
-	// returns a position for the unit to withdraw from close quarters combat (but try to keep enemies in weapons range)
-	// returns ZeroVector if no suitable pos found (or no enemies close enough)
-	void GetFallBackPos(float3 *pos, int unit_id, float max_weapon_range) const;
+	//! @brief Returns a position for the unit to withdraw from close quarters combat (but try to keep enemies in weapons range)
+	//!        Returns ZeroVector if no suitable pos found (or no enemies close enough)
+	float3 GetFallBackPos(const float3& pos, float maxFallbackDist) const;
 
-	void CheckFallBack(int unit_id, int def_id);
+	//! @brief Checks if a combat unit attacked by given enemy shall move back a little to maintain distance to attacker
+	void CheckKeepDistanceToEnemy(UnitId unitId, UnitDefId unitDefId, UnitDefId enemyDefId);
 
 	//! @brief Tries to call support against specific attacker (e.g. air)
 	void DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const;

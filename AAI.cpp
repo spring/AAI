@@ -259,56 +259,59 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 	if(attackedDef == nullptr)
 		return;
 		
-	const UnitDefId attackedDefId(attackedDef->id);
-	const AAIUnitCategory& attackedCategory =  s_buildTree.GetUnitCategory(attackedDefId);
+	const UnitDefId unitDefId(attackedDef->id);
+	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 
-	// assault groups may be ordered to retreat
-	if (attackedCategory.isCombatUnit() == true)
-		execute->CheckFallBack(damaged, attackedDefId.id);
-	else if(attackedCategory.isCommander())
+	if(category.isCommander())
 		brain->DefendCommander(attacker);
 
-	// known attacker
-	if (attacker >= 0)
+	const springLegacyAI::UnitDef* attackerDef = m_aiCallback->GetUnitDef(attacker);
+
+	if(attackerDef == nullptr)
 	{
+		// ------------------------------------------------------------------------------------------------------------
+		// unknown attacker
+		// ------------------------------------------------------------------------------------------------------------
+
+		// retreat builders
+		if (category.isMobileConstructor())
+			ut->units[damaged].cons->Retreat(EUnitCategory::UNKNOWN);	
+	}
+	else 
+	{
+		// ------------------------------------------------------------------------------------------------------------
+		// known attacker
+		// ------------------------------------------------------------------------------------------------------------
+
 		// filter out friendly fire
-		if (m_aiCallback->GetUnitTeam(attacker) == m_aiCallback->GetMyTeam())
+		if (m_aiCallback->GetUnitAllyTeam(attacker) == m_aiCallback->GetMyAllyTeam())
 			return;
 
-		const springLegacyAI::UnitDef* attackerDef = m_aiCallback->GetUnitDef(attacker);
+		const UnitId    unit(damaged);
+		const UnitDefId enemyDefId(attackerDef->id);
 
-		if ( (attackerDef != nullptr)  )
-		{
-			const AAIUnitCategory& category           = s_buildTree.GetUnitCategory(UnitDefId(attackedDef->id));
-			const AAITargetType&   attackerTargetType = s_buildTree.GetTargetType(UnitDefId(attackerDef->id));
+		if (category.isCombatUnit())
+			execute->CheckKeepDistanceToEnemy(unit, unitDefId, enemyDefId);
 
-			const float3 pos = m_aiCallback->GetUnitPos(attacker);
-			
-			// building has been attacked
-			if (category.isBuilding() )
-				execute->DefendUnitVS(UnitId(damaged), attackerTargetType, pos, 115);
-			// builder
-			else if ( category.isMobileConstructor() )
-			{
-				execute->DefendUnitVS(UnitId(damaged), attackerTargetType, pos, 110);
-				ut->units[damaged].cons->Retreat(category);
-			}
-			// normal units
-			else
-			{
-				if(attackerTargetType.IsAir() && (s_buildTree.GetUnitType(attackedDefId).CanFightTargetType(attackerTargetType) == false) ) 
-					execute->DefendUnitVS(UnitId(damaged), attackerTargetType, pos, 105);
-			}	
-		}
-	}
-	// unknown attacker
-	else
-	{
-		// retreat builders
-		if (ut->IsBuilder(UnitId(damaged)) == true)
+		const AAITargetType&  enemyTargetType = s_buildTree.GetTargetType(enemyDefId);
+		const float3          pos = m_aiCallback->GetUnitPos(attacker);
+		
+		// building has been attacked
+		if (category.isBuilding() )
+			execute->DefendUnitVS(unit, enemyTargetType, pos, 115);
+		// builder
+		else if ( category.isMobileConstructor() )
 		{
-			ut->units[damaged].cons->Retreat(EUnitCategory::UNKNOWN);
+			execute->DefendUnitVS(unit, enemyTargetType, pos, 110);
+			ut->units[damaged].cons->Retreat(category);
 		}
+		// normal units
+		else
+		{
+			if(enemyTargetType.IsAir() && (s_buildTree.GetUnitType(unitDefId).CanFightTargetType(enemyTargetType) == false) ) 
+				execute->DefendUnitVS(unit, enemyTargetType, pos, 105);
+		}	
+		
 	}
 }
 
@@ -510,19 +513,16 @@ void AAI::UnitDestroyed(int unit, int attacker)
 	UnitDefId unitDefId(def->id);
 
 	float3 pos = m_aiCallback->GetUnitPos(unit);
-	const int x = pos.x/map->xSectorSize;
-	const int y = pos.z/map->ySectorSize;
 
-	// check if unit pos is within a valid sector (e.g. aircraft flying outside of the map)
-	const bool validSector = map->IsValidSector(x,y);
+	AAISector* sector = map->GetSectorOfPos(pos);
 
 	// update threat map
-	if (attacker && validSector)
+	if (attacker && sector)
 	{
 		const springLegacyAI::UnitDef* att_def = m_aiCallback->GetUnitDef(attacker);
 
 		if (att_def)
-			map->sector[x][y].UpdateThreatValues(unitDefId, UnitDefId(att_def->id));
+			sector->UpdateThreatValues(unitDefId, UnitDefId(att_def->id));
 	}
 
 	// unfinished unit has been killed
@@ -597,8 +597,8 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
 			// decrease number of units of that category in the target sector
-			if (validSector)
-				map->sector[x][y].RemoveBuilding(category);
+			if(sector)
+				sector->RemoveBuilding(category);
 
 			// check if building belongs to one of this groups
 			if (category.isStaticDefence())
@@ -611,7 +611,8 @@ void AAI::UnitDestroyed(int unit, int attacker)
 				ut->RemoveExtractor(unit);
 
 				// mark spots of destroyed mexes as unoccupied
-				map->sector[x][y].FreeMetalSpot(m_aiCallback->GetUnitPos(unit), def);
+				if(sector)
+					sector->FreeMetalSpot(m_aiCallback->GetUnitPos(unit), def);
 			}
 			else if (category.isPowerPlant())
 			{
@@ -663,12 +664,9 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			// scout
 			if (category.isScout())
 			{
-				ut->RemoveScout(unit);
+				map->UpdateEnemyUnitsInLOS();
 
-				// add enemy building to sector
-				// @todo This will be overwritten on next "unit in LOS" update --> implement different mechanism!
-				//if (validSector && map->sector[x][y].distance_to_base > 0)
-				//	++map->sector[x][y].m_enemyBuildings;
+				ut->RemoveScout(unit);
 			}
 			// assault units
 			else if (category.isCombatUnit())

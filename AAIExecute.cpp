@@ -2619,20 +2619,21 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 	}
 }
 
-void AAIExecute::CheckFallBack(int unit_id, int def_id)
+void AAIExecute::CheckKeepDistanceToEnemy(UnitId unit, UnitDefId unitDefId, UnitDefId enemyDefId)
 {
-	float max_weapon_range = ai->s_buildTree.GetMaxRange(UnitDefId(def_id));
+	const float weaponRange      = ai->s_buildTree.GetMaxRange(unitDefId);
+	const float enemyWeaponRange = ai->s_buildTree.GetMaxRange(enemyDefId);
 
-	if(max_weapon_range > cfg->MIN_FALLBACK_RANGE && ai->Getbt()->GetUnitDef(def_id).turnRate >= cfg->MIN_FALLBACK_TURNRATE)
+	const bool rangeOk    = (weaponRange > enemyWeaponRange + AAIConstants::minWeaponRangeDiffToKeepDistance);
+	const bool turnrateOk = (ai->Getbt()->GetUnitDef(unitDefId.id).turnRate >= cfg->MIN_FALLBACK_TURNRATE);
+
+	if(rangeOk && turnrateOk)
 	{
-		if(max_weapon_range > cfg->MAX_FALLBACK_RANGE)
-			max_weapon_range = cfg->MAX_FALLBACK_RANGE;
+		const float fallbackDist = std::min(1.25f * enemyWeaponRange, weaponRange);
 
-		float3 pos;
+		float3 pos = GetFallBackPos( ai->GetAICallback()->GetUnitPos(unit.id), fallbackDist);
 
-		GetFallBackPos(&pos, unit_id, max_weapon_range);
-
-		if(pos.x > 0)
+		if(pos.x > 0.0f)
 		{
 			Command c(CMD_MOVE);
 
@@ -2641,57 +2642,56 @@ void AAIExecute::CheckFallBack(int unit_id, int def_id)
 			c.PushParam(pos.z);
 
 			//ai->Getcb()->GiveOrder(unit_id, &c);
-			GiveOrder(&c, unit_id, "Fallback");
+			GiveOrder(&c, unit.id, "Fallback");
 		}
 	}
 }
 
-
-void AAIExecute::GetFallBackPos(float3 *pos, int unit_id, float max_weapon_range) const
+float3 AAIExecute::GetFallBackPos(const float3& pos, float maxFallbackDist) const
 {
-	*pos = ZeroVector;
-
-	const float3 unit_pos = ai->GetAICallback()->GetUnitPos(unit_id);
+	float3 fallbackPosition(ZeroVector);
 
 	// units without range should not end up here; this is for attacking units only
 	// prevents a NaN
-	assert(max_weapon_range != 0.0f);
+	assert(maxFallbackDist != 0.0f);
 
 	// get list of enemies within weapons range
-	const int number_of_enemies = ai->GetAICallback()->GetEnemyUnits(&(ai->Getmap()->units_in_los.front()), unit_pos, max_weapon_range * cfg->FALLBACK_DIST_RATIO);
+	const int numberOfEnemies = ai->GetAICallback()->GetEnemyUnits(&(ai->Getmap()->units_in_los.front()), pos, maxFallbackDist);
 
-	if(number_of_enemies > 0)
+	if(numberOfEnemies > 0)
 	{
 		float3 enemy_pos;
 
-		for(int k = 0; k < number_of_enemies; ++k)
+		for(int k = 0; k < numberOfEnemies; ++k)
 		{
-			enemy_pos = ai->GetAICallback()->GetUnitPos(ai->Getmap()->units_in_los[k]);
+			float3 enemy_pos = ai->GetAICallback()->GetUnitPos(ai->Getmap()->units_in_los[k]);
 
 			// get distance to enemy
-			float dx   = enemy_pos.x - unit_pos.x;
-			float dz   = enemy_pos.z - unit_pos.z;
+			float dx   = enemy_pos.x - pos.x;
+			float dz   = enemy_pos.z - pos.z;
 			float dist = fastmath::apxsqrt(dx*dx + dz*dz);
 
 			// get dir from unit to enemy
-			enemy_pos.x -= unit_pos.x;
-			enemy_pos.z -= unit_pos.z;
+			enemy_pos.x -= pos.x;
+			enemy_pos.z -= pos.z;
 
 			// move closer to enemy if we are out of range,
 			// and away if we are closer then our max range
-			pos->x += ((dist / max_weapon_range) - 1) * enemy_pos.x;
-			pos->z += ((dist / max_weapon_range) - 1) * enemy_pos.z;
+			fallbackPosition.x += ((dist / maxFallbackDist) - 1.0f) * enemy_pos.x;
+			fallbackPosition.z += ((dist / maxFallbackDist) - 1.0f) * enemy_pos.z;
 		}
 
 		// move less if lots of enemies are close
-		pos->x /= (float)number_of_enemies;
-		pos->z /= (float)number_of_enemies;
+		fallbackPosition.x /= (float)numberOfEnemies;
+		fallbackPosition.z /= (float)numberOfEnemies;
 
 		// apply relative move distance to the current position
 		// to get the target position
-		pos->x += unit_pos.x;
-		pos->z += unit_pos.z;
+		fallbackPosition.x += pos.x;
+		fallbackPosition.z += pos.z;
 	}
+
+	return fallbackPosition;
 }
 
 void AAIExecute::GiveOrder(Command *c, int unit, const char *owner)

@@ -156,9 +156,6 @@ AAIConfig::AAIConfig(void)
 	HEAVY_ASSAULT_RATIO = 25.0f;
 	SUPER_HEAVY_ASSAULT_RATIO = 5.0f;
 
-	FALLBACK_DIST_RATIO = 0.9f;
-	MIN_FALLBACK_RANGE = 450.0f;
-	MAX_FALLBACK_RANGE = 800.0f;
 	MIN_FALLBACK_TURNRATE = 250.0f;
 
 	LEARN_SPEED = 0.2f;
@@ -336,12 +333,6 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 			MAX_ARTY_GROUP_SIZE = GetInt(ai, file);
 		} else if(!strcmp(keyword, "UNIT_SPEED_SUBGROUPS")) {
 			UNIT_SPEED_SUBGROUPS = GetInt(ai, file);
-		} else if(!strcmp(keyword, "FALLBACK_DIST_RATIO")) {
-			FALLBACK_DIST_RATIO = GetInt(ai, file);
-		} else if(!strcmp(keyword, "MIN_FALLBACK_RANGE")) {
-			MIN_FALLBACK_RANGE = GetInt(ai, file);
-		} else if(!strcmp(keyword, "MAX_FALLBACK_RANGE")) {
-			MAX_FALLBACK_RANGE = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MIN_FALLBACK_TURNRATE")) {
 			MIN_FALLBACK_TURNRATE = GetFloat(ai, file);
 		} else if(!strcmp(keyword, "MIN_EFFICIENCY")) {
