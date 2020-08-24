@@ -353,7 +353,7 @@ bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 	else if(sectors[0].size() < 3 && sector->distance_to_base <= 1)
 		return true;
 	// allow construction on islands close to base on water maps
-	else if(ai->Getmap()->map_type == WATER_MAP && ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0 && sector->distance_to_base <= 3)
+	else if(ai->Getmap()->GetMapType().IsWaterMap() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->distance_to_base <= 3) )
 		return true;
 	else
 		return false;
@@ -695,10 +695,12 @@ void AAIBrain::BuildUnits()
 	// Order building of units according to determined threat/own defence capabilities
 	//-----------------------------------------------------------------------------------------------------------------
 
+	const AAIMapType& mapType = ai->Getmap()->GetMapType();
+
 	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
 	{
 		// choose unit category dependend on map type
-		if(ai->Getmap()->map_type == LAND_MAP)
+		if(mapType.IsLandMap())
 		{
 			AAICombatCategory unitCategory(EMobileTargetType::SURFACE);
 		
@@ -707,7 +709,7 @@ void AAIBrain::BuildUnits()
 
 			BuildCombatUnitOfCategory(unitCategory, threatByTargetType, urgent);
 		}
-		else if(ai->Getmap()->map_type == LAND_WATER_MAP)
+		else if(mapType.IsLandWaterMap())
 		{
 			//! @todo Add selection of Submarines
 			int groundRatio = static_cast<int>(100.0f * ai->Getmap()->land_ratio);
@@ -722,7 +724,7 @@ void AAIBrain::BuildUnits()
 
 			BuildCombatUnitOfCategory(unitCategory, threatByTargetType, urgent);
 		}
-		else if(ai->Getmap()->map_type == WATER_MAP)
+		else if(mapType.IsWaterMap())
 		{
 			//! @todo Add selection of Submarines
 			AAICombatCategory unitCategory(EMobileTargetType::FLOATER);

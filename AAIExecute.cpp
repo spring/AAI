@@ -67,7 +67,7 @@ AAIExecute::~AAIExecute(void)
 }
 
 
-void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
+void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 {
 	//debug
 	ai->Log("Playing as %s\n", ai->Getbt()->sideNames[ai->GetSide()].c_str());
@@ -81,7 +81,7 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 	ai->Log("My team / ally team: %i / %i\n", ai->GetAICallback()->GetMyTeam(), ai->GetAICallback()->GetMyAllyTeam());
 
 	// tell the brain about the starting sector
-	float3 pos = ai->GetAICallback()->GetUnitPos(commander_unit_id);
+	const float3 pos = ai->GetAICallback()->GetUnitPos(commanderUnitId.id);
 	int x = pos.x/ai->Getmap()->xSectorSize;
 	int y = pos.z/ai->Getmap()->ySectorSize;
 
@@ -106,9 +106,11 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 		ChooseDifferentStartingSector(x, y);
 	}
 
-	if(ai->Getmap()->map_type == WATER_MAP)
+	const AAIMapType& mapType = ai->Getmap()->GetMapType();
+
+	if(mapType.IsWaterMap())
 		ai->Getbrain()->ExpandBase(WATER_SECTOR);
-	else if(ai->Getmap()->map_type == LAND_MAP)
+	else if(mapType.IsLandMap())
 		ai->Getbrain()->ExpandBase(LAND_SECTOR);
 	else
 		ai->Getbrain()->ExpandBase(LAND_WATER_SECTOR);
@@ -118,7 +120,7 @@ void AAIExecute::InitAI(int commander_unit_id, const UnitDef* commander_def)
 
 	ai->Getbt()->InitCombatEffCache(ai->GetSide());
 
-	ai->Getut()->AddCommander(UnitId(commander_unit_id), UnitDefId(commander_def->id));
+	ai->Getut()->AddCommander(commanderUnitId, commanderDefId);
 
 	// get economy working
 	CheckRessources();
@@ -302,7 +304,7 @@ void AAIExecute::BuildScouts()
 		}
 
 		// determine movement type of scout based on map
-		uint32_t suitableMovementTypes = ai->Getmap()->getSuitableMovementTypesForMap();
+		uint32_t suitableMovementTypes = ai->Getmap()->GetSuitableMovementTypesForMap();
 
 		// request cloakable scouts from time to time
 		bool cloaked = (rand()%5 == 1) ? true : false;
@@ -422,8 +424,8 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgen
 				my_rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[(*fac).id].active) / static_cast<float>(temp_buildqueue->size() + 3);
 
 				// @todo rework criterion to reflect available buildspace instead of maptype
-				if(     (ai->Getmap()->map_type == WATER_MAP) 
-				    && !(ai->s_buildTree.GetMovementType(UnitDefId(*fac)).IsStaticSea()  == true) )
+				if(    (ai->Getmap()->GetMapType().IsWaterMap()) 
+				    && (ai->s_buildTree.GetMovementType(UnitDefId(*fac)).IsStaticSea() == false) )
 					my_rating /= 10.0f;
 			}
 			else
@@ -2346,19 +2348,21 @@ bool AAIExecute::AssistConstructionOfCategory(const AAIUnitCategory& category)
 	return false;
 }
 
-float AAIExecute::sector_threat(AAISector *sec)
+float AAIExecute::sector_threat(const AAISector *sector)
 {
-	float threat = sec->GetThreatBy(AIR_ASSAULT, learned, current);
+	float threat = sector->GetThreatBy(AIR_ASSAULT, learned, current);
 
 	if(cfg->AIR_ONLY_MOD)
 		return threat;
 
-	threat += sec->GetThreatBy(HOVER_ASSAULT, learned, current);
+	threat += sector->GetThreatBy(HOVER_ASSAULT, learned, current);
 
-	if(sec->Getai()->Getmap()->map_type == LAND_MAP || sec->Getai()->Getmap()->map_type == LAND_WATER_MAP)
-		threat += sec->GetThreatBy(GROUND_ASSAULT, learned, current);
-	if(sec->Getai()->Getmap()->map_type == WATER_MAP || sec->Getai()->Getmap()->map_type == LAND_WATER_MAP)
-		threat += sec->GetThreatBy(SEA_ASSAULT, learned, current);
+	if(sector->water_ratio < 0.7f)
+		threat += sector->GetThreatBy(GROUND_ASSAULT, learned, current);
+
+	if(sector->water_ratio > 0.3f)
+		threat += sector->GetThreatBy(SEA_ASSAULT, learned, current);
+
 	return threat;
 }
 

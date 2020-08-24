@@ -494,7 +494,7 @@ void AAISector::SectorMapPos2Pos(float3 *pos, const UnitDef *def)
 	pos->z *= SQUARE_SIZE;
 }
 
-float AAISector::GetThreatBy(UnitCategory category, float learned, float current)
+float AAISector::GetThreatBy(UnitCategory category, float learned, float current) const
 {
 	if(category == GROUND_ASSAULT)
 		return 1.0f + (learned * attacked_by_learned[0] + current * attacked_by_this_game[0] ) / (learned + current);

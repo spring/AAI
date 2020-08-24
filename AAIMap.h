@@ -44,6 +44,9 @@ public:
 
 	void Init();
 
+	//! @brief Returns the map type
+	const AAIMapType& GetMapType() const { return s_mapType; }
+
 	//! @brief Returns max distance (in sectors) a sector can have to base
 	int GetMaxSectorDistanceToBase() const { return (xSectors + ySectors - 2); }
 
@@ -63,13 +66,13 @@ public:
 	bool IsSectorOnWaterContinent(const AAISector* sector) const { return continents[sector->continent].water; }
 
 	//! @brief Returns whether the position is located on a small continent (meant to detect "ponds" or "small islands")
-	bool LocatedOnSmallContinent(const float3& pos) { return (continents[GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); };
+	bool LocatedOnSmallContinent(const float3& pos) { return (continents[GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
 
 	//! @brief Returns continent id with respect to the unit's movement type (e.g. ground (=non amphibious) unit being in shallow water will return id of nearest land continent)
 	int getSmartContinentID(float3 *pos, const AAIMovementType& moveType) const;
 
 	//! @brief Returns a bitmask storing which movement types are suitable for the map type
-	uint32_t getSuitableMovementTypesForMap() const { return getSuitableMovementTypes(map_type); };
+	uint32_t GetSuitableMovementTypesForMap() const { return GetSuitableMovementTypes(s_mapType); }
 
 	//! @brief Returns whether the given sector is already occupied by another AAI player of the same team
 	bool IsAlreadyOccupiedByOtherAAI(const AAISector* sector) const { return (team_sector_map[sector->x][sector->y] != -1) && (team_sector_map[sector->x][sector->y] != m_myTeamId); }
@@ -130,9 +133,6 @@ public:
 	static int land_metal_spots;
 	static bool metalMap;
 	static float water_ratio;
-	static MapType map_type;	// 0 -> unknown ,1-> land map (default), 2 -> air map,
-								// 3 -> water map with land connections
-								// 4 -> "full water map
 
 	static vector< vector<int> > team_sector_map;	// stores the number of ai player which has taken that sector (-1 if none)
 											// this helps preventing aai from expanding into sectors of other aai players
@@ -149,8 +149,8 @@ public:
 	static int avg_water_continent_size;
 	static list<int> map_categories_id;
 
-
 private:
+
 	// defence maps
 	vector<float> defence_map;	//  ground/sea defence map has 1/2 of resolution of blockmap/buildmap
 	vector<float> air_defence_map; // air defence map has 1/2 of resolution of blockmap/buildmap
@@ -172,7 +172,7 @@ private:
 	void DetectMapType();
 
 	//! @brief Returns which movement types are suitable for the given map type
-	uint32_t getSuitableMovementTypes(MapType mapType) const;
+	uint32_t GetSuitableMovementTypes(const AAIMapType& mapType) const;
 
 	void CalculateWaterRatio();
 
@@ -202,9 +202,8 @@ private:
 	int GetNextX(int direction, int xPos, int yPos, int value);	// 0 means left, other right; returns -1 if not found
 	int GetNextY(int direction, int xPos, int yPos, int value);	// 0 means up, other down; returns -1 if not found
 
-	const char* GetMapTypeString(MapType map_type);
-
-	const char* GetMapTypeTextString(MapType map_type);
+	//! @brief Returns descriptor for map type (used to save map type)
+	const char* GetMapTypeString(const AAIMapType& mapType) const;
 
 	// blocks/unblocks cells (to prevent AAI from packing buildings too close to each other)
 	void BlockCells(int xPos, int yPos, int width, int height, bool block, bool water);
@@ -237,6 +236,9 @@ private:
 	// static (shared with other ai players)
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	//! The map type
+	static AAIMapType s_mapType;
+
 	static int aai_instances;	// how many AAI instances have been initialized
 
 	static int xSize, ySize;					// x and y size of the map (unit coordinates)
@@ -244,7 +246,7 @@ private:
 	static int xLOSMapSize, yLOSMapSize;		// x and y size of the LOS map
 	static int xDefMapSize, yDefMapSize;		// x and y size of the defence maps (1/4 resolution of map)
 	static int xContMapSize, yContMapSize;		// x and y size of the continent maps (1/4 resolution of map)
-	static list<AAIMetalSpot> metal_spots;
+	static std::list<AAIMetalSpot> metal_spots;
 	static float flat_land_ratio;
 	static vector<int> blockmap;		// number of buildings which ordered a cell to blocked
 	static vector<float> plateau_map;	// positive values indicate plateaus, same resolution as continent map 1/4 of resolution of blockmap/buildmap
@@ -263,8 +265,6 @@ private:
 	static int max_water_continent_size;
 	static int min_land_continent_size;
 	static int min_water_continent_size;
-
-	static list<UnitCategory> map_categories;
 };
 
 #endif

@@ -14,10 +14,6 @@
 #include <vector>
 #include <string>
 
-//#ifdef _MSC_VER
-//#pragma warning(disable: 4244 4018) // signed/unsigned and loss of precision...
-//#endif
-
 #define AAI_VERSION aiexport_getVersion()
 #define MAP_CACHE_VERSION "MAP_DATA_0_91"
 #define MAP_LEARN_VERSION "MAP_LEARN_0_89"
@@ -123,7 +119,6 @@ COMMANDER, GROUND_ASSAULT, AIR_ASSAULT, HOVER_ASSAULT, SEA_ASSAULT, SUBMARINE_AS
 SCOUT, MOBILE_TRANSPORT, MOBILE_JAMMER, MOBILE_LAUNCHER, MOBILE_CONSTRUCTOR};
 
 enum UnitTask {UNIT_IDLE, UNIT_ATTACKING, DEFENDING, GUARDING, MOVING, BUILDING, SCOUTING, ASSISTING, RECLAIMING, HEADING_TO_RALLYPOINT, UNIT_KILLED, ENEMY_UNIT, BOMB_TARGET};
-enum MapType {LAND_MAP, LAND_WATER_MAP, WATER_MAP, UNKNOWN_MAP};
 
 //! @brief An id identifying a specific unit - used to prevent mixing ids referring to units and unit definitions
 struct UnitId

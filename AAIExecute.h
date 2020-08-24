@@ -47,7 +47,8 @@ public:
 	AAIExecute(AAI* ai);
 	~AAIExecute(void);
 
-	void InitAI(int commander_unit_id, const UnitDef *commander_def);
+	//! @brief Determines starting sector, adds another sector to base and initializes buildqueues
+	void InitAI(UnitId commanderUnitId, UnitDefId commanderDefId);
 
 	//! @brief Updates buildmap & defence map (for static defences) and building data of target sector 
 	//!        Return true if building will be placed at a valid position, i.e. inside sectors
@@ -141,7 +142,7 @@ public:
 
 private:
 	// custom relations
-	float static sector_threat(AAISector *);
+	float static sector_threat(const AAISector *sector);
 
 	bool static least_dangerous(AAISector *left, AAISector *right);
 	bool static suitable_for_power_plant(AAISector *left, AAISector *right);

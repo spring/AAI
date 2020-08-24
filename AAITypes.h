@@ -192,6 +192,8 @@ public:
 
 	AAIMapType() : AAIMapType(EMapType::UNKNOWN_MAP) {}
 
+	void SetMapType(EMapType mapType) { m_mapType = mapType; }
+
 	bool IsLandMap() const { return m_mapType == EMapType::LAND_MAP; }
 
 	bool IsLandWaterMap() const { return m_mapType == EMapType::LAND_WATER_MAP; }
@@ -209,6 +211,10 @@ public:
 	bool End() const { return (m_mapType == EMapType::NUMBER_OF_MAP_TYPES); }
 
 	bool operator==(const AAIMapType& rhs) const { return (m_mapType == rhs.m_mapType); }
+
+	const std::string& GetName() const { return m_mapTypeNames[GetArrayIndex()]; }
+
+	const static std::vector<std::string> m_mapTypeNames;
 
 private:
 	EMapType m_mapType;

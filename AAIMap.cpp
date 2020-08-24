@@ -48,7 +48,7 @@ float AAIMap::flat_land_ratio;
 float AAIMap::water_ratio;
 
 bool AAIMap::metalMap;
-MapType AAIMap::map_type;
+AAIMapType AAIMap::s_mapType;
 
 vector< vector<int> > AAIMap::team_sector_map;
 vector<int> AAIMap::buildmap;
@@ -65,7 +65,6 @@ int AAIMap::max_land_continent_size;
 int AAIMap::max_water_continent_size;
 int AAIMap::min_land_continent_size;
 int AAIMap::min_water_continent_size;
-list<UnitCategory> AAIMap::map_categories;
 list<int> AAIMap::map_categories_id;
 
 AAIMap::AAIMap(AAI *ai)
@@ -209,7 +208,7 @@ void AAIMap::Init()
 
 	// for log file
 	ai->Log("Map: %s\n",ai->GetAICallback()->GetMapName());
-	ai->Log("Maptype: %s\n", GetMapTypeTextString(map_type));
+	ai->Log("Maptype: %s\n", s_mapType.GetName().c_str());
 	ai->Log("Land / water ratio: : %f / %f\n", land_ratio, water_ratio);
 	ai->Log("Mapsize is %i x %i\n", ai->GetAICallback()->GetMapWidth(),ai->GetAICallback()->GetMapHeight());
 	ai->Log("%i sectors in x direction\n", xSectors);
@@ -275,15 +274,15 @@ void AAIMap::ReadMapCacheFile()
 			fscanf(file, "%s ", buffer);
 
 			if(!strcmp(buffer, "LAND_MAP"))
-				map_type = LAND_MAP;
+				s_mapType.SetMapType(EMapType::LAND_MAP);
 			else if(!strcmp(buffer, "LAND_WATER_MAP"))
-				map_type = LAND_WATER_MAP;
+				s_mapType.SetMapType(EMapType::LAND_WATER_MAP);
 			else if(!strcmp(buffer, "WATER_MAP"))
-				map_type = WATER_MAP;
+				s_mapType.SetMapType(EMapType::WATER_MAP);
 			else
-				map_type = UNKNOWN_MAP;
+				s_mapType.SetMapType(EMapType::UNKNOWN_MAP);
 
-			ai->LogConsole("%s loaded", GetMapTypeTextString(map_type));
+			ai->LogConsole("%s loaded", s_mapType.GetName().c_str());
 
 			// load water ratio
 			fscanf(file, "%f ", &water_ratio);
@@ -352,7 +351,7 @@ void AAIMap::ReadMapCacheFile()
 		// save if its a metal map
 		fprintf(file, "%i\n", (int)metalMap);
 
-		const char *temp_buffer = GetMapTypeString(map_type);
+		const char *temp_buffer = GetMapTypeString(s_mapType);
 
 		// save map type
 		fprintf(file, "%s\n", temp_buffer);
@@ -409,11 +408,6 @@ void AAIMap::ReadMapCacheFile()
 	// determine important unit categories on this map
 	if(cfg->AIR_ONLY_MOD)
 	{
-		map_categories.push_back(GROUND_ASSAULT);
-		map_categories.push_back(AIR_ASSAULT);
-		map_categories.push_back(HOVER_ASSAULT);
-		map_categories.push_back(SEA_ASSAULT);
-
 		map_categories_id.push_back(0);
 		map_categories_id.push_back(1);
 		map_categories_id.push_back(2);
@@ -421,37 +415,22 @@ void AAIMap::ReadMapCacheFile()
 	}
 	else
 	{
-		if(map_type == LAND_MAP)
+		if(s_mapType.IsLandMap())
 		{
-			map_categories.push_back(GROUND_ASSAULT);
-			map_categories.push_back(AIR_ASSAULT);
-			map_categories.push_back(HOVER_ASSAULT);
-
 			map_categories_id.push_back(0);
 			map_categories_id.push_back(1);
 			map_categories_id.push_back(2);
 		}
-		else if(map_type == LAND_WATER_MAP)
+		else if(s_mapType.IsLandWaterMap())
 		{
-			map_categories.push_back(GROUND_ASSAULT);
-			map_categories.push_back(AIR_ASSAULT);
-			map_categories.push_back(HOVER_ASSAULT);
-			map_categories.push_back(SEA_ASSAULT);
-			map_categories.push_back(SUBMARINE_ASSAULT);
-
 			map_categories_id.push_back(0);
 			map_categories_id.push_back(1);
 			map_categories_id.push_back(2);
 			map_categories_id.push_back(3);
 			map_categories_id.push_back(4);
 		}
-		else if(map_type == WATER_MAP)
+		else if(s_mapType.IsWaterMap())
 		{
-			map_categories.push_back(AIR_ASSAULT);
-			map_categories.push_back(HOVER_ASSAULT);
-			map_categories.push_back(SEA_ASSAULT);
-			map_categories.push_back(SUBMARINE_ASSAULT);
-
 			map_categories_id.push_back(1);
 			map_categories_id.push_back(2);
 			map_categories_id.push_back(3);
@@ -459,8 +438,6 @@ void AAIMap::ReadMapCacheFile()
 		}
 		else
 		{
-			map_categories.push_back(AIR_ASSAULT);
-
 			map_categories_id.push_back(1);
 		}
 	}
@@ -630,14 +607,14 @@ void AAIMap::readMapLearnFile()
 			//---------------------------------------------------------------------------------------------------------
 			// determine movement types that are suitable to maneuvre
 			//---------------------------------------------------------------------------------------------------------
-			MapType mapType = MapType::LAND_MAP;
+			AAIMapType mapType(EMapType::LAND_MAP);
 
 			if(sector[i][j].water_ratio > 0.7f)
-				mapType = MapType::WATER_MAP;
+				mapType.SetMapType(EMapType::WATER_MAP);
 			else if(sector[i][j].water_ratio > 0.3f)
-				mapType = MapType::LAND_WATER_MAP;
+				mapType.SetMapType(EMapType::LAND_WATER_MAP);
 
-			sector[i][j].m_suitableMovementTypes = getSuitableMovementTypes(mapType);
+			sector[i][j].m_suitableMovementTypes = GetSuitableMovementTypes(mapType);
 
 			//---------------------------------------------------------------------------------------------------------
 			// set learned data as initial guess for this game
@@ -1567,12 +1544,12 @@ void AAIMap::DetectMapType()
 {
 	ai->Log("Water ratio: %f\n", water_ratio);
 
-	if( (float)max_land_continent_size < 0.5f * (float)max_water_continent_size || water_ratio > 0.80f)
-		map_type = WATER_MAP;
+	if( (static_cast<float>(max_land_continent_size) < 0.5f * static_cast<float>(max_water_continent_size) ) || (water_ratio > 0.8f) )
+		s_mapType.SetMapType(EMapType::WATER_MAP);
 	else if(water_ratio > 0.25f)
-		map_type = LAND_WATER_MAP;
+		s_mapType.SetMapType(EMapType::LAND_WATER_MAP);
 	else
-		map_type = LAND_MAP;
+		s_mapType.SetMapType(EMapType::LAND_MAP);
 }
 
 void AAIMap::CalculateWaterRatio()
@@ -2179,28 +2156,16 @@ void AAIMap::UpdateSectors()
 	}
 }
 
-const char* AAIMap::GetMapTypeString(MapType map_type)
+const char* AAIMap::GetMapTypeString(const AAIMapType& mapType) const
 {
-	if(map_type == LAND_MAP)
+	if(mapType.IsLandMap())
 		return "LAND_MAP";
-	else if(map_type == LAND_WATER_MAP)
+	else if(mapType.IsLandWaterMap())
 		return "LAND_WATER_MAP";
-	else if(map_type == WATER_MAP)
+	else if(mapType.IsWaterMap())
 		return "WATER_MAP";
 	else
 		return "UNKNOWN_MAP";
-}
-
-const char* AAIMap::GetMapTypeTextString(MapType map_type)
-{
-	if(map_type == LAND_MAP)
-		return "land map";
-	else if(map_type == LAND_WATER_MAP)
-		return "land-water map";
-	else if(map_type == WATER_MAP)
-		return "water map";
-	else
-		return "unknown map type";
 }
 
 AAISector* AAIMap::GetSectorOfPos(const float3& pos)
@@ -2528,33 +2493,22 @@ int AAIMap::getSmartContinentID(float3 *pos, const AAIMovementType& moveType) co
 	return continent_map[y * xContMapSize + x];
 }
 
-uint32_t AAIMap::getSuitableMovementTypes(MapType mapType) const
+uint32_t AAIMap::GetSuitableMovementTypes(const AAIMapType& mapType) const
 {
 	// always: MOVEMENT_TYPE_AIR, MOVEMENT_TYPE_AMPHIB, MOVEMENT_TYPE_HOVER;
 	uint32_t suitableMovementTypes =  static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR)
 									+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AMPHIBIOUS)
 									+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
+	
+	// MOVEMENT_TYPE_GROUND allowed on non water maps (i.e. map contains land)
+	if(mapType.IsWaterMap() == false)
+		suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
 
-	switch(mapType)
+	// MOVEMENT_TYPE_SEA_FLOATER/SUBMERGED allowed on non land maps (i.e. map contains water)
+	if(mapType.IsLandMap() == false)
 	{
-		case MapType::LAND_MAP:
-		{
-			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
-			break;
-		}
-		case MapType::LAND_WATER_MAP:
-		{
-			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
-			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
-			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
-			break;
-		}
-		case MapType::WATER_MAP:
-		{
-			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
-			suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
-			break;
-		}
+		suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
+		suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);	
 	}
 
 	return suitableMovementTypes;

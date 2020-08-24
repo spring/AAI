@@ -110,7 +110,7 @@ public:
 	void RemoveBuilding(const AAIUnitCategory& category) { m_ownBuildingsOfCategory[category.GetArrayIndex()] -= 1; };
 
 	// returns threat to the sector by a certain category
-	float GetThreatBy(UnitCategory category, float learned, float current);
+	float GetThreatBy(UnitCategory category, float learned, float current) const ;
 	float GetThreatByID(int combat_cat_id, float learned, float current);
 
 	//! @brief Get total (mobile + static) defence power of enemy (according to spotted units)

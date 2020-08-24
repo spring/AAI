@@ -43,6 +43,7 @@ const std::vector<int> GamePhase::m_startFrameOfGamePhase  = {0, 10800, 27000, 7
 const std::vector<std::string> GamePhase::m_gamePhaseNames = {"starting phase", "early phase", "mid phase", "late game"};
 const std::vector<std::string> AAICombatCategory::m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
 const std::vector<std::string> AAITargetType::m_targetTypeNames = {"surface", "air", "floater", "submerged"};
+const std::vector<std::string> AAIMapType::m_mapTypeNames = {"land map", "mixed land water map", "water map"};
 
 AAIBuildTree AAI::s_buildTree;
 
@@ -133,10 +134,7 @@ AAI::~AAI()
 
 	// save game learning data
 	if(GetAAIInstance() == 1)
-	{
-		AAIMapType mapType(static_cast<EMapType>(map->map_type)); //! @todo Will be removed after switching to new AAIMapType
-		bt->SaveModLearnData(gamePhase, brain->GetAttackedByRates(), mapType);
-	}
+		bt->SaveModLearnData(gamePhase, brain->GetAttackedByRates(), map->GetMapType());
 
 	spring::SafeDelete(am);
 	spring::SafeDelete(af);
@@ -230,8 +228,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 		std::string filename = cfg->GetFileName(m_aiCallback, cfg->getUniqueName(m_aiCallback, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
 		s_buildTree.PrintSummaryToFile(filename, m_aiCallback);
 
-		const AAIMapType mapType( static_cast<EMapType>(map->map_type) );	
-		brain->InitAttackedByRates(bt->GetAttackedByRates(mapType));
+		brain->InitAttackedByRates( bt->GetAttackedByRates(map->GetMapType()) );
 	}
 
 	// init executer
@@ -339,13 +336,12 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	{
 		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
 		ut->UnitRequested(AAIUnitCategory(EUnitCategory::COMMANDER));
-
 		ut->futureBuilders += 1;
 
 		// set side
 		m_side = s_buildTree.GetSideOfUnitType( unitDefId) ;
 
-		execute->InitAI(unit, def);
+		execute->InitAI(UnitId(unit), unitDefId);
 
 		Log("Entering %s...\n", m_gamePhase.GetName().c_str());
 		m_initialized = true;
