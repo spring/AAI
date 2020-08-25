@@ -25,15 +25,9 @@ AAISector::AAISector()
 
 AAISector::~AAISector(void)
 {
-	attacked_by_this_game.clear();
-	attacked_by_learned.clear();
-
 	m_enemyCombatUnits.clear();
 
 	m_ownBuildingsOfCategory.clear();
-
-	combats_learned.clear();
-	combats_this_game.clear();
 }
 
 void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bottom)
@@ -73,17 +67,51 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 
 	int categories = ai->Getbt()->assault_categories.size();
 
-	combats_learned.resize(categories, 0);
-	combats_this_game.resize(categories, 0);
-
 	importance_this_game = 1.0f + (rand()%5)/20.0f;
-
-	attacked_by_this_game.resize(categories, 0);
-	attacked_by_learned.resize(categories, 0);
 
 	m_enemyCombatUnits.resize(AAICombatUnitCategory::numberOfCombatUnitCategories, 0.0f);
 
 	m_ownBuildingsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
+}
+
+void AAISector::LoadDataFromFile(FILE* file)
+{
+	if(file != nullptr)
+	{
+		fscanf(file, "%f %f %f", &flat_ratio, &water_ratio, &importance_learned);
+			
+		if(importance_learned < 1.0f)
+			importance_learned += (rand()%5)/20.0f;
+
+		m_attacksByTargetTypeInPreviousGames.LoadFromFile(file);
+	}
+	else // no learning data available -> init with default data
+	{
+		importance_learned = 1.0f + (rand()%5)/20.0f;
+		flat_ratio  = DetermineFlatRatio();
+		water_ratio = DetermineWaterRatio();
+	}
+
+	importance_this_game = importance_learned;
+	//m_attacksByTargetTypeInCurrentGame = m_attacksByTargetTypeInPreviousGames;
+}
+
+void AAISector::SaveDataToFile(FILE* file)
+{
+	fprintf(file, "%f %f %f ", flat_ratio, water_ratio, importance_this_game);
+
+	m_attacksByTargetTypeInPreviousGames.SaveToFile(file);
+}
+
+void AAISector::UpdateLearnedData()
+{
+	importance_this_game = 0.93f * (importance_this_game + 3.0f * importance_learned) / 4.0f;
+
+	if(importance_this_game < 1.0f)
+		importance_this_game = 1.0f;
+
+	m_attacksByTargetTypeInCurrentGame.AddMobileTargetValues(m_attacksByTargetTypeInPreviousGames, 3.0f);
+	m_attacksByTargetTypeInCurrentGame.DecreaseByFactor(0.225f); // 0.225f = 0.9f / 4.0f ->decrease by 0.9 and account for 3.0f in line above
 }
 
 void AAISector::AddMetalSpot(AAIMetalSpot *spot)
@@ -494,25 +522,10 @@ void AAISector::SectorMapPos2Pos(float3 *pos, const UnitDef *def)
 	pos->z *= SQUARE_SIZE;
 }
 
-float AAISector::GetThreatBy(UnitCategory category, float learned, float current) const
+float AAISector::GetLocalAttacksBy(const AAITargetType& targetType, float previousGames, float currentGame) const
 {
-	if(category == GROUND_ASSAULT)
-		return 1.0f + (learned * attacked_by_learned[0] + current * attacked_by_this_game[0] ) / (learned + current);
-	if(category == AIR_ASSAULT)
-		return 1.0f + (learned * attacked_by_learned[1] + current * attacked_by_this_game[1] ) / (learned + current);
-	if(category == HOVER_ASSAULT)
-		return 1.0f + (learned * attacked_by_learned[2] + current * attacked_by_this_game[2] ) / (learned + current);
-	if(category == SEA_ASSAULT)
-		return 1.0f + (learned * attacked_by_learned[3] + current * attacked_by_this_game[3] ) / (learned + current);
-	if(category == SUBMARINE_ASSAULT)
-		return 1.0f + (learned * attacked_by_learned[4] + current * attacked_by_this_game[4] ) / (learned + current);
-	else
-		return -1;
-}
-
-float AAISector::GetThreatByID(int combat_cat_id, float learned, float current)
-{
-	return (learned * attacked_by_learned[combat_cat_id] + current * attacked_by_this_game[combat_cat_id] ) / (learned + current);
+	const float totalAttacks = (previousGames * m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(targetType) + currentGame * m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(targetType) );
+	return  totalAttacks / (previousGames + currentGame);
 }
 
 float AAISector::GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const
@@ -544,40 +557,32 @@ float AAISector::GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, floa
 	return result;
 }
 
-float AAISector::GetOverallThreat(float learned, float current)
+float AAISector::DetermineWaterRatio() const
 {
-	return (learned * (attacked_by_learned[0] + attacked_by_learned[1] + attacked_by_learned[2] + attacked_by_learned[3])
-		+ current *	(attacked_by_this_game[0] + attacked_by_this_game[1] + attacked_by_this_game[2] + attacked_by_this_game[3]))
-		/(learned + current);
-}
+	int waterCells(0);
 
-float AAISector::GetWaterRatio()
-{
-	float water_ratio = 0;
-
-	for(int xPos = x * ai->Getmap()->xSectorSizeMap; xPos < (x+1) * ai->Getmap()->xSectorSizeMap; ++xPos)
+	for(int yPos = y * ai->Getmap()->ySectorSizeMap; yPos < (y+1) * ai->Getmap()->ySectorSizeMap; ++yPos)
 	{
-		for(int yPos = y * ai->Getmap()->ySectorSizeMap; yPos < (y+1) * ai->Getmap()->ySectorSizeMap; ++yPos)
+		for(int xPos = x * ai->Getmap()->xSectorSizeMap; xPos < (x+1) * ai->Getmap()->xSectorSizeMap; ++xPos)
 		{
 			if(ai->Getmap()->buildmap[xPos + yPos * ai->Getmap()->xMapSize] == 4)
-				water_ratio +=1;
+				++waterCells;
 		}
 	}
 
-	return water_ratio / ((float)(ai->Getmap()->xSectorSizeMap * ai->Getmap()->ySectorSizeMap));
+	const int totalCells = ai->Getmap()->xSectorSizeMap * ai->Getmap()->ySectorSizeMap;
+
+	return waterCells / static_cast<float>(totalCells);
 }
 
-float AAISector::GetFlatRatio()
+float AAISector::DetermineFlatRatio() const
 {
-	// get number of cliffy tiles
-	float flat_ratio = ai->Getmap()->GetCliffyCells(left/SQUARE_SIZE, top/SQUARE_SIZE, ai->Getmap()->xSectorSizeMap, ai->Getmap()->ySectorSizeMap);
+	// get number of cliffy & flat cells
+	const int cliffyCells = ai->Getmap()->GetCliffyCells(left/SQUARE_SIZE, top/SQUARE_SIZE, ai->Getmap()->xSectorSizeMap, ai->Getmap()->ySectorSizeMap);
+	const int totalCells  = ai->Getmap()->xSectorSizeMap * ai->Getmap()->ySectorSizeMap;
+	const int flatCells   = totalCells - cliffyCells;
 
-	// get number of flat tiles
-	flat_ratio = (float)(ai->Getmap()->xSectorSizeMap * ai->Getmap()->ySectorSizeMap) - flat_ratio;
-
-	flat_ratio /= (float)(ai->Getmap()->xSectorSizeMap * ai->Getmap()->ySectorSizeMap);
-
-	return flat_ratio;
+	return static_cast<float>(flatCells) / static_cast<float>(totalCells);
 }
 
 void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerDefId)
@@ -586,23 +591,17 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 	const AAIUnitCategory& attackerCategory  = ai->s_buildTree.GetUnitCategory(attackerDefId);
 
 	// if lost unit is a building, increase attacked_by
-	if(destroyedCategory.isBuilding() == true)
+	if(destroyedCategory.isBuilding())
 	{
-		if(attackerCategory.isCombatUnit() == true)
+		if(attackerCategory.isCombatUnit())
 		{
 			const float increment = interior ? 0.3f : 1.0f;
-			AAICombatUnitCategory category(attackerCategory);
-			attacked_by_this_game[category.GetArrayIndex()] += increment;
+			
+			m_attacksByTargetTypeInCurrentGame.AddValueForTargetType(ai->s_buildTree.GetTargetType(attackerDefId) , increment);
 		}
 	}
 	else // unit was lost
 	{
-		if(attackerCategory.isCombatUnit() == true)
-		{
-			AAICombatUnitCategory category(attackerCategory);
-			combats_this_game[category.GetArrayIndex()] += 1.0f;
-		}
-
 		if(ai->s_buildTree.GetMovementType(destroyedDefId).IsAir())
 			m_lostAirUnits += 1.0f;
 		else

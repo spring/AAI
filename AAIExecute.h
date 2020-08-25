@@ -144,15 +144,15 @@ private:
 	// custom relations
 	float static sector_threat(const AAISector *sector);
 
-	bool static least_dangerous(AAISector *left, AAISector *right);
+	bool static least_dangerous(const AAISector *left, const AAISector *right);
 	bool static suitable_for_power_plant(AAISector *left, AAISector *right);
 	bool static suitable_for_ground_factory(AAISector *left, AAISector *right);
 	bool static suitable_for_sea_factory(AAISector *left, AAISector *right);
-	bool static defend_vs_ground(AAISector *left, AAISector *right);
-	bool static defend_vs_air(AAISector *left, AAISector *right);
-	bool static defend_vs_hover(AAISector *left, AAISector *right);
-	bool static defend_vs_sea(AAISector *left, AAISector *right);
-	bool static defend_vs_submarine(AAISector *left, AAISector *right);
+	bool static defend_vs_ground(const AAISector *left, const AAISector *right);
+	bool static defend_vs_air(const AAISector *left, const AAISector *right);
+	bool static defend_vs_hover(const AAISector *left, const AAISector *right);
+	bool static defend_vs_sea(const AAISector *left, const AAISector *rightt);
+	bool static defend_vs_submarine(const AAISector *left, const AAISector *right);
 	bool static suitable_for_ground_rallypoint(AAISector *left, AAISector *right);
 	bool static suitable_for_sea_rallypoint(AAISector *left, AAISector *right);
 	bool static suitable_for_all_rallypoint(AAISector *left, AAISector *right);

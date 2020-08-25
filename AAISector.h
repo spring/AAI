@@ -50,16 +50,26 @@ public:
 
 	void AddMetalSpot(AAIMetalSpot *spot);
 	void FreeMetalSpot(float3 pos, const UnitDef *extractor);
+
 	void Init(AAI *ai, int x, int y, int left, int right, int top, int bottom);
+
+	//! @brief Loads sector data from given file
+	void LoadDataFromFile(FILE* file);
+
+	//! @brief Saves sector data to given file
+	void SaveDataToFile(FILE* file);
+
+	//! @brief Updates learning data for sector
+	void UpdateLearnedData();
 
 	// adds/removes the sector from base sectors; returns true if succesful
 	bool SetBase(bool base);
 
 	//! @brief Returns the number of metal spots in this sector
-	int GetNumberOfMetalSpots() const { return metalSpots.size(); };
+	int GetNumberOfMetalSpots() const { return metalSpots.size(); }
 
 	//! @brief Returns the number of buildings of the given category in this sector
-	int GetNumberOfBuildings(const AAIUnitCategory& category) const { return m_ownBuildingsOfCategory[category.GetArrayIndex()]; };
+	int GetNumberOfBuildings(const AAIUnitCategory& category) const { return m_ownBuildingsOfCategory[category.GetArrayIndex()]; }
 
 	//! @brief Returns the number of buildings belonging to allied players 
 	int GetNumberOfAlliedBuildings() const { return m_alliedBuildings; }
@@ -109,9 +119,8 @@ public:
 	//! @brief Removes building from sector
 	void RemoveBuilding(const AAIUnitCategory& category) { m_ownBuildingsOfCategory[category.GetArrayIndex()] -= 1; };
 
-	// returns threat to the sector by a certain category
-	float GetThreatBy(UnitCategory category, float learned, float current) const ;
-	float GetThreatByID(int combat_cat_id, float learned, float current);
+	//! @brief Returns how often units in sector have been attacked by given mobile target type
+	float GetLocalAttacksBy(const AAITargetType& targetType, float previousGames, float currentGame) const;
 
 	//! @brief Get total (mobile + static) defence power of enemy (according to spotted units)
 	float GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const;
@@ -137,9 +146,10 @@ public:
 	//! @brief Returns number of attacks by the main combat categories (ground, hover, air)
 	float GetTotalAttacksInThisGame() const 
 	{
-		return    attacked_by_this_game[AAICombatUnitCategory(ECombatUnitCategory::GROUND_COMBAT).GetArrayIndex()]
-				+ attacked_by_this_game[AAICombatUnitCategory(ECombatUnitCategory::HOVER_COMBAT).GetArrayIndex()]
-				+ attacked_by_this_game[AAICombatUnitCategory(ECombatUnitCategory::SEA_COMBAT).GetArrayIndex()];
+		return    m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::SURFACE)
+				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::AIR)
+				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::FLOATER)
+				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::SUBMERGED);
 	}
 
 	// returns center of the sector
@@ -156,9 +166,11 @@ public:
 	//! @brief Returns true if pos lies within this sector
 	bool PosInSector(const float3& pos) const;
 
-	// get water/flat ground ratio
-	float GetWaterRatio();
-	float GetFlatRatio();
+	//! @brief Determines ratio of water cells of this sector
+	float DetermineWaterRatio() const;
+
+	//! @brief Determines ratio of flat cells of this sector
+	float DetermineFlatRatio() const;
 
 	// returns true if sector is connected with a big ocean (and not only a small pond)
 	bool ConnectedToOcean();
@@ -204,21 +216,9 @@ public:
 	float importance_this_game;
 	float importance_learned;
 
-	// how many times ai has been attacked by a certain assault category in this sector
-	vector<float> attacked_by_this_game;
-	vector<float> attacked_by_learned;
-
-	// how many battles took place in that sector (of each assault category)
-	vector<float> combats_this_game;
-	vector<float> combats_learned;
-
 	int enemies_on_radar;
 
-	AAI* Getai() { return ai; }
-
 private:
-	float GetOverallThreat(float learned, float current);
-
 	// helper functions
 	void Pos2SectorMapPos(float3 *pos, const UnitDef* def);
 	void SectorMapPos2Pos(float3 *pos, const UnitDef* def);
@@ -261,6 +261,12 @@ private:
 
 	//! The combat power against mobile targets of all hostile static defences in this sector
 	AAIValuesForMobileTargetTypes m_friendlyStaticCombatPower;
+
+	//! Stores how often buildings in this sector have been attacked(=destroyed) by a certain target type in previous games
+	AAIValuesForMobileTargetTypes m_attacksByTargetTypeInPreviousGames;
+
+	//! Stores how often buildings in this sector have been attacked(=destroyed) by a certain target type in the current game
+	AAIValuesForMobileTargetTypes m_attacksByTargetTypeInCurrentGame;
 };
 
 #endif

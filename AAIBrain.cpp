@@ -227,8 +227,8 @@ void AAIBrain::AssignSectorToBase(AAISector *sector, bool addToBase)
 	{
 		for(list<AAISector*>::iterator s = sectors[0].begin(); s != sectors[0].end(); ++s)
 		{
-			m_baseFlatLandRatio += (*s)->GetFlatRatio();
-			m_baseWaterRatio += (*s)->GetWaterRatio();
+			m_baseFlatLandRatio += (*s)->DetermineFlatRatio();
+			m_baseWaterRatio += (*s)->DetermineWaterRatio();
 		}
 
 		m_baseFlatLandRatio /= (float)sectors[0].size();

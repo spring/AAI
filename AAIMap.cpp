@@ -65,7 +65,6 @@ int AAIMap::max_land_continent_size;
 int AAIMap::max_water_continent_size;
 int AAIMap::min_land_continent_size;
 int AAIMap::min_water_continent_size;
-list<int> AAIMap::map_categories_id;
 
 AAIMap::AAIMap(AAI *ai)
 {
@@ -78,6 +77,8 @@ AAIMap::~AAIMap(void)
 	// delete common data only if last AAI instance is deleted
 	if(ai->GetNumberOfAAIInstances() == 0)
 	{
+		ai->Log("Saving map learn file\n");
+
 		Learn();
 
 		const std::string mapLearn_filename = LocateMapLearnFile();
@@ -90,14 +91,8 @@ AAIMap::~AAIMap(void)
 		for(int y = 0; y < ySectors; y++)
 		{
 			for(int x = 0; x < xSectors; x++)
-			{
-				// save sector data
-				fprintf(save_file, "%f %f %f", sector[x][y].flat_ratio, sector[x][y].water_ratio, sector[x][y].importance_this_game);
-				// save combat data
-				for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
-					fprintf(save_file, "%f %f ", sector[x][y].attacked_by_this_game[cat], sector[x][y].combats_this_game[cat]);
-			}
-
+				sector[x][y].SaveDataToFile(save_file);
+			
 			fprintf(save_file, "\n");
 		}
 
@@ -298,11 +293,11 @@ void AAIMap::ReadMapCacheFile()
 			}
 
 			// load plateau map
-			for(int y = 0; y < yMapSize/8; ++y)
+			for(int y = 0; y < yContMapSize; ++y)
 			{
-				for(int x = 0; x < xMapSize/8; ++x)
+				for(int x = 0; x < xContMapSize; ++x)
 				{
-					const int cell = x + y * xMapSize/8;
+					const int cell = x + y * xContMapSize;
 					fscanf(file, "%f ", &plateau_map[cell]);
 				}
 			}
@@ -371,11 +366,11 @@ void AAIMap::ReadMapCacheFile()
 		}
 
 		// save plateau map
-		for(int y = 0; y < yMapSize/8; ++y)
+		for(int y = 0; y < yContMapSize; ++y)
 		{
-			for(int x = 0; x < xMapSize/8; ++x)
+			for(int x = 0; x < xContMapSize; ++x)
 			{
-				const int cell = x + y * xMapSize/8;
+				const int cell = x + y * xContMapSize;
 				fprintf(file, "%f ", plateau_map[cell]);
 			}
 			fprintf(file, "\n");
@@ -402,44 +397,6 @@ void AAIMap::ReadMapCacheFile()
 		fclose(file);
 
 		ai->Log("New map cache-file created\n");
-	}
-
-
-	// determine important unit categories on this map
-	if(cfg->AIR_ONLY_MOD)
-	{
-		map_categories_id.push_back(0);
-		map_categories_id.push_back(1);
-		map_categories_id.push_back(2);
-		map_categories_id.push_back(3);
-	}
-	else
-	{
-		if(s_mapType.IsLandMap())
-		{
-			map_categories_id.push_back(0);
-			map_categories_id.push_back(1);
-			map_categories_id.push_back(2);
-		}
-		else if(s_mapType.IsLandWaterMap())
-		{
-			map_categories_id.push_back(0);
-			map_categories_id.push_back(1);
-			map_categories_id.push_back(2);
-			map_categories_id.push_back(3);
-			map_categories_id.push_back(4);
-		}
-		else if(s_mapType.IsWaterMap())
-		{
-			map_categories_id.push_back(1);
-			map_categories_id.push_back(2);
-			map_categories_id.push_back(3);
-			map_categories_id.push_back(4);
-		}
-		else
-		{
-			map_categories_id.push_back(1);
-		}
 	}
 }
 
@@ -575,34 +532,10 @@ void AAIMap::readMapLearnFile()
 		for(int i = 0; i < xSectors; ++i)
 		{
 			//---------------------------------------------------------------------------------------------------------
-			// load learned sector data from file (if available)
+			// load learned sector data from file (if available) or init with default data
 			//---------------------------------------------------------------------------------------------------------
-			if(load_file != nullptr)
-			{
-				fscanf(load_file, "%f %f %f", &sector[i][j].flat_ratio, &sector[i][j].water_ratio, &sector[i][j].importance_learned);
-			
-				if(sector[i][j].importance_learned < 1.0f)
-					sector[i][j].importance_learned += (rand()%5)/20.0f;
 
-				for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
-					fscanf(load_file, "%f %f ", &sector[i][j].attacked_by_learned[cat], &sector[i][j].combats_learned[cat]);
-			}
-			//---------------------------------------------------------------------------------------------------------
-			// no learning data available -> init with default data
-			//---------------------------------------------------------------------------------------------------------
-			else
-			{
-				sector[i][j].importance_learned = 1.0f + (rand()%5)/20.0f;
-				sector[i][j].flat_ratio  = sector[i][j].GetFlatRatio();
-				sector[i][j].water_ratio = sector[i][j].GetWaterRatio();
-
-				for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
-				{
-					// init with higher values in the center of the map
-					sector[i][j].attacked_by_learned[cat] = static_cast<float>(2 * sector[i][j].GetEdgeDistance());
-					// @todo: Check initialization of sector[i][j].combats_learned
-				}
-			}
+			sector[i][j].LoadDataFromFile(load_file);
 
 			//---------------------------------------------------------------------------------------------------------
 			// determine movement types that are suitable to maneuvre
@@ -615,17 +548,6 @@ void AAIMap::readMapLearnFile()
 				mapType.SetMapType(EMapType::LAND_WATER_MAP);
 
 			sector[i][j].m_suitableMovementTypes = GetSuitableMovementTypes(mapType);
-
-			//---------------------------------------------------------------------------------------------------------
-			// set learned data as initial guess for this game
-			//---------------------------------------------------------------------------------------------------------
-			sector[i][j].importance_this_game = sector[i][j].importance_learned;
-
-			for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
-			{
-				sector[i][j].attacked_by_this_game[cat] = sector[i][j].attacked_by_learned[cat];
-				sector[i][j].combats_this_game[cat] = sector[i][j].combats_learned[cat];
-			}
 		}
 	}
 
@@ -656,25 +578,11 @@ void AAIMap::readMapLearnFile()
 
 void AAIMap::Learn()
 {
-	AAISector *sector;
-
 	for(int y = 0; y < ySectors; ++y)
 	{
 		for(int x = 0; x < xSectors; ++x)
 		{
-			sector = &this->sector[x][y];
-
-			sector->importance_this_game = 0.93f * (sector->importance_this_game + 3.0f * sector->importance_learned)/4.0f;
-
-			if(sector->importance_this_game < 1)
-				sector->importance_this_game = 1;
-
-			for(size_t cat = 0; cat < ai->Getbt()->assault_categories.size(); ++cat)
-			{
-				sector->attacked_by_this_game[cat] = 0.90f * (sector->attacked_by_this_game[cat] + 3.0f * sector->attacked_by_learned[cat])/4.0f;
-
-				sector->combats_this_game[cat] = 0.90f * (sector->combats_this_game[cat] + 3.0f * sector->combats_learned[cat])/4.0f;
-			}
+			sector[x][y].UpdateLearnedData();
 		}
 	}
 }
@@ -819,11 +727,16 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 		{
 			if(CanBuildAt(xPos, yPos, xSize, ySize, water))
 			{
-				if(water)
-					my_rating = 1.0f + 0.01f * (float)(rand()%100) - range / (float)(1 + GetEdgeDistance(xPos, yPos));
-				else
-					my_rating = 0.01f * (float)(rand()%50) + plateau_map[xPos + yPos * xSize] - range / (float)(1 + GetEdgeDistance(xPos, yPos));
+				const float edgeDist = static_cast<float>(GetEdgeDistance(xPos, yPos)) / range;
 
+				my_rating = 0.04f * (float)(rand()%50) + edgeDist;
+
+				if(!water)
+				{
+					const int plateauMapCellIndex = xPos/4 + yPos/4 * xContMapSize;
+					my_rating += plateau_map[plateauMapCellIndex];
+				}
+					
 				if(my_rating > best_rating)
 				{
 					pos.x = xPos;
@@ -1504,15 +1417,15 @@ void AAIMap::AnalyseMap()
 	int TERRAIN_DETECTION_RANGE = 6;
 	float my_height, diff;
 
-	for(int x = TERRAIN_DETECTION_RANGE; x < xContMapSize - TERRAIN_DETECTION_RANGE; ++x)
+	for(int y = TERRAIN_DETECTION_RANGE; y < yContMapSize - TERRAIN_DETECTION_RANGE; ++y)
 	{
-		for(int y = TERRAIN_DETECTION_RANGE; y < yContMapSize - TERRAIN_DETECTION_RANGE; ++y)
+		for(int x = TERRAIN_DETECTION_RANGE; x < xContMapSize - TERRAIN_DETECTION_RANGE; ++x)
 		{
 			my_height = height_map[4 * (x + y * xMapSize)];
 
-			for(int i = x - TERRAIN_DETECTION_RANGE; i < x + TERRAIN_DETECTION_RANGE; ++i)
+			for(int j = y - TERRAIN_DETECTION_RANGE; j < y + TERRAIN_DETECTION_RANGE; ++j)
 			{
-				for(int j = y - TERRAIN_DETECTION_RANGE; j < y + TERRAIN_DETECTION_RANGE; ++j)
+					for(int i = x - TERRAIN_DETECTION_RANGE; i < x + TERRAIN_DETECTION_RANGE; ++i)
 				{
 					 diff = (height_map[4 * (i + j * xMapSize)] - my_height);
 
@@ -1528,9 +1441,9 @@ void AAIMap::AnalyseMap()
 		}
 	}
 
-	for(int x = 0; x < xContMapSize; ++x)
+	for(int y = 0; y < yContMapSize; ++y)
 	{
-		for(int y = 0; y < yContMapSize; ++y)
+		for(int x = 0; x < xContMapSize; ++x)
 		{
 			if(plateau_map[x + y * xContMapSize] >= 0.0f)
 				plateau_map[x + y * xContMapSize] = sqrt(plateau_map[x + y * xContMapSize]);
@@ -2383,7 +2296,7 @@ float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xSta
 			{
 				cell = (xPos/4 + xDefMapSize * yPos/4);
 
-				my_rating = terrainModifier * plateau_map[cell] - (*map)[cell] + 0.5f *  (float)(rand()%10);
+				my_rating = terrainModifier * plateau_map[cell] - (*map)[cell] + 0.5f * (float)(rand()%10);
 				//my_rating = - (*map)[cell];
 
 				// determine minimum distance from buildpos to the edges of the map

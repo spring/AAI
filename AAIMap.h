@@ -147,7 +147,6 @@ public:
 							// 5 occupied water
 	static vector<AAIContinent> continents;
 	static int avg_water_continent_size;
-	static list<int> map_categories_id;
 
 private:
 

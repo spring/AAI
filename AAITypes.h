@@ -314,13 +314,34 @@ public:
 		m_values[3] += (modifier * combatPower.m_combatPower[3]);
 	}
 
+	void AddMobileTargetValues(const AAIValuesForMobileTargetTypes& mobileTargetValues, float modifier = 1.0f)
+	{
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		m_values[0] += (modifier * mobileTargetValues.m_values[0]);
+		m_values[1] += (modifier * mobileTargetValues.m_values[1]);
+		m_values[2] += (modifier * mobileTargetValues.m_values[2]);
+		m_values[3] += (modifier * mobileTargetValues.m_values[3]);
+	}
+
 	float CalculateWeightedSum(const AAIValuesForMobileTargetTypes& mobileCombatPowerWeights) const
-	{		
+	{
 		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
 		return 	  (m_values[0] * mobileCombatPowerWeights.m_values[0])
 				+ (m_values[1] * mobileCombatPowerWeights.m_values[1])
 				+ (m_values[2] * mobileCombatPowerWeights.m_values[2])
 		     	+ (m_values[3] * mobileCombatPowerWeights.m_values[3]);
+	}
+
+	void LoadFromFile(FILE* file)
+	{
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		fscanf(file, "%f %f %f %f", &m_values[0], &m_values[1], &m_values[2], &m_values[3]);	
+	}
+
+	void SaveToFile(FILE* file) const
+	{
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		fprintf(file, "%f %f %f %f ", m_values[0], m_values[1], m_values[2], m_values[3]);	
 	}
 
 private:
