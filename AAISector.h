@@ -20,7 +20,6 @@
 #include <list>
 #include <vector>
 #include <numeric>
-using namespace std;
 
 class AAI;
 class AAIUnitTable;
@@ -41,15 +40,25 @@ struct DefenceCoverage
 };
 
 
-
 class AAISector
 {
 public:
+	friend AAIMap;
+
 	AAISector();
 	~AAISector(void);
 
+	//! @brief Adds a metal spot to the list of metal spots in the sector
 	void AddMetalSpot(AAIMetalSpot *spot);
+
+	//! @brief Looks for metal spot that corresponds to given position and marks it as free
 	void FreeMetalSpot(float3 pos, const UnitDef *extractor);
+
+	//! Update if there are still empty metal spots in the sector
+	void UpdateFreeMetalSpots();
+
+	//! @brief Associates an extractor with a metal spot in that sector 
+	void AddExtractor(int unit_id, int def_id, float3 *pos);
 
 	void Init(AAI *ai, int x, int y, int left, int right, int top, int bottom);
 
@@ -93,15 +102,13 @@ public:
 	float GetTotalEnemyCombatUnits() const { return std::accumulate(m_enemyCombatUnits.begin(), m_enemyCombatUnits.end(), 0.0f); };
 
 	//! @brief Returns whether sector is supsected to be occupied by enemy units
-	bool IsOccupiedByEnemies() const{ return (GetTotalEnemyCombatUnits() > 0.1f) || (m_enemyBuildings > 0) || (enemies_on_radar > 0); }
+	bool IsOccupiedByEnemies() const{ return (GetTotalEnemyCombatUnits() > 0.1f) || (m_enemyBuildings > 0) || (m_enemyUnitsDetectedBySensor > 0); }
 
 	//! @brief Returns number of enemy units of given category spotted in this sector (float as number decreases over time if sector is not scouted)
 	float GetNumberOfEnemyCombatUnits(const AAICombatUnitCategory& category) const  { return m_enemyCombatUnits[category.GetArrayIndex()]; };
 
-	void Update();
-
-	// associates an extractor with a metal spot in that sector
-	void AddExtractor(int unit_id, int def_id, float3 *pos);
+	//! @brief Decreases number of lost units by a factor < 1 such that AAI "forgets" about lost unit over time
+	void DecreaseLostUnits();
 
 	//! @brief Tries to find a buildsite for a unit in that sector (returns zerovector if no buildsite found)
 	float3 FindBuildsite(int building, bool water = false) const;
@@ -195,13 +202,11 @@ public:
 	float left, right, top, bottom;
 
 	// list of all metal spots in the sector
-	list<AAIMetalSpot*> metalSpots;
+	std::list<AAIMetalSpot*> metalSpots;
 
-	bool freeMetalSpots;
+	bool m_freeMetalSpots;
 
 	int distance_to_base;	// 0 = base, 1 = neighbour to base
-
-	bool interior;			// true if sector is no inner sector
 
 	//! Bitmask storing movement types that may maneuver in this sector
 	uint32_t m_suitableMovementTypes;	
@@ -219,16 +224,7 @@ public:
 	float importance_this_game;
 	float importance_learned;
 
-	int enemies_on_radar;
-
 private:
-	// helper functions
-	void Pos2SectorMapPos(float3 *pos, const UnitDef* def);
-	void SectorMapPos2Pos(float3 *pos, const UnitDef* def);
-	float3 GetHighestBuildsite(int building);
-	void SetCoordinates(int left, int right, int top, int bottom);
-	void SetGridLocation(int x, int y);
-	AAIMetalSpot* GetFreeMetalSpot();
 
 	//! @brief Determines rectangle for possible buildsite
 	void DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const;
@@ -255,6 +251,9 @@ private:
 
 	//! Number of buildings allied players have constructed in this sector
 	int m_alliedBuildings;
+
+	//! Number of enemy units detected by sensor (radar/sonar)
+	int m_enemyUnitsDetectedBySensor;
 
 	//! The combat power against mobile targets of all hostile static defences in this sector
 	AAIValuesForMobileTargetTypes m_enemyStaticCombatPower;

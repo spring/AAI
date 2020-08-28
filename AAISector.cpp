@@ -53,19 +53,16 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 	continent = ai->Getmap()->GetContinentID(center);
 
 	// init all kind of stuff
-	freeMetalSpots = false;
-	interior = false;
+	m_freeMetalSpots = false;
 	distance_to_base = -1;
 	last_scout = 1;
 	rally_points = 0;
 
 	// nothing sighted in that sector
-	enemies_on_radar = 0;
+	m_enemyUnitsDetectedBySensor = 0;
 	m_enemyBuildings  = 0;
 	m_alliedBuildings = 0;
 	failed_defences = 0;
-
-	int categories = ai->Getbt()->assault_categories.size();
 
 	importance_this_game = 1.0f + (rand()%5)/20.0f;
 
@@ -112,12 +109,6 @@ void AAISector::UpdateLearnedData()
 
 	m_attacksByTargetTypeInCurrentGame.AddMobileTargetValues(m_attacksByTargetTypeInPreviousGames, 3.0f);
 	m_attacksByTargetTypeInCurrentGame.DecreaseByFactor(0.225f); // 0.225f = 0.9f / 4.0f ->decrease by 0.9 and account for 3.0f in line above
-}
-
-void AAISector::AddMetalSpot(AAIMetalSpot *spot)
-{
-	metalSpots.push_back(spot);
-	freeMetalSpots = true;
 }
 
 bool AAISector::SetBase(bool base)
@@ -218,49 +209,38 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 	}
 }
 
-void AAISector::Update()
+void AAISector::DecreaseLostUnits()
 {
 	// decrease values (so the ai "forgets" values from time to time)...
-	//ground_threat *= 0.995;
-	//air_threat *= 0.995;
 	m_lostUnits    *= 0.95f;
 	m_lostAirUnits *= 0.95f;
 }
 
-AAIMetalSpot* AAISector::GetFreeMetalSpot()
+void AAISector::AddMetalSpot(AAIMetalSpot *spot)
 {
-	// look for the first unoccupied metalspot
-	for(list<AAIMetalSpot*>::iterator i = metalSpots.begin(); i != metalSpots.end(); ++i)
-	{
-		// if metalspot is occupied, try next one
-		if(!(*i)->occupied)
-			return *i;
-	}
-
-
-	return 0;
+	metalSpots.push_back(spot);
+	m_freeMetalSpots = true;
 }
+
 void AAISector::FreeMetalSpot(float3 pos, const UnitDef *extractor)
 {
-	float3 spot_pos;
-
 	// get metalspot according to position
-	for(list<AAIMetalSpot*>::iterator spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
+	for(auto spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
 	{
 		// only check occupied spots
 		if((*spot)->occupied)
 		{
 			// compare positions
-			spot_pos = (*spot)->pos;
-			ai->Getmap()->Pos2FinalBuildPos(&spot_pos, extractor);
+			ai->Getmap()->Pos2FinalBuildPos(&(*spot)->pos, extractor);
 
-			if(pos.x == spot_pos.x && pos.z == spot_pos.z)
+			//! @todo Replace with comparison accounting for floating point inaccuracy
+			if(pos.x == (*spot)->pos.x && pos.z == (*spot)->pos.z)
 			{
 				(*spot)->occupied = false;
 				(*spot)->extractor = -1;
 				(*spot)->extractor_def = -1;
 
-				freeMetalSpots = true;
+				m_freeMetalSpots = true;
 
 				// if part of the base, tell the brain that the base has now free spots again
 				if(distance_to_base == 0)
@@ -272,21 +252,30 @@ void AAISector::FreeMetalSpot(float3 pos, const UnitDef *extractor)
 	}
 }
 
+void AAISector::UpdateFreeMetalSpots()
+{
+	m_freeMetalSpots = false;
+
+	for(auto spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
+	{
+		if((*spot)->occupied == false)
+		{
+			m_freeMetalSpots = true;
+			return;
+		}
+	}
+}
+
 void AAISector::AddExtractor(int unit_id, int def_id, float3 *pos)
 {
-	float3 spot_pos;
-
-	// get metalspot according to position
-	for(list<AAIMetalSpot*>::iterator spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
+	for(std::list<AAIMetalSpot*>::iterator spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
 	{
 		// only check occupied spots
 		if((*spot)->occupied)
 		{
-			// compare positions
-			spot_pos = (*spot)->pos;
-			ai->Getmap()->Pos2FinalBuildPos(&spot_pos, &ai->Getbt()->GetUnitDef(def_id));
+			ai->Getmap()->Pos2FinalBuildPos(&(*spot)->pos, &ai->Getbt()->GetUnitDef(def_id));
 
-			if(pos->x == spot_pos.x && pos->z == spot_pos.z)
+			if(pos->x == (*spot)->pos.x && pos->z == (*spot)->pos.z)
 			{
 				(*spot)->extractor = unit_id;
 				(*spot)->extractor_def = def_id;
@@ -452,21 +441,6 @@ float3 AAISector::GetRadarArtyBuildsite(int building, float range, bool water)
 	return ai->Getmap()->GetRadarArtyBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, range, water);
 }
 
-float3 AAISector::GetHighestBuildsite(int building)
-{
-	if(building < 1)
-	{
-		ai->Log("ERROR: Invalid building def id %i passed to AAISector::GetRadarBuildsite()\n", building);
-		return ZeroVector;
-	}
-
-	int xStart, xEnd, yStart, yEnd;
-
-	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
-
-	return ai->Getmap()->GetHighestBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd);
-}
-
 float3 AAISector::GetRandomBuildsite(int building, int tries, bool water)
 {
 	if(building < 1)
@@ -508,37 +482,6 @@ void AAISector::DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart,
 
 	if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->sector[x][y+1].distance_to_base > 0)
 		*yEnd -= ai->Getmap()->ySectorSizeMap/8;
-}
-
-// converts unit positions to cell coordinates
-void AAISector::Pos2SectorMapPos(float3 *pos, const UnitDef* def)
-{
-	// get cell index of middlepoint
-	pos->x = ((int) pos->x/SQUARE_SIZE)%ai->Getmap()->xSectorSizeMap;
-	pos->z = ((int) pos->z/SQUARE_SIZE)%ai->Getmap()->ySectorSizeMap;
-
-	// shift to the leftmost uppermost cell
-	pos->x -= def->xsize/2;
-	pos->z -= def->zsize/2;
-
-	// check if pos is still in that scetor, otherwise retun 0
-	if(pos->x < 0 && pos->z < 0)
-		pos->x = pos->z = 0;
-}
-
-void AAISector::SectorMapPos2Pos(float3 *pos, const UnitDef *def)
-{
-	// shift to middlepoint
-	pos->x += def->xsize/2;
-	pos->z += def->zsize/2;
-
-	// get cell position on complete map
-	pos->x += x * ai->Getmap()->xSectorSizeMap;
-	pos->z += y * ai->Getmap()->ySectorSizeMap;
-
-	// back to unit coordinates
-	pos->x *= SQUARE_SIZE;
-	pos->z *= SQUARE_SIZE;
 }
 
 float AAISector::GetLocalAttacksBy(const AAITargetType& targetType, float previousGames, float currentGame) const
@@ -617,7 +560,7 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 	{
 		if(attackerCategory.isCombatUnit())
 		{
-			const float increment = interior ? 0.3f : 1.0f;
+			const float increment = (distance_to_base == 0) ? 0.5f : 1.0f;
 			
 			m_attacksByTargetTypeInCurrentGame.AddValueForTargetType(ai->s_buildTree.GetTargetType(attackerDefId) , increment);
 		}

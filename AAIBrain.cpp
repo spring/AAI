@@ -80,7 +80,7 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 				else
 					my_rating = sector->importance_this_game * sector->last_scout;
 
-				++sector->last_scout;
+				sector->last_scout += 1.0f;
 
 				if(my_rating > best_rating)
 				{
@@ -99,8 +99,8 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 	}
 
 	// set dest sector as visited
-	if(dest->x > 0)
-		scout_sector->last_scout = 1;
+	if(dest->x > 0.0f)
+		scout_sector->last_scout = 1.0f;
 }
 
 bool AAIBrain::RessourcesForConstr(int /*unit*/, int /*wokertime*/)
@@ -188,12 +188,10 @@ void AAIBrain::UpdateCenterOfBase()
 
 void AAIBrain::UpdateNeighbouringSectors()
 {
-	int x,y,neighbours;
-
 	// delete old values
-	for(x = 0; x < ai->Getmap()->xSectors; ++x)
+	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
 	{
-		for(y = 0; y < ai->Getmap()->ySectors; ++y)
+		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
 		{
 			if(ai->Getmap()->sector[x][y].distance_to_base > 0)
 				ai->Getmap()->sector[x][y].distance_to_base = -1;
@@ -204,12 +202,12 @@ void AAIBrain::UpdateNeighbouringSectors()
 	{
 		// delete old sectors
 		sectors[i].clear();
-		neighbours = 0;
+		int neighbours = 0;
 
-		for(list<AAISector*>::iterator sector = sectors[i-1].begin(); sector != sectors[i-1].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = sectors[i-1].begin(); sector != sectors[i-1].end(); ++sector)
 		{
-			x = (*sector)->x;
-			y = (*sector)->y;
+			const int x = (*sector)->x;
+			const int y = (*sector)->y;
 
 			// check left neighbour
 			if(x > 0 && ai->Getmap()->sector[x-1][y].distance_to_base == -1)
@@ -239,9 +237,6 @@ void AAIBrain::UpdateNeighbouringSectors()
 				sectors[i].push_back(&ai->Getmap()->sector[x][y+1]);
 				++neighbours;
 			}
-
-			if(i == 1 && !neighbours)
-				(*sector)->interior = true;
 		}
 	}
 

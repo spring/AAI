@@ -696,7 +696,7 @@ bool AAIExecute::BuildExtractor()
 
 		for(auto sector = ai->Getbrain()->sectors[distanceFromBase].begin(); sector != ai->Getbrain()->sectors[distanceFromBase].end(); ++sector)
 		{
-			if(    (*sector)->freeMetalSpots 
+			if(    (*sector)->m_freeMetalSpots 
 				&& !ai->Getmap()->IsAlreadyOccupiedByOtherAAI(*sector)
 				&& !(*sector)->IsOccupiedByEnemies() )		
 			{
@@ -749,6 +749,11 @@ bool AAIExecute::BuildExtractor()
 
 		bestSpot.m_builder->GiveConstructionOrder(extractor, bestSpot.m_metalSpot->pos);
 		bestSpot.m_metalSpot->occupied = true;
+
+		AAISector* sector = ai->Getmap()->GetSectorOfPos(bestSpot.m_metalSpot->pos);
+
+		if(sector)
+			sector->UpdateFreeMetalSpots();
 
 		return true;	
 	}

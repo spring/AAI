@@ -759,48 +759,6 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 	return best_pos;
 }
 
-float3 AAIMap::GetHighestBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd)
-{
-	float3 best_pos = ZeroVector, pos;
-
-	// get required cell-size of the building
-	int xSize, ySize, xPos, yPos, x, y;
-	GetSize(def, &xSize, &ySize);
-
-	// go through rect
-	for(xPos = xStart; xPos < xEnd; xPos += 2)
-	{
-		for(yPos = yStart; yPos < yEnd; yPos += 2)
-		{
-			if(CanBuildAt(xPos, yPos, xSize, ySize))
-			{
-				pos.x = xPos;
-				pos.z = yPos;
-
-				// buildmap allows construction, now check if otherwise blocked
-				BuildMapPos2Pos(&pos, def);
-				Pos2FinalBuildPos(&pos, def);
-
-				if(ai->GetAICallback()->CanBuildAt(def, pos))
-				{
-					x = pos.x/xSectorSize;
-					y = pos.z/ySectorSize;
-
-					if(x < xSectors && x  >= 0 && y < ySectors && y >= 0)
-					{
-						pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
-
-						if(pos.y > best_pos.y)
-							best_pos = pos;
-					}
-				}
-			}
-		}
-	}
-
-	return best_pos;
-}
-
 float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, bool water)
 {
 	float3 pos, temp_pos;
@@ -1959,7 +1917,7 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 	for(int y = 0; y < ySectors; ++y)
 	{
 		for(int x = 0; x < xSectors; ++x)
-			sector[x][y].enemies_on_radar = 0;
+			sector[x][y].m_enemyUnitsDetectedBySensor = 0;
 	}
 
 	// update enemy units
@@ -1996,11 +1954,10 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 		}
 		else // unit on radar only
 		{
-			const int x = pos.x/xSectorSize;
-			const int y = pos.z/ySectorSize;
+			AAISector* sector = GetSectorOfPos(pos);
 
-			if(IsValidSector(x,y))
-				sector[x][y].enemies_on_radar += 1;
+			if(sector)
+				sector->m_enemyUnitsDetectedBySensor += 1;
 		}
 	}
 
@@ -2065,7 +2022,7 @@ void AAIMap::UpdateSectors()
 	for(int x = 0; x < xSectors; ++x)
 	{
 		for(int y = 0; y < ySectors; ++y)
-			sector[x][y].Update();
+			sector[x][y].DecreaseLostUnits();
 	}
 }
 
