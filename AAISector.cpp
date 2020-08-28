@@ -295,20 +295,39 @@ void AAISector::AddExtractor(int unit_id, int def_id, float3 *pos)
 	}
 }
 
-float3 AAISector::GetCenter()
+float3 AAISector::GetCenter() const
 {
 	float3 pos;
-	pos.x = (left + right)/2.0;
-	pos.z = (top + bottom)/2.0;
+	pos.x = (left + right)/2.0f;
+	pos.z = (top + bottom)/2.0f;
 
 	return pos;
 }
 
-/*float3 AAISector::GetCenterRallyPoint()
+float AAISector::GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const
 {
+	float rating(0.0f);
 
-	return ZeroVector;
-}*/
+	if( (distance_to_base > 0) && (GetNumberOfEnemyBuildings() > 0) )
+	{
+		const bool landCheckPassed  = landSectorSelectable  && (water_ratio < 0.35f);
+		const bool waterCheckPassed = waterSectorSelectable && (water_ratio > 0.65f);
+
+		if(landCheckPassed || waterCheckPassed)
+		{
+			const float dx = static_cast<float>(x - currentSector->x);
+			const float dy = static_cast<float>(y - currentSector->y);
+			const float dist = fastmath::apxsqrt(dx*dx + dy*dy );
+
+			const float enemyBuildings = static_cast<float>(GetNumberOfEnemyBuildings());
+
+			// prefer sectors with many buildings, few lost units and low defence power/short distance to current sector
+			rating = GetLostUnits() * enemyBuildings / ( (1.0f + GetEnemyDefencePower(targetTypeOfUnits)) * (1.0f + dist) );
+		}
+	}
+
+	return rating;			
+}
 
 
 float3 AAISector::FindBuildsite(int building, bool water) const
@@ -528,13 +547,16 @@ float AAISector::GetLocalAttacksBy(const AAITargetType& targetType, float previo
 	return  totalAttacks / (previousGames + currentGame);
 }
 
-float AAISector::GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const
+float AAISector::GetEnemyDefencePower(const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const
 {
-	return (combatCategoryWeigths.vsGround  * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::SURFACE))
-		+ combatCategoryWeigths.vsAir       * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::AIR)       + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::AIR))
-		+ combatCategoryWeigths.vsHover     * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::SURFACE)   + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::SURFACE))
-		+ combatCategoryWeigths.vsSea       * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::FLOATER)   + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::FLOATER))
-		+ combatCategoryWeigths.vsSubmarine * (m_enemyStaticCombatPower.GetValueOfTargetType(ETargetType::SUBMERGED) + m_enemyMobileCombatPower.GetValueOfTargetType(ETargetType::SUBMERGED)) );
+	float defencePower(0.0f);
+	for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
+	{
+		const float totalDefPower = m_enemyStaticCombatPower.GetValueOfTargetType(targetType) + m_enemyMobileCombatPower.GetValueOfTargetType(targetType);
+		defencePower += targetTypeOfUnits.GetValueOfTargetType(targetType) * totalDefPower;
+	}
+
+	return defencePower;
 }
 
 float AAISector::GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const
@@ -638,7 +660,7 @@ bool AAISector::ConnectedToOcean()
 	return false;
 }
 
-bool AAISector::determineMovePos(float3 *pos)
+bool AAISector::DetermineMovePos(float3 *pos)
 {
 	int x,y;
 	*pos = ZeroVector;
@@ -679,7 +701,7 @@ bool AAISector::determineMovePos(float3 *pos)
 	return false;
 }
 
-bool AAISector::determineMovePosOnContinent(float3 *pos, int continent)
+bool AAISector::DetermineMovePosOnContinent(float3 *pos, int continent)
 {
 	int x,y;
 	*pos = ZeroVector;

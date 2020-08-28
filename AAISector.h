@@ -122,8 +122,8 @@ public:
 	//! @brief Returns how often units in sector have been attacked by given mobile target type
 	float GetLocalAttacksBy(const AAITargetType& targetType, float previousGames, float currentGame) const;
 
-	//! @brief Get total (mobile + static) defence power of enemy (according to spotted units)
-	float GetEnemyDefencePower(const CombatPower& combatCategoryWeigths) const;
+	//! @brief Get total (mobile + static) defence power of enemy vs given target type (according to spotted units)
+	float GetEnemyDefencePower(const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const;
 
 	//! @brief Get total (mobile + static) defence power vs given target type
 	float GetEnemyCombatPower(const AAITargetType& targetType) const { return m_enemyStaticCombatPower.GetValueOfTargetType(targetType) + m_enemyMobileCombatPower.GetValueOfTargetType(targetType); }
@@ -152,16 +152,19 @@ public:
 				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::SUBMERGED);
 	}
 
-	// returns center of the sector
-	float3 GetCenter();
+	//! @brief Returns center position of the sector
+	float3 GetCenter() const;
+
+	//! @brief Returns the rating of this sector as destination to attack (0.0f if no suitable target)
+	float GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const;
 
 	//! @brief Searches for a free position in sector (regardless of continent). Position stored in pos (ZeroVector if none found)
 	//!        Returns whether search has been successful.
-	bool determineMovePos(float3 *pos);
+	bool DetermineMovePos(float3 *pos);
 
 	//! @brief Searches for a free position in sector on specified continent. Position stored in pos (ZeroVector if none found)
 	//!        Returns whether search has been successful.
-	bool determineMovePosOnContinent(float3 *pos, int continent);
+	bool DetermineMovePosOnContinent(float3 *pos, int continent);
 
 	//! @brief Returns true if pos lies within this sector
 	bool PosInSector(const float3& pos) const;

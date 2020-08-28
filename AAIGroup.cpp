@@ -305,18 +305,18 @@ void AAIGroup::DeterminePositionForAttackOrder(Command& c, const AAISector* targ
 	c.SetParam(1, ai->GetAICallback()->GetElevation(c.GetParam(0), c.GetParam(2)));
 }
 
-void AAIGroup::AttackSector(AAISector *dest, float importance)
+void AAIGroup::AttackSector(const AAISector *sector, float importance)
 {
 	const float3 pos = GetGroupPos();
 	Command c(CMD_FIGHT);
 
 	// get position of the group
-	DeterminePositionForAttackOrder(c, dest, pos);
+	DeterminePositionForAttackOrder(c, sector, pos);
 
 	// move group to that sector
 	GiveOrderToGroup(&c, importance + 8, UNIT_ATTACKING, "Group::AttackSector");
 
-	target_sector = dest;
+	target_sector = sector;
 	task = GROUP_ATTACKING;
 }
 
@@ -440,9 +440,9 @@ void AAIGroup::UnitIdle(int unit)
 		if( (sector == target_sector) || (target_sector == nullptr) )
 		{
 			// combat groups
-			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && (attack->dest->GetNumberOfEnemyBuildings() <= 0) )
+			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && (attack->m_attackDestination->GetNumberOfEnemyBuildings() <= 0) )
 			{
-				ai->Getam()->GetNextDest(attack);
+				ai->Getam()->TryAttackOfNextSector(attack);
 				return;
 			}
 			// unit the aa group was guarding has been killed

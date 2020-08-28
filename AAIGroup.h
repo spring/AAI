@@ -43,9 +43,12 @@ public:
 
 	bool RemoveUnit(int unit, int attacker);
 
+	//! @brief Returns the number of units in the group
+	int GetNumberOfUnits() const { return static_cast<int>(units.size()); }
+
 	void GiveOrderToGroup(Command *c, float importance, UnitTask task, const char *owner);
 
-	void AttackSector(AAISector *dest, float importance);
+	void AttackSector(const AAISector *sector, float importance);
 
 	//! @brief Defend unit vs enemy (enemyPosition equals ZeroVector if enemy unknown -> guard unit instead)
 	void Defend(UnitId unitId, const float3& enemyPosition, int importance);
@@ -95,6 +98,9 @@ public:
 	//! @brief Returns the combat unit type of the units in the group 
 	const AAIUnitCategory& GetUnitCategoryOfGroup() const { return m_category; }
 
+	//! @brief Returns the movement type of the units in the group
+	const AAIMovementType& GetMovementType() const { return m_moveType; }
+
 	//! @brief Returns the target type of the units in the group
 	const AAITargetType& GetTargetType() const;
 
@@ -107,14 +113,11 @@ public:
 	int size;
 
 	float avg_speed;
-	list<int2> units;
+	std::list<int2> units;
 
 	float task_importance;	// importance of current task
 
 	GroupTask task;
-
-	//! The movement type of the units of the group
-	AAIMovementType m_moveType;
 
 	// attack the group takes part in
 	AAIAttack *attack;
@@ -138,9 +141,12 @@ private:
 	//! The unit type of the units in this group
 	AAIUnitType m_groupType;
 
+	//! The movement type of the units of the group
+	AAIMovementType m_moveType;
+
 	AAI* ai;
 
-	AAISector *target_sector;
+	const AAISector *target_sector;
 
 	//! Rally point of the group, ZeroVector if none.
 	float3 m_rallyPoint;

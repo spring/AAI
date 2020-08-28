@@ -335,7 +335,7 @@ void AAIExecute::SendScoutToNewDest(int scout)
 		MoveUnitTo(scout, &pos);
 }
 
-float3 AAIExecute::GetBuildsite(int builder, int building, UnitCategory /*category*/)
+float3 AAIExecute::GetBuildsite(int builder, int building) const
 {
 	float3 pos;
 	float3 builder_pos;
@@ -607,7 +607,7 @@ bool AAIExecute::BuildExtractor()
 
 			if(land_builder)
 			{
-				float3 pos = GetBuildsite(land_builder->m_myUnitId.id, landExtractor.id, EXTRACTOR);
+				float3 pos = GetBuildsite(land_builder->m_myUnitId.id, landExtractor.id);
 
 				if(pos.x != 0)
 					land_builder->GiveConstructionOrder(landExtractor, pos);
@@ -2503,9 +2503,11 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 
 		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 		{
-			const float3 pos = (*sector)->GetCenter();
+			//! @todo Implement more refined selection
+			float3 pos;
+			(*sector)->DetermineMovePosOnContinent(&pos, continentId);
 
-			if(ai->Getmap()->GetContinentID(pos) == continentId)
+			if(pos.x > 0.0f)
 			{
 				const float rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyCombatPower(ai->s_buildTree.GetTargetType(unitDefId));
 

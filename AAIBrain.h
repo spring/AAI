@@ -42,12 +42,6 @@ public:
 	//! @brief Adds/removes the given sector to the base
 	void AssignSectorToBase(AAISector *sector, bool addToBase);
 
-	// returns dest attack sector
-	AAISector* GetAttackDest(bool land, bool water);
-
-	// returns a sector to proceed with attack
-	AAISector* GetNextAttackDest(AAISector *current_sector, bool land, bool water);
-
 	//! @brief Updates the (smoothened) energy/metal income
 	void UpdateRessources(springLegacyAI::IAICallback* cb);
 

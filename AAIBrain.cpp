@@ -50,102 +50,6 @@ void AAIBrain::InitAttackedByRates(const AttackedByRatesPerGamePhase& attackedBy
 	s_attackedByRates = attackedByRates;
 }
 
-AAISector* AAIBrain::GetAttackDest(bool land, bool water)
-{
-	float best_rating = 0.0f, my_rating = 0.0f;
-	AAISector *dest = 0;
-
-	CombatPower defencePowerWeightsLand(1.0f, 0.0f, 0.3f, 0.0f, 0.0f);
-	CombatPower defencePowerWeightsSea(0.0f, 0.0f, 0.5f, 1.0f, 0.5f);
-
-	// TODO: improve destination sector selection
-	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
-	{
-		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
-		{
-			AAISector* sector = &ai->Getmap()->sector[x][y];
-
-			const bool checkSector = (land && sector->water_ratio > 0.6f) || (water && sector->water_ratio < 0.4f);
-
-			if( checkSector && (sector->distance_to_base > 0) && (sector->GetNumberOfEnemyBuildings() > 0) )
-			{
-				const CombatPower& defencePowerweights = sector->water_ratio < 0.6f ? defencePowerWeightsLand : defencePowerWeightsSea;
-
-				float defencePower = sector->GetEnemyDefencePower(defencePowerweights);
-
-				float myRating;
-
-				if(defencePower > 0.1f) 
-				{
-					myRating = static_cast<float>(sector->GetNumberOfEnemyBuildings()) / defencePower;
-				} 
-				else 
-				{
-					myRating = static_cast<float>(sector->GetNumberOfEnemyBuildings()) / pow(sector->GetLostUnits() + 1.0f, 1.5f);
-				}
-				myRating /= static_cast<float>(5 + sector->distance_to_base);
-				
-				if(myRating > best_rating)
-				{
-					dest = sector;
-					best_rating = myRating;
-				}
-			}
-		}
-	}
-
-	return dest;
-}
-
-AAISector* AAIBrain::GetNextAttackDest(AAISector *current_sector, bool land, bool water)
-{
-	float best_rating = 0, my_rating, dist;
-	AAISector *dest = 0, *sector;
-
-	CombatPower defencePowerWeightsLand(1.0f, 0.0f, 0.3f, 0.0f, 0.0f);
-	CombatPower defencePowerWeightsSea(0.0f, 0.0f, 0.5f, 1.0f, 0.5f);
-
-	// TODO: improve destination sector selection
-	for(int x = 0; x < ai->Getmap()->xSectors; x++)
-	{
-		for(int y = 0; y < ai->Getmap()->ySectors; y++)
-		{
-			sector = &ai->Getmap()->sector[x][y];
-
-			if( (sector->distance_to_base == 0) || (sector->GetNumberOfEnemyBuildings() <= 0) )
-				my_rating = 0;
-			else
-			{
-				if(land && sector->water_ratio < 0.35)
-				{
-					dist = sqrt( pow((float)sector->x - current_sector->x, 2) + pow((float)sector->y - current_sector->y , 2) );
-
-					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(defencePowerWeightsLand), 2.0f) + pow(sector->GetLostUnits() + 1.0f, 1.5f));
-					my_rating /= (1.0f + dist);
-
-				}
-				else if(water && sector->water_ratio > 0.65)
-				{
-					dist = sqrt( pow((float)(sector->x - current_sector->x), 2) + pow((float)(sector->y - current_sector->y), 2) );
-
-					my_rating = 1.0f / (1.0f + pow(sector->GetEnemyDefencePower(defencePowerWeightsSea), 2.0f) + pow(sector->GetLostUnits() + 1.0f, 1.5f));
-					my_rating /= (1.0f + dist);
-				}
-				else
-					my_rating = 0;
-			}
-
-			if(my_rating > best_rating)
-			{
-				dest = sector;
-				best_rating = my_rating;
-			}
-		}
-	}
-
-	return dest;
-}
-
 void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 {
 	*dest = ZeroVector;
@@ -181,7 +85,7 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 				if(my_rating > best_rating)
 				{
 					// possible scout dest, try to find pos in sector
-					bool scoutDestFound = sector->determineMovePosOnContinent(&pos, continent);
+					bool scoutDestFound = sector->DetermineMovePosOnContinent(&pos, continent);
 
 					if(scoutDestFound == true)
 					{
@@ -405,10 +309,10 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 	bool rallyPointFound(false);
 
 	if(bestSector)
-		rallyPointFound = continentBound ? bestSector->determineMovePosOnContinent(&rallyPoint, continentId) : bestSector->determineMovePos(&rallyPoint);
+		rallyPointFound = continentBound ? bestSector->DetermineMovePosOnContinent(&rallyPoint, continentId) : bestSector->DetermineMovePos(&rallyPoint);
 
 	if(!rallyPointFound && secondBestSector)
-		rallyPointFound = continentBound ? secondBestSector->determineMovePosOnContinent(&rallyPoint, continentId) : secondBestSector->determineMovePos(&rallyPoint);
+		rallyPointFound = continentBound ? secondBestSector->DetermineMovePosOnContinent(&rallyPoint, continentId) : secondBestSector->DetermineMovePos(&rallyPoint);
 
 	return rallyPointFound;
 }

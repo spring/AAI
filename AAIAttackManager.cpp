@@ -10,7 +10,6 @@
 #include "AAIAttackManager.h"
 #include "AAI.h"
 #include "AAIBrain.h"
-#include "AAIBuildTable.h"
 #include "AAIAttack.h"
 #include "AAIConfig.h"
 #include "AAIGroup.h"
@@ -24,8 +23,8 @@ AAIAttackManager::AAIAttackManager(AAI *ai)
 
 AAIAttackManager::~AAIAttackManager(void)
 {
-	for(list<AAIAttack*>::iterator a = attacks.begin(); a != attacks.end(); ++a)
-		delete (*a);
+	for(auto attack = attacks.begin(); attack != attacks.end(); ++attack)
+		delete (*attack);
 
 	attacks.clear();
 }
@@ -33,24 +32,24 @@ AAIAttackManager::~AAIAttackManager(void)
 
 void AAIAttackManager::Update(int numberOfContinents)
 {
-	for(list<AAIAttack*>::iterator a = attacks.begin(); a != attacks.end(); ++a)
+	for(auto attack = attacks.begin(); attack != attacks.end(); ++attack)
 	{
 		// drop failed attacks
-		if((*a)->Failed())
+		if((*attack)->Failed())
 		{
-			(*a)->StopAttack();
+			(*attack)->StopAttack();
 
-			delete (*a);
-			attacks.erase(a);
+			delete (*attack);
+			attacks.erase(attack);
 
 			break;
 		}
 
 		// check if sector cleared
-		if((*a)->dest)
+		if((*attack)->m_attackDestination)
 		{
-			if((*a)->dest->GetNumberOfEnemyBuildings() == 0)
-				GetNextDest(*a);
+			if((*attack)->m_attackDestination->GetNumberOfEnemyBuildings() == 0)
+				TryAttackOfNextSector(*attack);
 		}
 	}
 
@@ -110,13 +109,11 @@ void AAIAttackManager::TryToLaunchAttack(int numberOfContinents)
 
 			if( (sector->distance_to_base > 0) && (sector->GetNumberOfEnemyBuildings() > 0))
 			{
-				const bool water = ai->Getmap()->IsSectorOnWaterContinent(sector);
-
+				const float myAttackPower     = combatPowerGlobal[AAITargetType::staticIndex] + combatPowerOnContinent[sector->continent][AAITargetType::staticIndex];
 				const float enemyDefencePower =   numberOfAssaultGroupsOfTargetType[AAITargetType::surfaceIndex]   * sector->GetEnemyCombatPower(ETargetType::SURFACE)
 												+ numberOfAssaultGroupsOfTargetType[AAITargetType::floaterIndex]   * sector->GetEnemyCombatPower(ETargetType::FLOATER)
 												+ numberOfAssaultGroupsOfTargetType[AAITargetType::submergedIndex] * sector->GetEnemyCombatPower(ETargetType::SUBMERGED);
-				const float myAttackPower     = combatPowerGlobal[AAITargetType::staticIndex] + combatPowerOnContinent[sector->continent][AAITargetType::staticIndex];
-
+				
 				const float lostUnitsFactor = (maxLostUnits > 1.0f) ? (2.0f - (sector->GetLostUnits() / maxLostUnits) ) : 1.0f;
 
 				const float enemyBuildings = static_cast<float>(sector->GetNumberOfEnemyBuildings());
@@ -199,7 +196,7 @@ int AAIAttackManager::DetermineCombatUnitGroupsAvailableForattack(  std::list<AA
 				const AAIUnitType& unitType = (*group)->GetUnitTypeOfGroup();
 				if(unitType.IsAssaultUnit())
 				{
-					if( (*group)->m_moveType.CannotMoveToOtherContinents() )
+					if( (*group)->GetMovementType().CannotMoveToOtherContinents() )
 						availableAssaultGroupsOnContinent[(*group)->GetContinentId()].push_back(*group);
 					else
 						availableAssaultGroupsGlobal.push_back(*group);
@@ -208,7 +205,7 @@ int AAIAttackManager::DetermineCombatUnitGroupsAvailableForattack(  std::list<AA
 				}
 				else if(unitType.IsAntiAir())
 				{
-					if( (*group)->m_moveType.CannotMoveToOtherContinents() )
+					if( (*group)->GetMovementType().CannotMoveToOtherContinents() )
 						availableAAGroupsOnContinent[(*group)->GetContinentId()].push_back(*group);
 					else
 						availableAAGroupsGlobal.push_back(*group);
@@ -286,23 +283,52 @@ void AAIAttackManager::CheckAttack(AAIAttack *attack)
 	}
 }
 
-void AAIAttackManager::GetNextDest(AAIAttack *attack)
+void AAIAttackManager::TryAttackOfNextSector(AAIAttack* attack)
 {
 	// prevent command overflow
 	if((ai->GetAICallback()->GetCurrentFrame() - attack->lastAttack) < 60)
 		return;
 
+	AAIMovementType moveType( attack->GetMovementTypeOfAssignedUnits() );
+	AAIValuesForMobileTargetTypes targetTypesOfUnits;
+	attack->DetermineTargetTypeOfInvolvedUnits(targetTypesOfUnits);
+
 	// get new target sector
-	AAISector *dest = ai->Getbrain()->GetNextAttackDest(attack->dest, attack->land, attack->water);
+	const AAISector *dest = GetNextAttackDest(attack->m_attackDestination, targetTypesOfUnits, moveType);
 
 	//ai->Log("Getting next dest\n");
-	if(dest && SufficientAttackPowerVS(dest, attack->combat_groups, 2.0f))
+	if(dest && SufficientCombatPowerToAttackSector(dest, attack->combat_groups, 2.0f))
 		attack->AttackSector(dest);
 	else
 		attack->StopAttack();
 }
 
-bool AAIAttackManager::SufficientAttackPowerVS(AAISector *dest, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const
+const AAISector* AAIAttackManager::GetNextAttackDest(const AAISector *currentSector, const AAIValuesForMobileTargetTypes& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const
+{
+	float highestRating(0.0f);
+	const AAISector* selectedSector(nullptr);
+
+	const bool landSectorSelectable  = moveTypeOfUnits.IsAir() || moveTypeOfUnits.IsHover() || moveTypeOfUnits.IsAmphibious() || moveTypeOfUnits.IsGround();
+	const bool waterSectorSelectable = moveTypeOfUnits.IsAir() || moveTypeOfUnits.IsHover() || moveTypeOfUnits.IsSeaUnit();
+
+	for(int x = 0; x < ai->Getmap()->xSectors; x++)
+	{
+		for(int y = 0; y < ai->Getmap()->ySectors; y++)
+		{
+			const float rating = ai->Getmap()->sector[x][y].GetAttackRating(currentSector, landSectorSelectable, waterSectorSelectable, targetTypeOfUnits);
+			
+			if(rating > highestRating)
+			{
+				selectedSector = &ai->Getmap()->sector[x][y];
+				highestRating  = rating;
+			}
+		}
+	}
+
+	return selectedSector;
+}
+
+bool AAIAttackManager::SufficientCombatPowerToAttackSector(const AAISector *dest, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const
 {
 	if(dest && !combatGroups.empty())
 	{

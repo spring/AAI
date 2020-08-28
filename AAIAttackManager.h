@@ -11,6 +11,7 @@
 #define AAI_ATTACKMANAGER_H
 
 #include "aidef.h"
+#include "AAITypes.h"
 #include <set>
 #include <list>
 #include <vector>
@@ -18,12 +19,8 @@
 using namespace std;
 
 class AAI;
-class AAIBrain;
-class AAIBuildTable;
-class AAIMap;
 class AAIAttack;
 class AAISector;
-
 
 class AAIAttackManager
 {
@@ -37,9 +34,13 @@ public:
 	bool SufficientCombatPowerAt(const AAISector *dest, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const;
 
 	// true if combat groups have sufficient attack power to face stationary defences
-	bool SufficientAttackPowerVS(AAISector *dest, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const;
+	bool SufficientCombatPowerToAttackSector(const AAISector *sector, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const;
 
-	void GetNextDest(AAIAttack *attack);
+	//! @brief Checks if attack can be continued with new target
+	void TryAttackOfNextSector(AAIAttack *attack);
+
+	//! @brief Returns a sector to proceed with attack (nullptr if none found)
+	const AAISector* GetNextAttackDest(const AAISector *currentSector, const AAIValuesForMobileTargetTypes& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const;
 
 	void Update(int numberOfContinents);
 

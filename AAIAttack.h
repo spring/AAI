@@ -11,7 +11,7 @@
 #define AAI_ATTACK_H
 
 #include <set>
-using namespace std;
+#include "AAITypes.h"
 
 class AAI;
 class AAISector;
@@ -30,27 +30,31 @@ public:
 	// returns true if attack has failed
 	bool Failed();
 
-	// orders units to attack specidied sector
-	void AttackSector(AAISector *sector);
+	//! @brief Orders units to attack specidied sector
+	void AttackSector(const AAISector *sector);
 
-	// orders all units involved to retreat
+	//! @brief Orders all units involved to retreat
 	void StopAttack();
 
+	//! @brief Returns the movement types of the units participating in this attack
+	AAIMovementType GetMovementTypeOfAssignedUnits() const;
+
+	//! @brief Determines how many units of which target type participate in attack
+	void DetermineTargetTypeOfInvolvedUnits(AAIValuesForMobileTargetTypes& targetTypesOfUnits) const;
+
 	// target sector
-	AAISector *dest;
+	const AAISector* m_attackDestination;
 
 	// tick when last attack order has been given (to prevent overflow when unit gets stuck and sends "unit idel" all the time)
 	int lastAttack;
 
-	// specifies what kind of sector the involved unit groups may attack
-	bool land;
-	bool water;
-
 	// groups participating
-	set<AAIGroup*> combat_groups;
+	std::set<AAIGroup*> combat_groups;
 private:
-	set<AAIGroup*> aa_groups;
-	set<AAIGroup*> arty_groups;
+	std::set<AAIGroup*> aa_groups;
+
+	std::set<AAIGroup*> arty_groups;
+	
 	AAI *ai;
 };
 

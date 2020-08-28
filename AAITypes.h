@@ -14,6 +14,7 @@ typedef unsigned int   uint32_t;
 
 #include <vector>
 #include <string>
+#include "aidef.h"
 #include "AAIUnitTypes.h"
 
 //! @brief An id identifying a unit type - used to prevent mixing ids referring to units and unit definitions
@@ -56,6 +57,13 @@ public:
 
 	//! @brief Sets the given elementary movement type to the movement type bitmask
 	void SetMovementType(EMovementType moveType) { m_movementType = moveType; }
+
+	//! @brief Adds the given elementary movement type to the movement type bitmask
+	void AddMovementType(AAIMovementType moveType) 
+	{ 
+		const uint32_t newMoveType = static_cast<uint32_t>(m_movementType) | static_cast<uint32_t>(moveType.m_movementType);
+		m_movementType = static_cast<EMovementType>(newMoveType);
+	}
 
 	//! @brief Getter function to access unit type.
 	EMovementType GetMovementType() const { return m_movementType; }

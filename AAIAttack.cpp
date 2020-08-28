@@ -17,23 +17,21 @@
 using namespace springLegacyAI;
 
 AAIAttack::AAIAttack(AAI *ai):
-	dest(NULL),
-	lastAttack(0),
-	land(false),
-	water(false)
+	m_attackDestination(nullptr),
+	lastAttack(0)
 {
 	this->ai = ai;
 }
 
 AAIAttack::~AAIAttack(void)
 {
-	for(set<AAIGroup*>::iterator group = combat_groups.begin(); group != combat_groups.end(); ++group)
+	for(std::set<AAIGroup*>::iterator group = combat_groups.begin(); group != combat_groups.end(); ++group)
 		(*group)->attack = 0;
 
-	for(set<AAIGroup*>::iterator group = aa_groups.begin(); group != aa_groups.end(); ++group)
+	for(std::set<AAIGroup*>::iterator group = aa_groups.begin(); group != aa_groups.end(); ++group)
 		(*group)->attack = 0;
 
-	for(set<AAIGroup*>::iterator group = arty_groups.begin(); group != arty_groups.end(); ++group)
+	for(std::set<AAIGroup*>::iterator group = arty_groups.begin(); group != arty_groups.end(); ++group)
 		(*group)->attack = 0;
 }
 
@@ -58,25 +56,25 @@ bool AAIAttack::Failed()
 
 void AAIAttack::StopAttack()
 {
-	for(set<AAIGroup*>::iterator group = combat_groups.begin(); group != combat_groups.end(); ++group)
+	for(auto group = combat_groups.begin(); group != combat_groups.end(); ++group)
 	{
 		// get rally point somewhere between current pos an base
 		(*group)->GetNewRallyPoint();
 
 		(*group)->RetreatToRallyPoint();
-		(*group)->attack = 0;
+		(*group)->attack = nullptr;
 	}
 
-	for(set<AAIGroup*>::iterator group = aa_groups.begin(); group != aa_groups.end(); ++group)
+	for(auto group = aa_groups.begin(); group != aa_groups.end(); ++group)
 	{
 		// get rally point somewhere between current pos an base
 		(*group)->GetNewRallyPoint();
 
 		(*group)->RetreatToRallyPoint();
-		(*group)->attack = 0;
+		(*group)->attack = nullptr;
 	}
 
-	for(set<AAIGroup*>::iterator group = arty_groups.begin(); group != arty_groups.end(); ++group)
+	for(auto group = arty_groups.begin(); group != arty_groups.end(); ++group)
 	{
 		// todo
 	}
@@ -86,24 +84,43 @@ void AAIAttack::StopAttack()
 	arty_groups.clear();
 }
 
-void AAIAttack::AttackSector(AAISector *sector)
+AAIMovementType AAIAttack::GetMovementTypeOfAssignedUnits() const
+{
+	AAIMovementType moveType;
+
+	for(auto group = combat_groups.begin(); group != combat_groups.end(); ++group)
+		moveType.AddMovementType( (*group)->GetMovementType() );
+	
+	for(auto group = aa_groups.begin(); group != aa_groups.end(); ++group)
+		moveType.AddMovementType( (*group)->GetMovementType() );
+
+	return moveType;
+}
+
+void AAIAttack::DetermineTargetTypeOfInvolvedUnits(AAIValuesForMobileTargetTypes& targetTypesOfUnits) const
+{
+	for(auto group = combat_groups.begin(); group != combat_groups.end(); ++group)
+		targetTypesOfUnits.AddValueForTargetType( (*group)->GetTargetType(), static_cast<float>( (*group)->GetNumberOfUnits() ) );
+}
+
+void AAIAttack::AttackSector(const AAISector *sector)
 {
 	int unit;
 	float importance = 110;
 
-	dest = sector;
+	m_attackDestination = sector;
 
 	lastAttack = ai->GetAICallback()->GetCurrentFrame();
 
-	for(set<AAIGroup*>::iterator group = combat_groups.begin(); group != combat_groups.end(); ++group)
+	for(std::set<AAIGroup*>::iterator group = combat_groups.begin(); group != combat_groups.end(); ++group)
 	{
-		(*group)->AttackSector(dest, importance);
+		(*group)->AttackSector(m_attackDestination, importance);
 	}
 
 	// order aa groups to guard combat units
 	if(!combat_groups.empty())
 	{
-		for(set<AAIGroup*>::iterator group = aa_groups.begin(); group != aa_groups.end(); ++group)
+		for(std::set<AAIGroup*>::iterator group = aa_groups.begin(); group != aa_groups.end(); ++group)
 		{
 			unit = (*combat_groups.begin())->GetRandomUnit();
 
@@ -117,9 +134,9 @@ void AAIAttack::AttackSector(AAISector *sector)
 		}
 	}
 
-	for(set<AAIGroup*>::iterator group = arty_groups.begin(); group != arty_groups.end(); ++group)
+	for(std::set<AAIGroup*>::iterator group = arty_groups.begin(); group != arty_groups.end(); ++group)
 	{
-		(*group)->AttackSector(dest, importance);
+		(*group)->AttackSector(m_attackDestination, importance);
 	}
 }
 

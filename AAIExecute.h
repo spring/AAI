@@ -179,7 +179,8 @@ private:
 	//! @brief Returns closest (taking into account movement speed) group with units of specified unit type that may reach the location
 	AAIGroup* GetClosestGroupForDefence(const AAITargetType& attackerTargetType, const float3& pos, int importance)  const;
 	
-	float3 GetBuildsite(int builder, int building, UnitCategory category);
+	float3 GetBuildsite(int builder, int building) const ;
+	
 	void InitBuildques();
 
 	void stopUnit(int unit);
