@@ -21,7 +21,6 @@
 #include <string>
 using namespace std;
 
-class AAIBuildTable;
 class AAI;
 
 namespace springLegacyAI {
@@ -29,11 +28,70 @@ namespace springLegacyAI {
 }
 using namespace springLegacyAI;
 
+//! A continent is made up of  tiles of the same type (land or water) that are connected with each other
 struct AAIContinent
 {
+	//! Continent id
 	int id;
-	int size;			// number of cells
+
+	//! Size of continent (oin number of map tiles)
+	int size;
+
+	//! Flag if its a water continent
 	bool water;
+};
+
+//! Movement types that are used to describe the movement type of every unit
+enum class EBuildMapTileType : uint8_t
+{
+	NOT_SET       = 0x00u, //!< Unknown/not set
+	LAND          = 0x01u, //!< land tile
+	WATER         = 0x02u, //!< water tile
+	FLAT          = 0x04u, //!< flat terrain (i.e. suitable for contruction of buildings or destination to send units to))
+	CLIFF         = 0x08u, //!< cliffy terrain (i.e. not suitable for contruction of building or destination to send units to)
+	FREE          = 0x10u, //!< free (i.e. buildings cand be constructed here)
+	OCCUPIED      = 0x20u, //!< occupied by buidling
+	BLOCKED_SPACE = 0x40u, //!< tiles where no buildings shall be constructed  (e.g. exits of factory)
+};
+
+//! Contains convenience functions for tiles of th buildmap
+class BuildMapTileType
+{
+friend AAIMap;
+
+public:
+	BuildMapTileType(EBuildMapTileType tileType) { m_tileType = static_cast<uint8_t>(tileType); }
+
+	BuildMapTileType() : BuildMapTileType(EBuildMapTileType::NOT_SET) {}
+
+	BuildMapTileType(EBuildMapTileType tileType1, EBuildMapTileType tileType2) { m_tileType = static_cast<uint8_t>(tileType1) | static_cast<uint8_t>(tileType2); }
+
+	void SetTileType(EBuildMapTileType tileType) { m_tileType |= static_cast<uint8_t>(tileType); }
+
+	bool IsTileTypeSet(BuildMapTileType tileType) const { return static_cast<bool>(m_tileType & tileType.m_tileType); }
+
+	bool IsTileTypeNotSet(BuildMapTileType tileType) const { return !static_cast<bool>(m_tileType & tileType.m_tileType); }
+
+	void BlockTile()
+	{
+		m_tileType &= ~static_cast<uint8_t>(EBuildMapTileType::FREE);
+		m_tileType |= static_cast<uint8_t>(EBuildMapTileType::BLOCKED_SPACE); 
+	}
+
+	void OccupyTile()
+	{
+		m_tileType &= ~static_cast<uint8_t>(EBuildMapTileType::FREE);
+		m_tileType |= static_cast<uint8_t>(EBuildMapTileType::OCCUPIED); 
+	}
+
+	void FreeTile()
+	{ 
+		m_tileType &= ~(static_cast<uint8_t>(EBuildMapTileType::OCCUPIED) + static_cast<uint8_t>(EBuildMapTileType::BLOCKED_SPACE)); 
+		m_tileType |= static_cast<uint8_t>(EBuildMapTileType::FREE); 
+	}
+
+//private:
+	uint8_t m_tileType;
 };
 
 class AAIMap
@@ -100,7 +158,7 @@ public:
 	void UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool block);
 
 	// returns number of cells with big slope
-	int GetCliffyCells(int xPos, int yPos, int xSize, int ySize);
+	int GetCliffyCells(int xPos, int yPos, int xSize, int ySize) const;
 
 	// updates spotted ennemy/ally buildings/units on the map
 	void UpdateEnemyUnitsInLOS();
@@ -136,16 +194,13 @@ public:
 	static vector< vector<int> > team_sector_map;	// stores the number of ai player which has taken that sector (-1 if none)
 											// this helps preventing aai from expanding into sectors of other aai players
 
+	//! The buildmap stores the type/occupation status of every cell;
+	static std::vector<BuildMapTileType> m_buildmap;
 
-	static vector<int> buildmap;	// map of the cells in the sector;
-							// 0 unoccupied, flat terrain
-							// 1 occupied flat terrain,
-							// 2 spaces between buildings
-							// 3 terrain not suitable for constr.
-							// 4 water
-							// 5 occupied water
 	static vector<AAIContinent> continents;
 	static int avg_water_continent_size;
+
+	static constexpr int ignoreContinentID = -1;
 
 private:
 
@@ -196,9 +251,9 @@ private:
 	//! @brief returns true if buildmap allows construction
 	bool CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water = false) const;
 
-	// return next cell in direction with a certain value
-	int GetNextX(int direction, int xPos, int yPos, int value);	// 0 means left, other right; returns -1 if not found
-	int GetNextY(int direction, int xPos, int yPos, int value);	// 0 means up, other down; returns -1 if not found
+	//! @brief Returns next x/y coordinate of cell in given direction of a certain tile type
+	int GetNextX(int direction, int xPos, int yPos, BuildMapTileType tileType) const;	// 0 means left, other right; returns -1 if not found
+	int GetNextY(int direction, int xPos, int yPos, BuildMapTileType tileType) const;	// 0 means up, other down; returns -1 if not found
 
 	//! @brief Returns descriptor for map type (used to save map type)
 	const char* GetMapTypeString(const AAIMapType& mapType) const;
@@ -206,7 +261,7 @@ private:
 	// blocks/unblocks cells (to prevent AAI from packing buildings too close to each other)
 	void BlockCells(int xPos, int yPos, int width, int height, bool block, bool water);
 
-	// prevents ai from building too many buildings in a row
+	//! @brief Prevents AAI from building too many buildings in a row by adding blocking spaces if necessary
 	void CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool water);
 
 	//! @brief Returns the size which shall be blocked for this building (building size + exit for factories)
@@ -215,8 +270,8 @@ private:
 	//! @brief Returns distance to closest edge of the map (in build_map coordinates)
 	int GetEdgeDistance(int xPos, int yPos) const;
 
-	// sets cells of the builmap to value
-	bool SetBuildMap(int xPos, int yPos, int xSize, int ySize, int value, int ignore_value = -1);
+	//! @brief Occupies/frees the given cells of the buildmap
+	void ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, bool occupy);
 
 public:
 	void BuildMapPos2Pos(float3 *pos, const UnitDef* def) const;

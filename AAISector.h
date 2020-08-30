@@ -24,6 +24,7 @@
 class AAI;
 class AAIUnitTable;
 class AAIMap;
+class BuildMapTileType;
 class AAIMetalSpot;
 
 namespace springLegacyAI {
@@ -60,7 +61,7 @@ public:
 	//! @brief Associates an extractor with a metal spot in that sector 
 	void AddExtractor(int unit_id, int def_id, float3 *pos);
 
-	void Init(AAI *ai, int x, int y, int left, int right, int top, int bottom);
+	void Init(AAI *ai, int x, int y);
 
 	//! @brief Loads sector data from given file
 	void LoadDataFromFile(FILE* file);
@@ -165,13 +166,9 @@ public:
 	//! @brief Returns the rating of this sector as destination to attack (0.0f if no suitable target)
 	float GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const;
 
-	//! @brief Searches for a free position in sector (regardless of continent). Position stored in pos (ZeroVector if none found)
-	//!        Returns whether search has been successful.
-	bool DetermineMovePos(float3 *pos);
-
-	//! @brief Searches for a free position in sector on specified continent. Position stored in pos (ZeroVector if none found)
-	//!        Returns whether search has been successful.
-	bool DetermineMovePosOnContinent(float3 *pos, int continent);
+	//! @brief Searches for a free position in sector on specified continent (use -1 if continent does not matter). 
+	//!        Position stored in pos (ZeroVector if none found). Returns whether search has been successful.
+	bool DetermineUnitMovePos(float3& pos, AAIMovementType moveType, int continentId) const;
 
 	//! @brief Returns true if pos lies within this sector
 	bool PosInSector(const float3& pos) const;
@@ -228,6 +225,9 @@ private:
 
 	//! @brief Determines rectangle for possible buildsite
 	void DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const;
+
+	//! @brief Helper function to determine position to move units to
+	bool IsValidMovePos(const float3& pos, BuildMapTileType forbiddenMapTileTypes, int continentId) const;
 
 	AAI *ai;
 

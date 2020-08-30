@@ -2501,7 +2501,8 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 	float3 selectedPosition(ZeroVector);
 	float highestRating(-10000.0f);
 
-	if( ai->s_buildTree.GetMovementType(unitDefId).CannotMoveToOtherContinents() )
+	const AAIMovementType moveType = ai->s_buildTree.GetMovementType(unitDefId);
+	if( moveType.CannotMoveToOtherContinents() )
 	{
 		// get continent id of the unit pos
 		const int continentId = ai->Getmap()->GetContinentID(unit_pos);
@@ -2510,7 +2511,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 		{
 			//! @todo Implement more refined selection
 			float3 pos;
-			(*sector)->DetermineMovePosOnContinent(&pos, continentId);
+			(*sector)->DetermineUnitMovePos(pos, moveType, continentId);
 
 			if(pos.x > 0.0f)
 			{

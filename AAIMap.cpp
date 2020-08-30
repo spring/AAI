@@ -16,6 +16,9 @@
 
 #include "System/SafeUtil.h"
 #include "LegacyCpp/UnitDef.h"
+
+#include <inttypes.h>
+
 using namespace springLegacyAI;
 
 #define MAP_CACHE_PATH "cache/"
@@ -38,7 +41,7 @@ int AAIMap::ySectorSize;
 int AAIMap::xSectorSizeMap;
 int AAIMap::ySectorSizeMap;
 
-list<AAIMetalSpot>  AAIMap::metal_spots;
+std::list<AAIMetalSpot>  AAIMap::metal_spots;
 
 int AAIMap::land_metal_spots;
 int AAIMap::water_metal_spots;
@@ -50,13 +53,13 @@ float AAIMap::water_ratio;
 bool AAIMap::metalMap;
 AAIMapType AAIMap::s_mapType;
 
-vector< vector<int> > AAIMap::team_sector_map;
-vector<int> AAIMap::buildmap;
-vector<int> AAIMap::blockmap;
-vector<float> AAIMap::plateau_map;
-vector<int> AAIMap::continent_map;
+std::vector< std::vector<int> > AAIMap::team_sector_map;
+std::vector<BuildMapTileType> AAIMap::m_buildmap;
+std::vector<int> AAIMap::blockmap;
+std::vector<float> AAIMap::plateau_map;
+std::vector<int> AAIMap::continent_map;
 
-vector<AAIContinent> AAIMap::continents;
+std::vector<AAIContinent> AAIMap::continents;
 int AAIMap::land_continents;
 int AAIMap::water_continents;
 int AAIMap::avg_land_continent_size;
@@ -98,7 +101,7 @@ AAIMap::~AAIMap(void)
 
 		fclose(save_file);
 
-		buildmap.clear();
+		m_buildmap.clear();
 		blockmap.clear();
 		plateau_map.clear();
 		continent_map.clear();
@@ -144,19 +147,16 @@ void AAIMap::Init()
 		xSectorSizeMap = floor( ((float) xMapSize) / ((float) xSectors) );
 		ySectorSizeMap = floor( ((float) yMapSize) / ((float) ySectors) );
 
-		xSectorSize = 8 * xSectorSizeMap;
-		ySectorSize = 8 * ySectorSizeMap;
+		xSectorSize = xSectorSizeMap * SQUARE_SIZE;
+		ySectorSize = ySectorSizeMap * SQUARE_SIZE;
 
-		buildmap.resize(xMapSize*yMapSize, 0);
+		m_buildmap.resize(xMapSize*yMapSize);
 		blockmap.resize(xMapSize*yMapSize, 0);
 		continent_map.resize(xContMapSize*yContMapSize, -1);
 		plateau_map.resize(xContMapSize*yContMapSize, 0.0f);
 
 		// create map that stores which aai player has occupied which sector (visible to all aai players)
-		team_sector_map.resize(xSectors);
-
-		for(int x = 0; x < xSectors; ++x)
-			team_sector_map[x].resize(ySectors, -1);
+		team_sector_map.resize(xSectors, std::vector<int>(ySectors, -1) );
 
 		ReadContinentFile();
 
@@ -165,27 +165,22 @@ void AAIMap::Init()
 
 	ai->Log("Map size: %i x %i    LOS map size: %i x %i  (los res: %i)\n", xMapSize, yMapSize, xLOSMapSize, yLOSMapSize, losMapRes);
 
-	// create field of sectors
-	sector.resize(xSectors);
+	sector.resize(xSectors, std::vector<AAISector>(ySectors));
 
 	for(int x = 0; x < xSectors; ++x)
-		sector[x].resize(ySectors);
-
-	for(int j = 0; j < ySectors; ++j)
 	{
-		for(int i = 0; i < xSectors; ++i)
+		for(int y = 0; y < ySectors; ++y)
 			// provide ai callback to sectors & set coordinates of the sectors
-			sector[i][j].Init(ai, i, j, xSectorSize*i, xSectorSize*(i+1), ySectorSize * j, ySectorSize * (j+1));
+			sector[x][y].Init(ai, x, y);
 	}
 
 	// add metalspots to their sectors
 	for(std::list<AAIMetalSpot>::iterator spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
 	{
-		const int x = spot->pos.x/xSectorSize;
-		const int y = spot->pos.z/ySectorSize;
+		AAISector* sector = GetSectorOfPos(spot->pos);
 
-		if(IsValidSector(x,y))
-			sector[x][y].AddMetalSpot(&(*spot));
+		if(sector)
+			sector->AddMetalSpot(&(*spot));
 	}
 
 	readMapLearnFile();
@@ -197,9 +192,9 @@ void AAIMap::Init()
 	units_in_los.resize(cfg->MAX_UNITS, 0);
 
 	// create defence
-	defence_map.resize(xDefMapSize*yDefMapSize, 0);
-	air_defence_map.resize(xDefMapSize*yDefMapSize, 0);
-	submarine_defence_map.resize(xDefMapSize*yDefMapSize, 0);
+	defence_map.resize(xDefMapSize*yDefMapSize, 0.0f);
+	air_defence_map.resize(xDefMapSize*yDefMapSize, 0.0f);
+	submarine_defence_map.resize(xDefMapSize*yDefMapSize, 0.0f);
 
 	// for log file
 	ai->Log("Map: %s\n",ai->GetAICallback()->GetMapName());
@@ -287,8 +282,11 @@ void AAIMap::ReadMapCacheFile()
 			{
 				for(int x = 0; x < xMapSize; ++x)
 				{
+					unsigned int value;
+					fscanf(file, "%u", &value);
+
 					const int cell = x + y * xMapSize;
-					fscanf(file, "%i ", &buildmap[cell]);
+					m_buildmap[cell].m_tileType = static_cast<uint8_t>(value);
 				}
 			}
 
@@ -360,7 +358,7 @@ void AAIMap::ReadMapCacheFile()
 			for(int x = 0; x < xMapSize; ++x)
 			{
 				const int cell = x + y * xMapSize;
-				fprintf(file, "%i ", buildmap[cell]);
+				fprintf(file, "%u ", m_buildmap[cell].m_tileType);
 			}
 			fprintf(file, "\n");
 		}
@@ -382,7 +380,7 @@ void AAIMap::ReadMapCacheFile()
 
 		fprintf(file, _STPF_ " \n", metal_spots.size());
 
-		for(list<AAIMetalSpot>::iterator spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
+		for(std::list<AAIMetalSpot>::iterator spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
 		{
 			fprintf(file, "%f %f %f %f \n", spot->pos.x, spot->pos.y, spot->pos.z, spot->amount);
 
@@ -634,34 +632,33 @@ void AAIMap::Pos2FinalBuildPos(float3 *pos, const UnitDef* def) const
 		pos->z=floor((pos->z+8)/(SQUARE_SIZE*2))*SQUARE_SIZE*2;
 }
 
-bool AAIMap::SetBuildMap(int xPos, int yPos, int xSize, int ySize, int value, int ignore_value)
+void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, bool occupy)
 {
-	if(xPos+xSize <= xMapSize && yPos+ySize <= yMapSize)
-	{
-		for(int x = xPos; x < xSize+xPos; x++)
-		{
-			for(int y = yPos; y < ySize+yPos; y++)
-			{
-				if(buildmap[x+y*xMapSize] != ignore_value)
-				{
-					buildmap[x+y*xMapSize] = value;
+	// ensure that that cell index may not run outside of the map (should not happen as buildings cannot be placed so close to the map edge)
+	const int xEnd = std::min(xPos + xSize, xMapSize);
+	const int yEnd = std::min(yPos + ySize, yMapSize);
 
-					// debug
-					/*if(x%2 == 0 && y%2 == 0)
-					{
-						float3 myPos;
-						myPos.x = x;
-						myPos.z = y;
-						BuildMapPos2Pos(&myPos, ai->Getcb()->GetUnitDef("armmine1")); 
-						myPos.y = ai->Getcb()->GetElevation(myPos.x, myPos.z);
-						ai->Getcb()->DrawUnit("armmine1", myPos, 0.0f, 2000, ai->Getcb()->GetMyAllyTeam(), true, true);
-					}*/
-				}
-			}
+	for(int y = yPos; y < yEnd; ++y)
+	{
+		for(int x = xPos; x < xEnd; ++x)
+		{
+			if(occupy)
+				m_buildmap[x+y*xMapSize].OccupyTile();
+			else
+				m_buildmap[x+y*xMapSize].FreeTile();
+
+			// debug
+			/*if(x%2 == 0 && y%2 == 0)
+			{
+				float3 myPos;
+				myPos.x = x;
+				myPos.z = y;
+				BuildMapPos2Pos(&myPos, ai->Getcb()->GetUnitDef("armmine1")); 
+				myPos.y = ai->Getcb()->GetElevation(myPos.x, myPos.z);
+				ai->Getcb()->DrawUnit("armmine1", myPos, 0.0f, 2000, ai->Getcb()->GetMyAllyTeam(), true, true);
+			}*/
 		}
-		return true;
-	}
-	return false;
+	}	
 }
 
 float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, bool water) const
@@ -955,6 +952,14 @@ float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 
 bool AAIMap::CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water) const
 {
+	BuildMapTileType requiredTileType(EBuildMapTileType::FREE);
+
+	//! @todo Account for cliffy cells
+	if(water)
+		requiredTileType.SetTileType(EBuildMapTileType::WATER);
+	else
+		requiredTileType.SetTileType(EBuildMapTileType::LAND);
+
 	if( (xPos+xSize <= xMapSize) && (yPos+ySize <= yMapSize) )
 	{
 		// check if all squares the building needs are empty
@@ -963,9 +968,7 @@ bool AAIMap::CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water) co
 			for(int x = xPos; x < xSize+xPos; ++x)
 			{
 				// check if cell already blocked by something
-				if(!water && buildmap[x+y*xMapSize] != 0)
-					return false;
-				else if(water && buildmap[x+y*xMapSize] != 4)
+				if(m_buildmap[x+y*xMapSize].IsTileTypeNotSet(requiredTileType))
 					return false;
 			}
 		}
@@ -977,17 +980,10 @@ bool AAIMap::CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water) co
 
 void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool water)
 {
-	bool insert_space;
-	int cell;
-	int building;
-
-	if(water)
-		building = 5;
-	else
-		building = 1;
+	const BuildMapTileType tileType(EBuildMapTileType::OCCUPIED, water ? EBuildMapTileType::WATER : EBuildMapTileType::LAND);
 
 	// check horizontal space
-	if(xPos+xSize+cfg->MAX_XROW <= xMapSize && xPos - cfg->MAX_XROW >= 0)
+	if( (xPos+xSize+cfg->MAX_XROW <= xMapSize) && (xPos - cfg->MAX_XROW >= 0) )
 	{
 		for(int y = yPos; y < yPos + ySize; ++y)
 		{
@@ -998,10 +994,10 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool 
 			}
 
 			// check to the right
-			insert_space = true;
-			for(int x = xPos+xSize; x < xPos+xSize+cfg->MAX_XROW; x++)
+			bool insert_space = true;
+			for(int x = xPos+xSize; x < xPos+xSize+cfg->MAX_XROW; ++x)
 			{
-				if(buildmap[x+y*xMapSize] != building)
+				if(m_buildmap[x+y*xMapSize].IsTileTypeNotSet(tileType))
 				{
 					insert_space = false;
 					break;
@@ -1013,9 +1009,9 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool 
 			{
 				insert_space = true;
 
-				for(int x = xPos-1; x >= xPos - cfg->MAX_XROW; x--)
+				for(int x = xPos-1; x >= xPos - cfg->MAX_XROW; --x)
 				{
-					if(buildmap[x+y*xMapSize] != building)
+					if(m_buildmap[x+y*xMapSize].IsTileTypeNotSet(tileType))
 					{
 						insert_space = false;
 						break;
@@ -1026,31 +1022,31 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool 
 			if(insert_space)
 			{
 				// right side
-				cell = GetNextX(1, xPos+xSize, y, building);
+				const int cellRight = GetNextX(1, xPos+xSize, y, tileType);
 
-				if(cell != -1 && xPos+xSize+cfg->X_SPACE <= xMapSize)
+				if(cellRight != -1 && xPos+xSize+cfg->X_SPACE <= xMapSize)
 				{
-					BlockCells(cell, y, cfg->X_SPACE, 1, add, water);
+					BlockCells(cellRight, y, cfg->X_SPACE, 1, add, water);
 
 					//add blocking of the edges
 					if(y == yPos && (yPos - cfg->Y_SPACE) >= 0)
-						BlockCells(cell, yPos - cfg->Y_SPACE, cfg->X_SPACE, cfg->Y_SPACE, add, water);
+						BlockCells(cellRight, yPos - cfg->Y_SPACE, cfg->X_SPACE, cfg->Y_SPACE, add, water);
 					if(y == yPos + ySize - 1)
-						BlockCells(cell, yPos + ySize, cfg->X_SPACE, cfg->Y_SPACE, add, water);
+						BlockCells(cellRight, yPos + ySize, cfg->X_SPACE, cfg->Y_SPACE, add, water);
 				}
 
 				// left side
-				cell = GetNextX(0, xPos-1, y, building);
+				const int cellLeft = GetNextX(0, xPos-1, y, tileType);
 
-				if(cell != -1 && cell-cfg->X_SPACE >= 0)
+				if(cellLeft != -1 && cellLeft-cfg->X_SPACE >= 0)
 				{
-					BlockCells(cell-cfg->X_SPACE, y, cfg->X_SPACE, 1, add, water);
+					BlockCells(cellLeft-cfg->X_SPACE, y, cfg->X_SPACE, 1, add, water);
 
 					// add diagonal blocks
 					if(y == yPos && (yPos - cfg->Y_SPACE) >= 0)
-							BlockCells(cell-cfg->X_SPACE, yPos - cfg->Y_SPACE, cfg->X_SPACE, cfg->Y_SPACE, add, water);
+							BlockCells(cellLeft-cfg->X_SPACE, yPos - cfg->Y_SPACE, cfg->X_SPACE, cfg->Y_SPACE, add, water);
 					if(y == yPos + ySize - 1)
-							BlockCells(cell-cfg->X_SPACE, yPos + ySize, cfg->X_SPACE, cfg->Y_SPACE, add, water);
+							BlockCells(cellLeft-cfg->X_SPACE, yPos + ySize, cfg->X_SPACE, cfg->Y_SPACE, add, water);
 
 				}
 			}
@@ -1060,7 +1056,7 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool 
 	// check vertical space
 	if(yPos+ySize+cfg->MAX_YROW <= yMapSize && yPos - cfg->MAX_YROW >= 0)
 	{
-		for(int x = xPos; x < xPos + xSize; x++)
+		for(int x = xPos; x < xPos + xSize; ++x)
 		{
 			if(x >= xMapSize)
 			{
@@ -1069,10 +1065,10 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool 
 			}
 
 			// check downwards
-			insert_space = true;
+			bool insert_space = true;
 			for(int y = yPos+ySize; y < yPos+ySize+cfg->MAX_YROW; ++y)
 			{
-				if(buildmap[x+y*xMapSize] != building)
+				if(m_buildmap[x+y*xMapSize].IsTileTypeNotSet(tileType))
 				{
 					insert_space = false;
 					break;
@@ -1086,7 +1082,7 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool 
 
 				for(int y = yPos-1; y >= yPos - cfg->MAX_YROW; --y)
 				{
-					if(buildmap[x+y*xMapSize] != building)
+					if(m_buildmap[x+y*xMapSize].IsTileTypeNotSet(tileType))
 					{
 						insert_space = false;
 						break;
@@ -1097,31 +1093,31 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool 
 			if(insert_space)
 			{
 				// downwards
-				cell = GetNextY(1, x, yPos+ySize, building);
+				const int cellDown = GetNextY(1, x, yPos+ySize, tileType);
 
-				if(cell != -1 && yPos+ySize+cfg->Y_SPACE <= yMapSize)
+				if(cellDown != -1 && yPos+ySize+cfg->Y_SPACE <= yMapSize)
 				{
-					BlockCells(x, cell, 1, cfg->Y_SPACE, add, water);
+					BlockCells(x, cellDown, 1, cfg->Y_SPACE, add, water);
 
 					// add diagonal blocks
 					if(x == xPos && (xPos - cfg->X_SPACE) >= 0)
-						BlockCells(xPos-cfg->X_SPACE, cell, cfg->X_SPACE, cfg->Y_SPACE, add, water);
+						BlockCells(xPos-cfg->X_SPACE, cellDown, cfg->X_SPACE, cfg->Y_SPACE, add, water);
 					if(x == xPos + xSize - 1)
-						BlockCells(xPos + xSize, cell, cfg->X_SPACE, cfg->Y_SPACE, add, water);
+						BlockCells(xPos + xSize, cellDown, cfg->X_SPACE, cfg->Y_SPACE, add, water);
 				}
 
 				// upwards
-				cell = GetNextY(0, x, yPos-1, building);
+				const int cellUp = GetNextY(0, x, yPos-1, tileType);
 
-				if(cell != -1 && cell-cfg->Y_SPACE >= 0)
+				if(cellUp != -1 && cellUp-cfg->Y_SPACE >= 0)
 				{
-					BlockCells(x, cell-cfg->Y_SPACE, 1, cfg->Y_SPACE, add, water);
+					BlockCells(x, cellUp-cfg->Y_SPACE, 1, cfg->Y_SPACE, add, water);
 
 					// add diagonal blocks
 					if(x == xPos && (xPos - cfg->X_SPACE) >= 0)
-						BlockCells(xPos-cfg->X_SPACE, cell-cfg->Y_SPACE, cfg->X_SPACE, cfg->Y_SPACE, add, water);
+						BlockCells(xPos-cfg->X_SPACE, cellUp-cfg->Y_SPACE, cfg->X_SPACE, cfg->Y_SPACE, add, water);
 					if(x == xPos + xSize - 1)
-						BlockCells(xPos + xSize, cell-cfg->Y_SPACE, cfg->X_SPACE, cfg->Y_SPACE, add, water);
+						BlockCells(xPos + xSize, cellUp-cfg->Y_SPACE, cfg->X_SPACE, cfg->Y_SPACE, add, water);
 				}
 			}
 		}
@@ -1140,8 +1136,7 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 	if(yEnd > yMapSize)
 		yEnd = yMapSize;
 
-	//float3 my_pos;
-	const int emptyCellValue = water ? 4 : 0;
+	const BuildMapTileType emptyTile(EBuildMapTileType::FREE, water ? EBuildMapTileType::WATER : EBuildMapTileType::LAND);
 
 	if(block)	// block cells
 	{
@@ -1153,9 +1148,9 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 
 				// if no building ordered that cell to be blocked, update buildmap
 				// (only if space is not already occupied by a building)
-				if( (blockmap[cell] == 0) && (buildmap[cell] == emptyCellValue) )
+				if( (blockmap[cell] == 0) && (m_buildmap[cell].IsTileTypeSet(emptyTile)) )
 				{
-					buildmap[cell] = 2;
+					m_buildmap[cell].BlockTile();
 
 					// debug
 					/*if(x%2 == 0 && y%2 == 0)
@@ -1187,9 +1182,9 @@ void AAIMap::BlockCells(int xPos, int yPos, int width, int height, bool block, b
 
 					// if cell is not blocked anymore, mark cell on buildmap as empty (only if it has been marked bloked
 					//					- if it is not marked as blocked its occupied by another building or unpassable)
-					if(blockmap[cell] == 0 && buildmap[cell] == 2)
+					if(blockmap[cell] == 0 && m_buildmap[cell].IsTileTypeSet(EBuildMapTileType::BLOCKED_SPACE))
 					{
-						buildmap[cell] = emptyCellValue;
+						m_buildmap[cell].FreeTile();
 
 						// debug
 						/*if(x%2 == 0 && y%2 == 0)
@@ -1216,19 +1211,11 @@ void AAIMap::UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool blo
 	float3 buildMapPos = buildPos;
 	Pos2BuildMapPos(&buildMapPos, def);
 
-	if(block)
-	{
-		const int blockValue = water ? 5 : 1;
-		SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, blockValue);
-	}
-	else
-	{
-		// remove spaces before freeing up buildspace
+	// remove spaces before freeing up buildspace
+	if(!block)
 		CheckRows(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, block, water);
 
-		const int unblockValue = water ? 5 : 1;
-		SetBuildMap(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, unblockValue);
-	}
+	ChangeBuildMapOccupation(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, block);
 
 	if(factory)
 	{
@@ -1243,15 +1230,13 @@ void AAIMap::UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool blo
 		CheckRows(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, block, water);
 }
 
-
-
-int AAIMap::GetNextX(int direction, int xPos, int yPos, int value)
+int AAIMap::GetNextX(int direction, int xPos, int yPos, BuildMapTileType tileType) const
 {
 	int x = xPos;
 
 	if(direction)
 	{
-		while(buildmap[x+yPos*xMapSize] == value)
+		while(m_buildmap[x+yPos*xMapSize].IsTileTypeSet(tileType))
 		{
 			++x;
 
@@ -1262,7 +1247,7 @@ int AAIMap::GetNextX(int direction, int xPos, int yPos, int value)
 	}
 	else
 	{
-		while(buildmap[x+yPos*xMapSize] == value)
+		while(m_buildmap[x+yPos*xMapSize].IsTileTypeSet(tileType))
 		{
 			--x;
 
@@ -1275,14 +1260,14 @@ int AAIMap::GetNextX(int direction, int xPos, int yPos, int value)
 	return x;
 }
 
-int AAIMap::GetNextY(int direction, int xPos, int yPos, int value)
+int AAIMap::GetNextY(int direction, int xPos, int yPos, BuildMapTileType tileType) const
 {
 	int y = yPos;
 
 	if(direction)
 	{
 		// scan line until next free cell found
-		while(buildmap[xPos+y*xMapSize] == value)
+		while(m_buildmap[xPos+y*xMapSize].IsTileTypeSet(tileType))
 		{
 			++y;
 
@@ -1294,7 +1279,7 @@ int AAIMap::GetNextY(int direction, int xPos, int yPos, int value)
 	else
 	{
 		// scan line until next free cell found
-		while(buildmap[xPos+y*xMapSize] == value)
+		while(m_buildmap[xPos+y*xMapSize].IsTileTypeSet(tileType))
 		{
 			--y;
 
@@ -1321,16 +1306,16 @@ void AAIMap::GetSize(const UnitDef *def, int *xSize, int *ySize) const
 	}
 }
 
-int AAIMap::GetCliffyCells(int xPos, int yPos, int xSize, int ySize)
+int AAIMap::GetCliffyCells(int xPos, int yPos, int xSize, int ySize) const
 {
-	int cliffs = 0;
+	int cliffs(0);
 
 	// count cells with big slope
-	for(int x = xPos; x < xPos + xSize; ++x)
+	for(int y = yPos; y < yPos + ySize; ++y)
 	{
-		for(int y = yPos; y < yPos + ySize; ++y)
+		for(int x = xPos; x < xPos + xSize; ++x)
 		{
-			if(buildmap[x+y*xMapSize] == 3)
+			if(m_buildmap[x+y*xMapSize].IsTileTypeSet(EBuildMapTileType::CLIFF))
 				++cliffs;
 		}
 	}
@@ -1340,8 +1325,6 @@ int AAIMap::GetCliffyCells(int xPos, int yPos, int xSize, int ySize)
 
 void AAIMap::AnalyseMap()
 {
-	float slope;
-
 	const float *height_map = ai->GetAICallback()->GetHeightMap();
 
 	// get water/cliffs
@@ -1349,25 +1332,34 @@ void AAIMap::AnalyseMap()
 	{
 		for(int y = 0; y < yMapSize; ++y)
 		{
+			m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FREE);
+
 			// check for water
-			if(height_map[y * xMapSize + x] < 0.0f)
-				buildmap[x+y*xMapSize] = 4;
-			else if(x < xMapSize - 4 && y < yMapSize - 4)
+			if(height_map[x + y * xMapSize] < 0.0f)
+				m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::WATER);
+			else
+				m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::LAND);	
+			
 			// check slope
+			if( (x < xMapSize - 4) && (y < yMapSize - 4) )
 			{
-				slope = (height_map[y * xMapSize + x] - height_map[y * xMapSize + x + 4])/64.0;
+				const float xSlope = (height_map[y * xMapSize + x] - height_map[y * xMapSize + x + 4])/64.0f;
 
 				// check x-direction
-				if(slope > cfg->CLIFF_SLOPE || -slope > cfg->CLIFF_SLOPE)
-					buildmap[x+y*xMapSize] = 3;
+				if( (xSlope > cfg->CLIFF_SLOPE) || (-xSlope > cfg->CLIFF_SLOPE) )
+					m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::CLIFF);
 				else	// check y-direction
 				{
-					slope = (height_map[y * xMapSize + x] - height_map[(y+4) * xMapSize + x])/64.0;
+					const float ySlope = (height_map[y * xMapSize + x] - height_map[(y+4) * xMapSize + x])/64.0f;
 
-					if(slope > cfg->CLIFF_SLOPE || -slope > cfg->CLIFF_SLOPE)
-						buildmap[x+y*xMapSize] = 3;
+					if(ySlope > cfg->CLIFF_SLOPE || -ySlope > cfg->CLIFF_SLOPE)
+						m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::CLIFF);
+					else
+						m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FLAT);
 				}
 			}
+			else
+				m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FLAT);	
 		}
 	}
 
@@ -1389,7 +1381,8 @@ void AAIMap::AnalyseMap()
 
 					 if(diff > 0)
 					 {
-						 if(buildmap[4 * (i + j * xMapSize)] != 3)
+						 //! @todo Investigate the reason for this check
+						 if(m_buildmap[4 * (i + j * xMapSize)].IsTileTypeNotSet(EBuildMapTileType::CLIFF) )
 							 plateau_map[i + j * xContMapSize] += diff;
 					 }
 					 else
@@ -1425,13 +1418,13 @@ void AAIMap::DetectMapType()
 
 void AAIMap::CalculateWaterRatio()
 {
-	int waterCells = 0;
+	int waterCells(0);
 
 	for(int y = 0; y < yMapSize; ++y)
 	{
 		for(int x = 0; x < xMapSize; ++x)
 		{
-			if(buildmap[x + y*xMapSize] == 4)
+			if(m_buildmap[x + y*xMapSize].IsTileTypeSet(EBuildMapTileType::WATER))
 				++waterCells;
 		}
 	}
@@ -1745,11 +1738,6 @@ void AAIMap::DetectMetalSpots()
 	unsigned char* MexArrayB = new unsigned char [TotalCells];
 	int* TempAverage = new int [TotalCells];
 
-	// clear variables, just in case!
-	TotalMetal = 0;
-	MaxMetal = 0;
-	SpotsFound = 0;
-
 	//Load up the metal Values in each pixel
 	for (int i = 0; i != TotalCells - 1; i++)
 	{
@@ -1828,7 +1816,7 @@ void AAIMap::DetectMetalSpots()
 						metal_spots.push_back(temp);
 						++SpotsFound;
 
-						SetBuildMap(pos.x-2, pos.z-2, def->xsize+2, def->zsize+2, water ? 5 : 1);
+						ChangeBuildMapOccupation(pos.x-2, pos.z-2, def->xsize+2, def->zsize+2, true);
 					}
 				}
 			//}

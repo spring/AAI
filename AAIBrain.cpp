@@ -73,7 +73,7 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 			sector = &ai->Getmap()->sector[x][y];
 
 			if(    (sector->distance_to_base > 0) 
-			    && (scoutMoveType.isIncludedIn(sector->m_suitableMovementTypes) == true) )
+			    && scoutMoveType.isIncludedIn(sector->m_suitableMovementTypes) )
 			{
 				if(enemy_pressure_estimation > 0.01f && sector->distance_to_base < 2)
 					my_rating = sector->importance_this_game * sector->last_scout * (1.0f + sector->GetTotalEnemyCombatUnits());
@@ -85,7 +85,7 @@ void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
 				if(my_rating > best_rating)
 				{
 					// possible scout dest, try to find pos in sector
-					bool scoutDestFound = sector->DetermineMovePosOnContinent(&pos, continent);
+					bool scoutDestFound = sector->DetermineUnitMovePos(pos, scoutMoveType, continent);
 
 					if(scoutDestFound == true)
 					{
@@ -300,15 +300,15 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 	}
 
 	// continent bound units must get a rally point on their current continent
-	const bool continentBound = moveType.CannotMoveToOtherContinents();
+	const int useContinentID = moveType.CannotMoveToOtherContinents() ? continentId : AAIMap::ignoreContinentID;
 	bool rallyPointFound(false);
 
 	if(bestSector)
-		rallyPointFound = continentBound ? bestSector->DetermineMovePosOnContinent(&rallyPoint, continentId) : bestSector->DetermineMovePos(&rallyPoint);
+		rallyPointFound = bestSector->DetermineUnitMovePos(rallyPoint, moveType, useContinentID);
 
 	if(!rallyPointFound && secondBestSector)
-		rallyPointFound = continentBound ? secondBestSector->DetermineMovePosOnContinent(&rallyPoint, continentId) : secondBestSector->DetermineMovePos(&rallyPoint);
-
+		rallyPointFound = secondBestSector->DetermineUnitMovePos(rallyPoint, moveType, useContinentID);
+	
 	return rallyPointFound;
 }
 

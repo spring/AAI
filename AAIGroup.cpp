@@ -442,6 +442,7 @@ void AAIGroup::UnitIdle(int unit)
 			// combat groups
 			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && (attack->m_attackDestination->GetNumberOfEnemyBuildings() <= 0) )
 			{
+				ai->Log("Combat group idle - checking for next sector to attack\n");
 				ai->Getam()->TryAttackOfNextSector(attack);
 				return;
 			}

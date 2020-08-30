@@ -30,7 +30,7 @@ AAISector::~AAISector(void)
 	m_ownBuildingsOfCategory.clear();
 }
 
-void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bottom)
+void AAISector::Init(AAI *ai, int x, int y)
 {
 	this->ai = ai;
 
@@ -38,14 +38,14 @@ void AAISector::Init(AAI *ai, int x, int y, int left, int right, int top, int bo
 	this->x = x;
 	this->y = y;
 
-	this->left = left;
-	this->right = right;
-	this->top = top;
-	this->bottom = bottom;
+	left   =     x * AAIMap::xSectorSize;
+	right  = (x+1) * AAIMap::xSectorSize;
+	top    =     y * AAIMap::ySectorSize;
+	bottom = (y+1) * AAIMap::ySectorSize;
 
 	// determine map border distance
-	const int xEdgeDist = std::min(x, ai->Getmap()->xSectors - 1 - x);
-	const int yEdgeDist = std::min(y, ai->Getmap()->ySectors - 1 - y);
+	const int xEdgeDist = std::min(x, AAIMap::xSectors - 1 - x);
+	const int yEdgeDist = std::min(y, AAIMap::ySectors - 1 - y);
 
 	m_minSectorDistanceToMapEdge = std::min(xEdgeDist, yEdgeDist);
 
@@ -526,16 +526,16 @@ float AAISector::DetermineWaterRatio() const
 {
 	int waterCells(0);
 
-	for(int yPos = y * ai->Getmap()->ySectorSizeMap; yPos < (y+1) * ai->Getmap()->ySectorSizeMap; ++yPos)
+	for(int yPos = y * AAIMap::ySectorSizeMap; yPos < (y+1) * AAIMap::ySectorSizeMap; ++yPos)
 	{
-		for(int xPos = x * ai->Getmap()->xSectorSizeMap; xPos < (x+1) * ai->Getmap()->xSectorSizeMap; ++xPos)
+		for(int xPos = x * AAIMap::xSectorSizeMap; xPos < (x+1) * AAIMap::xSectorSizeMap; ++xPos)
 		{
-			if(ai->Getmap()->buildmap[xPos + yPos * ai->Getmap()->xMapSize] == 4)
+			if(AAIMap::m_buildmap[xPos + yPos * AAIMap::xMapSize].IsTileTypeSet(EBuildMapTileType::WATER))
 				++waterCells;
 		}
 	}
 
-	const int totalCells = ai->Getmap()->xSectorSizeMap * ai->Getmap()->ySectorSizeMap;
+	const int totalCells = AAIMap::xSectorSizeMap * AAIMap::ySectorSizeMap;
 
 	return waterCells / static_cast<float>(totalCells);
 }
@@ -603,90 +603,63 @@ bool AAISector::ConnectedToOcean()
 	return false;
 }
 
-bool AAISector::DetermineMovePos(float3 *pos)
+bool AAISector::DetermineUnitMovePos(float3 &pos, AAIMovementType moveType, int continentId) const
 {
-	int x,y;
-	*pos = ZeroVector;
+	BuildMapTileType forbiddenMapTileTypes(EBuildMapTileType::OCCUPIED);
+	forbiddenMapTileTypes.SetTileType(EBuildMapTileType::BLOCKED_SPACE); 
+
+	if(moveType.IsSeaUnit())
+		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::LAND);
+	else if(moveType.IsAmphibious() || moveType.IsHover())
+		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::CLIFF);
+	else if(moveType.IsGround())
+	{
+		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::WATER);
+		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::CLIFF);
+	}
 
 	// try to get random spot
 	for(int i = 0; i < 6; ++i)
 	{
-		pos->x = left + ai->Getmap()->xSectorSize * (0.2f + 0.06f * (float)(rand()%11) );
-		pos->z = top + ai->Getmap()->ySectorSize * (0.2f + 0.06f * (float)(rand()%11) );
+		pos.x = left + AAIMap::xSectorSize * (0.2f + 0.06f * (float)(rand()%11) );
+		pos.z = top  + AAIMap::ySectorSize * (0.2f + 0.06f * (float)(rand()%11) );
 
-		// check if blocked by  building
-		x = (int) (pos->x / SQUARE_SIZE);
-		y = (int) (pos->z / SQUARE_SIZE);
-
-		if(ai->Getmap()->buildmap[x + y * ai->Getmap()->xMapSize] != 1)
+		if(IsValidMovePos(pos, forbiddenMapTileTypes, continentId))
+		{
+			pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
 			return true;
-	}
-
-	// search systematically
-	for(int i = 0; i < ai->Getmap()->xSectorSizeMap; i += 8)
-	{
-		for(int j = 0; j < ai->Getmap()->ySectorSizeMap; j += 8)
-		{
-			pos->x = left + i * SQUARE_SIZE;
-			pos->z = top + j * SQUARE_SIZE;
-
-			// get cell index of middlepoint
-			x = (int) (pos->x / SQUARE_SIZE);
-			y = (int) (pos->z / SQUARE_SIZE);
-
-			if(ai->Getmap()->buildmap[x + y * ai->Getmap()->xMapSize] != 1)
-				return true;
-		}
-	}
-
-	// no free cell found (should not happen)
-	*pos = ZeroVector;
-	return false;
-}
-
-bool AAISector::DetermineMovePosOnContinent(float3 *pos, int continent)
-{
-	int x,y;
-	*pos = ZeroVector;
-
-	// try to get random spot
-	for(int i = 0; i < 6; ++i)
-	{
-		pos->x = left + ai->Getmap()->xSectorSize * (0.2f + 0.06f * (float)(rand()%11) );
-		pos->z = top + ai->Getmap()->ySectorSize * (0.2f + 0.06f * (float)(rand()%11) );
-
-		// check if blocked by  building
-		x = (int) (pos->x / SQUARE_SIZE);
-		y = (int) (pos->z / SQUARE_SIZE);
-
-		if(ai->Getmap()->buildmap[x + y * ai->Getmap()->xMapSize] != 1)
-		{
-			//check continent
-			if(ai->Getmap()->GetContinentID(*pos) == continent)
-				return true;
 		}
 	}
 
 	// search systematically
-	for(int i = 0; i < ai->Getmap()->xSectorSizeMap; i += 8)
+	for(int i = 0; i < AAIMap::xSectorSizeMap; i += 4)
 	{
-		for(int j = 0; j < ai->Getmap()->ySectorSizeMap; j += 8)
+		for(int j = 0; j < AAIMap::ySectorSizeMap; j += 4)
 		{
-			pos->x = left + i * SQUARE_SIZE;
-			pos->z = top + j * SQUARE_SIZE;
+			pos.x = left + i * SQUARE_SIZE;
+			pos.z = top  + j * SQUARE_SIZE;
 
-			// get cell index of middlepoint
-			x = (int) (pos->x / SQUARE_SIZE);
-			y = (int) (pos->z / SQUARE_SIZE);
-
-			if(ai->Getmap()->buildmap[x + y * ai->Getmap()->xMapSize] != 1)
+			if(IsValidMovePos(pos, forbiddenMapTileTypes, continentId))
 			{
-				if(ai->Getmap()->GetContinentID(*pos) == continent)
-					return true;
+				pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
+				return true;
 			}
 		}
 	}
 
-	*pos = ZeroVector;
+	pos = ZeroVector;
+	return false;
+}
+
+bool AAISector::IsValidMovePos(const float3& pos, BuildMapTileType forbiddenMapTileTypes, int continentId) const
+{
+	const int x = (int) (pos.x / SQUARE_SIZE);
+	const int y = (int) (pos.z / SQUARE_SIZE);
+
+	if(AAIMap::m_buildmap[x + y * AAIMap::xMapSize].IsTileTypeNotSet(forbiddenMapTileTypes))
+	{
+		if( (continentId == AAIMap::ignoreContinentID) || (ai->Getmap()->GetContinentID(pos) == continentId) )
+			return true;
+	}
 	return false;
 }
