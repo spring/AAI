@@ -50,10 +50,6 @@ public:
 	//! @brief Determines starting sector, adds another sector to base and initializes buildqueues
 	void InitAI(UnitId commanderUnitId, UnitDefId commanderDefId);
 
-	//! @brief Updates buildmap & defence map (for static defences) and building data of target sector 
-	//!        Return true if building will be placed at a valid position, i.e. inside sectors
-	bool InitBuildingAt(const UnitDef *def, const float3& position);
-
     //! @brief creates a BuildTask for given unit and links it to responsible construction unit
 	void createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos);
 

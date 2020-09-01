@@ -165,30 +165,6 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 	}
 }
 
-bool AAIExecute::InitBuildingAt(const UnitDef *def, const float3& position)
-{
-	AAISector* sector = ai->Getmap()->GetSectorOfPos(position);
-
-	// drop bad sectors (should only happen when defending mexes at the edge of the map)
-	if(sector == nullptr)
-		return false;
-	else
-	{
-		// update buildmap
-		ai->Getmap()->UpdateBuildMap(position, def, true);
-
-		// update defence map (if necessary)
-		UnitDefId unitDefId(def->id);
-		if(ai->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence())
-			ai->Getmap()->AddStaticDefence(position, unitDefId);
-
-		// increase number of units of that category in the target sector
-		sector->AddBuilding(ai->s_buildTree.GetUnitCategory(unitDefId));
-
-		return true;
-	}
-}
-
 void AAIExecute::MoveUnitTo(int unit, float3 *position)
 {
 	Command c(CMD_MOVE);

@@ -324,6 +324,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		m_unitTypeProperties[id].m_totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / AAIConstants::energyToMetalConversionFactor);
 		m_unitTypeProperties[id].m_buildtime = unitDefs[id]->buildTime;
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
+		m_unitTypeProperties[id].m_footprint = UnitFootprint(unitDefs[id]->xsize, unitDefs[id]->zsize);
 		
 		m_unitTypeProperties[id].m_movementType.SetMovementType( DetermineMovementType(unitDefs[id]) );
 		m_unitTypeProperties[id].m_targetType.SetType( DetermineTargetType(m_unitTypeProperties[id].m_movementType) );
@@ -647,25 +648,19 @@ ETargetType AAIBuildTree::DetermineTargetType(const AAIMovementType& moveType) c
 
 void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef)
 {
-	//! @todo Add detection of bassault unit types when combat efficiency is available.
 	if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isAirCombat())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
-		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_AIR);
 	}
 	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.isGroundCombat()
 	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.isHoverCombat())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
 	}
 	else if(    m_unitTypeProperties[unitDefId.id].m_unitCategory.isSeaCombat()
 	         || m_unitTypeProperties[unitDefId.id].m_unitCategory.isSubmarineCombat())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
-		//m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::ANTI_SUBMERGED);
 	}
 	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticSensor())
 	{

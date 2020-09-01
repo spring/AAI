@@ -183,7 +183,7 @@ void AAIMap::Init()
 			sector->AddMetalSpot(&(*spot));
 	}
 
-	readMapLearnFile();
+	ReadMapLearnFile();
 
 	// for scouting
 	m_scoutedEnemyUnitsMap.resize(xLOSMapSize*yLOSMapSize, 0u);
@@ -500,7 +500,7 @@ std::string AAIMap::LocateMapCacheFile() const
 	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), false, false, true, true), MAP_LEARN_PATH, "_mapcache.dat", true);
 }
 
-void AAIMap::readMapLearnFile()
+void AAIMap::ReadMapLearnFile()
 {
 	const std::string mapLearn_filename = LocateMapLearnFile();
 
@@ -665,21 +665,16 @@ float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int 
 {
 	float3 pos;
 
-	// get required cell-size of the building
-	int xSize, ySize, xPos, yPos;
-	GetSize(def, &xSize, &ySize);
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
 
 	// check rect
-	for(yPos = yStart; yPos < yEnd; yPos += 2)
+	for(int yPos = yStart; yPos < yEnd; yPos += 2)
 	{
-		for(xPos = xStart; xPos < xEnd; xPos += 2)
+		for(int xPos = xStart; xPos < xEnd; xPos += 2)
 		{
 			// check if buildmap allows construction
-			if(CanBuildAt(xPos, yPos, xSize, ySize, water))
+			if(CanBuildAt(xPos, yPos, footprint, water))
 			{
-				//if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
-				//	yPos += 8;
-
 				pos.x = xPos;
 				pos.z = yPos;
 
@@ -692,7 +687,7 @@ float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int 
 					int x = pos.x/xSectorSize;
 					int y = pos.z/ySectorSize;
 
-					if(x < xSectors && x  >= 0 && y < ySectors && y >= 0)
+					if(IsValidSector(x,y))
 						return pos;
 				}
 			}
@@ -704,38 +699,35 @@ float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int 
 
 float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, float range, bool water)
 {
-	float3 pos;
-	float3 best_pos = ZeroVector;
+	float3 selectedPosition = ZeroVector;
 
-	float my_rating;
-	float best_rating = -10000.0f;
+	float highestRating(-10000.0f);
 
 	// convert range from unit coordinates to build map coordinates
 	range /= 8.0f;
 
-	// get required cell-size of the building
-	int xSize, ySize, xPos, yPos;
-	GetSize(def, &xSize, &ySize);
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
 
 	// go through rect
-	for(yPos = yStart; yPos < yEnd; yPos += 2)
+	for(int yPos = yStart; yPos < yEnd; yPos += 2)
 	{
-		for(xPos = xStart; xPos < xEnd; xPos += 2)
+		for(int xPos = xStart; xPos < xEnd; xPos += 2)
 		{
-			if(CanBuildAt(xPos, yPos, xSize, ySize, water))
+			if(CanBuildAt(xPos, yPos, footprint, water))
 			{
 				const float edgeDist = static_cast<float>(GetEdgeDistance(xPos, yPos)) / range;
 
-				my_rating = 0.04f * (float)(rand()%50) + edgeDist;
+				float rating = 0.04f * (float)(rand()%50) + edgeDist;
 
 				if(!water)
 				{
 					const int plateauMapCellIndex = xPos/4 + yPos/4 * xContMapSize;
-					my_rating += plateau_map[plateauMapCellIndex];
+					rating += plateau_map[plateauMapCellIndex];
 				}
 					
-				if(my_rating > best_rating)
+				if(rating > highestRating)
 				{
+					float3 pos;
 					pos.x = xPos;
 					pos.z = yPos;
 
@@ -745,15 +737,15 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 
 					if(ai->GetAICallback()->CanBuildAt(def, pos))
 					{
-						best_pos = pos;
-						best_rating = my_rating;
+						selectedPosition = pos;
+						highestRating = rating;
 					}
 				}
 			}
 		}
 	}
 
-	return best_pos;
+	return selectedPosition;
 }
 
 float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, bool water)
@@ -764,9 +756,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 	int hCenter = xStart + (xEnd-xStart)/2;
 	int hIterator = 1, vIterator = 1;
 
-	// get required cell-size of the building
-	int xSize, ySize;
-	GetSize(def, &xSize, &ySize);
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
 
 	// check rect
 	while(!vStop || !hStop)
@@ -780,7 +770,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 			while(pos.x < hCenter+hIterator)
 			{
 				// check if buildmap allows construction
-				if(CanBuildAt(pos.x, pos.z, xSize, ySize, water))
+				if(CanBuildAt(pos.x, pos.z, footprint, water))
 				{
 					temp_pos.x = pos.x;
 					temp_pos.y = 0;
@@ -803,7 +793,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 					}
 
 				}
-				else if(CanBuildAt(pos.x, pos.z + 2 * vIterator, xSize, ySize, water))
+				else if(CanBuildAt(pos.x, pos.z + 2 * vIterator, footprint, water))
 				{
 					temp_pos.x = pos.x;
 					temp_pos.y = 0;
@@ -846,7 +836,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 			while(pos.z < vCenter+vIterator)
 			{
 				// check if buildmap allows construction
-				if(CanBuildAt(pos.x, pos.z, xSize, ySize, water))
+				if(CanBuildAt(pos.x, pos.z, footprint, water))
 				{
 					temp_pos.x = pos.x;
 					temp_pos.y = 0;
@@ -868,7 +858,7 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 							return temp_pos;
 					}
 				}
-				else if(CanBuildAt(pos.x + 2 * hIterator, pos.z, xSize, ySize, water))
+				else if(CanBuildAt(pos.x + 2 * hIterator, pos.z, footprint, water))
 				{
 					temp_pos.x = pos.x + 2 * hIterator;
 					temp_pos.y = 0;
@@ -906,42 +896,35 @@ float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 
 float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries, bool water)
 {
-	float3 pos;
-
-	// get required cell-size of the building
-	int xSize, ySize;
-	GetSize(def, &xSize, &ySize);
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
 
 	for(int i = 0; i < tries; i++)
 	{
+		float3 pos;
 
 		// get random pos within rectangle
-		if(xEnd - xStart - xSize < 1)
+		if(xEnd - xStart - footprint.xSize < 1)
 			pos.x = xStart;
 		else
-			pos.x = xStart + rand()%(xEnd - xStart - xSize);
+			pos.x = xStart + rand()%(xEnd - xStart - footprint.xSize);
 
-		if(yEnd - yStart - ySize < 1)
+		if(yEnd - yStart - footprint.ySize < 1)
 			pos.z = yStart;
 		else
-			pos.z = yStart + rand()%(yEnd - yStart - ySize);
+			pos.z = yStart + rand()%(yEnd - yStart - footprint.ySize);
 
 		// check if buildmap allows construction
-		if(CanBuildAt(pos.x, pos.z, xSize, ySize, water))
+		if(CanBuildAt(pos.x, pos.z, footprint, water))
 		{
-			//if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
-			//	pos.z += 8;
-
 			// buildmap allows construction, now check if otherwise blocked
 			BuildMapPos2Pos(&pos, def);
 			Pos2FinalBuildPos(&pos, def);
 
 			if(ai->GetAICallback()->CanBuildAt(def, pos))
 			{
-				int x = pos.x/xSectorSize;
-				int y = pos.z/ySectorSize;
+				AAISector* sector = GetSectorOfPos(pos);
 
-				if(x < xSectors && x  >= 0 && y < ySectors && y >= 0)
+				if(sector)
 					return pos;
 			}
 		}
@@ -950,9 +933,9 @@ float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 	return ZeroVector;
 }
 
-bool AAIMap::CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water) const
+bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& size, bool water) const
 {
-	if( (xPos+xSize > xMapSize) || (yPos+ySize > yMapSize) )
+	if( (xPos+size.xSize > xMapSize) || (yPos+size.ySize > yMapSize) )
 		return false; // buildsite too close to edges of map
 	else
 	{
@@ -966,9 +949,9 @@ bool AAIMap::CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water) co
 			invalidTileTypes.SetTileType(EBuildMapTileType::CLIFF);
 		}
 
-		for(int y = yPos; y < yPos+ySize; ++y)
+		for(int y = yPos; y < yPos+size.ySize; ++y)
 		{
-			for(int x = xPos; x < xPos+xSize; ++x)
+			for(int x = xPos; x < xPos+size.xSize; ++x)
 			{
 				// all squares must be valid
 				if(m_buildmap[x+y*xMapSize].IsTileTypeSet(invalidTileTypes))
@@ -1168,6 +1151,30 @@ void AAIMap::BlockTiles(int xPos, int yPos, int width, int height, bool block)
 		}
 	}
 }
+
+bool AAIMap::InitBuilding(const UnitDef *def, const float3& position)
+{
+	AAISector* sector = GetSectorOfPos(position);
+
+	// drop bad sectors (should only happen when defending mexes at the edge of the map)
+	if(sector == nullptr)
+		return false;
+	else
+	{
+		// update buildmap
+		UpdateBuildMap(position, def, true);
+
+		// update defence map (if necessary)
+		UnitDefId unitDefId(def->id);
+		if(ai->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence())
+			AddStaticDefence(position, unitDefId);
+
+		// increase number of units of that category in the target sector
+		sector->AddBuilding(ai->s_buildTree.GetUnitCategory(unitDefId));
+
+		return true;
+	}
+}
 	
 void AAIMap::UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool block)
 {
@@ -1195,18 +1202,17 @@ void AAIMap::UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool blo
 		CheckRows(buildMapPos.x, buildMapPos.z, def->xsize, def->zsize, block);
 }
 
-void AAIMap::GetSize(const UnitDef *def, int *xSize, int *ySize) const
+UnitFootprint AAIMap::DetermineRequiredFreeBuildspace(UnitDefId unitDefId) const
 {
-	// calculate size of building
-	*xSize = def->xsize;
-	*ySize = def->zsize;
-
 	// if building is a factory additional vertical space is needed to keep exits free
-	if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
+	if(ai->s_buildTree.GetUnitType(unitDefId).IsFactory())
 	{
-		*xSize += cfg->X_SPACE;
-		*ySize += 2 * cfg->Y_SPACE;
+		const int xSize = ai->s_buildTree.GetFootprint(unitDefId).xSize + cfg->X_SPACE;
+		const int ySize = ai->s_buildTree.GetFootprint(unitDefId).ySize + 2 * cfg->Y_SPACE;
+		return UnitFootprint(xSize, ySize);
 	}
+	else
+		return ai->s_buildTree.GetFootprint(unitDefId);
 }
 
 int AAIMap::GetCliffyCells(int xPos, int yPos, int xSize, int ySize) const
@@ -1611,6 +1617,7 @@ void AAIMap::DetectMetalSpots()
 	}
 
 	const UnitDef* def = &ai->Getbt()->GetUnitDef(largestExtractor.id);
+	const UnitFootprint largestExtractorFootprint = ai->s_buildTree.GetFootprint(largestExtractor);
 
 	metalMap = false;
 	bool Stopme = false;
@@ -1714,7 +1721,7 @@ void AAIMap::DetectMetalSpots()
 				if(pos.z >= 2 && pos.x >= 2 && pos.x < xMapSize-2 && pos.z < yMapSize-2)
 				{
 					const bool water = temp.pos.y < 0.0f;
-					if(CanBuildAt(pos.x, pos.z, def->xsize, def->zsize, water))
+					if(CanBuildAt(pos.x, pos.z, largestExtractorFootprint, water))
 					{
 						metal_spots.push_back(temp);
 						++SpotsFound;
@@ -2114,11 +2121,6 @@ void AAIMap::RemoveDefence(const float3& pos, UnitDefId defence)
 float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAITargetType& targetType, float terrainModifier, bool water) const
 {
 	*buildPos = ZeroVector;
-	float my_rating, best_rating = -10000.0f;
-
-	// get required cell-size of the building
-	int xSize, ySize, xPos, yPos, cell;
-	GetSize(def, &xSize, &ySize);
 
 	const std::vector<float> *map = &defence_map;
 
@@ -2127,36 +2129,39 @@ float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xSta
 	else if(targetType.IsSubmerged() )
 		map = &submarine_defence_map;
 
-	float range =  ai->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
+	const float         range     =  ai->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
 
 	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
 	FILE* file = fopen(filename.c_str(), "w+");
 	fprintf(file, "Search area: (%i, %i) x (%i, %i)\n", xStart, yStart, xEnd, yEnd);
 	fprintf(file, "Range: %g\n", range);
 
+	float highestRating(-10000.0f);
+
 	// check rect
-	for(yPos = yStart; yPos < yEnd; yPos += 4)
+	for(int yPos = yStart; yPos < yEnd; yPos += 4)
 	{
-		for(xPos = xStart; xPos < xEnd; xPos += 4)
+		for(int xPos = xStart; xPos < xEnd; xPos += 4)
 		{
 			// check if buildmap allows construction
-			if(CanBuildAt(xPos, yPos, xSize, ySize, water))
+			if(CanBuildAt(xPos, yPos, footprint, water))
 			{
-				cell = (xPos/4 + xDefMapSize * yPos/4);
+				const int cell = (xPos/4 + xDefMapSize * yPos/4);
 
-				my_rating = terrainModifier * plateau_map[cell] - (*map)[cell] + 0.5f * (float)(rand()%10);
+				float rating = terrainModifier * plateau_map[cell] - (*map)[cell] + 0.5f * (float)(rand()%10);
 				//my_rating = - (*map)[cell];
 
 				// determine minimum distance from buildpos to the edges of the map
 				const int edge_distance = GetEdgeDistance(xPos, yPos);
 
-				fprintf(file, "Pos: (%i,%i) -> Def map cell %i -> rating: %i  , edge_dist: %i\n",xPos, yPos, cell, (int)my_rating, edge_distance);
+				fprintf(file, "Pos: (%i,%i) -> Def map cell %i -> rating: %i  , edge_dist: %i\n",xPos, yPos, cell, (int)rating, edge_distance);
 
 				// prevent aai from building defences too close to the edges of the map
 				if( (float)edge_distance < range)
-					my_rating -= (range - (float)edge_distance) * (range - (float)edge_distance);
+					rating -= (range - (float)edge_distance) * (range - (float)edge_distance);
 
-				if(my_rating > best_rating)
+				if(rating > highestRating)
 				{
 					float3 pos;
 					pos.x = static_cast<float>(xPos);
@@ -2169,7 +2174,7 @@ float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xSta
 					if(ai->GetAICallback()->CanBuildAt(def, pos))
 					{
 						*buildPos = pos;
-						best_rating = my_rating;
+						highestRating = rating;
 					}
 				}
 			}
@@ -2178,7 +2183,7 @@ float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xSta
 
 	fclose(file);
 
-	return best_rating;
+	return highestRating;
 }
 
 int AAIMap::GetContinentID(int x, int y) const

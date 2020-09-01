@@ -149,6 +149,17 @@ private:
 	EMovementType m_movementType;
 };
 
+//! Size of a unit (in map tiles) 
+struct UnitFootprint
+{
+	UnitFootprint(int x, int y) : xSize(x), ySize(y) {}
+
+	UnitFootprint() : UnitFootprint(0, 0) {}
+
+	int xSize;
+	int ySize;
+};
+
 //! Unit Type properties needed by AAI for internal decision making (i.e. unit type selection)
 struct UnitTypeProperties
 {
@@ -171,6 +182,9 @@ struct UnitTypeProperties
 
 	//! Maximum movement speed
 	float m_maxSpeed;
+
+	//! Size of the unit (in map tiles) 
+	UnitFootprint m_footprint;
 
 	//! The category of the unit
 	AAIUnitCategory m_unitCategory;

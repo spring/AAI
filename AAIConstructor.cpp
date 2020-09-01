@@ -321,7 +321,7 @@ void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos
 	const UnitDef *def = &ai->Getbt()->GetUnitDef(building.id);
 
 	// give order if building can be placed at the desired position (position lies within a valid sector)
-	const bool buildingInitializationSuccessful = ai->Getexecute()->InitBuildingAt(def, pos);
+	const bool buildingInitializationSuccessful = ai->Getmap()->InitBuilding(def, pos);
 
 	if(buildingInitializationSuccessful)
 	{

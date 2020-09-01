@@ -154,6 +154,10 @@ public:
 	// return rating of a the best buidliste fpr a def. building vs category within specified rect (and stores pos in pointer)
 	float GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAITargetType& targetType, float terrainModifier, bool water) const;
 
+	//! @brief Updates buildmap & defence map (for static defences) and building data of target sector 
+	//!        Return true if building will be placed at a valid position, i.e. inside sectors
+	bool InitBuilding(const UnitDef *def, const float3& position);
+
 	//! @brief Updates the buildmap: (un)block cells + insert/remove spaces (factory exits get some extra space)
 	void UpdateBuildMap(const float3& buildPos, const UnitDef *def, bool block);
 
@@ -224,6 +228,9 @@ private:
 	// determines type of map (land, land/water or water map)
 	void DetectMapType();
 
+	//! @brief Returns descriptor for map type (used to save map type)
+	const char* GetMapTypeString(const AAIMapType& mapType) const;
+
 	//! @brief Returns which movement types are suitable for the given map type
 	uint32_t GetSuitableMovementTypes(const AAIMapType& mapType) const;
 
@@ -239,7 +246,7 @@ private:
 	void Learn();
 
 	//! @brief Read the learning data for this map (or initialize with defualt data if none are available)
-	void readMapLearnFile();
+	void ReadMapLearnFile();
 
 	// reads continent cache file (and creates new one if necessary)
 	void ReadContinentFile();
@@ -248,11 +255,8 @@ private:
 	// loads mex spots, cliffs etc. from file or creates new one
 	void ReadMapCacheFile();
 
-	//! @brief returns true if buildmap allows construction
-	bool CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water = false) const;
-
-	//! @brief Returns descriptor for map type (used to save map type)
-	const char* GetMapTypeString(const AAIMapType& mapType) const;
+	//! @brief Returns true if buildmap allows construction of unit with given footprint at goven position
+	bool CanBuildAt(int xPos, int yPos, const UnitFootprint& size, bool water = false) const;
 
 	//! @brief Blocks/unblocks map tiles (to prevent AAI from packing buildings too close to each other)
 	//!        Automatically clamps given values to map size (avoids running over any map edges)
@@ -261,8 +265,8 @@ private:
 	//! @brief Prevents AAI from building too many buildings in a row by adding blocking spaces if necessary
 	void CheckRows(int xPos, int yPos, int xSize, int ySize, bool add);
 
-	//! @brief Returns the size which shall be blocked for this building (building size + exit for factories)
-	void GetSize(const UnitDef *def, int *xSize, int *ySize) const;
+	//! @brief Returns the size which is needed for this building (building size + exit for factories)
+	UnitFootprint DetermineRequiredFreeBuildspace(UnitDefId unitDefId) const;
 
 	//! @brief Returns distance to closest edge of the map (in build_map coordinates)
 	int GetEdgeDistance(int xPos, int yPos) const;

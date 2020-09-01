@@ -82,6 +82,9 @@ public:
 	//! @brief Returns the buildspeed for static and mobile constructors, range otherwise (buildspeed is stored in range variable)
 	const float GetBuildspeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_primaryAbility; }
 
+	//! @brief Returns the footprint of the given unit, i.e. number of map tiles occupied in horizontal/vertical direction
+	const UnitFootprint& GetFootprint(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_footprint; }
+
 	//! @brief Returns the category that the given unit belongs to
 	const AAIUnitCategory& GetUnitCategory(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_unitCategory; }
 
@@ -152,10 +155,7 @@ private:
 	bool IsArtillery(const springLegacyAI::UnitDef* unitDef, float artilleryRangeThreshold) const;
 	bool IsMissileLauncher(const springLegacyAI::UnitDef* unitDef) const;
 	bool IsDeflectionShieldEmitter(const springLegacyAI::UnitDef* unitDef) const;
-
-public:	//! @todo This can be made private again when refactoring of AAIBuilTable is done
     float GetMaxDamage(const springLegacyAI::UnitDef* unitDef) const;
-private:
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// member variables
