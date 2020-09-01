@@ -885,7 +885,7 @@ bool AAIBuildTree::IsScout(const springLegacyAI::UnitDef* unitDef) const
 		return true;
 	else
 	{
-		for(list<int>::iterator i = cfg->SCOUTS.begin(); i != cfg->SCOUTS.end(); ++i)
+		for(auto i = cfg->SCOUTS.begin(); i != cfg->SCOUTS.end(); ++i)
 		{
 			if(*i == unitDef->id)
 				return true;
@@ -897,7 +897,7 @@ bool AAIBuildTree::IsScout(const springLegacyAI::UnitDef* unitDef) const
 
 bool AAIBuildTree::IsMobileTransport(const springLegacyAI::UnitDef* unitDef) const
 {
-	for(list<int>::iterator i = cfg->TRANSPORTERS.begin(); i != cfg->TRANSPORTERS.end(); ++i)
+	for(auto i = cfg->TRANSPORTERS.begin(); i != cfg->TRANSPORTERS.end(); ++i)
 	{
 		if(*i == unitDef->id)
 			return true;
@@ -920,7 +920,7 @@ bool AAIBuildTree::IsArtillery(const springLegacyAI::UnitDef* unitDef, float art
 
 bool AAIBuildTree::IsMissileLauncher(const springLegacyAI::UnitDef* unitDef) const
 {
-	for(vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator weapon = unitDef->weapons.begin(); weapon != unitDef->weapons.end(); ++weapon)
+	for(auto weapon = unitDef->weapons.begin(); weapon != unitDef->weapons.end(); ++weapon)
 	{
 		if( (weapon->def->stockpile == true) && (weapon->def->noAutoTarget == true) )
 			return true;
@@ -931,7 +931,7 @@ bool AAIBuildTree::IsMissileLauncher(const springLegacyAI::UnitDef* unitDef) con
 
 bool AAIBuildTree::IsDeflectionShieldEmitter(const springLegacyAI::UnitDef* unitDef) const
 {
-	for(vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator weapon = unitDef->weapons.begin(); weapon != unitDef->weapons.end(); ++weapon)
+	for(auto weapon = unitDef->weapons.begin(); weapon != unitDef->weapons.end(); ++weapon)
 	{
 		if(weapon->def->isShield)
 			return true;
@@ -945,7 +945,7 @@ float AAIBuildTree::GetMaxDamage(const springLegacyAI::UnitDef* unitDef) const
 {
 	float maxDamage = 0.0f;
 
-	for(vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDef->weapons.begin(); w != unitDef->weapons.end(); ++w)
+	for(auto w = unitDef->weapons.begin(); w != unitDef->weapons.end(); ++w)
 	{
 		for(int d = 0; d < (*w).def->damages.GetNumTypes(); ++d)
 		{
@@ -956,17 +956,6 @@ float AAIBuildTree::GetMaxDamage(const springLegacyAI::UnitDef* unitDef) const
 
 	return maxDamage;
 }
-
-/*bool AAIBuildTree::IsCombatUnit(const springLegacyAI::UnitDef* unitDef) const
-{
-	for(list<int>::iterator i = cfg->ATTACKERS.begin(); i != cfg->ATTACKERS.end(); ++i)
-	{
-		if(*i == id)
-			return true;
-	}
-
-	return false;
-}*/
 
 bool AAIBuildTree::CanBuildUnitType(UnitDefId unitDefIdBuilder, UnitDefId unitDefId) const
 {

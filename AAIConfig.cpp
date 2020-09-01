@@ -88,22 +88,20 @@ float AAIConfig::GetFloat(AAI* ai, FILE* file)
 AAIConfig::AAIConfig(void)
 {
 	SIDES = 2;
-	SECTOR_SIZE = 80.0;
 	MIN_ENERGY = 18;  // min energy make value to be considered beeing a power plant
-	MAX_UNITS = 30000;
+	MAX_UNITS = 5000;
 	MAX_SCOUTS = 4;
 	MAX_SECTOR_IMPORTANCE = 6;
-	MAX_XROW = 8;
-	MAX_YROW = 8;
-	X_SPACE = 16;
-	Y_SPACE = 16;
+	MAX_XROW = 16;
+	MAX_YROW = 16;
+	X_SPACE = 8;
+	Y_SPACE = 8;
 	MAX_GROUP_SIZE = 12;
 	MAX_AIR_GROUP_SIZE = 4;
 	MAX_ANTI_AIR_GROUP_SIZE = 4;
 	MAX_SUBMARINE_GROUP_SIZE = 4;
 	MAX_NAVAL_GROUP_SIZE = 4;
 	MAX_ARTY_GROUP_SIZE = 4;
-	MIN_EFFICIENCY = 0.001f;
 	MAX_BUILDERS = 50;
 	MAX_BUILDERS_PER_TYPE = 5;
 	MAX_FACTORIES_PER_TYPE = 3;
@@ -141,7 +139,6 @@ AAIConfig::AAIConfig(void)
 	MIN_FACTORIES_FOR_STORAGE = 2;
 	MIN_FACTORIES_FOR_RADAR_JAMMER = 2;
 	MIN_AIR_SUPPORT_EFFICIENCY = 2.5f;
-	UNIT_SPEED_SUBGROUPS = 3;
 	MIN_SUBMARINE_WATERLINE = 15;
 	MAX_ATTACKS = 4;
 
@@ -300,13 +297,8 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 					break;
 				}
 			}
-		} else if(!strcmp(keyword,"SECTOR_SIZE")) {
-			SECTOR_SIZE = GetFloat(ai, file);
-			ai->Log("SECTOR_SIZE set to %f", SECTOR_SIZE);
 		} else if(!strcmp(keyword,"MIN_ENERGY")) {
 			MIN_ENERGY = GetInt(ai, file);
-		} else if(!strcmp(keyword, "MAX_UNITS")) {
-			MAX_UNITS = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_SCOUTS")) {
 			MAX_SCOUTS = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_SECTOR_IMPORTANCE")) {
@@ -331,12 +323,8 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 			MAX_ANTI_AIR_GROUP_SIZE = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_ARTY_GROUP_SIZE")) {
 			MAX_ARTY_GROUP_SIZE = GetInt(ai, file);
-		} else if(!strcmp(keyword, "UNIT_SPEED_SUBGROUPS")) {
-			UNIT_SPEED_SUBGROUPS = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MIN_FALLBACK_TURNRATE")) {
 			MIN_FALLBACK_TURNRATE = GetFloat(ai, file);
-		} else if(!strcmp(keyword, "MIN_EFFICIENCY")) {
-			MIN_EFFICIENCY = GetFloat(ai, file);
 		} else if(!strcmp(keyword, "MIN_AIR_SUPPORT_EFFICIENCY")) {
 			MIN_AIR_SUPPORT_EFFICIENCY = GetFloat(ai, file);
 		} else if(!strcmp(keyword, "MAX_BUILDERS")) {

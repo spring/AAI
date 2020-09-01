@@ -28,6 +28,9 @@
 class AAIConstants
 {
 public:
+	// The length/width of sectors (in map tiles)
+	static constexpr float sectorSize = 80.0f;
+
 	//! @todo Make this changeable via optinal mod config file
     static constexpr float energyToMetalConversionFactor = 60.0f;
 

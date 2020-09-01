@@ -45,7 +45,6 @@ public:
 	// constants (will be loaded in aaiconfig)
 
 	// mod specific
-	float SECTOR_SIZE;
 	int MIN_ENERGY;  // min energy make value to be considered beeing a power plant
 	int MAX_UNITS;
 	int MAX_SCOUTS;
@@ -59,7 +58,6 @@ public:
 	int MAX_NAVAL_GROUP_SIZE;
 	int MAX_ANTI_AIR_GROUP_SIZE;
 	int MAX_ARTY_GROUP_SIZE;
-	float MIN_EFFICIENCY;
 
 	int MAX_BUILDERS_PER_TYPE; // max builders of same unit type
 	int MAX_FACTORIES_PER_TYPE;
@@ -105,7 +103,6 @@ public:
 	int MIN_FACTORIES_FOR_DEFENCES;
 	int MIN_FACTORIES_FOR_STORAGE;
 	float MIN_AIR_SUPPORT_EFFICIENCY;
-	int UNIT_SPEED_SUBGROUPS;
 	float MAX_COST_LIGHT_ASSAULT;
 	float MAX_COST_MEDIUM_ASSAULT;
 	float MAX_COST_HEAVY_ASSAULT;

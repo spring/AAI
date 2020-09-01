@@ -140,8 +140,8 @@ void AAIMap::Init()
 		yContMapSize = yMapSize / 4;
 
 		// calculate number of sectors
-		xSectors = floor(0.5f + ((float) xMapSize)/cfg->SECTOR_SIZE);
-		ySectors = floor(0.5f + ((float) yMapSize)/cfg->SECTOR_SIZE);
+		xSectors = floor(0.5f + ((float) xMapSize)/AAIConstants::sectorSize);
+		ySectors = floor(0.5f + ((float) yMapSize)/AAIConstants::sectorSize);
 
 		// calculate effective sector size
 		xSectorSizeMap = floor( ((float) xMapSize) / ((float) xSectors) );
