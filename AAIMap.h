@@ -251,18 +251,15 @@ private:
 	//! @brief returns true if buildmap allows construction
 	bool CanBuildAt(int xPos, int yPos, int xSize, int ySize, bool water = false) const;
 
-	//! @brief Returns next x/y coordinate of cell in given direction of a certain tile type
-	int GetNextX(int direction, int xPos, int yPos, BuildMapTileType tileType) const;	// 0 means left, other right; returns -1 if not found
-	int GetNextY(int direction, int xPos, int yPos, BuildMapTileType tileType) const;	// 0 means up, other down; returns -1 if not found
-
 	//! @brief Returns descriptor for map type (used to save map type)
 	const char* GetMapTypeString(const AAIMapType& mapType) const;
 
-	// blocks/unblocks cells (to prevent AAI from packing buildings too close to each other)
-	void BlockCells(int xPos, int yPos, int width, int height, bool block, bool water);
+	//! @brief Blocks/unblocks map tiles (to prevent AAI from packing buildings too close to each other)
+	//!        Automatically clamps given values to map size (avoids running over any map edges)
+	void BlockTiles(int xPos, int yPos, int width, int height, bool block);
 
 	//! @brief Prevents AAI from building too many buildings in a row by adding blocking spaces if necessary
-	void CheckRows(int xPos, int yPos, int xSize, int ySize, bool add, bool water);
+	void CheckRows(int xPos, int yPos, int xSize, int ySize, bool add);
 
 	//! @brief Returns the size which shall be blocked for this building (building size + exit for factories)
 	void GetSize(const UnitDef *def, int *xSize, int *ySize) const;

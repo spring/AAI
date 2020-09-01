@@ -167,28 +167,26 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 
 bool AAIExecute::InitBuildingAt(const UnitDef *def, const float3& position)
 {
-	// update buildmap
-	ai->Getmap()->UpdateBuildMap(position, def, true);
-
-	// update defence map (if necessary)
-	UnitDefId unitDefId(def->id);
-	if(ai->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence())
-		ai->Getmap()->AddStaticDefence(position, unitDefId);
-
-	// determine target sector
-	const int x = position.x / ai->Getmap()->xSectorSize;
-	const int y = position.z / ai->Getmap()->ySectorSize;
+	AAISector* sector = ai->Getmap()->GetSectorOfPos(position);
 
 	// drop bad sectors (should only happen when defending mexes at the edge of the map)
-	if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
+	if(sector == nullptr)
+		return false;
+	else
 	{
+		// update buildmap
+		ai->Getmap()->UpdateBuildMap(position, def, true);
+
+		// update defence map (if necessary)
+		UnitDefId unitDefId(def->id);
+		if(ai->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence())
+			ai->Getmap()->AddStaticDefence(position, unitDefId);
+
 		// increase number of units of that category in the target sector
-		ai->Getmap()->sector[x][y].AddBuilding(ai->s_buildTree.GetUnitCategory(unitDefId));
+		sector->AddBuilding(ai->s_buildTree.GetUnitCategory(unitDefId));
 
 		return true;
 	}
-	else
-		return false;
 }
 
 void AAIExecute::MoveUnitTo(int unit, float3 *position)
@@ -267,15 +265,13 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 
 void AAIExecute::BuildScouts()
 {
-	// check number of scouts and order new ones if necessary
-	const AAIUnitCategory scout(EUnitCategory::SCOUT);
-	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(scout) < cfg->MAX_SCOUTS)
+	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::SCOUT) < cfg->MAX_SCOUTS)
 	{
 		bool availableFactoryNeeded = true;
 		float cost;
 		float sightRange;
 
-		GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
+		const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 		if(gamePhase.IsStartingPhase())
 		{
@@ -289,35 +285,43 @@ void AAIExecute::BuildScouts()
 		}
 		else
 		{
-			// sometimes prefer scouts with large los in late game
-			if(rand()%3 == 1)
+			if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) == 0)
 			{
-				cost = 0.5f;
-				sightRange = 4.0f;
-				availableFactoryNeeded = false;
+				cost = 2.0f;
+				sightRange = 0.5f;
 			}
 			else
 			{
-				cost = 1.0f;
-				sightRange = 1.0f;
+				// sometimes prefer scouts with large los in late game
+				if(rand()%3 == 1)
+				{
+					cost = 0.5f;
+					sightRange = 4.0f;
+					availableFactoryNeeded = false;
+				}
+				else
+				{
+					cost = 1.0f;
+					sightRange = 1.0f;
+				}
 			}
 		}
 
 		// determine movement type of scout based on map
-		uint32_t suitableMovementTypes = ai->Getmap()->GetSuitableMovementTypesForMap();
+		const uint32_t suitableMovementTypes = ai->Getmap()->GetSuitableMovementTypesForMap();
 
 		// request cloakable scouts from time to time
-		bool cloaked = (rand()%5 == 1) ? true : false;
+		const bool cloaked = (rand()%5 == 1) ? true : false;
 		
 		UnitDefId scoutId = ai->Getbt()->selectScout(ai->GetSide(), sightRange, cost, suitableMovementTypes, 10, cloaked, availableFactoryNeeded);
 
-		if(scoutId.isValid() == true)
+		if(scoutId.isValid())
 		{
-			bool urgent = (ai->Getut()->GetNumberOfActiveUnitsOfCategory(scout) > 1) ? false : true;
+			const bool urgent = (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) > 1) ? false : true;
 
 			if(AddUnitToBuildqueue(scoutId.id, 1, urgent))
 			{
-				ai->Getut()->UnitRequested(scout);
+				ai->Getut()->UnitRequested(EUnitCategory::SCOUT);
 				++ai->Getbt()->units_dynamic[scoutId.id].requested;
 			}
 		}
@@ -767,13 +771,11 @@ bool AAIExecute::BuildExtractor()
 
 bool AAIExecute::BuildPowerPlant()
 {
-	const AAIUnitCategory plant(EUnitCategory::POWER_PLANT);
-
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(plant) > 1)
+	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::POWER_PLANT) > 1)
 		return true;
-	else if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(plant) <= 0 && ai->Getut()->GetNumberOfRequestedUnitsOfCategory(plant) > 0)
+	else if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(EUnitCategory::POWER_PLANT) <= 0 && ai->Getut()->GetNumberOfRequestedUnitsOfCategory(EUnitCategory::POWER_PLANT) > 0)
 		return true;
-	else if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(plant) > 0)
+	else if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(EUnitCategory::POWER_PLANT) > 0)
 	{
 		// try to assist construction of other power plants first
 		AAIConstructor *builder;
@@ -813,7 +815,7 @@ bool AAIExecute::BuildPowerPlant()
 		// power plant construction has not started -> builder is still on its way to construction site, wait until starting a new power plant
 		return false;
 	}
-	else if(ai->Getut()->activeFactories < 1 && ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) >= 2)
+	else if(ai->Getut()->activeFactories < 1 && ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2)
 		return true;
 
 	const float current_energy = ai->GetAICallback()->GetEnergyIncome();
@@ -826,7 +828,7 @@ bool AAIExecute::BuildPowerPlant()
 	learned = 70000.0f / (float)(ai->GetAICallback()->GetCurrentFrame() + 35000) + 1.0f;
 	current = 2.5f - learned;
 
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) >= 2)
+	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2)
 		ai->Getbrain()->sectors[0].sort(suitable_for_power_plant);
 
 	const AAIUnitStatistics& unitStatistics      = ai->s_buildTree.GetUnitStatistics(ai->GetSide());
@@ -837,19 +839,19 @@ bool AAIExecute::BuildPowerPlant()
 	float generatedPower( 0.5f );
 
 	// check if already one power_plant under construction and energy short
-	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(plant) > 0) 
-		&& (ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) > 6) 
+	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::POWER_PLANT) > 0) 
+		&& (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) > 6) 
 		&& (ai->Getbrain()->GetAveragEnergySurplus() < generatedPowerStats.GetMinValue()) )
 	{
 		buildtime = 3.0f;
 	}
-	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) > 9)
+	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) > 9)
 	{
 		cost           = 0.75f;
 		buildtime      = 0.5f;
 		generatedPower = 2.0f;
 	}
-	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(plant) > 4)
+	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) > 4)
 	{
 		cost           = 1.25f;
 		buildtime      = 1.0f;
@@ -1455,19 +1457,19 @@ bool AAIExecute::BuildFactory()
 			// try random buildpos first
 			buildpos = (*sector)->GetRandomBuildsite(factory->id, 20, isSeaFactory);
 
-			if(buildpos.x > 0)
+			if(buildpos.x > 0.0f)
 				break;
 			else
 			{
 				// search systematically for buildpos (i.e. search returns a buildpos if one is available in the sector)
 				buildpos = (*sector)->FindBuildsite(factory->id, isSeaFactory);
 
-				if(buildpos.x > 0)
+				if(buildpos.x > 0.0f)
 					break;
 			}
 		}
 
-		if(buildpos.x > 0)
+		if(buildpos.x > 0.0f)
 		{
 			// buildpos found -> l
 			float min_dist;
