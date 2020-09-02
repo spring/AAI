@@ -143,10 +143,10 @@ public:
 	//! @brief Returns the maximum number of units lost in any sector of the map
 	float GetMaximumNumberOfLostUnits() const;
 
-	// returns buildsites for normal and defence buildings
-	float3 GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, bool water = false);
 	float3 GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries, bool water = false);
-	float3 GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, bool water = false) const;
+
+	//!  @brief Searches for a buildiste in given sector starting from top left corner 
+	float3 DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const;
 
 	// prefer buildsites that are on plateus and not too close to the edge of the map
 	float3 GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, float range, bool water);
@@ -186,17 +186,39 @@ public:
 	// used for scouting, used to get all friendly/enemy units in los
 	std::vector<int> units_in_los;
 
-	static int xSize, ySize;					// x and y size of the map (unit coordinates)
-	static int xMapSize, yMapSize;				// x and y size of the map (map coordinates)
-	static int xSectors, ySectors;				// number of sectors
-	static int xSectorSize, ySectorSize;		// size of sectors (in unit pos coordinates)
-	static int xSectorSizeMap, ySectorSizeMap;	// size of sectors (in map coodrinates = 1/8 xSize)
+	//! Maximum squared distance on map in unit coordinates (i.e. from one corner to the other, xSize*xSize+ySize*ySize)
+	static float maxSquaredMapDist; 
+
+	//! x and y size of the map (unit coordinates)
+	static int xSize, ySize;
+
+	//! x and y size of the map (map coordinates, i.e. map tiles)
+	static int xMapSize, yMapSize;
+
+	//! Number of sectors in x/y direction
+	static int xSectors, ySectors;
+
+	//! Size of sectors (in unit coordinates)
+	static int xSectorSize, ySectorSize;
+
+	//! Size of sectors (in map coordinates, i.e. tiles = 1/8 xSize/ySize)
+	static int xSectorSizeMap, ySectorSizeMap;
+
+	//! Ration of land tiles
 	static float land_ratio;
-	static int water_metal_spots;
-	static int land_metal_spots;
-	static bool metalMap;
+
+	//! Ratio of water tiles
 	static float water_ratio;
 
+	//! Number of metal spots in sea
+	static int water_metal_spots;
+
+	//! Number of metal spots on land
+	static int land_metal_spots;
+
+	//! Indicates if map is considered to be a metal map (i.e. exctractors can be built anywhere)
+	static bool metalMap;
+	
 	static vector< vector<int> > team_sector_map;	// stores the number of ai player which has taken that sector (-1 if none)
 											// this helps preventing aai from expanding into sectors of other aai players
 

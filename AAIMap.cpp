@@ -23,6 +23,7 @@ using namespace springLegacyAI;
 
 #define MAP_CACHE_PATH "cache/"
 
+float AAIMap::maxSquaredMapDist;
 int AAIMap::xSize;
 int AAIMap::ySize;
 int AAIMap::xMapSize;
@@ -128,6 +129,8 @@ void AAIMap::Init()
 
 		xSize = xMapSize * SQUARE_SIZE;
 		ySize = yMapSize * SQUARE_SIZE;
+
+		maxSquaredMapDist = xSize*xSize + ySize*ySize;
 
 		losMapRes = std::sqrt(ai->GetAICallback()->GetLosMapResolution());
 		xLOSMapSize = xMapSize / losMapRes;
@@ -661,11 +664,14 @@ void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, 
 	}	
 }
 
-float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, bool water) const
+float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const
 {
-	float3 pos;
+	int xStart, xEnd, yStart, yEnd;
+	sector->DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
-	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(buildingDefId);
+	const bool          water     = ai->s_buildTree.GetMovementType(buildingDefId).IsSea();
+	const UnitDef*      def       = &ai->Getbt()->GetUnitDef(buildingDefId.id);
 
 	// check rect
 	for(int yPos = yStart; yPos < yEnd; yPos += 2)
@@ -675,20 +681,19 @@ float3 AAIMap::GetBuildSiteInRect(const UnitDef *def, int xStart, int xEnd, int 
 			// check if buildmap allows construction
 			if(CanBuildAt(xPos, yPos, footprint, water))
 			{
-				pos.x = xPos;
-				pos.z = yPos;
+				float3 possibleBuildsite(static_cast<float>(xPos), 0.0f, static_cast<float>(yPos));
 
 				// buildmap allows construction, now check if otherwise blocked
-				BuildMapPos2Pos(&pos, def);
-				Pos2FinalBuildPos(&pos, def);
+				BuildMapPos2Pos(&possibleBuildsite, def);
+				Pos2FinalBuildPos(&possibleBuildsite, def);
 
-				if(ai->GetAICallback()->CanBuildAt(def, pos))
+				if(ai->GetAICallback()->CanBuildAt(def, possibleBuildsite))
 				{
-					int x = pos.x/xSectorSize;
-					int y = pos.z/ySectorSize;
+					int x = possibleBuildsite.x/xSectorSize;
+					int y = possibleBuildsite.z/ySectorSize;
 
 					if(IsValidSector(x,y))
-						return pos;
+						return possibleBuildsite;
 				}
 			}
 		}
@@ -746,152 +751,6 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 	}
 
 	return selectedPosition;
-}
-
-float3 AAIMap::GetCenterBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, bool water)
-{
-	float3 pos, temp_pos;
-	bool vStop = false, hStop = false;
-	int vCenter = yStart + (yEnd-yStart)/2;
-	int hCenter = xStart + (xEnd-xStart)/2;
-	int hIterator = 1, vIterator = 1;
-
-	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
-
-	// check rect
-	while(!vStop || !hStop)
-	{
-
-		pos.z = vCenter - vIterator;
-		pos.x = hCenter - hIterator;
-
-		if(!vStop)
-		{
-			while(pos.x < hCenter+hIterator)
-			{
-				// check if buildmap allows construction
-				if(CanBuildAt(pos.x, pos.z, footprint, water))
-				{
-					temp_pos.x = pos.x;
-					temp_pos.y = 0;
-					temp_pos.z = pos.z;
-
-					if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
-						temp_pos.z += 8;
-
-					// buildmap allows construction, now check if otherwise blocked
-					BuildMapPos2Pos(&temp_pos, def);
-					Pos2FinalBuildPos(&temp_pos, def);
-
-					if(ai->GetAICallback()->CanBuildAt(def, temp_pos))
-					{
-						int	x = temp_pos.x/xSectorSize;
-						int	y = temp_pos.z/ySectorSize;
-
-						if(x < xSectors && x  >= 0 && y < ySectors && y >= 0)
-							return temp_pos;
-					}
-
-				}
-				else if(CanBuildAt(pos.x, pos.z + 2 * vIterator, footprint, water))
-				{
-					temp_pos.x = pos.x;
-					temp_pos.y = 0;
-					temp_pos.z = pos.z + 2 * vIterator;
-
-					if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
-						temp_pos.z += 8;
-
-					// buildmap allows construction, now check if otherwise blocked
-					BuildMapPos2Pos(&temp_pos, def);
-					Pos2FinalBuildPos(&temp_pos, def);
-
-					if(ai->GetAICallback()->CanBuildAt(def, temp_pos))
-					{
-						int x = temp_pos.x/xSectorSize;
-						int y = temp_pos.z/ySectorSize;
-
-						if(x < xSectors && x  >= 0 && y < ySectors && y >= 0)
-							return temp_pos;
-					}
-				}
-
-				pos.x += 2;
-			}
-		}
-
-		if (!hStop)
-		{
-			hIterator += 2;
-
-			if (hCenter - hIterator < xStart || hCenter + hIterator > xEnd)
-			{
-				hStop = true;
-				hIterator -= 2;
-			}
-		}
-
-		if(!hStop)
-		{
-			while(pos.z < vCenter+vIterator)
-			{
-				// check if buildmap allows construction
-				if(CanBuildAt(pos.x, pos.z, footprint, water))
-				{
-					temp_pos.x = pos.x;
-					temp_pos.y = 0;
-					temp_pos.z = pos.z;
-
-					if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
-						temp_pos.z += 8;
-
-					// buildmap allows construction, now check if otherwise blocked
-					BuildMapPos2Pos(&temp_pos, def);
-					Pos2FinalBuildPos(&temp_pos, def);
-
-					if(ai->GetAICallback()->CanBuildAt(def, temp_pos))
-					{
-						int x = temp_pos.x/xSectorSize;
-						int y = temp_pos.z/ySectorSize;
-
-						if(x < xSectors || x  >= 0 || y < ySectors || y >= 0)
-							return temp_pos;
-					}
-				}
-				else if(CanBuildAt(pos.x + 2 * hIterator, pos.z, footprint, water))
-				{
-					temp_pos.x = pos.x + 2 * hIterator;
-					temp_pos.y = 0;
-					temp_pos.z = pos.z;
-
-					if(ai->s_buildTree.GetUnitType(UnitDefId(def->id)).IsFactory())
-						temp_pos.z += 8;
-
-					// buildmap allows construction, now check if otherwise blocked
-					BuildMapPos2Pos(&temp_pos, def);
-					Pos2FinalBuildPos(&temp_pos, def);
-
-					if(ai->GetAICallback()->CanBuildAt(def, temp_pos))
-					{
-						int x = temp_pos.x/xSectorSize;
-						int y = temp_pos.z/ySectorSize;
-
-						if(x < xSectors && x  >= 0 && y < ySectors && y >= 0)
-							return temp_pos;
-					}
-				}
-
-				pos.z += 2;
-			}
-		}
-
-		vIterator += 2;
-
-		if(vCenter - vIterator < yStart || vCenter + vIterator > yEnd)
-			vStop = true;
-	}
-
-	return ZeroVector;
 }
 
 float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries, bool water)

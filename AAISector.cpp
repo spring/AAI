@@ -331,8 +331,7 @@ float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMov
 		const float dy = currentPositionOfScout.z - center.z;
 
 		// factor between 0.1 (max dist from one corner of the map tpo the other) and 1.0 
-		const float maxSquaredDist = static_cast<float>(AAIMap::xSize*AAIMap::xSize + AAIMap::ySize*AAIMap::ySize);
-		const float distanceToCurrentLocationFactor = 0.1f + 0.9f * (1.0f - (dx*dx+dy*dy) / maxSquaredDist);
+		const float distanceToCurrentLocationFactor = 0.1f + 0.9f * (1.0f - (dx*dx+dy*dy) / AAIMap::maxSquaredMapDist);
 
 		// factor between 1 and 0.4 (depending on number of recently lost units)
 		const float lostUnits = scoutMoveType.IsAir() ? m_lostAirUnits : m_lostUnits;
@@ -343,15 +342,6 @@ float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMov
 		//! @todo Take learned starting locations into account in early phase
 		return metalSpotsFactor * distanceToCurrentLocationFactor * lostScoutsFactor * static_cast<float>(m_skippedAsScoutDestination);
 	}
-}
-
-float3 AAISector::FindBuildsite(int building, bool water) const
-{
-	int xStart, xEnd, yStart, yEnd;
-
-	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
-
-	return ai->Getmap()->GetBuildSiteInRect(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, water);
 }
 
 float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetType& targetType, float terrainModifier, bool water) const
@@ -447,15 +437,6 @@ float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetTy
 	}
 
 	return best_pos;
-}
-
-float3 AAISector::GetCenterBuildsite(int building, bool water)
-{
-	int xStart, xEnd, yStart, yEnd;
-
-	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
-
-	return ai->Getmap()->GetCenterBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, water);
 }
 
 float3 AAISector::GetRadarArtyBuildsite(int building, float range, bool water)

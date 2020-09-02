@@ -111,14 +111,11 @@ public:
 	//! @brief Decreases number of lost units by a factor < 1 such that AAI "forgets" about lost unit over time
 	void DecreaseLostUnits();
 
-	//! @brief Tries to find a buildsite for a unit in that sector (returns zerovector if no buildsite found)
-	float3 FindBuildsite(int building, bool water = false) const;
-
 	// returns a buildsite for a defence building
 	float3 GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetType& targetType, float terrainModifier, bool water) const ;
 
 	float3 GetRandomBuildsite(int building, int tries, bool water = false);
-	float3 GetCenterBuildsite(int building, bool water = false);
+
 	float3 GetRadarArtyBuildsite(int building, float range, bool water);
 
 	//! @brief Adds building of category to sector
@@ -191,6 +188,9 @@ public:
 	//! @brief Returns minimum distance to one of the map edges (in sector sizes)
 	int GetEdgeDistance() const { return m_minSectorDistanceToMapEdge; }
 
+	//! @brief Determines rectangle for possible buildsite
+	void DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const;
+
 	// sector x/y index
 	int x, y;
 
@@ -225,9 +225,6 @@ public:
 	float importance_learned;
 
 private:
-
-	//! @brief Determines rectangle for possible buildsite
-	void DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const;
 
 	//! @brief Helper function to determine position to move units to
 	bool IsValidMovePos(const float3& pos, BuildMapTileType forbiddenMapTileTypes, int continentId) const;

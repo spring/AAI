@@ -120,9 +120,9 @@ void AAIConstructor::Update()
 			else
 			{
 				// find buildpos for the unit
-				float3 pos = ai->Getexecute()->GetUnitBuildsite(m_myUnitId.id, constructedUnitDefId.id);
+				const float3 pos = ai->Getexecute()->DetermineBuildsiteForUnit(m_myUnitId, constructedUnitDefId);
 
-				if(pos.x > 0)
+				if(pos.x > 0.0f)
 				{
 					// give build order
 					Command c(-constructedUnitDefId.id);

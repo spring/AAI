@@ -312,68 +312,65 @@ void AAIExecute::SendScoutToNewDest(int scout)
 		MoveUnitTo(scout, &nextScoutDestination);
 }
 
-float3 AAIExecute::GetBuildsite(int builder, int building) const
+float3 AAIExecute::DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) const
 {
-	float3 pos;
-	float3 builder_pos;
-	//const UnitDef *def = ai->Getbt()->GetUnitDef(building);
+	//-----------------------------------------------------------------------------------------------------------------
+	// check the sector of the builder first
+	//-----------------------------------------------------------------------------------------------------------------
+	const float3 builderPosition = ai->GetAICallback()->GetUnitPos(builder.id);
+	const AAISector* sector = ai->Getmap()->GetSectorOfPos(builderPosition);
 
-	// check the sector of the builder
-	builder_pos = ai->GetAICallback()->GetUnitPos(builder);
-	// look in the builders sector first
-	int x = builder_pos.x/ai->Getmap()->xSectorSize;
-	int y = builder_pos.z/ai->Getmap()->ySectorSize;
-
-	if(ai->Getmap()->sector[x][y].distance_to_base == 0)
+	if(sector && (sector->distance_to_base == 0) )
 	{
-		pos = ai->Getmap()->sector[x][y].FindBuildsite(building);
+		const float3 buildsite = ai->Getmap()->DetermineBuildsiteInSector(buildingDefId, sector);
 
-		// if suitable location found, return pos...
-		if(pos.x)
-			return pos;
+		if(buildsite.x > 0.0f)
+			return buildsite;
 	}
 
+	//-----------------------------------------------------------------------------------------------------------------
 	// look in any of the base sectors
-	for(list<AAISector*>::iterator s = ai->Getbrain()->sectors[0].begin(); s != ai->Getbrain()->sectors[0].end(); ++s)
+	//-----------------------------------------------------------------------------------------------------------------
+	for(auto sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 	{
-		pos = (*s)->FindBuildsite(building);
+		const float3 buildsite = ai->Getmap()->DetermineBuildsiteInSector(buildingDefId, *sector);
 
-		// if suitable location found, return pos...
-		if(pos.x)
-			return pos;
+		if(buildsite.x > 0.0f)
+			return buildsite;
 	}
 
 	return ZeroVector;
 }
 
-float3 AAIExecute::GetUnitBuildsite(int builder, int unit)
+float3 AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitDefId) const
 {
-	float3 builder_pos = ai->GetAICallback()->GetUnitPos(builder);
-	float3 pos = ZeroVector, best_pos = ZeroVector;
-	float min_dist = 1000000, dist;
+	const float3 constructorPosition = ai->GetAICallback()->GetUnitPos(constructor.id);
+	
+	float3 selectedBuildsite(ZeroVector);
+	float minDist = AAIMap::maxSquaredMapDist;
 
-	for(list<AAISector*>::iterator s = ai->Getbrain()->sectors[1].begin(); s != ai->Getbrain()->sectors[1].end(); ++s)
+	for(auto sector = ai->Getbrain()->sectors[1].begin(); sector != ai->Getbrain()->sectors[1].end(); ++sector)
 	{
-		bool water = ai->s_buildTree.GetMovementType(UnitDefId(unit)).IsSeaUnit();
+		const float3 pos = ai->Getmap()->DetermineBuildsiteInSector(unitDefId, *sector);
 
-		pos = (*s)->FindBuildsite(unit, water);
-
-		if(pos.x)
+		if(pos.x > 0.0f)
 		{
-			dist = sqrt( pow(pos.x - builder_pos.x ,2.0f) + pow(pos.z - builder_pos.z, 2.0f) );
+			const float dx = pos.x - constructorPosition.x;
+			const float dy = pos.z - constructorPosition.z;
+			const float squaredDist = dx*dx +dy*dy;
 
-			if(dist < min_dist)
+			if(squaredDist < minDist)
 			{
-				min_dist = dist;
-				best_pos = pos;
+				minDist = squaredDist;
+				selectedBuildsite = pos;
 			}
 		}
 	}
 
-	return best_pos;
+	return selectedBuildsite;
 }
 
-list<int>* AAIExecute::GetBuildqueueOfFactory(int def_id)
+std::list<int>* AAIExecute::GetBuildqueueOfFactory(int def_id)
 {
 	for(int i = 0; i < numOfFactories; ++i)
 	{
@@ -381,7 +378,7 @@ list<int>* AAIExecute::GetBuildqueueOfFactory(int def_id)
 			return &buildques[i];
 	}
 
-	return 0;
+	return nullptr;
 }
 
 bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent)
@@ -531,16 +528,16 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 {
 	if(building.isValid())
 	{
-		const float3 position = sector->FindBuildsite(building.id, false);
+		const float3 buildsite = ai->Getmap()->DetermineBuildsiteInSector(building, sector);
 
-		if(position.x > 0)
+		if(buildsite.x > 0.0f)
 		{
 			float min_dist;
-			AAIConstructor* builder = ai->Getut()->FindClosestBuilder(building.id, &position, true, &min_dist);
+			AAIConstructor* builder = ai->Getut()->FindClosestBuilder(building.id, &buildsite, true, &min_dist);
 
 			if(builder)
 			{
-				builder->GiveConstructionOrder(building, position);
+				builder->GiveConstructionOrder(building, buildsite);
 
 				if( ai->s_buildTree.GetUnitCategory(building).isPowerPlant() )
 					futureAvailableEnergy += ai->s_buildTree.GetPrimaryAbility(building);
@@ -584,9 +581,9 @@ bool AAIExecute::BuildExtractor()
 
 			if(land_builder)
 			{
-				float3 pos = GetBuildsite(land_builder->m_myUnitId.id, landExtractor.id);
+				const float3 pos = DetermineBuildsite(land_builder->m_myUnitId, landExtractor);
 
-				if(pos.x != 0)
+				if(pos.x > 0.0f)
 					land_builder->GiveConstructionOrder(landExtractor, pos);
 
 				return true;
@@ -912,7 +909,7 @@ bool AAIExecute::BuildMetalMaker()
 
 			if(maker.isValid())
 			{
-				pos = (*sector)->FindBuildsite(maker.id, false);
+				pos = ai->Getmap()->DetermineBuildsiteInSector(maker, *sector);
 
 				if(pos.x > 0)
 				{
@@ -953,7 +950,7 @@ bool AAIExecute::BuildMetalMaker()
 
 			if(maker.isValid())
 			{
-				pos = (*sector)->FindBuildsite(maker.id, true);
+				pos = ai->Getmap()->DetermineBuildsiteInSector(maker, *sector);
 
 				if(pos.x > 0)
 				{
@@ -1435,7 +1432,7 @@ bool AAIExecute::BuildFactory()
 			else
 			{
 				// search systematically for buildpos (i.e. search returns a buildpos if one is available in the sector)
-				buildpos = (*sector)->FindBuildsite(factory->id, isSeaFactory);
+				buildpos = ai->Getmap()->DetermineBuildsiteInSector(*factory, *sector);
 
 				if(buildpos.x > 0.0f)
 					break;

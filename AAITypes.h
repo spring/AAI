@@ -134,11 +134,20 @@ public:
 	bool IsSubmarine() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED); }
 
 	//! @brief Returns whether unit type can only move on sea (i.e. a floating or submerged unit)
-	bool IsSeaUnit() const 
-	{ 
+	bool IsSeaUnit() const
+	{
 		const uint32_t seaUnitBitmask =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER)
 										+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
-		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & seaUnitBitmask ); 
+		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & seaUnitBitmask ); 		
+	}
+
+	bool IsSea() const 
+	{ 
+		const uint32_t seaBitmask =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER)
+									+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED)
+									+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_FLOATER)
+									+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_SUBMERGED);
+		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & seaBitmask ); 
 	}
 
 	//! @brief Returns whether this movement type is included in the given movement type bitmask.

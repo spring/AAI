@@ -118,7 +118,8 @@ public:
 	// returns buildque for a certain factory
 	std::list<int>* GetBuildqueueOfFactory(int def_id);
 
-	float3 GetUnitBuildsite(int builder, int unit);
+	//! @brief Determines buildsite for a unit (not building) that shall be constructed by the given construction unit
+	float3 DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitDefId) const;
 
 	int unitProductionRate;
 
@@ -153,13 +154,13 @@ private:
 	bool static suitable_for_sea_rallypoint(AAISector *left, AAISector *right);
 	bool static suitable_for_all_rallypoint(AAISector *left, AAISector *right);
 
-	// cache to speed things up a bit
 	float static learned;
 	float static current;
+
 	// buildques for the factories
 	std::vector<std::list<int> > buildques;
-	// number of factories (both mobile and sationary)
 
+	//! Number of factories (both mobile and sationary)
 	int numOfFactories;
 
 	//! @brief Tries to build a defence building vs target type in the specified sector
@@ -175,7 +176,8 @@ private:
 	//! @brief Returns closest (taking into account movement speed) group with units of specified unit type that may reach the location
 	AAIGroup* GetClosestGroupForDefence(const AAITargetType& attackerTargetType, const float3& pos, int importance)  const;
 	
-	float3 GetBuildsite(int builder, int building) const ;
+	//! @brief Determines buildsite for a building that shall be constructed by the given construction unit
+	float3 DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) const;
 	
 	void InitBuildques();
 
