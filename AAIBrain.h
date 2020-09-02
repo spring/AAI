@@ -62,8 +62,8 @@ public:
 	//! @brief Adds the combat power of the given unit type to the global defence capabilities 
 	void AddDefenceCapabilities(UnitDefId unitDefId);
 
-	// returns pos where scout schould be sent to
-	void GetNewScoutDest(float3 *dest, int scout);
+	//! @brief Determines to which location a given scout schould be sent to next
+	float3 GetNewScoutDest(UnitId scoutUnitId) const;
 
 	//! @brief Determines rally point for given movement type on given continent - returns whether search has been successfull
 	bool DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId);

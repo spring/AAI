@@ -306,13 +306,10 @@ void AAIExecute::BuildScouts()
 
 void AAIExecute::SendScoutToNewDest(int scout)
 {
-	float3 pos = ZeroVector;
+	float3 nextScoutDestination = ai->Getbrain()->GetNewScoutDest(UnitId(scout));
 
-	// get scout dest
-	ai->Getbrain()->GetNewScoutDest(&pos, scout);
-
-	if(pos.x > 0)
-		MoveUnitTo(scout, &pos);
+	if(nextScoutDestination.x > 0.0f)
+		MoveUnitTo(scout, &nextScoutDestination);
 }
 
 float3 AAIExecute::GetBuildsite(int builder, int building) const

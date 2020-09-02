@@ -365,7 +365,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
 			float3 pos = m_aiCallback->GetUnitPos(unit);
-			execute->InitBuildingAt(def, pos);
+			map->InitBuilding(def, pos);
 		}
 	}
 	else
@@ -415,7 +415,7 @@ void AAI::UnitFinished(int unit)
 	if (s_buildTree.GetMovementType(unitDefId).IsStatic() == true)
 	{
 		// delete buildtask
-		for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
+		for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
 		{
 			if ((*task)->unit_id == unit)
 			{
@@ -485,8 +485,9 @@ void AAI::UnitFinished(int unit)
 			// cloak scout if cloakable
 			if (def->canCloak)
 			{
-				Command c(CMD_CLOAK);
-				c.PushParam(1);
+				Command c(37382, 0u, 1);
+				//Command c(CMD_CLOAK);
+				//c.PushParam(1);
 
 				m_aiCallback->GiveOrder(unit, &c);
 			}
@@ -710,7 +711,7 @@ void AAI::UnitIdle(int unit)
 		//ut->SetUnitStatus(unit, UNIT_IDLE);
 		ut->units[unit].group->UnitIdle(unit);
 	}
-	else if(s_buildTree.GetUnitCategory(UnitDefId(ut->units[unit].def_id)).isScout() == true)
+	else if(s_buildTree.GetUnitCategory(UnitDefId(ut->units[unit].def_id)).isScout())
 	{
 		execute->SendScoutToNewDest(unit);
 	}

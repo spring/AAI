@@ -2210,42 +2210,42 @@ int AAIMap::GetContinentID(const float3& pos) const
 	return continent_map[y * xContMapSize + x];
 }
 
-int AAIMap::getSmartContinentID(float3 *pos, const AAIMovementType& moveType) const
+int AAIMap::DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const
 {
 	// check if non sea/amphib unit in shallow water
-	if(     (ai->GetAICallback()->GetElevation(pos->x, pos->z) < 0)
+	if(     (ai->GetAICallback()->GetElevation(pos.x, pos.z) < 0)
 	     && (moveType.GetMovementType() == EMovementType::MOVEMENT_TYPE_GROUND) )
 	{
 		//look for closest land cell
 		for(int k = 1; k < 10; ++k)
 		{
-			if(ai->GetAICallback()->GetElevation(pos->x + k * 16, pos->z) > 0)
+			if(ai->GetAICallback()->GetElevation(pos.x + k * 16, pos.z) > 0)
 			{
-				pos->x += k *16;
+				pos.x += k *16;
 				break;
 			}
-			else if(ai->GetAICallback()->GetElevation(pos->x - k * 16, pos->z) > 0)
+			else if(ai->GetAICallback()->GetElevation(pos.x - k * 16, pos.z) > 0)
 			{
-				pos->x -= k *16;
+				pos.x -= k *16;
 				break;
 			}
-			else if(ai->GetAICallback()->GetElevation(pos->x, pos->z + k * 16) > 0)
+			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z + k * 16) > 0)
 			{
-				pos->z += k *16;
+				pos.z += k *16;
 				break;
 			}
-			else if(ai->GetAICallback()->GetElevation(pos->x, pos->z - k * 16) > 0)
+			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z - k * 16) > 0)
 			{
-				pos->z -= k *16;
+				pos.z -= k *16;
 				break;
 			}
 		}
 	}
 
-	int x = pos->x / 32;
-	int y = pos->z / 32;
+	int x = pos.x / 32;
+	int y = pos.z / 32;
 
-	// check if pos inside of the map
+	// ensure determined position lies inside of the map
 	if(x < 0)
 		x = 0;
 	else if(x >= xContMapSize)
@@ -2256,7 +2256,7 @@ int AAIMap::getSmartContinentID(float3 *pos, const AAIMovementType& moveType) co
 	else if(y >= yContMapSize)
 		y = yContMapSize - 1;
 
-	return continent_map[y * xContMapSize + x];
+	return continent_map[x + y * xContMapSize];
 }
 
 uint32_t AAIMap::GetSuitableMovementTypes(const AAIMapType& mapType) const

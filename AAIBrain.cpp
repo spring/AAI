@@ -50,57 +50,47 @@ void AAIBrain::InitAttackedByRates(const AttackedByRatesPerGamePhase& attackedBy
 	s_attackedByRates = attackedByRates;
 }
 
-void AAIBrain::GetNewScoutDest(float3 *dest, int scout)
+float3 AAIBrain::GetNewScoutDest(UnitId scoutUnitId) const
 {
-	*dest = ZeroVector;
-
-	// TODO: take scouts pos into account
-	float my_rating, best_rating = 0;
-	AAISector *scout_sector = 0, *sector;
-
-	const UnitDef *def = ai->GetAICallback()->GetUnitDef(scout);
+	const UnitDef* def = ai->GetAICallback()->GetUnitDef(scoutUnitId.id);
 	const AAIMovementType& scoutMoveType = ai->s_buildTree.GetMovementType( UnitDefId(def->id) );
+	
+	const float3 currentPositionOfScout  = ai->GetAICallback()->GetUnitPos(scoutUnitId.id);
+	const int    continentId             = scoutMoveType.CannotMoveToOtherContinents() ? ai->Getmap()->DetermineSmartContinentID(currentPositionOfScout, scoutMoveType) : AAIMap::ignoreContinentID;
 
-	float3 pos = ai->GetAICallback()->GetUnitPos(scout);
+	float3     selectedScoutDestination(ZeroVector);
+	AAISector* selectedScoutSector(nullptr);
+	float      highestRating(0.0f);
 
-	// get continent
-	int continent = ai->Getmap()->getSmartContinentID(&pos, scoutMoveType);
-
-	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
+	for(int x = 0; x < AAIMap::xSectors; ++x)
 	{
-		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
+		for(int y = 0; y < AAIMap::ySectors; ++y)
 		{
-			sector = &ai->Getmap()->sector[x][y];
+			AAISector* sector = &ai->Getmap()->sector[x][y];
 
-			if(    (sector->distance_to_base > 0) 
-			    && scoutMoveType.isIncludedIn(sector->m_suitableMovementTypes) )
+			const float rating = sector->GetRatingAsNextScoutDestination(scoutMoveType, currentPositionOfScout);
+
+			if(rating > highestRating)
 			{
-				if(enemy_pressure_estimation > 0.01f && sector->distance_to_base < 2)
-					my_rating = sector->importance_this_game * sector->last_scout * (1.0f + sector->GetTotalEnemyCombatUnits());
-				else
-					my_rating = sector->importance_this_game * sector->last_scout;
+				// possible scout dest, try to find pos in sector
+				float3 possibleScoutDestination;
+				const bool scoutDestFound = sector->DetermineUnitMovePos(possibleScoutDestination, scoutMoveType, continentId);
 
-				sector->last_scout += 1.0f;
-
-				if(my_rating > best_rating)
+				if(scoutDestFound)
 				{
-					// possible scout dest, try to find pos in sector
-					bool scoutDestFound = sector->DetermineUnitMovePos(pos, scoutMoveType, continent);
-
-					if(scoutDestFound == true)
-					{
-						best_rating = my_rating;
-						scout_sector = sector;
-						*dest = pos;
-					}
+					highestRating            = rating;
+					selectedScoutSector      = sector;
+					selectedScoutDestination = possibleScoutDestination;
 				}
 			}
 		}
 	}
 
 	// set dest sector as visited
-	if(dest->x > 0.0f)
-		scout_sector->last_scout = 1.0f;
+	if(selectedScoutSector)
+		selectedScoutSector->SelectedAsScoutDestination();
+
+	return selectedScoutDestination;
 }
 
 bool AAIBrain::RessourcesForConstr(int /*unit*/, int /*wokertime*/)

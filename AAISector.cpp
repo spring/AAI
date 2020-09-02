@@ -55,7 +55,7 @@ void AAISector::Init(AAI *ai, int x, int y)
 	// init all kind of stuff
 	m_freeMetalSpots = false;
 	distance_to_base = -1;
-	last_scout = 1;
+	m_skippedAsScoutDestination = 0;
 	rally_points = 0;
 
 	// nothing sighted in that sector
@@ -318,6 +318,32 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 	return rating;			
 }
 
+float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout)
+{
+	if( (distance_to_base == 0) || (scoutMoveType.isIncludedIn(m_suitableMovementTypes) == false) )
+		return 0.0f;
+	else
+	{
+		++m_skippedAsScoutDestination;
+
+		const float3 center = GetCenter();
+		const float dx = currentPositionOfScout.x - center.x;
+		const float dy = currentPositionOfScout.z - center.z;
+
+		// factor between 0.1 (max dist from one corner of the map tpo the other) and 1.0 
+		const float maxSquaredDist = static_cast<float>(AAIMap::xSize*AAIMap::xSize + AAIMap::ySize*AAIMap::ySize);
+		const float distanceToCurrentLocationFactor = 0.1f + 0.9f * (1.0f - (dx*dx+dy*dy) / maxSquaredDist);
+
+		// factor between 1 and 0.4 (depending on number of recently lost units)
+		const float lostUnits = scoutMoveType.IsAir() ? m_lostAirUnits : m_lostUnits;
+		const float lostScoutsFactor = 0.4f + 0.6f / (0.5f * lostUnits + 1.0f);
+
+		const float metalSpotsFactor = 2.0f + static_cast<float>(metalSpots.size());
+
+		//! @todo Take learned starting locations into account in early phase
+		return metalSpotsFactor * distanceToCurrentLocationFactor * lostScoutsFactor * static_cast<float>(m_skippedAsScoutDestination);
+	}
+}
 
 float3 AAISector::FindBuildsite(int building, bool water) const
 {

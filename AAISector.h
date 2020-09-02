@@ -166,6 +166,12 @@ public:
 	//! @brief Returns the rating of this sector as destination to attack (0.0f if no suitable target)
 	float GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const;
 
+	//! @brief Returns rating as next destination for scout of given movement type
+	float GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout);
+
+	//! @brief Shall be called when scout is sent to this sector (resets counter how often this sector has been skipped)
+	void SelectedAsScoutDestination() { m_skippedAsScoutDestination = 0; }
+	
 	//! @brief Searches for a free position in sector on specified continent (use -1 if continent does not matter). 
 	//!        Position stored in pos (ZeroVector if none found). Returns whether search has been successful.
 	bool DetermineUnitMovePos(float3& pos, AAIMovementType moveType, int continentId) const;
@@ -213,9 +219,6 @@ public:
 
 	// how many times aai tried to build defences and could not find possible construction site
 	int failed_defences;
-
-	// indicates how many times scouts have been sent to another sector
-	float last_scout;
 
 	// importance of the sector
 	float importance_this_game;
@@ -269,6 +272,9 @@ private:
 
 	//! Stores how often buildings in this sector have been attacked(=destroyed) by a certain target type in the current game
 	AAIValuesForMobileTargetTypes m_attacksByTargetTypeInCurrentGame;
+
+	//! indicates how many times scouts have been sent to another sector
+	int m_skippedAsScoutDestination;
 };
 
 #endif

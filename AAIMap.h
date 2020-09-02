@@ -127,7 +127,7 @@ public:
 	bool LocatedOnSmallContinent(const float3& pos) { return (continents[GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
 
 	//! @brief Returns continent id with respect to the unit's movement type (e.g. ground (=non amphibious) unit being in shallow water will return id of nearest land continent)
-	int getSmartContinentID(float3 *pos, const AAIMovementType& moveType) const;
+	int DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const;
 
 	//! @brief Returns a bitmask storing which movement types are suitable for the map type
 	uint32_t GetSuitableMovementTypesForMap() const { return GetSuitableMovementTypes(s_mapType); }
@@ -184,7 +184,9 @@ public:
 	vector<vector<AAISector> > sector;
 
 	// used for scouting, used to get all friendly/enemy units in los
-	vector<int> units_in_los;
+	std::vector<int> units_in_los;
+
+	static int xSize, ySize;					// x and y size of the map (unit coordinates)
 	static int xMapSize, yMapSize;				// x and y size of the map (map coordinates)
 	static int xSectors, ySectors;				// number of sectors
 	static int xSectorSize, ySectorSize;		// size of sectors (in unit pos coordinates)
@@ -295,7 +297,6 @@ private:
 
 	static int aai_instances;	// how many AAI instances have been initialized
 
-	static int xSize, ySize;					// x and y size of the map (unit coordinates)
 	static int losMapRes;				// resolution of the LOS map
 	static int xLOSMapSize, yLOSMapSize;		// x and y size of the LOS map
 	static int xDefMapSize, yDefMapSize;		// x and y size of the defence maps (1/4 resolution of map)
@@ -312,7 +313,6 @@ private:
 	static vector<int> hover_movement_map;
 	static int land_continents;
 	static int water_continents;
-
 
 	static int avg_land_continent_size;
 	static int max_land_continent_size;

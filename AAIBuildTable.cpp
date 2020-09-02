@@ -626,7 +626,7 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 
 UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable)
 {
-	float highestRating = 0.0f;
+	float highestRating(0.0f);
 	UnitDefId selectedScout;
 
 	const StatisticalData& costs       = ai->s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::SCOUT);
@@ -634,8 +634,8 @@ UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uin
 
 	for(auto scout = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side).begin(); scout != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side).end(); ++scout)
 	{
-		bool movementTypeAllowed     = ai->s_buildTree.GetMovementType(scout->id).isIncludedIn(movementType);
-		bool factoryPrerequisitesMet = !factoryAvailable || (units_dynamic[scout->id].constructorsAvailable > 0);
+		const bool movementTypeAllowed     = ai->s_buildTree.GetMovementType(scout->id).isIncludedIn(movementType);
+		const bool factoryPrerequisitesMet = !factoryAvailable || (units_dynamic[scout->id].constructorsAvailable > 0);
 
 		if( movementTypeAllowed && factoryPrerequisitesMet )
 		{
