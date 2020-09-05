@@ -155,7 +155,6 @@ AAIConfig::AAIConfig(void)
 
 	MIN_FALLBACK_TURNRATE = 250.0f;
 
-	LEARN_SPEED = 0.2f;
 	LEARN_RATE = 5;
 	CONSTRUCTION_TIMEOUT = 1500;
 	CLIFF_SLOPE = 0.085f;
@@ -436,8 +435,6 @@ bool AAIConfig::loadGeneralConfig(AAI& ai)
 	{
 		if(!strcmp(keyword, "LEARN_RATE")) {
 			LEARN_RATE = GetInt(&ai, file);
-		} else if(!strcmp(keyword, "LEARN_SPEED")) {
-			LEARN_SPEED = GetFloat(&ai, file);
 		} else if(!strcmp(keyword, "WATER_MAP_RATIO")) {
 			WATER_MAP_RATIO = GetFloat(&ai, file);
 		} else if(!strcmp(keyword, "LAND_WATER_MAP_RATIO")) {

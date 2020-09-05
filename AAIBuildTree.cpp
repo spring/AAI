@@ -129,12 +129,17 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 		{
 			unitCosts.AddValue( unitStatistics.GetUnitCostStatistics(*category).GetMinValue() );
 			unitCosts.AddValue( unitStatistics.GetUnitCostStatistics(*category).GetMaxValue() );
-		}	
+		}
+
+		unitCosts.AddValue( unitStatistics.GetUnitCostStatistics(EUnitCategory::STATIC_DEFENCE).GetMinValue() );
+		unitCosts.AddValue( unitStatistics.GetUnitCostStatistics(EUnitCategory::STATIC_DEFENCE).GetMaxValue() );
 	}
 	unitCosts.Finalize();
 
-	const int numberOfUnitTypes = cb->GetNumUnitDefs();
+	const float baseCombatPower = AAIConstants::minInitialCombatPower - AAIConstants::noValidTargetInitialCombarPower;
+	const float costBasedCombarPower = 0.5f * AAIConstants::maxCombatPower - AAIConstants::minInitialCombatPower;
 
+	const int numberOfUnitTypes = cb->GetNumUnitDefs();
 	//spring first unitdef id is 1, we remap it so id = is position in array
 	std::vector<const springLegacyAI::UnitDef*> unitDefs(numberOfUnitTypes+1);
 	cb->GetUnitDefList(&unitDefs[1]);
@@ -150,11 +155,12 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 				allowedTargetCategories |= (*w).onlyTargetCat;
 			}
 
-			// initial combat power ranges from 0.2 to 10.0, depending on total cost of the unit and its allowed target categories
-			const float power = 0.8f + 9.0f * unitCosts.GetNormalizedSquaredDeviationFromMin( GetTotalCost(unitDefId) );
+			// initial combat power ranges from AAIConstants::noValidTargetInitialCombarPower to 0.5f * AAIConstants::maxCombatPower, 
+			// depending on total cost of the unit and its allowed target categories
+			const float power = baseCombatPower + costBasedCombarPower * unitCosts.GetNormalizedDeviationFromMin( GetTotalCost(unitDefId) );
 
 			AAICombatPower combatPower;
-			combatPower.SetCombatPower(ETargetType::STATIC, 0.2f + power);
+			combatPower.SetCombatPower(ETargetType::STATIC, AAIConstants::noValidTargetInitialCombarPower + power);
 			
 			for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
 			{
@@ -174,7 +180,7 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 				}
 
 				const float targetableUnitsRatio = (totalNumberOfUnits > 0) ? static_cast<float>(numberOfTargetableUnits) / static_cast<float>(totalNumberOfUnits) : 1.0f;
-				combatPower.SetCombatPower(targetType, 0.2f + power * targetableUnitsRatio);	
+				combatPower.SetCombatPower(targetType, AAIConstants::noValidTargetInitialCombarPower + power * targetableUnitsRatio);	
 			}
 
 			m_combatPowerOfUnits[id].SetCombatPower(combatPower);
@@ -212,7 +218,7 @@ float AAIBuildTree::CalculateCombatPowerChange(UnitDefId attackerUnitDefId, Unit
 	const AAITargetType& attackerTargetType = GetTargetType(attackerUnitDefId);
 	const AAITargetType& killedTargetType   = GetTargetType(killedUnitDefId);
 
-	const float change = cfg->LEARN_SPEED * m_combatPowerOfUnits[killedUnitDefId.id].GetCombatPowerVsTargetType(attackerTargetType) /  m_combatPowerOfUnits[attackerUnitDefId.id].GetCombatPowerVsTargetType(killedTargetType);
+	const float change = AAIConstants::combatPowerLearningFactor * m_combatPowerOfUnits[killedUnitDefId.id].GetCombatPowerVsTargetType(attackerTargetType) /  m_combatPowerOfUnits[attackerUnitDefId.id].GetCombatPowerVsTargetType(killedTargetType);
 
 	if(change < AAIConstants::maxCombatPowerChangeAfterSingleCombat)
 		return change;

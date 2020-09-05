@@ -38,13 +38,22 @@ public:
 	static constexpr float minCombatPower = 0.01f;
 	
 	//! Maximum combat power value
-	static constexpr float maxCombatPower = 1000.0f;
+	static constexpr float maxCombatPower = 20.0f;
+
+	//! Minimum initial combat power (if unit is allowed to target units of target category)
+	static constexpr float minInitialCombatPower = 1.0f;
+
+	//! Initial combat power if unit is not allowed to target units of target category
+	static constexpr float noValidTargetInitialCombarPower = 0.1f;
 
 	//! The maximum change from a single combat (attacker killes certain unit) - prevent odd statistical values from "lucky kills" (e.g. weak units gets last shot on stong one)
-	static constexpr float maxCombatPowerChangeAfterSingleCombat = 0.5f;
+	static constexpr float maxCombatPowerChangeAfterSingleCombat = 0.15f;
+
+	//! The factor applied to determine change of combat power for killer/destroyed unit type
+	static constexpr float combatPowerLearningFactor = 0.02f;
 
 	//! Minimum combat power for a unit to be considered effective against a certain target type
-	static constexpr float minAntiTargetTypeCombatPower = 0.25f;
+	static constexpr float minAntiTargetTypeCombatPower = 0.15f;
 
 	//! Minimum combat power vs specific target type such that a group of only one unit may participate in attacks
 	static constexpr float minCombatPowerForSoloAttack  = 2.5f;
