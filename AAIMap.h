@@ -12,6 +12,7 @@
 
 #include "aidef.h"
 #include "AAITypes.h"
+#include "AAIMapTypes.h"
 #include "AAIUnitTypes.h"
 #include "AAISector.h"
 #include "System/float3.h"
@@ -27,72 +28,6 @@ namespace springLegacyAI {
 	struct UnitDef;
 }
 using namespace springLegacyAI;
-
-//! A continent is made up of  tiles of the same type (land or water) that are connected with each other
-struct AAIContinent
-{
-	//! Continent id
-	int id;
-
-	//! Size of continent (oin number of map tiles)
-	int size;
-
-	//! Flag if its a water continent
-	bool water;
-};
-
-//! Movement types that are used to describe the movement type of every unit
-enum class EBuildMapTileType : uint8_t
-{
-	NOT_SET       = 0x00u, //!< Unknown/not set
-	LAND          = 0x01u, //!< land tile
-	WATER         = 0x02u, //!< water tile
-	FLAT          = 0x04u, //!< flat terrain (i.e. suitable for contruction of buildings or destination to send units to))
-	CLIFF         = 0x08u, //!< cliffy terrain (i.e. not suitable for contruction of building or destination to send units to)
-	FREE          = 0x10u, //!< free (i.e. buildings cand be constructed here)
-	OCCUPIED      = 0x20u, //!< occupied by buidling
-	BLOCKED_SPACE = 0x40u, //!< tiles where no buildings shall be constructed  (e.g. exits of factory)
-};
-
-//! Contains convenience functions for tiles of th buildmap
-class BuildMapTileType
-{
-friend AAIMap;
-
-public:
-	BuildMapTileType(EBuildMapTileType tileType) { m_tileType = static_cast<uint8_t>(tileType); }
-
-	BuildMapTileType() : BuildMapTileType(EBuildMapTileType::NOT_SET) {}
-
-	BuildMapTileType(EBuildMapTileType tileType1, EBuildMapTileType tileType2) { m_tileType = static_cast<uint8_t>(tileType1) | static_cast<uint8_t>(tileType2); }
-
-	void SetTileType(EBuildMapTileType tileType) { m_tileType |= static_cast<uint8_t>(tileType); }
-
-	bool IsTileTypeSet(BuildMapTileType tileType) const { return static_cast<bool>(m_tileType & tileType.m_tileType); }
-
-	bool IsTileTypeNotSet(BuildMapTileType tileType) const { return !static_cast<bool>(m_tileType & tileType.m_tileType); }
-
-	void BlockTile()
-	{
-		m_tileType &= ~static_cast<uint8_t>(EBuildMapTileType::FREE);
-		m_tileType |= static_cast<uint8_t>(EBuildMapTileType::BLOCKED_SPACE); 
-	}
-
-	void OccupyTile()
-	{
-		m_tileType &= ~static_cast<uint8_t>(EBuildMapTileType::FREE);
-		m_tileType |= static_cast<uint8_t>(EBuildMapTileType::OCCUPIED); 
-	}
-
-	void FreeTile()
-	{ 
-		m_tileType &= ~(static_cast<uint8_t>(EBuildMapTileType::OCCUPIED) + static_cast<uint8_t>(EBuildMapTileType::BLOCKED_SPACE)); 
-		m_tileType |= static_cast<uint8_t>(EBuildMapTileType::FREE); 
-	}
-
-//private:
-	uint8_t m_tileType;
-};
 
 class AAIMap
 {
