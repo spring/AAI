@@ -320,7 +320,9 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 
 float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout)
 {
-	if( (distance_to_base == 0) || (scoutMoveType.isIncludedIn(m_suitableMovementTypes) == false) )
+	if(   (distance_to_base == 0) 
+	   || (scoutMoveType.isIncludedIn(m_suitableMovementTypes) == false) 
+	   || (GetNumberOfAlliedBuildings() > 0) )
 		return 0.0f;
 	else
 	{
