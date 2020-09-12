@@ -46,8 +46,8 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 	{
 		maxSize = cfg->MAX_AIR_GROUP_SIZE;
 	}
-	else if(ai->s_buildTree.GetUnitType(unitDefId).IsAntiAir() )
-			maxSize = cfg->MAX_ANTI_AIR_GROUP_SIZE;
+	else if(m_groupType.IsAntiAir() && !m_groupType.IsAntiSurface())
+		maxSize = cfg->MAX_ANTI_AIR_GROUP_SIZE;
 	else
 	{
 		if(m_category.isMobileArtillery())
@@ -102,13 +102,13 @@ bool AAIGroup::AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId)
 	if(continentId == m_continentId)
 	{
 		//check if type match && current size
-		if( (m_groupDefId.id == unitDefId.id) && (units.size() < maxSize) && !attack && (task != GROUP_ATTACKING) && (task != GROUP_BOMBING))
+		if( (m_groupDefId.id == unitDefId.id) && (units.size() < maxSize) && (attack == nullptr) && (task != GROUP_ATTACKING) && (task != GROUP_BOMBING))
 		{
 			units.push_back(int2(unitId.id, unitDefId.id));
 			++size;
 
 			// send unit to rally point of the group
-			if(m_rallyPoint.x > 0)
+			if(m_rallyPoint.x > 0.0f)
 			{
 				Command c(CMD_MOVE);
 				c.PushPos(m_rallyPoint);
@@ -280,38 +280,12 @@ void AAIGroup::TargetUnitKilled()
 	}
 }
 
-void AAIGroup::DeterminePositionForAttackOrder(Command& c, const AAISector* targetSector, const float3& currentUnitPos) const
-{
-	c.PushPos(currentUnitPos);
-
-	const int group_x = currentUnitPos.x/ai->Getmap()->xSectorSize;
-	const int group_y = currentUnitPos.z/ai->Getmap()->ySectorSize;
-
-	// choose location that way that attacking units must cross the entire sector
-	if(targetSector->x > group_x)
-		c.SetParam(0, (targetSector->left + 7.0f * targetSector->right)/8.0f);
-	else if(targetSector->x < group_x)
-		c.SetParam(0, (7 * targetSector->left + targetSector->right)/8.0f);
-	else
-		c.SetParam(0, (targetSector->left + targetSector->right)/2.0f);
-
-	if(targetSector->y > group_y)
-		c.SetParam(2, (7.0f * targetSector->bottom + targetSector->top)/8.0f);
-	else if(targetSector->y < group_y)
-		c.SetParam(2, (targetSector->bottom + 7.0f * targetSector->top)/8.0f);
-	else
-		c.SetParam(2, (targetSector->bottom + targetSector->top)/2.0f);
-
-	c.SetParam(1, ai->GetAICallback()->GetElevation(c.GetParam(0), c.GetParam(2)));
-}
-
 void AAIGroup::AttackSector(const AAISector *sector, float importance)
 {
-	const float3 pos = GetGroupPos();
 	Command c(CMD_FIGHT);
 
-	// get position of the group
-	DeterminePositionForAttackOrder(c, sector, pos);
+	const float3 attackPosition = sector->DetermineAttackPosition();
+	c.PushPos(attackPosition);
 
 	// move group to that sector
 	GiveOrderToGroup(&c, importance + 8, UNIT_ATTACKING, "Group::AttackSector");
@@ -472,8 +446,8 @@ void AAIGroup::UnitIdle(int unit)
 			{
 				Command c(CMD_FIGHT);
 
-				// get position of the group
-				DeterminePositionForAttackOrder(c, target_sector, pos);
+				const float3 attackPosition = target_sector->DetermineAttackPosition();
+				c.PushPos(attackPosition);
 
 				// move group to that sector
 				ai->Getexecute()->GiveOrder(&c, unit, "Group::Idle_c");

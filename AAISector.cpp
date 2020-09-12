@@ -441,15 +441,6 @@ float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetTy
 	return best_pos;
 }
 
-float3 AAISector::GetRadarArtyBuildsite(int building, float range, bool water)
-{
-	int xStart, xEnd, yStart, yEnd;
-
-	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
-
-	return ai->Getmap()->GetRadarArtyBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, range, water);
-}
-
 float3 AAISector::GetRandomBuildsite(int building, int tries, bool water)
 {
 	if(building < 1)
@@ -463,6 +454,29 @@ float3 AAISector::GetRandomBuildsite(int building, int tries, bool water)
 	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
 	return ai->Getmap()->GetRandomBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, tries, water);
+}
+
+float3 AAISector::GetRadarArtyBuildsite(int building, float range, bool water)
+{
+	int xStart, xEnd, yStart, yEnd;
+
+	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
+
+	return ai->Getmap()->GetRadarArtyBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, range, water);
+}
+
+float3 AAISector::DetermineAttackPosition() const
+{
+	if(GetNumberOfEnemyBuildings() == 0)
+		return GetCenter();
+	else
+	{
+		const int xStart( x   * AAIMap::xSectorSizeMap);
+		const int xEnd( (x+1) * AAIMap::xSectorSizeMap);
+		const int yStart( y   * AAIMap::ySectorSizeMap);
+		const int yEnd( (y+1) * AAIMap::ySectorSizeMap);
+		return ai->Getmap()->DeterminePositionOfEnemyBuildingInSector(xStart, xEnd, yStart, yEnd);
+	}
 }
 
 void AAISector::DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const

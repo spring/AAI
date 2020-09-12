@@ -118,6 +118,9 @@ public:
 
 	float3 GetRadarArtyBuildsite(int building, float range, bool water);
 
+	//! @brief Returns position of known enemy buildings (or center if no buidlings in sector)
+	float3 DetermineAttackPosition() const;
+
 	//! @brief Adds building of category to sector
 	void AddBuilding(const AAIUnitCategory& category) { m_ownBuildingsOfCategory[category.GetArrayIndex()] += 1; };
 

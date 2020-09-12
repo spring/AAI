@@ -107,6 +107,9 @@ public:
 	// updates enemy buildings/enemy stat. combat strength in sectors based on scouted_buildings_map
 	void UpdateEnemyScoutingData();
 
+	//! @brief Returns position of first enemy building found in the part of the map (in build map coordinates)
+	float3 DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const;
+
 	void UpdateSectors();
 
 	//! @brief Adds a defence buidling to the defence map
@@ -176,10 +179,10 @@ private:
 	void Pos2BuildMapPos(float3* position, const UnitDef* def) const;
 
 	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
-	std::vector<unsigned short> m_scoutedEnemyUnitsMap;
+	std::vector<int> m_scoutedEnemyUnitsMap;
 
 	//! Stores the frame of the last update of a cell (same resolution as los map)
-	std::vector<int>            m_lastLOSUpdateInFrameMap;
+	std::vector<int> m_lastLOSUpdateInFrameMap;
 
 	// krogothe's metal spot finder
 	void DetectMetalSpots();

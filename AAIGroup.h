@@ -126,9 +126,6 @@ private:
 	//! @brief Returns whether unit group is considered to be strong enough to attack
 	bool SufficientAttackPower() const;
 
-	//! @brief Helper function used to determine the exact attack location when issueing attack orders
-	void DeterminePositionForAttackOrder(Command& c, const AAISector* targetSector, const float3& currentUnitPos) const;
-
 	int lastCommandFrame;
 	Command lastCommand;
 

@@ -189,7 +189,7 @@ void AAIMap::Init()
 	ReadMapLearnFile();
 
 	// for scouting
-	m_scoutedEnemyUnitsMap.resize(xLOSMapSize*yLOSMapSize, 0u);
+	m_scoutedEnemyUnitsMap.resize(xLOSMapSize*yLOSMapSize, 0);
 	m_lastLOSUpdateInFrameMap.resize(xLOSMapSize*yLOSMapSize, 0);
 
 	units_in_los.resize(cfg->MAX_UNITS, 0);
@@ -1657,17 +1657,18 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 	//
 	const unsigned short *losMap = ai->GetAICallback()->GetLosMap();
 
+	int cellIndex(0);
 	for(int y = 0; y < yLOSMapSize; ++y)
 	{
 		for(int x = 0; x < xLOSMapSize; ++x)
 		{
-			const int cellIndex = x + y * xLOSMapSize;
-
 			if(losMap[cellIndex] > 0u)
 			{
-				m_scoutedEnemyUnitsMap[cellIndex]    = 0u;
-				m_lastLOSUpdateInFrameMap[cellIndex] = ai->GetAICallback()->GetCurrentFrame();;
+				m_scoutedEnemyUnitsMap[cellIndex]    = 0;
+				m_lastLOSUpdateInFrameMap[cellIndex] = ai->GetAICallback()->GetCurrentFrame();
 			}
+
+			++cellIndex;
 		}
 	}
 
@@ -1764,7 +1765,7 @@ void AAIMap::UpdateEnemyScoutingData()
 				for(int xCell = x * xSectorSizeMap/losMapRes; xCell < (x + 1) * xSectorSizeMap/losMapRes; ++xCell)
 				{
 					const int cellIndex = xCell + yCell * xLOSMapSize;
-					const UnitDefId unitDefId( static_cast<int>(m_scoutedEnemyUnitsMap[cellIndex]) );
+					const UnitDefId unitDefId(m_scoutedEnemyUnitsMap[cellIndex]);
 
 					if(unitDefId.isValid())
 						sector[x][y].AddScoutedEnemyUnit(unitDefId, m_lastLOSUpdateInFrameMap[cellIndex]);
@@ -1772,6 +1773,38 @@ void AAIMap::UpdateEnemyScoutingData()
 			}
 		}
 	}
+}
+
+float3 AAIMap::DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const
+{
+	for(int yCell = yStart/losMapRes; yCell < yEnd/losMapRes; ++yCell)
+	{
+		for(int xCell = xStart/losMapRes; xCell < xEnd/losMapRes; ++xCell)
+		{	
+			const int tileIndex = xCell + xLOSMapSize * yCell;
+			const UnitDefId unitDefId(m_scoutedEnemyUnitsMap[tileIndex]);
+
+			if(unitDefId.isValid())
+			{
+				if(ai->s_buildTree.GetUnitCategory(unitDefId).isBuilding())
+				{
+					float3 selectedPosition;
+					selectedPosition.x = static_cast<float>(xCell * losMapRes * SQUARE_SIZE);
+					selectedPosition.z = static_cast<float>(yCell * losMapRes * SQUARE_SIZE);
+					selectedPosition.y = ai->GetAICallback()->GetElevation(selectedPosition.x, selectedPosition.z);
+					return selectedPosition;
+				}
+			}
+		}
+	}
+
+	ai->Log("Error: Could not find position of enemy building in sector (%i, %i) despite enemy buildings in sector!\n", xStart/xSectorSizeMap, yStart/ySectorSizeMap);
+
+	float3 selectedPosition;
+	selectedPosition.x = static_cast<float>(xStart * SQUARE_SIZE);
+	selectedPosition.z = static_cast<float>(yStart * SQUARE_SIZE);
+	selectedPosition.y = ai->GetAICallback()->GetElevation(selectedPosition.x, selectedPosition.z);
+	return selectedPosition;
 }
 
 void AAIMap::UpdateSectors()
