@@ -19,52 +19,54 @@
 AAIAttackManager::AAIAttackManager(AAI *ai)
 {
 	this->ai = ai;
+
+	m_activeAttacks.resize(cfg->MAX_ATTACKS, nullptr);
 }
 
 AAIAttackManager::~AAIAttackManager(void)
 {
-	for(auto attack = attacks.begin(); attack != attacks.end(); ++attack)
-		delete (*attack);
-
-	attacks.clear();
-}
-
-
-void AAIAttackManager::Update(int numberOfContinents)
-{
-	for(auto attack = attacks.begin(); attack != attacks.end(); ++attack)
+	for(auto attack = m_activeAttacks.begin(); attack != m_activeAttacks.end(); ++attack)
 	{
-		// drop failed attacks
-		if((*attack)->Failed())
-		{
-			(*attack)->StopAttack();
-
+		if(*attack)
 			delete (*attack);
-			attacks.erase(attack);
-
-			break;
-		}
-
-		// check if sector cleared
-		if((*attack)->m_attackDestination)
-		{
-			if((*attack)->m_attackDestination->GetNumberOfEnemyBuildings() == 0)
-				TryAttackOfNextSector(*attack);
-		}
 	}
 
-	if(attacks.size() < cfg->MAX_ATTACKS)
-	{
-		TryToLaunchAttack(numberOfContinents);
-	}
+	m_activeAttacks.clear();
 }
 
-void AAIAttackManager::TryToLaunchAttack(int numberOfContinents)
+void AAIAttackManager::Update()
+{
+	int availableAttackId(-1);
+
+	for(int attackId = 0; attackId < m_activeAttacks.size(); ++attackId)
+	{
+		AAIAttack* attack = m_activeAttacks[attackId];
+
+		if(attack)
+		{
+			// drop failed attacks
+			if( AbortAttackIfFailed(attack) )
+				availableAttackId = attackId;
+			// check if sector cleared
+			else if( attack->m_attackDestination && ( attack->m_attackDestination->GetNumberOfEnemyBuildings() == 0) )
+				AttackNextSectorOrAbort(attack);
+		}
+		else
+			availableAttackId = attackId;
+	}
+
+	// at least one attack id is available -> check if new attack should be launched
+	if(availableAttackId >= 0)
+		TryToLaunchAttack(availableAttackId);
+}
+
+void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 {
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// get all available combat/aa/arty groups for attack
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	
+	const int numberOfContinents( AAIMap::continents.size() );
 	std::vector< std::list<AAIGroup*> > availableAssaultGroupsOnContinent(numberOfContinents);
 	std::vector< std::list<AAIGroup*> > availableAAGroupsOnContinent(numberOfContinents);
 
@@ -137,7 +139,7 @@ void AAIAttackManager::TryToLaunchAttack(int numberOfContinents)
 	if(selectedSector)
 	{
 		AAIAttack *attack = new AAIAttack(ai);
-		attacks.push_back(attack);
+		m_activeAttacks[availableAttackId] = attack;
 
 		// add combat groups
 		for(auto group = availableAssaultGroupsOnContinent[selectedSector->continent].begin(); group != availableAssaultGroupsOnContinent[selectedSector->continent].end(); ++group)
@@ -242,48 +244,36 @@ void AAIAttackManager::DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& 
 	}
 }
 
-void AAIAttackManager::StopAttack(AAIAttack *attack)
+void AAIAttackManager::AbortAttack(AAIAttack* attack)
 {
-	for(list<AAIAttack*>::iterator a = attacks.begin(); a != attacks.end(); ++a)
+	attack->StopAttack();
+
+	for(auto a = m_activeAttacks.begin(); a != m_activeAttacks.end(); ++a)
 	{
 		if(*a == attack)
 		{
-			(*a)->StopAttack();
-
-			delete (*a);
-			attacks.erase(a);
-
+			*a = nullptr;
 			break;
 		}
 	}
+
+	delete attack;
 }
 
-void AAIAttackManager::CheckAttack(AAIAttack *attack)
+bool AAIAttackManager::AbortAttackIfFailed(AAIAttack *attack)
 {
-	// prevent command overflow
-	if((ai->GetAICallback()->GetCurrentFrame() - attack->lastAttack) < 30)
-		return;
-
-	// drop failed attacks
-	if(attack->Failed())
+	if((ai->GetAICallback()->GetCurrentFrame() - attack->lastAttack) < 30) 	// prevent command overflow
+		return false;
+	else if(attack->CheckIfFailed())
 	{
-		// delete attack from list
-		for(list<AAIAttack*>::iterator a = attacks.begin(); a != attacks.end(); ++a)
-		{
-			if(*a == attack)
-			{
-				attacks.erase(a);
-
-				attack->StopAttack();
-				delete attack;
-
-				break;
-			}
-		}
+		AbortAttack(attack);
+		return true;
 	}
+	else
+		return false;
 }
 
-void AAIAttackManager::TryAttackOfNextSector(AAIAttack* attack)
+void AAIAttackManager::AttackNextSectorOrAbort(AAIAttack* attack)
 {
 	// prevent command overflow
 	if((ai->GetAICallback()->GetCurrentFrame() - attack->lastAttack) < 60)
@@ -296,11 +286,10 @@ void AAIAttackManager::TryAttackOfNextSector(AAIAttack* attack)
 	// get new target sector
 	const AAISector *dest = GetNextAttackDest(attack->m_attackDestination, targetTypesOfUnits, moveType);
 
-	//ai->Log("Getting next dest\n");
-	if(dest && SufficientCombatPowerToAttackSector(dest, attack->combat_groups, 2.0f))
+	if(dest && SufficientCombatPowerToAttackSector(dest, attack->combat_groups, 3.0f))
 		attack->AttackSector(dest);
 	else
-		attack->StopAttack();
+		AbortAttack(attack);
 }
 
 const AAISector* AAIAttackManager::GetNextAttackDest(const AAISector *currentSector, const AAIValuesForMobileTargetTypes& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const
@@ -332,13 +321,22 @@ bool AAIAttackManager::SufficientCombatPowerToAttackSector(const AAISector *dest
 {
 	if(dest && !combatGroups.empty())
 	{
-		// determine attack power
+		// determine total combat power vs static  & how it is distributed over different target types
 		float combatPowerVsBildings(0.0f);
+		AAIValuesForMobileTargetTypes targetTypeWeights;
+
 		for(auto group = combatGroups.begin(); group != combatGroups.end(); ++group)
-			combatPowerVsBildings += (*group)->GetCombatPowerVsTargetType(ETargetType::STATIC);
+		{
+			const float combatPower = (*group)->GetCombatPowerVsTargetType(ETargetType::STATIC);
+			targetTypeWeights.AddValueForTargetType( (*group)->GetTargetType(), combatPower);
+
+			combatPowerVsBildings += combatPower;
+		}
 		
-		//! @todo Fix to work for water units (attack behaviour must be completely reworked anyway)
-		const float enemyDefencePower = dest->GetEnemyCombatPower(ETargetType::SURFACE);
+		// determine combat power by static enemy defences with respect to target type of attacking units
+		const float enemyDefencePower = targetTypeWeights.GetValueOfTargetType(ETargetType::SURFACE)   * dest->GetEnemyCombatPower(ETargetType::SURFACE)
+									  + targetTypeWeights.GetValueOfTargetType(ETargetType::FLOATER)   * dest->GetEnemyCombatPower(ETargetType::FLOATER)
+									  + targetTypeWeights.GetValueOfTargetType(ETargetType::SUBMERGED) * dest->GetEnemyCombatPower(ETargetType::SUBMERGED);
 
 		if(aggressiveness * combatPowerVsBildings > enemyDefencePower)
 			return true;

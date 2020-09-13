@@ -837,7 +837,7 @@ void AAI::Update()
 	{
 		AAI_SCOPED_TIMER("Check-Attack")
 		// check attack
-		am->Update(map->continents.size());
+		am->Update();
 		af->BombBestUnit(2, 2);
 		return;
 	}

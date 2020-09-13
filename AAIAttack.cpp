@@ -35,7 +35,7 @@ AAIAttack::~AAIAttack(void)
 		(*group)->attack = 0;
 }
 
-bool AAIAttack::Failed()
+bool AAIAttack::CheckIfFailed()
 {
 	if(!combat_groups.empty())
 	{
@@ -174,5 +174,5 @@ void AAIAttack::RemoveGroup(AAIGroup *group)
 		arty_groups.erase(group);
 	}
 
-	ai->Getam()->CheckAttack(this);
+	//ai->Getam()->CheckToAbortAttack(this);
 }

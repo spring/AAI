@@ -299,17 +299,17 @@ public:
 
 	int GetArrayIndex() const {return static_cast<int>(m_targetType); }
 
-	static const int surfaceIndex   = static_cast<int>(ETargetType::SURFACE);
-	static const int airIndex       = static_cast<int>(ETargetType::AIR);
-	static const int floaterIndex   = static_cast<int>(ETargetType::FLOATER);
-	static const int submergedIndex = static_cast<int>(ETargetType::SUBMERGED);
-	static const int staticIndex    = static_cast<int>(ETargetType::STATIC);
+	static constexpr int surfaceIndex   = static_cast<int>(ETargetType::SURFACE);
+	static constexpr int airIndex       = static_cast<int>(ETargetType::AIR);
+	static constexpr int floaterIndex   = static_cast<int>(ETargetType::FLOATER);
+	static constexpr int submergedIndex = static_cast<int>(ETargetType::SUBMERGED);
+	static constexpr int staticIndex    = static_cast<int>(ETargetType::STATIC);
 
-	static const int numberOfMobileTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES)-1;
+	static constexpr int numberOfMobileTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES)-1;
 
-	static const int numberOfTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES);
+	static constexpr int numberOfTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES);
 
-	static const ETargetType first = ETargetType::SURFACE;
+	static constexpr ETargetType first = ETargetType::SURFACE;
 
 	void Next() { m_targetType = static_cast<ETargetType>( static_cast<int>(m_targetType) + 1 ); }
 

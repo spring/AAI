@@ -28,7 +28,7 @@ public:
 	void RemoveGroup(AAIGroup *group);
 
 	// returns true if attack has failed
-	bool Failed();
+	bool CheckIfFailed();
 
 	//! @brief Orders units to attack specidied sector
 	void AttackSector(const AAISector *sector);
