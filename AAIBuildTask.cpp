@@ -40,14 +40,10 @@ void AAIBuildTask::BuilderDestroyed()
 	// com only allowed if buildpos is inside the base
 	bool commander = false;
 
-	int x = build_pos.x / ai->Getmap()->xSectorSize;
-	int y = build_pos.z / ai->Getmap()->ySectorSize;
+	AAISector* sector = ai->Getmap()->GetSectorOfPos(build_pos);
 
-	if(x >= 0 && y >= 0 && x < ai->Getmap()->xSectors && y < ai->Getmap()->ySectors)
-	{
-		if(ai->Getmap()->sector[x][y].distance_to_base == 0)
-			commander = true;
-	}
+	if(sector && sector->distance_to_base == 0)
+		commander = true;
 
 	// look for new builder
 	AAIConstructor* new_builder = ai->Getut()->FindClosestAssistant(build_pos, 10, commander);

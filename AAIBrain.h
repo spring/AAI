@@ -46,7 +46,7 @@ public:
 	void UpdateRessources(springLegacyAI::IAICallback* cb);
 
 	//! @brief Updates the maximum number of spotted combat units for each category (old max values decrease over time)
-	void UpdateMaxCombatUnitsSpotted(const AAIValuesForMobileTargetTypes& spottedCombatUnits);
+	void UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spottedCombatUnits);
 
 	void UpdateAttackedByValues();
 
@@ -112,7 +112,7 @@ public:
 	bool m_freeMetalSpotsInBase;
 
 	//! Holding max number of units of a category spotted at the same time (float as maximum values will slowly decay over time)
-	AAIValuesForMobileTargetTypes m_maxSpottedCombatUnitsOfTargetType;
+	MobileTargetTypeValues m_maxSpottedCombatUnitsOfTargetType;
 
 	// current estimations of game situation , values ranging from 0 (min) to 1 max
 	float enemy_pressure_estimation;	// how much pressure done to the ai by enemy units
@@ -131,7 +131,7 @@ private:
 	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const AAICombatPower& combatPowerCriteria, bool urgent);
 
 	//! The combat power of all mobile units against the different target types
-	AAIValuesForMobileTargetTypes m_totalMobileCombatPower;
+	MobileTargetTypeValues m_totalMobileCombatPower;
 
 	//! Ratio of cells with flat land of all base sectors (ranging from 0 (none) to 1(all))
 	float m_baseFlatLandRatio;
@@ -155,7 +155,7 @@ private:
 	SmoothedData m_energyIncome;
 
 	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
-	AAIValuesForMobileTargetTypes m_recentlyAttackedByRates;
+	MobileTargetTypeValues m_recentlyAttackedByRates;
 
 	//! Frequency of attacks by different combat categories throughout the gane
 	static AttackedByRatesPerGamePhase s_attackedByRates;

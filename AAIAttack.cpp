@@ -85,7 +85,7 @@ bool AAIAttack::SufficientCombatPowerToAttackSector(const AAISector *sector, flo
 	{
 		// determine total combat power vs static  & how it is distributed over different target types
 		float combatPowerVsBildings(0.0f);
-		AAIValuesForMobileTargetTypes targetTypeWeights;
+		MobileTargetTypeValues targetTypeWeights;
 
 		for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
 		{
@@ -176,7 +176,7 @@ AAIMovementType AAIAttack::GetMovementTypeOfAssignedUnits() const
 	return moveType;
 }
 
-void AAIAttack::DetermineTargetTypeOfInvolvedUnits(AAIValuesForMobileTargetTypes& targetTypesOfUnits) const
+void AAIAttack::DetermineTargetTypeOfInvolvedUnits(MobileTargetTypeValues& targetTypesOfUnits) const
 {
 	for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
 		targetTypesOfUnits.AddValueForTargetType( (*group)->GetTargetType(), static_cast<float>( (*group)->GetNumberOfUnits() ) );

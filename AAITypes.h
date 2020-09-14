@@ -300,14 +300,14 @@ public:
 private:
 	std::vector<float> m_combatPower;
 
-	friend class AAIValuesForMobileTargetTypes;
+	friend class MobileTargetTypeValues;
 };
 
 //! Data structure storing values for mobile target types (i.e. does not include target type "static")
-class AAIValuesForMobileTargetTypes
+class MobileTargetTypeValues
 {
 public:
-	AAIValuesForMobileTargetTypes() { m_values.resize(AAITargetType::numberOfMobileTargetTypes, 0.0f); }
+	MobileTargetTypeValues() { m_values.resize(AAITargetType::numberOfMobileTargetTypes, 0.0f); }
 
 	float GetValueOfTargetType(const AAITargetType& targetType) const { return m_values[targetType.GetArrayIndex()]; }
 
@@ -345,7 +345,7 @@ public:
 		m_values[3] += (modifier * combatPower.m_combatPower[3]);
 	}
 
-	void AddMobileTargetValues(const AAIValuesForMobileTargetTypes& mobileTargetValues, float modifier = 1.0f)
+	void AddMobileTargetValues(const MobileTargetTypeValues& mobileTargetValues, float modifier = 1.0f)
 	{
 		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
 		m_values[0] += (modifier * mobileTargetValues.m_values[0]);
@@ -354,7 +354,7 @@ public:
 		m_values[3] += (modifier * mobileTargetValues.m_values[3]);
 	}
 
-	float CalculateWeightedSum(const AAIValuesForMobileTargetTypes& mobileCombatPowerWeights) const
+	float CalculateWeightedSum(const MobileTargetTypeValues& mobileCombatPowerWeights) const
 	{
 		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
 		return 	  (m_values[0] * mobileCombatPowerWeights.m_values[0])

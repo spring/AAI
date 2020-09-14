@@ -97,7 +97,7 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 	// set sector as part of the base
 	if(ai->Getmap()->team_sector_map[x][y] < 0)
 	{
-		ai->Getbrain()->AssignSectorToBase(&ai->Getmap()->sector[x][y], true);
+		ai->Getbrain()->AssignSectorToBase(&ai->Getmap()->m_sector[x][y], true);
 	}
 	else
 	{
@@ -2395,13 +2395,13 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 
 	// decrease number of units of that category in the target sector
 	if(validSector)
-		ai->Getmap()->sector[x][y].RemoveBuilding(category);
+		ai->Getmap()->m_sector[x][y].RemoveBuilding(category);
 
 	// free metalspot if mex was odered to be built
 	if(category.isMetalExtractor())
 	{
 		if(validSector)
-			ai->Getmap()->sector[x][y].FreeMetalSpot(build_pos, def);
+			ai->Getmap()->m_sector[x][y].FreeMetalSpot(build_pos, def);
 	}
 	else if(category.isPowerPlant())
 	{
@@ -2496,7 +2496,6 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 				}
 			}
 		}
-
 	}
 	else // non continent bound movement types (air, hover, amphibious)
 	{
@@ -2522,31 +2521,31 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 
 	if(x >= 1)
 	{
-		sectors.push_back( &ai->Getmap()->sector[x-1][y] );
+		sectors.push_back( &ai->Getmap()->m_sector[x-1][y] );
 
 		if(y >= 1)
-			sectors.push_back( &ai->Getmap()->sector[x-1][y-1] );
+			sectors.push_back( &ai->Getmap()->m_sector[x-1][y-1] );
 
 		if(y < ai->Getmap()->ySectors-1)
-			sectors.push_back( &ai->Getmap()->sector[x-1][y+1] );
+			sectors.push_back( &ai->Getmap()->m_sector[x-1][y+1] );
 	}
 
 	if(x < ai->Getmap()->xSectors-1)
 	{
-		sectors.push_back( &ai->Getmap()->sector[x+1][y] );
+		sectors.push_back( &ai->Getmap()->m_sector[x+1][y] );
 
 		if(y >= 1)
-			sectors.push_back( &ai->Getmap()->sector[x+1][y-1] );
+			sectors.push_back( &ai->Getmap()->m_sector[x+1][y-1] );
 
 		if(y < ai->Getmap()->ySectors-1)
-			sectors.push_back( &ai->Getmap()->sector[x+1][y+1] );
+			sectors.push_back( &ai->Getmap()->m_sector[x+1][y+1] );
 	}
 
 	if(y >= 1)
-		sectors.push_back( &ai->Getmap()->sector[x][y-1] );
+		sectors.push_back( &ai->Getmap()->m_sector[x][y-1] );
 
 	if(y < ai->Getmap()->ySectors-1)
-		sectors.push_back( &ai->Getmap()->sector[x][y+1] );
+		sectors.push_back( &ai->Getmap()->m_sector[x][y+1] );
 
 	// choose best
 	AAISector *best_sector = 0;
@@ -2610,7 +2609,7 @@ float3 AAIExecute::GetFallBackPos(const float3& pos, float maxFallbackDist) cons
 	assert(maxFallbackDist != 0.0f);
 
 	// get list of enemies within weapons range
-	const int numberOfEnemies = ai->GetAICallback()->GetEnemyUnits(&(ai->Getmap()->units_in_los.front()), pos, maxFallbackDist);
+	const int numberOfEnemies = ai->GetAICallback()->GetEnemyUnits(&(ai->Getmap()->unitsInLOS.front()), pos, maxFallbackDist);
 
 	if(numberOfEnemies > 0)
 	{
@@ -2618,7 +2617,7 @@ float3 AAIExecute::GetFallBackPos(const float3& pos, float maxFallbackDist) cons
 
 		for(int k = 0; k < numberOfEnemies; ++k)
 		{
-			float3 enemy_pos = ai->GetAICallback()->GetUnitPos(ai->Getmap()->units_in_los[k]);
+			float3 enemy_pos = ai->GetAICallback()->GetUnitPos(ai->Getmap()->unitsInLOS[k]);
 
 			// get distance to enemy
 			float dx   = enemy_pos.x - pos.x;

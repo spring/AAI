@@ -48,7 +48,7 @@ public:
 	AAIMovementType GetMovementTypeOfAssignedUnits() const;
 
 	//! @brief Determines how many units of which target type participate in attack
-	void DetermineTargetTypeOfInvolvedUnits(AAIValuesForMobileTargetTypes& targetTypesOfUnits) const;
+	void DetermineTargetTypeOfInvolvedUnits(MobileTargetTypeValues& targetTypesOfUnits) const;
 
 	//! The target sector
 	const AAISector* m_attackDestination;

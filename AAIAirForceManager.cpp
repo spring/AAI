@@ -51,14 +51,13 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 		float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
 
 		// calculate in which sector unit is located
-		const int x = pos.x/ai->Getmap()->xSectorSize;
-		const int y = pos.z/ai->Getmap()->ySectorSize;
+		AAISector* sector = ai->Getmap()->GetSectorOfPos(pos);
 
 		// check if unit is within the map
-		if(x >= 0 && x < ai->Getmap()->xSectors && y >= 0 && y < ai->Getmap()->ySectors)
+		if(sector)
 		{
 			// check for anti air defences if low on units
-			if( (ai->Getmap()->sector[x][y].GetLostAirUnits() > 2.5f) && (ai->GetGroupList()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size() < 5) )
+			if( (sector->GetLostAirUnits() > 2.5f) && (ai->GetGroupList()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size() < 5) )
 				return;
 
 			AAIGroup *group(nullptr);

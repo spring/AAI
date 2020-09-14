@@ -381,11 +381,10 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 			// add extractor to the sector
 			if (category.isMetalExtractor() == true)
 			{
-				const int x = pos.x / map->xSectorSize;
-				const int y = pos.z / map->ySectorSize;
+				AAISector* sector = map->GetSectorOfPos(pos);
 
-				if(map->IsValidSector(x,y))
-					map->sector[x][y].AddExtractor(unit, def->id, &pos);
+				if(sector)
+					sector->AddExtractor(unit, def->id, &pos);
 			}
 		}
 	}

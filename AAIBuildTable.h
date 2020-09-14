@@ -88,7 +88,7 @@ public:
 
 	//! @brief Determines the weight factor for every combat unit category based on map type and how often AI had been attacked by 
 	//!        this category in the first phase of the game in the past
-	void DetermineCombatPowerWeights(AAIValuesForMobileTargetTypes& combatPowerWeights, const AAIMapType& mapType) const;
+	void DetermineCombatPowerWeights(MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;
 
 	//! @brief Updates counters/buildqueue if a buildorder for a certain factory has been given
 	void ConstructionOrderForFactoryGiven(const UnitDefId& factoryDefId)
@@ -233,7 +233,7 @@ private:
 	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;
 
 	//! @brief Calculates the rating of the given factory for the given map type
-	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const AAIValuesForMobileTargetTypes& combatPowerWeights, const AAIMapType& mapType) const;
+	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;
 
 	//! @brief Calculates the combat statistics needed for unit selection
 	void CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);

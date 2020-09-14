@@ -95,7 +95,7 @@ AAIMap::~AAIMap(void)
 		for(int y = 0; y < ySectors; y++)
 		{
 			for(int x = 0; x < xSectors; x++)
-				sector[x][y].SaveDataToFile(save_file);
+				m_sector[x][y].SaveDataToFile(save_file);
 			
 			fprintf(save_file, "\n");
 		}
@@ -115,7 +115,7 @@ AAIMap::~AAIMap(void)
 	m_scoutedEnemyUnitsMap.clear();
 	m_lastLOSUpdateInFrameMap.clear();
 
-	units_in_los.clear();
+	unitsInLOS.clear();
 }
 
 void AAIMap::Init()
@@ -168,13 +168,13 @@ void AAIMap::Init()
 
 	ai->Log("Map size: %i x %i    LOS map size: %i x %i  (los res: %i)\n", xMapSize, yMapSize, xLOSMapSize, yLOSMapSize, losMapRes);
 
-	sector.resize(xSectors, std::vector<AAISector>(ySectors));
+	m_sector.resize(xSectors, std::vector<AAISector>(ySectors));
 
 	for(int x = 0; x < xSectors; ++x)
 	{
 		for(int y = 0; y < ySectors; ++y)
 			// provide ai callback to sectors & set coordinates of the sectors
-			sector[x][y].Init(ai, x, y);
+			m_sector[x][y].Init(ai, x, y);
 	}
 
 	// add metalspots to their sectors
@@ -192,7 +192,7 @@ void AAIMap::Init()
 	m_scoutedEnemyUnitsMap.resize(xLOSMapSize*yLOSMapSize, 0);
 	m_lastLOSUpdateInFrameMap.resize(xLOSMapSize*yLOSMapSize, 0);
 
-	units_in_los.resize(cfg->MAX_UNITS, 0);
+	unitsInLOS.resize(cfg->MAX_UNITS, 0);
 
 	// create defence
 	defence_map.resize(xDefMapSize*yDefMapSize, 0.0f);
@@ -536,19 +536,19 @@ void AAIMap::ReadMapLearnFile()
 			// load learned sector data from file (if available) or init with default data
 			//---------------------------------------------------------------------------------------------------------
 
-			sector[i][j].LoadDataFromFile(load_file);
+			m_sector[i][j].LoadDataFromFile(load_file);
 
 			//---------------------------------------------------------------------------------------------------------
 			// determine movement types that are suitable to maneuvre
 			//---------------------------------------------------------------------------------------------------------
 			AAIMapType mapType(EMapType::LAND_MAP);
 
-			if(sector[i][j].water_ratio > 0.7f)
+			if(m_sector[i][j].water_ratio > 0.7f)
 				mapType.SetMapType(EMapType::WATER_MAP);
-			else if(sector[i][j].water_ratio > 0.3f)
+			else if(m_sector[i][j].water_ratio > 0.3f)
 				mapType.SetMapType(EMapType::LAND_WATER_MAP);
 
-			sector[i][j].m_suitableMovementTypes = GetSuitableMovementTypes(mapType);
+			m_sector[i][j].m_suitableMovementTypes = GetSuitableMovementTypes(mapType);
 		}
 	}
 
@@ -562,8 +562,8 @@ void AAIMap::ReadMapLearnFile()
 	{
 		for(int i = 0; i < xSectors; ++i)
 		{
-			flat_land_ratio += sector[i][j].flat_ratio;
-			water_ratio += sector[i][j].water_ratio;
+			flat_land_ratio += m_sector[i][j].flat_ratio;
+			water_ratio += m_sector[i][j].water_ratio;
 		}
 	}
 
@@ -583,7 +583,7 @@ void AAIMap::Learn()
 	{
 		for(int x = 0; x < xSectors; ++x)
 		{
-			sector[x][y].UpdateLearnedData();
+			m_sector[x][y].UpdateLearnedData();
 		}
 	}
 }
@@ -662,6 +662,45 @@ void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, 
 			}*/
 		}
 	}	
+}
+
+float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries, bool water)
+{
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
+
+	for(int i = 0; i < tries; i++)
+	{
+		float3 pos;
+
+		// get random pos within rectangle
+		if(xEnd - xStart - footprint.xSize < 1)
+			pos.x = xStart;
+		else
+			pos.x = xStart + rand()%(xEnd - xStart - footprint.xSize);
+
+		if(yEnd - yStart - footprint.ySize < 1)
+			pos.z = yStart;
+		else
+			pos.z = yStart + rand()%(yEnd - yStart - footprint.ySize);
+
+		// check if buildmap allows construction
+		if(CanBuildAt(pos.x, pos.z, footprint, water))
+		{
+			// buildmap allows construction, now check if otherwise blocked
+			BuildMapPos2Pos(&pos, def);
+			Pos2FinalBuildPos(&pos, def);
+
+			if(ai->GetAICallback()->CanBuildAt(def, pos))
+			{
+				AAISector* sector = GetSectorOfPos(pos);
+
+				if(sector)
+					return pos;
+			}
+		}
+	}
+
+	return ZeroVector;
 }
 
 float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const
@@ -753,43 +792,72 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 	return selectedPosition;
 }
 
-float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries, bool water)
+float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAITargetType& targetType, float terrainModifier, bool water) const
 {
+	*buildPos = ZeroVector;
+
+	const std::vector<float> *map = &defence_map;
+
+	if(targetType.IsAir() )
+		map = &air_defence_map;
+	else if(targetType.IsSubmerged() )
+		map = &submarine_defence_map;
+
+	const float         range     =  ai->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
 	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
 
-	for(int i = 0; i < tries; i++)
+	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
+	FILE* file = fopen(filename.c_str(), "w+");
+	fprintf(file, "Search area: (%i, %i) x (%i, %i)\n", xStart, yStart, xEnd, yEnd);
+	fprintf(file, "Range: %g\n", range);
+
+	float highestRating(-10000.0f);
+
+	// check rect
+	for(int yPos = yStart; yPos < yEnd; yPos += 4)
 	{
-		float3 pos;
-
-		// get random pos within rectangle
-		if(xEnd - xStart - footprint.xSize < 1)
-			pos.x = xStart;
-		else
-			pos.x = xStart + rand()%(xEnd - xStart - footprint.xSize);
-
-		if(yEnd - yStart - footprint.ySize < 1)
-			pos.z = yStart;
-		else
-			pos.z = yStart + rand()%(yEnd - yStart - footprint.ySize);
-
-		// check if buildmap allows construction
-		if(CanBuildAt(pos.x, pos.z, footprint, water))
+		for(int xPos = xStart; xPos < xEnd; xPos += 4)
 		{
-			// buildmap allows construction, now check if otherwise blocked
-			BuildMapPos2Pos(&pos, def);
-			Pos2FinalBuildPos(&pos, def);
-
-			if(ai->GetAICallback()->CanBuildAt(def, pos))
+			// check if buildmap allows construction
+			if(CanBuildAt(xPos, yPos, footprint, water))
 			{
-				AAISector* sector = GetSectorOfPos(pos);
+				const int cell = (xPos/4 + xDefMapSize * yPos/4);
 
-				if(sector)
-					return pos;
+				float rating = terrainModifier * plateau_map[cell] - (*map)[cell] + 0.5f * (float)(rand()%10);
+				//my_rating = - (*map)[cell];
+
+				// determine minimum distance from buildpos to the edges of the map
+				const int edge_distance = GetEdgeDistance(xPos, yPos);
+
+				fprintf(file, "Pos: (%i,%i) -> Def map cell %i -> rating: %i  , edge_dist: %i\n",xPos, yPos, cell, (int)rating, edge_distance);
+
+				// prevent aai from building defences too close to the edges of the map
+				if( (float)edge_distance < range)
+					rating -= (range - (float)edge_distance) * (range - (float)edge_distance);
+
+				if(rating > highestRating)
+				{
+					float3 pos;
+					pos.x = static_cast<float>(xPos);
+					pos.z = static_cast<float>(yPos);
+
+					// buildmap allows construction, now check if otherwise blocked
+					BuildMapPos2Pos(&pos, def);
+					Pos2FinalBuildPos(&pos, def);
+
+					if(ai->GetAICallback()->CanBuildAt(def, pos))
+					{
+						*buildPos = pos;
+						highestRating = rating;
+					}
+				}
 			}
 		}
 	}
 
-	return ZeroVector;
+	fclose(file);
+
+	return highestRating;
 }
 
 bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& size, bool water) const
@@ -1675,17 +1743,17 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 	for(int y = 0; y < ySectors; ++y)
 	{
 		for(int x = 0; x < xSectors; ++x)
-			sector[x][y].m_enemyUnitsDetectedBySensor = 0;
+			m_sector[x][y].m_enemyUnitsDetectedBySensor = 0;
 	}
 
 	// update enemy units
-	AAIValuesForMobileTargetTypes spottedEnemyCombatUnitsByTargetType;
-	const int numberOfEnemyUnits = ai->GetAICallback()->GetEnemyUnitsInRadarAndLos(&(units_in_los.front()));
+	MobileTargetTypeValues spottedEnemyCombatUnitsByTargetType;
+	const int numberOfEnemyUnits = ai->GetAICallback()->GetEnemyUnitsInRadarAndLos(&(unitsInLOS.front()));
 
 	for(int i = 0; i < numberOfEnemyUnits; ++i)
 	{
-		const float3   pos = ai->GetAICallback()->GetUnitPos(units_in_los[i]);
-		const UnitDef* def = ai->GetAICallback()->GetUnitDef(units_in_los[i]);
+		const float3   pos = ai->GetAICallback()->GetUnitPos(unitsInLOS[i]);
+		const UnitDef* def = ai->GetAICallback()->GetUnitDef(unitsInLOS[i]);
 
 		if(def) // unit is within los
 		{
@@ -1727,24 +1795,24 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 	for(int y = 0; y < ySectors; ++y)
 	{
 		for(int x = 0; x < xSectors; ++x)
-			sector[x][y].ResetLocalCombatPower();
+			m_sector[x][y].ResetLocalCombatPower();
 	}
 
-	const int numberOfFriendlyUnits = ai->GetAICallback()->GetFriendlyUnits(&(units_in_los.front()));
+	const int numberOfFriendlyUnits = ai->GetAICallback()->GetFriendlyUnits(&(unitsInLOS.front()));
 
 	for(int i = 0; i < numberOfFriendlyUnits; ++i)
 	{
 		// get unit def & category
-		const UnitDef* def = ai->GetAICallback()->GetUnitDef(units_in_los[i]);
+		const UnitDef* def = ai->GetAICallback()->GetUnitDef(unitsInLOS[i]);
 		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 		if( category.isBuilding() || category.isCombatUnit() )
 		{
-			AAISector* sector = GetSectorOfPos( ai->GetAICallback()->GetUnitPos(units_in_los[i]) );
+			AAISector* sector = GetSectorOfPos( ai->GetAICallback()->GetUnitPos(unitsInLOS[i]) );
 
 			if(sector)
 			{
-				const bool unitBelongsToAlly( ai->GetAICallback()->GetUnitTeam(units_in_los[i]) != m_myTeamId );
+				const bool unitBelongsToAlly( ai->GetAICallback()->GetUnitTeam(unitsInLOS[i]) != m_myTeamId );
 				sector->AddFriendlyUnitData(UnitDefId(def->id), unitBelongsToAlly);
 			}
 		}
@@ -1758,7 +1826,7 @@ void AAIMap::UpdateEnemyScoutingData()
 	{
 		for(int x = 0; x < xSectors; ++x)
 		{
-			sector[x][y].ResetScoutedEnemiesData();
+			m_sector[x][y].ResetScoutedEnemiesData();
 
 			for(int yCell = y * ySectorSizeMap/losMapRes; yCell < (y + 1) * ySectorSizeMap/losMapRes; ++yCell)
 			{
@@ -1768,7 +1836,7 @@ void AAIMap::UpdateEnemyScoutingData()
 					const UnitDefId unitDefId(m_scoutedEnemyUnitsMap[cellIndex]);
 
 					if(unitDefId.isValid())
-						sector[x][y].AddScoutedEnemyUnit(unitDefId, m_lastLOSUpdateInFrameMap[cellIndex]);
+						m_sector[x][y].AddScoutedEnemyUnit(unitDefId, m_lastLOSUpdateInFrameMap[cellIndex]);
 				}
 			}
 		}
@@ -1812,8 +1880,72 @@ void AAIMap::UpdateSectors()
 	for(int x = 0; x < xSectors; ++x)
 	{
 		for(int y = 0; y < ySectors; ++y)
-			sector[x][y].DecreaseLostUnits();
+			m_sector[x][y].DecreaseLostUnits();
 	}
+}
+
+const AAISector* AAIMap::DetermineSectorToContinueAttack(const AAISector *currentSector, const MobileTargetTypeValues& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const
+{
+	float highestRating(0.0f);
+	const AAISector* selectedSector(nullptr);
+
+	const bool landSectorSelectable  = moveTypeOfUnits.IsAir() || moveTypeOfUnits.IsHover() || moveTypeOfUnits.IsAmphibious() || moveTypeOfUnits.IsGround();
+	const bool waterSectorSelectable = moveTypeOfUnits.IsAir() || moveTypeOfUnits.IsHover() || moveTypeOfUnits.IsSeaUnit();
+
+	for(int x = 0; x < xSectors; x++)
+	{
+		for(int y = 0; y < ySectors; y++)
+		{
+			const float rating = m_sector[x][y].GetAttackRating(currentSector, landSectorSelectable, waterSectorSelectable, targetTypeOfUnits);
+			
+			if(rating > highestRating)
+			{
+				selectedSector = &m_sector[x][y];
+				highestRating  = rating;
+			}
+		}
+	}
+
+	return selectedSector;
+}
+
+const AAISector* AAIMap::DetermineSectorToAttack(const std::vector<float>& globalCombatPower, const std::vector< std::vector<float> >& continentCombatPower, const MobileTargetTypeValues& assaultGroupsOfType) const
+{
+	const float maxLostUnits = GetMaximumNumberOfLostUnits();
+
+	float highestRating(0.0f);
+	const AAISector* selectedSector = nullptr;
+
+	for(int x = 0; x < xSectors; ++x)
+	{
+		for(int y = 0; y < ySectors; ++y)
+		{
+			const AAISector* sector = &m_sector[x][y];
+
+			if( (sector->distance_to_base > 0) && (sector->GetNumberOfEnemyBuildings() > 0))
+			{
+				const float myAttackPower     =   globalCombatPower[AAITargetType::staticIndex] + continentCombatPower[sector->continent][AAITargetType::staticIndex];
+				const float enemyDefencePower =   assaultGroupsOfType.GetValueOfTargetType(ETargetType::SURFACE)   * sector->GetEnemyCombatPower(ETargetType::SURFACE)
+												+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::FLOATER)   * sector->GetEnemyCombatPower(ETargetType::FLOATER)
+												+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::SUBMERGED) * sector->GetEnemyCombatPower(ETargetType::SUBMERGED);
+				
+				const float lostUnitsFactor = (maxLostUnits > 1.0f) ? (2.0f - (sector->GetLostUnits() / maxLostUnits) ) : 1.0f;
+
+				const float enemyBuildings = static_cast<float>(sector->GetNumberOfEnemyBuildings());
+
+				// prefer sectors with many buildings, few lost units and low defence power/short distance to own base
+				float rating = lostUnitsFactor * enemyBuildings * myAttackPower / ( (0.1f + enemyDefencePower) * (float)(2 + sector->distance_to_base) );
+	
+				if(rating > highestRating)
+				{
+					selectedSector = sector;
+					highestRating  = rating;
+				}
+			}
+		}
+	}
+
+	return selectedSector;
 }
 
 const char* AAIMap::GetMapTypeString(const AAIMapType& mapType) const
@@ -1834,7 +1966,7 @@ AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 	const int y = pos.z/ySectorSize;
 
 	if(IsValidSector(x,y))
-		return &(sector[x][y]);
+		return &(m_sector[x][y]);
 	else
 		return nullptr;
 }
@@ -2010,74 +2142,6 @@ void AAIMap::RemoveDefence(const float3& pos, UnitDefId defence)
 	}
 }
 
-float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAITargetType& targetType, float terrainModifier, bool water) const
-{
-	*buildPos = ZeroVector;
-
-	const std::vector<float> *map = &defence_map;
-
-	if(targetType.IsAir() )
-		map = &air_defence_map;
-	else if(targetType.IsSubmerged() )
-		map = &submarine_defence_map;
-
-	const float         range     =  ai->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
-	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
-
-	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
-	FILE* file = fopen(filename.c_str(), "w+");
-	fprintf(file, "Search area: (%i, %i) x (%i, %i)\n", xStart, yStart, xEnd, yEnd);
-	fprintf(file, "Range: %g\n", range);
-
-	float highestRating(-10000.0f);
-
-	// check rect
-	for(int yPos = yStart; yPos < yEnd; yPos += 4)
-	{
-		for(int xPos = xStart; xPos < xEnd; xPos += 4)
-		{
-			// check if buildmap allows construction
-			if(CanBuildAt(xPos, yPos, footprint, water))
-			{
-				const int cell = (xPos/4 + xDefMapSize * yPos/4);
-
-				float rating = terrainModifier * plateau_map[cell] - (*map)[cell] + 0.5f * (float)(rand()%10);
-				//my_rating = - (*map)[cell];
-
-				// determine minimum distance from buildpos to the edges of the map
-				const int edge_distance = GetEdgeDistance(xPos, yPos);
-
-				fprintf(file, "Pos: (%i,%i) -> Def map cell %i -> rating: %i  , edge_dist: %i\n",xPos, yPos, cell, (int)rating, edge_distance);
-
-				// prevent aai from building defences too close to the edges of the map
-				if( (float)edge_distance < range)
-					rating -= (range - (float)edge_distance) * (range - (float)edge_distance);
-
-				if(rating > highestRating)
-				{
-					float3 pos;
-					pos.x = static_cast<float>(xPos);
-					pos.z = static_cast<float>(yPos);
-
-					// buildmap allows construction, now check if otherwise blocked
-					BuildMapPos2Pos(&pos, def);
-					Pos2FinalBuildPos(&pos, def);
-
-					if(ai->GetAICallback()->CanBuildAt(def, pos))
-					{
-						*buildPos = pos;
-						highestRating = rating;
-					}
-				}
-			}
-		}
-	}
-
-	fclose(file);
-
-	return highestRating;
-}
-
 int AAIMap::GetContinentID(int x, int y) const
 {
 	return continent_map[(y/4) * xContMapSize + x / 4];
@@ -2212,7 +2276,7 @@ float AAIMap::GetMaximumNumberOfLostUnits() const
 	{
 		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
 		{
-			const float lostUnits = ai->Getmap()->sector[x][y].GetLostUnits();
+			const float lostUnits = ai->Getmap()->m_sector[x][y].GetLostUnits();
 
 			if(lostUnits > maxLostUnits)
 				maxLostUnits = lostUnits;

@@ -131,7 +131,7 @@ public:
 	float GetLocalAttacksBy(const AAITargetType& targetType, float previousGames, float currentGame) const;
 
 	//! @brief Get total (mobile + static) defence power of enemy vs given target type (according to spotted units)
-	float GetEnemyDefencePower(const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const;
+	float GetEnemyDefencePower(const MobileTargetTypeValues& targetTypeOfUnits) const;
 
 	//! @brief Get total (mobile + static) defence power vs given target type
 	float GetEnemyCombatPower(const AAITargetType& targetType) const { return m_enemyStaticCombatPower.GetValueOfTargetType(targetType) + m_enemyMobileCombatPower.GetValueOfTargetType(targetType); }
@@ -164,7 +164,7 @@ public:
 	float3 GetCenter() const;
 
 	//! @brief Returns the rating of this sector as destination to attack (0.0f if no suitable target)
-	float GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const;
+	float GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const MobileTargetTypeValues& targetTypeOfUnits) const;
 
 	//! @brief Returns rating as next destination for scout of given movement type
 	float GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout);
@@ -259,19 +259,19 @@ private:
 	int m_enemyUnitsDetectedBySensor;
 
 	//! The combat power against mobile targets of all hostile static defences in this sector
-	AAIValuesForMobileTargetTypes m_enemyStaticCombatPower;
+	MobileTargetTypeValues m_enemyStaticCombatPower;
 	
 	//! The combat power against mobile targets of all hostile combat units in this sector
-	AAIValuesForMobileTargetTypes m_enemyMobileCombatPower;
+	MobileTargetTypeValues m_enemyMobileCombatPower;
 
 	//! The combat power against mobile targets of all hostile static defences in this sector
-	AAIValuesForMobileTargetTypes m_friendlyStaticCombatPower;
+	MobileTargetTypeValues m_friendlyStaticCombatPower;
 
 	//! Stores how often buildings in this sector have been attacked(=destroyed) by a certain target type in previous games
-	AAIValuesForMobileTargetTypes m_attacksByTargetTypeInPreviousGames;
+	MobileTargetTypeValues m_attacksByTargetTypeInPreviousGames;
 
 	//! Stores how often buildings in this sector have been attacked(=destroyed) by a certain target type in the current game
-	AAIValuesForMobileTargetTypes m_attacksByTargetTypeInCurrentGame;
+	MobileTargetTypeValues m_attacksByTargetTypeInCurrentGame;
 
 	//! indicates how many times scouts have been sent to another sector
 	int m_skippedAsScoutDestination;

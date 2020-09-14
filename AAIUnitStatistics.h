@@ -55,7 +55,7 @@ public:
 
 private:
 	//! Frequency of attacks in a certain game phase
-	std::vector< AAIValuesForMobileTargetTypes > m_attackedByRatesPerGamePhase;
+	std::vector< MobileTargetTypeValues > m_attackedByRatesPerGamePhase;
 };
 
 //! @brief This class stores the frequency the AI got attacked by a certain combat category (surface, air, floater, submerged) in a certain game phase

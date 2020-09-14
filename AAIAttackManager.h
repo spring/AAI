@@ -36,9 +36,6 @@ public:
 	//! @brief Checks if attack can be continued with new target or aborts attack otherwise
 	void AttackNextSectorOrAbort(AAIAttack *attack);
 
-	//! @brief Returns a sector to proceed with attack (nullptr if none found)
-	const AAISector* GetNextAttackDest(const AAISector *currentSector, const AAIValuesForMobileTargetTypes& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const;
-
 private:
 	//! @brief Adds the unit groups in the given list to the given attack
 	void AddGroupsToAttack(AAIAttack* attack, const std::list<AAIGroup*>& groupList) const;
@@ -51,7 +48,7 @@ private:
 													std::vector< std::list<AAIGroup*> >& availableAssaultGroupsOnContinent, std::vector< std::list<AAIGroup*> >& availableAAGroupsOnContinent) const;
 
 	//! @brief Determines the combat power against the different target types for the given list of groups
-	void DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& groups, std::vector<float>& combatPower, std::vector<float>& numberOfGroupsOfTargetType) const;
+	void DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& groups, std::vector<float>& combatPower, MobileTargetTypeValues& numberOfGroupsOfTargetType) const;
 
 	//! @brief Checks which combat unit groups are available for to attack a target (for each continent), 
 	//!        selects a possible target and launches attack if it seems reasonable (i.e. sufficient combat power available)

@@ -118,11 +118,17 @@ public:
 	//! @brief Removes a defence buidling from the defence map
 	void RemoveDefence(const float3& pos, UnitDefId defence);
 
-	// sectors
-	vector<vector<AAISector> > sector;
+	//! @brief Returns a sector to proceed with attack (nullptr if none found)
+	const AAISector* DetermineSectorToContinueAttack(const AAISector *currentSector, const MobileTargetTypeValues& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const;
+
+	//! @brief Returns the sector which is the highest rated attack target (or nullptr if none found)
+	const AAISector* DetermineSectorToAttack(const std::vector<float>& globalCombatPower, const std::vector< std::vector<float> >& continentCombatPower, const MobileTargetTypeValues& assaultGroupsOfType) const;
+
+	//! The sectors of the map
+	std::vector< std::vector<AAISector> > m_sector;
 
 	// used for scouting, used to get all friendly/enemy units in los
-	std::vector<int> units_in_los;
+	std::vector<int> unitsInLOS;
 
 	//! Maximum squared distance on map in unit coordinates (i.e. from one corner to the other, xSize*xSize+ySize*ySize)
 	static float maxSquaredMapDist; 

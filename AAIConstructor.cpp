@@ -277,14 +277,10 @@ void AAIConstructor::CheckAssistance()
 				// com only allowed if buildpos is inside the base
 				bool commander = false;
 
-				const int x = m_buildPos.x / ai->Getmap()->xSectorSize;
-				const int y = m_buildPos.z / ai->Getmap()->ySectorSize;
+				const AAISector* sector = ai->Getmap()->GetSectorOfPos(m_buildPos);
 
-				if(ai->Getmap()->IsValidSector(x,y))
-				{
-					if(ai->Getmap()->sector[x][y].distance_to_base == 0)
-						commander = true;
-				}
+				if(sector && (sector->distance_to_base == 0) )
+					commander = true;
 
 				AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(m_buildPos, 5, commander);
 
@@ -487,14 +483,14 @@ void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
 {
 	if(m_activity.IsDestroyed() == false)
 	{
-		float3 pos = ai->GetAICallback()->GetUnitPos(m_myUnitId.id);
-		const int x = pos.x / ai->Getmap()->xSectorSize;
-		const int y = pos.z / ai->Getmap()->ySectorSize;
+		const float3 unitPos = ai->GetAICallback()->GetUnitPos(m_myUnitId.id);
 
-		if( ai->Getmap()->IsValidSector(x, y) )
+		const AAISector* sector = ai->Getmap()->GetSectorOfPos(unitPos);
+
+		if(sector)
 		{
 			// dont flee within base
-			if(ai->Getmap()->sector[x][y].distance_to_base == 0)
+			if(sector->distance_to_base == 0)
 				return;
 			else
 			{
@@ -505,15 +501,14 @@ void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
 			}
 		}
 
-		// get safe position
-		pos = ai->Getexecute()->DetermineSafePos(m_myDefId, pos);
+		const float3 retreatPos = ai->Getexecute()->DetermineSafePos(m_myDefId, unitPos);
 
-		if(pos.x > 0)
+		if(retreatPos.x > 0)
 		{
 			Command c(CMD_MOVE);
-			c.PushParam(pos.x);
-			c.PushParam(ai->GetAICallback()->GetElevation(pos.x, pos.z));
-			c.PushParam(pos.z);
+			c.PushParam(retreatPos.x);
+			c.PushParam(ai->GetAICallback()->GetElevation(retreatPos.x, retreatPos.z));
+			c.PushParam(retreatPos.z);
 
 			ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "BuilderRetreat");
 			//ai->Getcb()->GiveOrder(unit_id, &c);

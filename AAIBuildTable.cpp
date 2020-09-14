@@ -328,7 +328,7 @@ UnitDefId AAIBuildTable::GetMetalMaker(int side, float cost, float efficiency, f
 	return selectedMetalMaker;
 }
 
-void AAIBuildTable::DetermineCombatPowerWeights(AAIValuesForMobileTargetTypes& combatPowerWeights, const AAIMapType& mapType) const
+void AAIBuildTable::DetermineCombatPowerWeights(MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const
 {
 	combatPowerWeights.SetValueForTargetType(ETargetType::AIR,     0.1f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::AIR));
 	combatPowerWeights.SetValueForTargetType(ETargetType::SURFACE, 1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SURFACE));
@@ -340,13 +340,13 @@ void AAIBuildTable::DetermineCombatPowerWeights(AAIValuesForMobileTargetTypes& c
 	}
 }
 
-void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const AAIValuesForMobileTargetTypes& combatPowerWeights, const AAIMapType& mapType) const
+void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const
 {
 	ratingData.canConstructBuilder = false;
 	ratingData.canConstructScout   = false;
 	ratingData.factoryDefId        = factoryDefId;
 
-	AAIValuesForMobileTargetTypes combatPowerOfConstructedUnits;
+	MobileTargetTypeValues combatPowerOfConstructedUnits;
 	int         combatUnits(0);
 
 	const bool considerLand  = !mapType.IsWaterMap();

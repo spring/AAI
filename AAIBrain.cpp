@@ -66,7 +66,7 @@ float3 AAIBrain::GetNewScoutDest(UnitId scoutUnitId) const
 	{
 		for(int y = 0; y < AAIMap::ySectors; ++y)
 		{
-			AAISector* sector = &ai->Getmap()->sector[x][y];
+			AAISector* sector = &ai->Getmap()->m_sector[x][y];
 
 			const float rating = sector->GetRatingAsNextScoutDestination(scoutMoveType, currentPositionOfScout);
 
@@ -183,8 +183,8 @@ void AAIBrain::UpdateNeighbouringSectors()
 	{
 		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
 		{
-			if(ai->Getmap()->sector[x][y].distance_to_base > 0)
-				ai->Getmap()->sector[x][y].distance_to_base = -1;
+			if(ai->Getmap()->m_sector[x][y].distance_to_base > 0)
+				ai->Getmap()->m_sector[x][y].distance_to_base = -1;
 		}
 	}
 
@@ -200,31 +200,31 @@ void AAIBrain::UpdateNeighbouringSectors()
 			const int y = (*sector)->y;
 
 			// check left neighbour
-			if(x > 0 && ai->Getmap()->sector[x-1][y].distance_to_base == -1)
+			if(x > 0 && ai->Getmap()->m_sector[x-1][y].distance_to_base == -1)
 			{
-				ai->Getmap()->sector[x-1][y].distance_to_base = i;
-				sectors[i].push_back(&ai->Getmap()->sector[x-1][y]);
+				ai->Getmap()->m_sector[x-1][y].distance_to_base = i;
+				sectors[i].push_back(&ai->Getmap()->m_sector[x-1][y]);
 				++neighbours;
 			}
 			// check right neighbour
-			if(x < (ai->Getmap()->xSectors - 1) && ai->Getmap()->sector[x+1][y].distance_to_base == -1)
+			if(x < (ai->Getmap()->xSectors - 1) && ai->Getmap()->m_sector[x+1][y].distance_to_base == -1)
 			{
-				ai->Getmap()->sector[x+1][y].distance_to_base = i;
-				sectors[i].push_back(&ai->Getmap()->sector[x+1][y]);
+				ai->Getmap()->m_sector[x+1][y].distance_to_base = i;
+				sectors[i].push_back(&ai->Getmap()->m_sector[x+1][y]);
 				++neighbours;
 			}
 			// check upper neighbour
-			if(y > 0 && ai->Getmap()->sector[x][y-1].distance_to_base == -1)
+			if(y > 0 && ai->Getmap()->m_sector[x][y-1].distance_to_base == -1)
 			{
-				ai->Getmap()->sector[x][y-1].distance_to_base = i;
-				sectors[i].push_back(&ai->Getmap()->sector[x][y-1]);
+				ai->Getmap()->m_sector[x][y-1].distance_to_base = i;
+				sectors[i].push_back(&ai->Getmap()->m_sector[x][y-1]);
 				++neighbours;
 			}
 			// check lower neighbour
-			if(y < (ai->Getmap()->ySectors - 1) && ai->Getmap()->sector[x][y+1].distance_to_base == -1)
+			if(y < (ai->Getmap()->ySectors - 1) && ai->Getmap()->m_sector[x][y+1].distance_to_base == -1)
 			{
-				ai->Getmap()->sector[x][y+1].distance_to_base = i;
-				sectors[i].push_back(&ai->Getmap()->sector[x][y+1]);
+				ai->Getmap()->m_sector[x][y+1].distance_to_base = i;
+				sectors[i].push_back(&ai->Getmap()->m_sector[x][y+1]);
 				++neighbours;
 			}
 		}
@@ -417,7 +417,7 @@ void AAIBrain::UpdateRessources(springLegacyAI::IAICallback* cb)
 	m_metalSurplus.AddValue(metalSurplus);
 }
 
-void AAIBrain::UpdateMaxCombatUnitsSpotted(const AAIValuesForMobileTargetTypes& spottedCombatUnits)
+void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spottedCombatUnits)
 {
 	m_maxSpottedCombatUnitsOfTargetType.DecreaseByFactor(0.996f);
 
@@ -546,7 +546,7 @@ void AAIBrain::BuildUnits()
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate threat by and defence vs. the different combat categories
 	//-----------------------------------------------------------------------------------------------------------------
-	AAIValuesForMobileTargetTypes attackedByCategory;
+	MobileTargetTypeValues attackedByCategory;
 	StatisticalData attackedByCatStatistics;
 	StatisticalData unitsSpottedStatistics;
 	StatisticalData defenceStatistics;

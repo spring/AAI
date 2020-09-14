@@ -86,7 +86,7 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 
 	std::vector< std::vector<float> > combatPowerOnContinent(numberOfContinents, std::vector<float>(AAITargetType::numberOfTargetTypes, 0.0f) );
 	std::vector<float>                combatPowerGlobal(AAITargetType::numberOfTargetTypes, 0.0f);
-	std::vector<float>                numberOfAssaultGroupsOfTargetType(AAITargetType::numberOfMobileTargetTypes, 0.0f);
+	MobileTargetTypeValues     numberOfAssaultGroupsOfTargetType;
 
 	DetermineCombatPowerOfGroups(availableAssaultGroupsGlobal, combatPowerGlobal, numberOfAssaultGroupsOfTargetType);
 
@@ -97,52 +97,19 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 	// determine attack sector
 	//////////////////////////////////////////////////////////////////////////////////////////////
 
-	// determine max lost units
-	const float maxLostUnits = ai->Getmap()->GetMaximumNumberOfLostUnits();
-
-	float highestRating(0.0f);
-	AAISector* selectedSector = nullptr;
-
-	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
-	{
-		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
-		{
-			AAISector* sector = &ai->Getmap()->sector[x][y];
-
-			if( (sector->distance_to_base > 0) && (sector->GetNumberOfEnemyBuildings() > 0))
-			{
-				const float myAttackPower     = combatPowerGlobal[AAITargetType::staticIndex] + combatPowerOnContinent[sector->continent][AAITargetType::staticIndex];
-				const float enemyDefencePower =   numberOfAssaultGroupsOfTargetType[AAITargetType::surfaceIndex]   * sector->GetEnemyCombatPower(ETargetType::SURFACE)
-												+ numberOfAssaultGroupsOfTargetType[AAITargetType::floaterIndex]   * sector->GetEnemyCombatPower(ETargetType::FLOATER)
-												+ numberOfAssaultGroupsOfTargetType[AAITargetType::submergedIndex] * sector->GetEnemyCombatPower(ETargetType::SUBMERGED);
-				
-				const float lostUnitsFactor = (maxLostUnits > 1.0f) ? (2.0f - (sector->GetLostUnits() / maxLostUnits) ) : 1.0f;
-
-				const float enemyBuildings = static_cast<float>(sector->GetNumberOfEnemyBuildings());
-
-				// prefer sectors with many buildings, few lost units and low defence power/short distance to own base
-				float rating = lostUnitsFactor * enemyBuildings * myAttackPower / ( (0.1f + enemyDefencePower) * (float)(2 + sector->distance_to_base) );
-	
-				if(rating > highestRating)
-				{
-					selectedSector = sector;
-					highestRating  = rating;
-				}
-			}
-		}
-	}
+	const AAISector* targetSector = ai->Getmap()->DetermineSectorToAttack(combatPowerGlobal, combatPowerOnContinent, numberOfAssaultGroupsOfTargetType);			
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// order attack
 	//////////////////////////////////////////////////////////////////////////////////////////////
 
-	if(selectedSector)
+	if(targetSector)
 	{
 		AAIAttack *attack = new AAIAttack(ai);
 		m_activeAttacks[availableAttackId] = attack;
 
 		// add combat unit groups
-		AddGroupsToAttack(attack, availableAssaultGroupsOnContinent[selectedSector->continent]);
+		AddGroupsToAttack(attack, availableAssaultGroupsOnContinent[targetSector->continent]);
 		AddGroupsToAttack(attack, availableAssaultGroupsGlobal);
 
 		// add anti air units if necessary
@@ -150,13 +117,13 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 			|| (ai->Getbrain()->GetRecentAttacksBy(ETargetType::AIR) > 0.9f) )
 		{
 			std::list<AAIGroup*> antiAirGroups;
-			SelectNumberOfGroups(antiAirGroups, 1, availableAAGroupsOnContinent[selectedSector->continent], availableAAGroupsGlobal);
+			SelectNumberOfGroups(antiAirGroups, 1, availableAAGroupsOnContinent[targetSector->continent], availableAAGroupsGlobal);
 
 			AddGroupsToAttack(attack, antiAirGroups);
 		}
 		
 		// start the attack
-		attack->AttackSector(selectedSector);
+		attack->AttackSector(targetSector);
 	}
 }
 
@@ -234,11 +201,11 @@ int AAIAttackManager::DetermineCombatUnitGroupsAvailableForattack(  std::list<AA
 	return numberOfAssaultUnitGroups;
 }
 
-void AAIAttackManager::DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& groups, std::vector<float>& combatPower, std::vector<float>& numberOfGroupsOfTargetType) const
+void AAIAttackManager::DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& groups, std::vector<float>& combatPower, MobileTargetTypeValues& numberOfGroupsOfTargetType) const
 {
 	for(auto group = groups.begin(); group != groups.end(); ++group)
 	{
-		numberOfGroupsOfTargetType[(*group)->GetTargetType().GetArrayIndex()] += 1.0f;
+		numberOfGroupsOfTargetType.AddValueForTargetType((*group)->GetTargetType(), 1.0f);
 
 		combatPower[AAITargetType::staticIndex] += (*group)->GetCombatPowerVsTargetType(ETargetType::STATIC);
 
@@ -297,39 +264,14 @@ void AAIAttackManager::AttackNextSectorOrAbort(AAIAttack* attack)
 		return;
 
 	AAIMovementType moveType( attack->GetMovementTypeOfAssignedUnits() );
-	AAIValuesForMobileTargetTypes targetTypesOfUnits;
+	MobileTargetTypeValues targetTypesOfUnits;
 	attack->DetermineTargetTypeOfInvolvedUnits(targetTypesOfUnits);
 
 	// get new target sector
-	const AAISector *dest = GetNextAttackDest(attack->m_attackDestination, targetTypesOfUnits, moveType);
+	const AAISector *dest = ai->Getmap()->DetermineSectorToContinueAttack(attack->m_attackDestination, targetTypesOfUnits, moveType);
 
 	if(dest && attack->SufficientCombatPowerToAttackSector(dest, 3.0f))
 		attack->AttackSector(dest);
 	else
 		AbortAttack(attack);
-}
-
-const AAISector* AAIAttackManager::GetNextAttackDest(const AAISector *currentSector, const AAIValuesForMobileTargetTypes& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const
-{
-	float highestRating(0.0f);
-	const AAISector* selectedSector(nullptr);
-
-	const bool landSectorSelectable  = moveTypeOfUnits.IsAir() || moveTypeOfUnits.IsHover() || moveTypeOfUnits.IsAmphibious() || moveTypeOfUnits.IsGround();
-	const bool waterSectorSelectable = moveTypeOfUnits.IsAir() || moveTypeOfUnits.IsHover() || moveTypeOfUnits.IsSeaUnit();
-
-	for(int x = 0; x < ai->Getmap()->xSectors; x++)
-	{
-		for(int y = 0; y < ai->Getmap()->ySectors; y++)
-		{
-			const float rating = ai->Getmap()->sector[x][y].GetAttackRating(currentSector, landSectorSelectable, waterSectorSelectable, targetTypeOfUnits);
-			
-			if(rating > highestRating)
-			{
-				selectedSector = &ai->Getmap()->sector[x][y];
-				highestRating  = rating;
-			}
-		}
-	}
-
-	return selectedSector;
 }

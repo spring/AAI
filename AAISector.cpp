@@ -293,7 +293,7 @@ float3 AAISector::GetCenter() const
 	return pos;
 }
 
-float AAISector::GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const
+float AAISector::GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const MobileTargetTypeValues& targetTypeOfUnits) const
 {
 	float rating(0.0f);
 
@@ -368,16 +368,16 @@ float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetTy
 		else
 		{
 			// filter out frontiers to other base sectors
-			if(x > 0 && ai->Getmap()->sector[x-1][y].distance_to_base > 0 && (ai->Getmap()->sector[x-1][y].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x-1][y] != my_team )
+			if(x > 0 && ai->Getmap()->m_sector[x-1][y].distance_to_base > 0 && (ai->Getmap()->m_sector[x-1][y].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x-1][y] != my_team )
 				directions.push_back(WEST);
 
-			if(x < ai->Getmap()->xSectors-1 && ai->Getmap()->sector[x+1][y].distance_to_base > 0 && (ai->Getmap()->sector[x+1][y].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x+1][y] != my_team)
+			if(x < ai->Getmap()->xSectors-1 && ai->Getmap()->m_sector[x+1][y].distance_to_base > 0 && (ai->Getmap()->m_sector[x+1][y].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x+1][y] != my_team)
 				directions.push_back(EAST);
 
-			if(y > 0 && ai->Getmap()->sector[x][y-1].distance_to_base > 0 && (ai->Getmap()->sector[x][y-1].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x][y-1] != my_team)
+			if(y > 0 && ai->Getmap()->m_sector[x][y-1].distance_to_base > 0 && (ai->Getmap()->m_sector[x][y-1].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x][y-1] != my_team)
 				directions.push_back(NORTH);
 
-			if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->sector[x][y+1].distance_to_base > 0 && (ai->Getmap()->sector[x][y+1].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x][y+1] != my_team)
+			if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->m_sector[x][y+1].distance_to_base > 0 && (ai->Getmap()->m_sector[x][y+1].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x][y+1] != my_team)
 				directions.push_back(SOUTH);
 		}
 	}
@@ -494,16 +494,16 @@ void AAISector::DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart,
 		*yStart = 8;
 
 	// reserve buildspace for def. buildings
-	if(x > 0 && ai->Getmap()->sector[x-1][y].distance_to_base > 0 )
+	if(x > 0 && ai->Getmap()->m_sector[x-1][y].distance_to_base > 0 )
 		*xStart += ai->Getmap()->xSectorSizeMap/8;
 
-	if(x < ai->Getmap()->xSectors-1 && ai->Getmap()->sector[x+1][y].distance_to_base > 0)
+	if(x < ai->Getmap()->xSectors-1 && ai->Getmap()->m_sector[x+1][y].distance_to_base > 0)
 		*xEnd -= ai->Getmap()->xSectorSizeMap/8;
 
-	if(y > 0 && ai->Getmap()->sector[x][y-1].distance_to_base > 0)
+	if(y > 0 && ai->Getmap()->m_sector[x][y-1].distance_to_base > 0)
 		*yStart += ai->Getmap()->ySectorSizeMap/8;
 
-	if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->sector[x][y+1].distance_to_base > 0)
+	if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->m_sector[x][y+1].distance_to_base > 0)
 		*yEnd -= ai->Getmap()->ySectorSizeMap/8;
 }
 
@@ -513,7 +513,7 @@ float AAISector::GetLocalAttacksBy(const AAITargetType& targetType, float previo
 	return  totalAttacks / (previousGames + currentGame);
 }
 
-float AAISector::GetEnemyDefencePower(const AAIValuesForMobileTargetTypes& targetTypeOfUnits) const
+float AAISector::GetEnemyDefencePower(const MobileTargetTypeValues& targetTypeOfUnits) const
 {
 	float defencePower(0.0f);
 	for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
@@ -531,16 +531,16 @@ float AAISector::GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, floa
 
 	// take neighbouring sectors into account (if possible)
 	if(x > 0)
-		result += neighbourImportance * ai->Getmap()->sector[x-1][y].GetEnemyCombatPower(targetType);
+		result += neighbourImportance * ai->Getmap()->m_sector[x-1][y].GetEnemyCombatPower(targetType);
 
 	if(x < ai->Getmap()->xSectors-1)
-		result += neighbourImportance * ai->Getmap()->sector[x+1][y].GetEnemyCombatPower(targetType);
+		result += neighbourImportance * ai->Getmap()->m_sector[x+1][y].GetEnemyCombatPower(targetType);
 
 	if(y > 0)
-		result += neighbourImportance * ai->Getmap()->sector[x][y-1].GetEnemyCombatPower(targetType);
+		result += neighbourImportance * ai->Getmap()->m_sector[x][y-1].GetEnemyCombatPower(targetType);
 
 	if(y < ai->Getmap()->ySectors-1)
-		result += neighbourImportance * ai->Getmap()->sector[x][y+1].GetEnemyCombatPower(targetType);
+		result += neighbourImportance * ai->Getmap()->m_sector[x][y+1].GetEnemyCombatPower(targetType);
 
 	return result;
 }
