@@ -423,9 +423,9 @@ void AAIGroup::UnitIdle(int unit)
 			// unit the aa group was guarding has been killed
 			else if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAntiAir())
 			{
-				if(!attack->combat_groups.empty())
+				if(!attack->m_combatUnitGroups.empty())
 				{
-					int unit = (*attack->combat_groups.begin())->GetRandomUnit();
+					int unit = (*attack->m_combatUnitGroups.begin())->GetRandomUnit();
 
 					if(unit >= 0)
 					{

@@ -87,6 +87,9 @@ public:
 	//!        The value is determined according to to current game phase, data from this game and learned data.
 	float GetAttacksBy(const AAITargetType& targetType, const GamePhase& gamePhase) const;
 
+	//! @brief Returns the recent attacks by the given target type
+	float GetRecentAttacksBy(const AAITargetType& targetType) const { return m_recentlyAttackedByRates.GetValueOfTargetType(targetType); }
+
 	//! @brief Returns urgency to build power plant
 	float GetEnergyUrgency() const;
 

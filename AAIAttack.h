@@ -23,12 +23,20 @@ public:
 	AAIAttack(AAI *ai);
 	~AAIAttack(void);
 
-	void AddGroup(AAIGroup *group);
+	//! @brief Adds group to the attack, returns whether it has been successful
+	bool AddGroup(AAIGroup *group);
 
+	//! @brief Removes group from the attack (e.g. if group is deleted)
 	void RemoveGroup(AAIGroup *group);
 
-	// returns true if attack has failed
+	//! @brief Returns true if attack is considered to have failed
 	bool CheckIfFailed();
+
+	//! @brief Checks if units have sufficient combat power against mobile enemy units assumed to be at destination
+	bool SufficientCombatPowerAt(const AAISector *sector, float aggressiveness) const;
+
+	//! @brief Checks if units in given combat unit groups have sufficient attack power against enemy stationary defences
+	bool SufficientCombatPowerToAttackSector(const AAISector *sector, float aggressiveness) const;
 
 	//! @brief Orders units to attack specidied sector
 	void AttackSector(const AAISector *sector);
@@ -42,18 +50,17 @@ public:
 	//! @brief Determines how many units of which target type participate in attack
 	void DetermineTargetTypeOfInvolvedUnits(AAIValuesForMobileTargetTypes& targetTypesOfUnits) const;
 
-	// target sector
+	//! The target sector
 	const AAISector* m_attackDestination;
 
-	// tick when last attack order has been given (to prevent overflow when unit gets stuck and sends "unit idel" all the time)
-	int lastAttack;
+	//! tick when last attack order has been given (to prevent overflow when unit gets stuck and sends "unit idel" all the time)
+	int m_lastAttackOrderInFrame;
 
-	// groups participating
-	std::set<AAIGroup*> combat_groups;
+	//! combat unit groups that are part of this attack
+	std::set<AAIGroup*> m_combatUnitGroups;
 private:
-	std::set<AAIGroup*> aa_groups;
-
-	std::set<AAIGroup*> arty_groups;
+	//! anti air unit groups that are part of this attack
+	std::set<AAIGroup*> m_antiAirUnitGroups;
 	
 	AAI *ai;
 };

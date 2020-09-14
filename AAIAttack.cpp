@@ -18,35 +18,32 @@ using namespace springLegacyAI;
 
 AAIAttack::AAIAttack(AAI *ai):
 	m_attackDestination(nullptr),
-	lastAttack(0)
+	m_lastAttackOrderInFrame(0)
 {
 	this->ai = ai;
 }
 
 AAIAttack::~AAIAttack(void)
 {
-	for(std::set<AAIGroup*>::iterator group = combat_groups.begin(); group != combat_groups.end(); ++group)
-		(*group)->attack = 0;
+	for(std::set<AAIGroup*>::iterator group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
+		(*group)->attack = nullptr;
 
-	for(std::set<AAIGroup*>::iterator group = aa_groups.begin(); group != aa_groups.end(); ++group)
-		(*group)->attack = 0;
-
-	for(std::set<AAIGroup*>::iterator group = arty_groups.begin(); group != arty_groups.end(); ++group)
-		(*group)->attack = 0;
+	for(std::set<AAIGroup*>::iterator group = m_antiAirUnitGroups.begin(); group != m_antiAirUnitGroups.end(); ++group)
+		(*group)->attack = nullptr;
 }
 
 bool AAIAttack::CheckIfFailed()
 {
-	if(!combat_groups.empty())
+	if(!m_combatUnitGroups.empty())
 	{
 		// check if still enough power to attack target sector
-		//if(ai->Getam()->SufficientAttackPowerVS(dest, &combat_groups, 1.3f))
+		if(SufficientCombatPowerToAttackSector(m_attackDestination, 3.0f))
 		{
 			// check if sufficient power to combat enemy units
-			const float3 pos = (*combat_groups.begin())->GetGroupPos();
-			AAISector *sector = ai->Getmap()->GetSectorOfPos(pos);
+			const float3 pos = (*m_combatUnitGroups.begin())->GetGroupPos();
+			const AAISector* sector = ai->Getmap()->GetSectorOfPos(pos);
 
-			if(sector && ai->Getam()->SufficientCombatPowerAt(sector, combat_groups, 2))
+			if(sector && SufficientCombatPowerAt(sector, 2.0f))
 				return false;
 		}
 	}
@@ -54,53 +51,60 @@ bool AAIAttack::CheckIfFailed()
 	return true;
 }
 
-void AAIAttack::StopAttack()
+bool AAIAttack::SufficientCombatPowerAt(const AAISector *sector, float aggressiveness) const
 {
-	for(auto group = combat_groups.begin(); group != combat_groups.end(); ++group)
+	if(sector && !m_combatUnitGroups.empty())
 	{
-		// get rally point somewhere between current pos an base
-		(*group)->GetNewRallyPoint();
+		//! @todo Must be reworked to work with water units.
+		const AAITargetType targetType(ETargetType::SURFACE);
 
-		(*group)->RetreatToRallyPoint();
-		(*group)->attack = nullptr;
+		const float enemyUnits =  sector->GetNumberOfEnemyCombatUnits(ECombatUnitCategory::GROUND_COMBAT) 
+		                        + sector->GetNumberOfEnemyCombatUnits(ECombatUnitCategory::HOVER_COMBAT);
+
+		if(enemyUnits <= 1.0f)
+			return true;	
+
+		// get total enemy combat power
+		const float enemyCombatPower = sector->GetEnemyAreaCombatPowerVs(targetType, 0.25f) / enemyUnits;		
+
+		// get total combat power of available units for attack
+		float myCombatPower(0.0f);
+		for(std::set<AAIGroup*>::const_iterator group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
+			myCombatPower += (*group)->GetCombatPowerVsTargetType(targetType);
+
+		if(aggressiveness * myCombatPower > enemyCombatPower)
+			return true;
 	}
 
-	for(auto group = aa_groups.begin(); group != aa_groups.end(); ++group)
-	{
-		// get rally point somewhere between current pos an base
-		(*group)->GetNewRallyPoint();
-
-		(*group)->RetreatToRallyPoint();
-		(*group)->attack = nullptr;
-	}
-
-	for(auto group = arty_groups.begin(); group != arty_groups.end(); ++group)
-	{
-		// todo
-	}
-
-	combat_groups.clear();
-	aa_groups.clear();
-	arty_groups.clear();
+	return false;
 }
 
-AAIMovementType AAIAttack::GetMovementTypeOfAssignedUnits() const
+bool AAIAttack::SufficientCombatPowerToAttackSector(const AAISector *sector, float aggressiveness) const
 {
-	AAIMovementType moveType;
+	if(sector && !m_combatUnitGroups.empty())
+	{
+		// determine total combat power vs static  & how it is distributed over different target types
+		float combatPowerVsBildings(0.0f);
+		AAIValuesForMobileTargetTypes targetTypeWeights;
 
-	for(auto group = combat_groups.begin(); group != combat_groups.end(); ++group)
-		moveType.AddMovementType( (*group)->GetMovementType() );
-	
-	for(auto group = aa_groups.begin(); group != aa_groups.end(); ++group)
-		moveType.AddMovementType( (*group)->GetMovementType() );
+		for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
+		{
+			const float combatPower = (*group)->GetCombatPowerVsTargetType(ETargetType::STATIC);
+			targetTypeWeights.AddValueForTargetType( (*group)->GetTargetType(), combatPower);
 
-	return moveType;
-}
+			combatPowerVsBildings += combatPower;
+		}
+		
+		// determine combat power by static enemy defences with respect to target type of attacking units
+		const float enemyDefencePower = targetTypeWeights.GetValueOfTargetType(ETargetType::SURFACE)   * sector->GetEnemyCombatPower(ETargetType::SURFACE)
+									  + targetTypeWeights.GetValueOfTargetType(ETargetType::FLOATER)   * sector->GetEnemyCombatPower(ETargetType::FLOATER)
+									  + targetTypeWeights.GetValueOfTargetType(ETargetType::SUBMERGED) * sector->GetEnemyCombatPower(ETargetType::SUBMERGED);
 
-void AAIAttack::DetermineTargetTypeOfInvolvedUnits(AAIValuesForMobileTargetTypes& targetTypesOfUnits) const
-{
-	for(auto group = combat_groups.begin(); group != combat_groups.end(); ++group)
-		targetTypesOfUnits.AddValueForTargetType( (*group)->GetTargetType(), static_cast<float>( (*group)->GetNumberOfUnits() ) );
+		if(aggressiveness * combatPowerVsBildings > enemyDefencePower)
+			return true;
+	}
+
+	return false;
 }
 
 void AAIAttack::AttackSector(const AAISector *sector)
@@ -110,19 +114,19 @@ void AAIAttack::AttackSector(const AAISector *sector)
 
 	m_attackDestination = sector;
 
-	lastAttack = ai->GetAICallback()->GetCurrentFrame();
+	m_lastAttackOrderInFrame = ai->GetAICallback()->GetCurrentFrame();
 
-	for(std::set<AAIGroup*>::iterator group = combat_groups.begin(); group != combat_groups.end(); ++group)
+	for(std::set<AAIGroup*>::iterator group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
 	{
 		(*group)->AttackSector(m_attackDestination, importance);
 	}
 
 	// order aa groups to guard combat units
-	if(!combat_groups.empty())
+	if(!m_combatUnitGroups.empty())
 	{
-		for(std::set<AAIGroup*>::iterator group = aa_groups.begin(); group != aa_groups.end(); ++group)
+		for(std::set<AAIGroup*>::iterator group = m_antiAirUnitGroups.begin(); group != m_antiAirUnitGroups.end(); ++group)
 		{
-			unit = (*combat_groups.begin())->GetRandomUnit();
+			unit = (*m_combatUnitGroups.begin())->GetRandomUnit();
 
 			if(unit >= 0)
 			{
@@ -133,46 +137,75 @@ void AAIAttack::AttackSector(const AAISector *sector)
 			}
 		}
 	}
-
-	for(std::set<AAIGroup*>::iterator group = arty_groups.begin(); group != arty_groups.end(); ++group)
-	{
-		(*group)->AttackSector(m_attackDestination, importance);
-	}
 }
 
-void AAIAttack::AddGroup(AAIGroup *group)
+void AAIAttack::StopAttack()
+{
+	for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
+	{
+		// get rally point somewhere between current pos an base
+		(*group)->GetNewRallyPoint();
+
+		(*group)->RetreatToRallyPoint();
+		(*group)->attack = nullptr;
+	}
+
+	for(auto group = m_antiAirUnitGroups.begin(); group != m_antiAirUnitGroups.end(); ++group)
+	{
+		// get rally point somewhere between current pos an base
+		(*group)->GetNewRallyPoint();
+
+		(*group)->RetreatToRallyPoint();
+		(*group)->attack = nullptr;
+	}
+
+	m_combatUnitGroups.clear();
+	m_antiAirUnitGroups.clear();
+}
+
+AAIMovementType AAIAttack::GetMovementTypeOfAssignedUnits() const
+{
+	AAIMovementType moveType;
+
+	for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
+		moveType.AddMovementType( (*group)->GetMovementType() );
+	
+	for(auto group = m_antiAirUnitGroups.begin(); group != m_antiAirUnitGroups.end(); ++group)
+		moveType.AddMovementType( (*group)->GetMovementType() );
+
+	return moveType;
+}
+
+void AAIAttack::DetermineTargetTypeOfInvolvedUnits(AAIValuesForMobileTargetTypes& targetTypesOfUnits) const
+{
+	for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
+		targetTypesOfUnits.AddValueForTargetType( (*group)->GetTargetType(), static_cast<float>( (*group)->GetNumberOfUnits() ) );
+}
+
+bool AAIAttack::AddGroup(AAIGroup *group)
 {
 	if(group->GetUnitTypeOfGroup().IsAssaultUnit())
 	{
-		combat_groups.insert(group);
-		group->attack = this;
+		m_combatUnitGroups.insert(group);
+		return true;
 	}
 	else if(group->GetUnitTypeOfGroup().IsAntiAir())
 	{
-		aa_groups.insert(group);
-		group->attack = this;
+		m_antiAirUnitGroups.insert(group);
+		return true;
 	}
-	else
-	{
-		arty_groups.insert(group);
-		group->attack = this;
-	}
+
+	return false;
 }
 
 void AAIAttack::RemoveGroup(AAIGroup *group)
 {
 	if(group->GetUnitTypeOfGroup().IsAssaultUnit())
 	{
-		combat_groups.erase(group);
+		m_combatUnitGroups.erase(group);
 	}
 	else if(group->GetUnitTypeOfGroup().IsAntiAir())
 	{
-		aa_groups.erase(group);
+		m_antiAirUnitGroups.erase(group);
 	}
-	else
-	{
-		arty_groups.erase(group);
-	}
-
-	//ai->Getam()->CheckToAbortAttack(this);
 }

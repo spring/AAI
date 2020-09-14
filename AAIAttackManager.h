@@ -39,13 +39,13 @@ public:
 	//! @brief Returns a sector to proceed with attack (nullptr if none found)
 	const AAISector* GetNextAttackDest(const AAISector *currentSector, const AAIValuesForMobileTargetTypes& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const;
 
-	//! @brief Checks if units in given combat unit groups have sufficient attack power against enemy stationary defences
-	bool SufficientCombatPowerToAttackSector(const AAISector *sector, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const;
-
-	//! @brief Checks if units have sufficient combat power against mobile enemy units assumed to be at destination
-	bool SufficientCombatPowerAt(const AAISector *dest, const std::set<AAIGroup*>& combatGroups, float aggressiveness) const;
-
 private:
+	//! @brief Adds the unit groups in the given list to the given attack
+	void AddGroupsToAttack(AAIAttack* attack, const std::list<AAIGroup*>& groupList) const;
+
+	//! @brief Selects given number of groups from the two given lists (list1 has priority)
+	void SelectNumberOfGroups(std::list<AAIGroup*> selectedGroupList, int maxNumberOfGroups, std::list<AAIGroup*> groupList1, std::list<AAIGroup*> groupList2);
+
 	//! @brief Determines which groups would be available for an attack globally/on each continent and returns the total number of available assault groups
 	int DetermineCombatUnitGroupsAvailableForattack(std::list<AAIGroup*>& availableAssaultGroupsGlobal, std::list<AAIGroup*>& availableAAGroupsGlobal,
 													std::vector< std::list<AAIGroup*> >& availableAssaultGroupsOnContinent, std::vector< std::list<AAIGroup*> >& availableAAGroupsOnContinent) const;
