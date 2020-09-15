@@ -112,11 +112,17 @@ public:
 
 	void UpdateSectors();
 
+	//! @brief Checks for new neighbours (and removes old ones if necessary)
+	void UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sectorsInDistToBase);
+
 	//! @brief Adds a defence buidling to the defence map
 	void AddStaticDefence(const float3& position, UnitDefId defence);
 
 	//! @brief Removes a defence buidling from the defence map
 	void RemoveDefence(const float3& pos, UnitDefId defence);
+
+	//! @brief Determines to which location a given scout schould be sent to next
+	float3 GetNewScoutDest(UnitId scoutUnitId);
 
 	//! @brief Returns a sector to proceed with attack (nullptr if none found)
 	const AAISector* DetermineSectorToContinueAttack(const AAISector *currentSector, const MobileTargetTypeValues& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const;

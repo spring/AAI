@@ -306,7 +306,7 @@ void AAIExecute::BuildScouts()
 
 void AAIExecute::SendScoutToNewDest(int scout)
 {
-	float3 nextScoutDestination = ai->Getbrain()->GetNewScoutDest(UnitId(scout));
+	float3 nextScoutDestination = ai->Getmap()->GetNewScoutDest(UnitId(scout));
 
 	if(nextScoutDestination.x > 0.0f)
 		MoveUnitTo(scout, &nextScoutDestination);
@@ -331,7 +331,7 @@ float3 AAIExecute::DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) c
 	//-----------------------------------------------------------------------------------------------------------------
 	// look in any of the base sectors
 	//-----------------------------------------------------------------------------------------------------------------
-	for(auto sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 	{
 		const float3 buildsite = ai->Getmap()->DetermineBuildsiteInSector(buildingDefId, *sector);
 
@@ -349,7 +349,7 @@ float3 AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitD
 	float3 selectedBuildsite(ZeroVector);
 	float minDist = AAIMap::maxSquaredMapDist;
 
-	for(auto sector = ai->Getbrain()->sectors[1].begin(); sector != ai->Getbrain()->sectors[1].end(); ++sector)
+	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[1].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[1].end(); ++sector)
 	{
 		const float3 pos = ai->Getmap()->DetermineBuildsiteInSector(unitDefId, *sector);
 
@@ -657,7 +657,7 @@ bool AAIExecute::BuildExtractor()
 	std::list<PossibleSpotForMetalExtractor> extractorSpots;
 
 	// determine max search dist - prevent crashes on smaller maps
-	int max_search_dist = min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->sectors.size()) );
+	int max_search_dist = min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->m_sectorsInDistToBase.size()) );
 	float min_dist;
 
 	bool freeMetalSpotFound = false;
@@ -668,7 +668,7 @@ bool AAIExecute::BuildExtractor()
 		if(distanceFromBase == 1)
 			ai->Getbrain()->m_freeMetalSpotsInBase = false;
 
-		for(auto sector = ai->Getbrain()->sectors[distanceFromBase].begin(); sector != ai->Getbrain()->sectors[distanceFromBase].end(); ++sector)
+		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase].end(); ++sector)
 		{
 			if(    (*sector)->m_freeMetalSpots 
 				&& !ai->Getmap()->IsAlreadyOccupiedByOtherAAI(*sector)
@@ -799,7 +799,7 @@ bool AAIExecute::BuildPowerPlant()
 	current = 2.5f - learned;
 
 	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2)
-		ai->Getbrain()->sectors[0].sort(suitable_for_power_plant);
+		ai->Getbrain()->m_sectorsInDistToBase[0].sort(suitable_for_power_plant);
 
 	const AAIUnitStatistics& unitStatistics      = ai->s_buildTree.GetUnitStatistics(ai->GetSide());
 	const StatisticalData&   generatedPowerStats = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
@@ -832,7 +832,7 @@ bool AAIExecute::BuildPowerPlant()
 	UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), cost, buildtime, generatedPower, false);
 	UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), cost, buildtime, generatedPower, true);
 
-	for(auto sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 	{
 		BuildOrderStatus buildOrderStatus = TryConstructionOf(landPowerPlant, seaPowerPlant, *sector);
 
@@ -874,9 +874,9 @@ bool AAIExecute::BuildMetalMaker()
 	learned = 70000.0 / (ai->GetAICallback()->GetCurrentFrame() + 35000) + 1;
 	current = 2.5 - learned;
 
-	ai->Getbrain()->sectors[0].sort(least_dangerous);
+	ai->Getbrain()->m_sectorsInDistToBase[0].sort(least_dangerous);
 
-	for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+	for(list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 	{
 		if((*sector)->water_ratio < 0.15)
 		{
@@ -1003,7 +1003,7 @@ bool AAIExecute::BuildStorage()
 	UnitDefId landStorage = ai->Getbt()->SelectStorage(ai->GetSide(), cost, buildtime, metal, energy, false);
 	UnitDefId seaStorage  = ai->Getbt()->SelectStorage(ai->GetSide(), cost, buildtime, metal, energy, true);
 
-	for(auto sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 	{
 		BuildOrderStatus buildOrderStatus = TryConstructionOf(landStorage, seaStorage, *sector);
 
@@ -1333,7 +1333,7 @@ bool AAIExecute::BuildArty()
 	float  bestRating(0.0f);
 	float3 bestPosition(ZeroVector);
 
-	for(auto sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 	{
 		if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_ARTILLERY) < 2)
 		{
@@ -1414,12 +1414,12 @@ bool AAIExecute::BuildFactory()
 		const bool isSeaFactory( ai->s_buildTree.GetMovementType(*factory).IsStaticSea() );
 	
 		if(isSeaFactory)
-			ai->Getbrain()->sectors[0].sort(suitable_for_sea_factory);
+			ai->Getbrain()->m_sectorsInDistToBase[0].sort(suitable_for_sea_factory);
 		else
-			ai->Getbrain()->sectors[0].sort(suitable_for_ground_factory);
+			ai->Getbrain()->m_sectorsInDistToBase[0].sort(suitable_for_ground_factory);
 
 		// find buildpos
-		const std::list<AAISector*>& baseSectorsList = ai->Getbrain()->sectors[0];
+		const std::list<AAISector*>& baseSectorsList = ai->Getbrain()->m_sectorsInDistToBase[0];
 		float3 buildpos;
 
 		for(auto sector = baseSectorsList.begin(); sector != baseSectorsList.end(); ++sector)
@@ -1489,7 +1489,7 @@ bool AAIExecute::BuildFactory()
 bool AAIExecute::BuildRadar()
 {
 	const AAIUnitCategory sensor(EUnitCategory::STATIC_SENSOR);
-	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(sensor) > ai->Getbrain()->sectors[0].size())
+	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(sensor) > ai->Getbrain()->m_sectorsInDistToBase[0].size())
 		return true;
 
 
@@ -1506,7 +1506,7 @@ bool AAIExecute::BuildRadar()
 	
 	for(int dist = 0; dist < 2; ++dist)
 	{
-		for(auto sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
+		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[dist].end(); ++sector)
 		{
 			if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_SENSOR) <= 0)
 			{
@@ -1688,7 +1688,7 @@ void AAIExecute::DefendMex(int mex, int def_id)
 
 				if(pos.x > 0.0f)
 				{
-					const bool commanderAllowed = (ai->Getbrain()->sectors[0].size() > 2);
+					const bool commanderAllowed = (ai->Getbrain()->m_sectorsInDistToBase[0].size() > 2);
 
 					float min_dist;
 					AAIConstructor *builder = ai->Getut()->FindClosestBuilder(defence.id, &pos, commanderAllowed, &min_dist);
@@ -1772,7 +1772,7 @@ void AAIExecute::CheckDefences()
 
 	for(int dist = 0; dist <= maxSectorDistToBase; ++dist)
 	{
-		for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
+		for(list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[dist].end(); ++sector)
 		{
 			// stop building further defences if maximum has been reached / sector contains allied buildings / is occupied by another aai instance
 			if(    ((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < cfg->MAX_DEFENCES) 
@@ -1968,7 +1968,7 @@ void AAIExecute::CheckMexUpgrade()
 	// check extractor upgrades
 	for(int dist = 0; dist < 2; ++dist)
 	{
-		for(auto sector = ai->Getbrain()->sectors[dist].begin(); sector != ai->Getbrain()->sectors[dist].end(); ++sector)
+		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[dist].end(); ++sector)
 		{
 			for(auto spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
 			{
@@ -2479,11 +2479,10 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 		// get continent id of the unit pos
 		const int continentId = ai->Getmap()->GetContinentID(unit_pos);
 
-		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 		{
 			//! @todo Implement more refined selection
-			float3 pos;
-			(*sector)->DetermineUnitMovePos(pos, moveType, continentId);
+			const float3 pos = (*sector)->DetermineUnitMovePos(moveType, continentId);
 
 			if(pos.x > 0.0f)
 			{
@@ -2499,7 +2498,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 	}
 	else // non continent bound movement types (air, hover, amphibious)
 	{
-		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 		{
 			const float rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyCombatPower(ai->s_buildTree.GetTargetType(unitDefId));
 
@@ -2517,7 +2516,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 {
 	// get possible start sectors
-	list<AAISector*> sectors;
+	std::list<AAISector*> sectors;
 
 	if(x >= 1)
 	{
@@ -2551,7 +2550,7 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 	AAISector *best_sector = 0;
 	float my_rating, best_rating = 0;
 
-	for(list<AAISector*>::iterator sector = sectors.begin(); sector != sectors.end(); ++sector)
+	for(std::list<AAISector*>::iterator sector = sectors.begin(); sector != sectors.end(); ++sector)
 	{
 		if(ai->Getmap()->team_sector_map[(*sector)->x][(*sector)->y] != -1)
 			my_rating = 0;

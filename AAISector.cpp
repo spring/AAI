@@ -626,7 +626,7 @@ bool AAISector::ConnectedToOcean()
 	return false;
 }
 
-bool AAISector::DetermineUnitMovePos(float3 &pos, AAIMovementType moveType, int continentId) const
+float3 AAISector::DetermineUnitMovePos(AAIMovementType moveType, int continentId) const
 {
 	BuildMapTileType forbiddenMapTileTypes(EBuildMapTileType::OCCUPIED);
 	forbiddenMapTileTypes.SetTileType(EBuildMapTileType::BLOCKED_SPACE); 
@@ -644,13 +644,14 @@ bool AAISector::DetermineUnitMovePos(float3 &pos, AAIMovementType moveType, int 
 	// try to get random spot
 	for(int i = 0; i < 6; ++i)
 	{
-		pos.x = left + AAIMap::xSectorSize * (0.2f + 0.06f * (float)(rand()%11) );
-		pos.z = top  + AAIMap::ySectorSize * (0.2f + 0.06f * (float)(rand()%11) );
+		float3 position;
+		position.x = left + AAIMap::xSectorSize * (0.2f + 0.06f * (float)(rand()%11) );
+		position.z = top  + AAIMap::ySectorSize * (0.2f + 0.06f * (float)(rand()%11) );
 
-		if(IsValidMovePos(pos, forbiddenMapTileTypes, continentId))
+		if(IsValidMovePos(position, forbiddenMapTileTypes, continentId))
 		{
-			pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
-			return true;
+			position.y = ai->GetAICallback()->GetElevation(position.x, position.z);
+			return position;
 		}
 	}
 
@@ -659,19 +660,19 @@ bool AAISector::DetermineUnitMovePos(float3 &pos, AAIMovementType moveType, int 
 	{
 		for(int j = 0; j < AAIMap::ySectorSizeMap; j += 4)
 		{
-			pos.x = left + i * SQUARE_SIZE;
-			pos.z = top  + j * SQUARE_SIZE;
+			float3 position;
+			position.x = left + i * SQUARE_SIZE;
+			position.z = top  + j * SQUARE_SIZE;
 
-			if(IsValidMovePos(pos, forbiddenMapTileTypes, continentId))
+			if(IsValidMovePos(position, forbiddenMapTileTypes, continentId))
 			{
-				pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
-				return true;
+				position.y = ai->GetAICallback()->GetElevation(position.x, position.z);
+				return position;
 			}
 		}
 	}
 
-	pos = ZeroVector;
-	return false;
+	return ZeroVector;
 }
 
 bool AAISector::IsValidMovePos(const float3& pos, BuildMapTileType forbiddenMapTileTypes, int continentId) const

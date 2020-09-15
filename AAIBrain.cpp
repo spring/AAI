@@ -36,7 +36,7 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 {
 	this->ai = ai;
 
-	sectors.resize(maxSectorDistanceToBase);
+	m_sectorsInDistToBase.resize(maxSectorDistanceToBase);
 
 	enemy_pressure_estimation = 0;
 }
@@ -50,49 +50,6 @@ void AAIBrain::InitAttackedByRates(const AttackedByRatesPerGamePhase& attackedBy
 	s_attackedByRates = attackedByRates;
 }
 
-float3 AAIBrain::GetNewScoutDest(UnitId scoutUnitId) const
-{
-	const UnitDef* def = ai->GetAICallback()->GetUnitDef(scoutUnitId.id);
-	const AAIMovementType& scoutMoveType = ai->s_buildTree.GetMovementType( UnitDefId(def->id) );
-	
-	const float3 currentPositionOfScout  = ai->GetAICallback()->GetUnitPos(scoutUnitId.id);
-	const int    continentId             = scoutMoveType.CannotMoveToOtherContinents() ? ai->Getmap()->DetermineSmartContinentID(currentPositionOfScout, scoutMoveType) : AAIMap::ignoreContinentID;
-
-	float3     selectedScoutDestination(ZeroVector);
-	AAISector* selectedScoutSector(nullptr);
-	float      highestRating(0.0f);
-
-	for(int x = 0; x < AAIMap::xSectors; ++x)
-	{
-		for(int y = 0; y < AAIMap::ySectors; ++y)
-		{
-			AAISector* sector = &ai->Getmap()->m_sector[x][y];
-
-			const float rating = sector->GetRatingAsNextScoutDestination(scoutMoveType, currentPositionOfScout);
-
-			if(rating > highestRating)
-			{
-				// possible scout dest, try to find pos in sector
-				float3 possibleScoutDestination;
-				const bool scoutDestFound = sector->DetermineUnitMovePos(possibleScoutDestination, scoutMoveType, continentId);
-
-				if(scoutDestFound)
-				{
-					highestRating            = rating;
-					selectedScoutSector      = sector;
-					selectedScoutDestination = possibleScoutDestination;
-				}
-			}
-		}
-	}
-
-	// set dest sector as visited
-	if(selectedScoutSector)
-		selectedScoutSector->SelectedAsScoutDestination();
-
-	return selectedScoutDestination;
-}
-
 bool AAIBrain::RessourcesForConstr(int /*unit*/, int /*wokertime*/)
 {
 	//! @todo check metal and energy
@@ -104,12 +61,12 @@ void AAIBrain::AssignSectorToBase(AAISector *sector, bool addToBase)
 {
 	if(addToBase)
 	{
-		sectors[0].push_back(sector);
+		m_sectorsInDistToBase[0].push_back(sector);
 		sector->SetBase(true);
 	}
 	else
 	{
-		sectors[0].remove(sector);
+		m_sectorsInDistToBase[0].remove(sector);
 		sector->SetBase(false);
 	}
 
@@ -117,19 +74,19 @@ void AAIBrain::AssignSectorToBase(AAISector *sector, bool addToBase)
 	m_baseFlatLandRatio = 0.0f;
 	m_baseWaterRatio    = 0.0f;
 
-	if(sectors[0].size() > 0)
+	if(m_sectorsInDistToBase[0].size() > 0)
 	{
-		for(list<AAISector*>::iterator s = sectors[0].begin(); s != sectors[0].end(); ++s)
+		for(std::list<AAISector*>::iterator s = m_sectorsInDistToBase[0].begin(); s != m_sectorsInDistToBase[0].end(); ++s)
 		{
 			m_baseFlatLandRatio += (*s)->DetermineFlatRatio();
 			m_baseWaterRatio += (*s)->DetermineWaterRatio();
 		}
 
-		m_baseFlatLandRatio /= (float)sectors[0].size();
-		m_baseWaterRatio /= (float)sectors[0].size();
+		m_baseFlatLandRatio /= (float)m_sectorsInDistToBase[0].size();
+		m_baseWaterRatio /= (float)m_sectorsInDistToBase[0].size();
 	}
 
-	UpdateNeighbouringSectors();
+	ai->Getmap()->UpdateNeighbouringSectors(m_sectorsInDistToBase);
 
 	UpdateCenterOfBase();
 }
@@ -163,74 +120,17 @@ void AAIBrain::UpdateCenterOfBase()
 {
 	m_centerOfBase = ZeroVector;
 
-	if(sectors[0].size() > 0)
+	if(m_sectorsInDistToBase[0].size() > 0)
 	{
-		for(std::list<AAISector*>::iterator sector = sectors[0].begin(); sector != sectors[0].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = m_sectorsInDistToBase[0].begin(); sector != m_sectorsInDistToBase[0].end(); ++sector)
 		{
 			m_centerOfBase.x += (0.5f + static_cast<float>( (*sector)->x) ) * static_cast<float>(ai->Getmap()->xSectorSize);
 			m_centerOfBase.z += (0.5f + static_cast<float>( (*sector)->y) ) * static_cast<float>(ai->Getmap()->ySectorSize);
 		}
 
-		m_centerOfBase.x /= static_cast<float>(sectors[0].size());
-		m_centerOfBase.z /= static_cast<float>(sectors[0].size());
+		m_centerOfBase.x /= static_cast<float>(m_sectorsInDistToBase[0].size());
+		m_centerOfBase.z /= static_cast<float>(m_sectorsInDistToBase[0].size());
 	}
-}
-
-void AAIBrain::UpdateNeighbouringSectors()
-{
-	// delete old values
-	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
-	{
-		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
-		{
-			if(ai->Getmap()->m_sector[x][y].distance_to_base > 0)
-				ai->Getmap()->m_sector[x][y].distance_to_base = -1;
-		}
-	}
-
-	for(int i = 1; i < sectors.size(); ++i)
-	{
-		// delete old sectors
-		sectors[i].clear();
-		int neighbours = 0;
-
-		for(std::list<AAISector*>::iterator sector = sectors[i-1].begin(); sector != sectors[i-1].end(); ++sector)
-		{
-			const int x = (*sector)->x;
-			const int y = (*sector)->y;
-
-			// check left neighbour
-			if(x > 0 && ai->Getmap()->m_sector[x-1][y].distance_to_base == -1)
-			{
-				ai->Getmap()->m_sector[x-1][y].distance_to_base = i;
-				sectors[i].push_back(&ai->Getmap()->m_sector[x-1][y]);
-				++neighbours;
-			}
-			// check right neighbour
-			if(x < (ai->Getmap()->xSectors - 1) && ai->Getmap()->m_sector[x+1][y].distance_to_base == -1)
-			{
-				ai->Getmap()->m_sector[x+1][y].distance_to_base = i;
-				sectors[i].push_back(&ai->Getmap()->m_sector[x+1][y]);
-				++neighbours;
-			}
-			// check upper neighbour
-			if(y > 0 && ai->Getmap()->m_sector[x][y-1].distance_to_base == -1)
-			{
-				ai->Getmap()->m_sector[x][y-1].distance_to_base = i;
-				sectors[i].push_back(&ai->Getmap()->m_sector[x][y-1]);
-				++neighbours;
-			}
-			// check lower neighbour
-			if(y < (ai->Getmap()->ySectors - 1) && ai->Getmap()->m_sector[x][y+1].distance_to_base == -1)
-			{
-				ai->Getmap()->m_sector[x][y+1].distance_to_base = i;
-				sectors[i].push_back(&ai->Getmap()->m_sector[x][y+1]);
-				++neighbours;
-			}
-		}
-	}
-
-	//ai->Log("Base has now %i direct neighbouring sectors\n", sectors[1].size());
 }
 
 bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
@@ -239,7 +139,7 @@ bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 	if(sector->distance_to_base <= 0)
 		return true;
 	// allow construction close to base for small bases
-	else if(sectors[0].size() < 3 && sector->distance_to_base <= 1)
+	else if(m_sectorsInDistToBase[0].size() < 3 && sector->distance_to_base <= 1)
 		return true;
 	// allow construction on islands close to base on water maps
 	else if(ai->Getmap()->GetMapType().IsWaterMap() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->distance_to_base <= 3) )
@@ -257,7 +157,7 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 
 	for(int i = 1; i <= 2; ++i)
 	{
-		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->sectors[i].begin(); sector != ai->Getbrain()->sectors[i].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[i].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[i].end(); ++sector)
 		{
 			const float edgeDistance = static_cast<float>( (*sector)->GetEdgeDistance() );
 			const float totalAttacks = (*sector)->GetLostUnits() + (*sector)->GetTotalAttacksInThisGame();
@@ -291,20 +191,26 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 
 	// continent bound units must get a rally point on their current continent
 	const int useContinentID = moveType.CannotMoveToOtherContinents() ? continentId : AAIMap::ignoreContinentID;
-	bool rallyPointFound(false);
 
 	if(bestSector)
-		rallyPointFound = bestSector->DetermineUnitMovePos(rallyPoint, moveType, useContinentID);
+	{
+		rallyPoint = bestSector->DetermineUnitMovePos(moveType, useContinentID);
 
-	if(!rallyPointFound && secondBestSector)
-		rallyPointFound = secondBestSector->DetermineUnitMovePos(rallyPoint, moveType, useContinentID);
-	
-	return rallyPointFound;
+		if(rallyPoint.x > 0.0f)
+			return true;
+		else if(secondBestSector)
+			rallyPoint = secondBestSector->DetermineUnitMovePos(moveType, useContinentID);
+
+		if(rallyPoint.x > 0.0f)
+			return true;
+	}
+
+	return false;
 }
 
 bool AAIBrain::ExpandBase(SectorType sectorType)
 {
-	if(sectors[0].size() >= cfg->MAX_BASE_SIZE)
+	if(m_sectorsInDistToBase[0].size() >= cfg->MAX_BASE_SIZE)
 		return false;
 
 	// now targets should contain all neighbouring sectors that are not currently part of the base
@@ -320,13 +226,13 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 
 	for(int search_dist = 1; search_dist <= max_search_dist; ++search_dist)
 	{
-		for(std::list<AAISector*>::iterator sector = sectors[search_dist].begin(); sector != sectors[search_dist].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = m_sectorsInDistToBase[search_dist].begin(); sector != m_sectorsInDistToBase[search_dist].end(); ++sector)
 		{
 			// dont expand if enemy structures in sector && check for allied buildings
 			if(!(*sector)->IsOccupiedByEnemies() && (*sector)->GetNumberOfAlliedBuildings() < 3 && !ai->Getmap()->IsAlreadyOccupiedByOtherAAI(*sector))
 			{
 				float sectorDistance(0.0f);
-				for(list<AAISector*>::iterator baseSector = sectors[0].begin(); baseSector != sectors[0].end(); ++baseSector) 
+				for(list<AAISector*>::iterator baseSector = m_sectorsInDistToBase[0].begin(); baseSector != m_sectorsInDistToBase[0].end(); ++baseSector) 
 				{
 					const int deltaX = (*sector)->x - (*baseSector)->x;
 					const int deltaY = (*sector)->y - (*baseSector)->y;
@@ -380,12 +286,12 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 		// debug purposes:
 		if(sectorType == LAND_SECTOR)
 		{
-			ai->Log("\nAdding land sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, sectors[0].size());
+			ai->Log("\nAdding land sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
 			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
 		}
 		else
 		{
-			ai->Log("\nAdding water sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, sectors[0].size());
+			ai->Log("\nAdding water sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
 			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
 		}
 
@@ -724,10 +630,10 @@ void AAIBrain::UpdatePressureByEnemy()
 	enemy_pressure_estimation = 0;
 
 	// check base and neighbouring sectors for enemies
-	for(list<AAISector*>::iterator s = sectors[0].begin(); s != sectors[0].end(); ++s)
+	for(list<AAISector*>::iterator s = m_sectorsInDistToBase[0].begin(); s != m_sectorsInDistToBase[0].end(); ++s)
 		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
 
-	for(list<AAISector*>::iterator s = sectors[1].begin(); s != sectors[1].end(); ++s)
+	for(list<AAISector*>::iterator s = m_sectorsInDistToBase[1].begin(); s != m_sectorsInDistToBase[1].end(); ++s)
 		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
 
 	if(enemy_pressure_estimation > 1.0f)

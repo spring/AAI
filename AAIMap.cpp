@@ -1884,6 +1884,96 @@ void AAIMap::UpdateSectors()
 	}
 }
 
+void AAIMap::UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sectorsInDistToBase)
+{
+	// delete old values
+	for(int x = 0; x < xSectors; ++x)
+	{
+		for(int y = 0; y < ySectors; ++y)
+		{
+			if(m_sector[x][y].distance_to_base > 0)
+				m_sector[x][y].distance_to_base = -1;
+		}
+	}
+
+	for(int i = 1; i < sectorsInDistToBase.size(); ++i)
+	{
+		// delete old sectors
+		sectorsInDistToBase[i].clear();
+
+		for(std::list<AAISector*>::iterator sector = sectorsInDistToBase[i-1].begin(); sector != sectorsInDistToBase[i-1].end(); ++sector)
+		{
+			const int x = (*sector)->x;
+			const int y = (*sector)->y;
+
+			// check left neighbour
+			if( (x > 0) && (m_sector[x-1][y].distance_to_base == -1) )
+			{
+				m_sector[x-1][y].distance_to_base = i;
+				sectorsInDistToBase[i].push_back(&m_sector[x-1][y]);
+			}
+			// check right neighbour
+			if( (x < (xSectors - 1)) && (m_sector[x+1][y].distance_to_base == -1) )
+			{
+				m_sector[x+1][y].distance_to_base = i;
+				sectorsInDistToBase[i].push_back(&m_sector[x+1][y]);
+			}
+			// check upper neighbour
+			if( (y > 0) && (m_sector[x][y-1].distance_to_base == -1) )
+			{
+				m_sector[x][y-1].distance_to_base = i;
+				sectorsInDistToBase[i].push_back(&m_sector[x][y-1]);
+			}
+			// check lower neighbour
+			if( (y < (ySectors - 1)) && (m_sector[x][y+1].distance_to_base == -1) )
+			{
+				m_sector[x][y+1].distance_to_base = i;
+				sectorsInDistToBase[i].push_back(&m_sector[x][y+1]);
+			}
+		}
+	}
+}
+
+float3 AAIMap::GetNewScoutDest(UnitId scoutUnitId)
+{
+	const UnitDef* def = ai->GetAICallback()->GetUnitDef(scoutUnitId.id);
+	const AAIMovementType& scoutMoveType = ai->s_buildTree.GetMovementType( UnitDefId(def->id) );
+	
+	const float3 currentPositionOfScout  = ai->GetAICallback()->GetUnitPos(scoutUnitId.id);
+	const int    continentId             = scoutMoveType.CannotMoveToOtherContinents() ? ai->Getmap()->DetermineSmartContinentID(currentPositionOfScout, scoutMoveType) : AAIMap::ignoreContinentID;
+
+	float3     selectedScoutDestination(ZeroVector);
+	AAISector* selectedScoutSector(nullptr);
+	float      highestRating(0.0f);
+
+	for(int x = 0; x < xSectors; ++x)
+	{
+		for(int y = 0; y < ySectors; ++y)
+		{
+			const float rating = m_sector[x][y].GetRatingAsNextScoutDestination(scoutMoveType, currentPositionOfScout);
+
+			if(rating > highestRating)
+			{
+				// possible scout dest, try to find pos in sector
+				const float3 possibleScoutDestination = m_sector[x][y].DetermineUnitMovePos(scoutMoveType, continentId);
+
+				if(possibleScoutDestination.x > 0.0f)
+				{
+					highestRating            = rating;
+					selectedScoutSector      = &m_sector[x][y];
+					selectedScoutDestination = possibleScoutDestination;
+				}
+			}
+		}
+	}
+
+	// set dest sector as visited
+	if(selectedScoutSector)
+		selectedScoutSector->SelectedAsScoutDestination();
+
+	return selectedScoutDestination;
+}
+
 const AAISector* AAIMap::DetermineSectorToContinueAttack(const AAISector *currentSector, const MobileTargetTypeValues& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const
 {
 	float highestRating(0.0f);

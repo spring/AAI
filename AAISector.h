@@ -173,8 +173,8 @@ public:
 	void SelectedAsScoutDestination() { m_skippedAsScoutDestination = 0; }
 	
 	//! @brief Searches for a free position in sector on specified continent (use -1 if continent does not matter). 
-	//!        Position stored in pos (ZeroVector if none found). Returns whether search has been successful.
-	bool DetermineUnitMovePos(float3& pos, AAIMovementType moveType, int continentId) const;
+	//!        Returns position or ZeroVector if none found.
+	float3 DetermineUnitMovePos(AAIMovementType moveType, int continentId) const;
 
 	//! @brief Returns true if pos lies within this sector
 	bool PosInSector(const float3& pos) const;

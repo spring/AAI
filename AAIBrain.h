@@ -62,9 +62,6 @@ public:
 	//! @brief Adds the combat power of the given unit type to the global defence capabilities 
 	void AddDefenceCapabilities(UnitDefId unitDefId);
 
-	//! @brief Determines to which location a given scout schould be sent to next
-	float3 GetNewScoutDest(UnitId scoutUnitId) const;
-
 	//! @brief Determines rally point for given movement type on given continent - returns whether search has been successfull
 	bool DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId);
 
@@ -105,8 +102,8 @@ public:
 	//! @brief Returns whether construction of unit of given category shall be assisted (taking current resources into account)
 	bool CheckConstructionAssist(const AAIUnitCategory& category) const;
 
-	//  0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
-	std::vector< std::list<AAISector*> > sectors;
+	//! A list of sectors with ceratain distance (in number of sectors) to base; 0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
+	std::vector< std::list<AAISector*> > m_sectorsInDistToBase;
 
 	//! Indicates whether there are any free metal spots within the base
 	bool m_freeMetalSpotsInBase;
@@ -118,9 +115,6 @@ public:
 	float enemy_pressure_estimation;	// how much pressure done to the ai by enemy units
 
 private:
-	//! @brief Checks for new neighbours (and removes old ones if necessary)
-	void UpdateNeighbouringSectors();
-
 	//! @brief Recalculates the center of the base (needs to be called after sectors have been added or removed)
 	void UpdateCenterOfBase();
 
