@@ -1723,14 +1723,14 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 	//
 	// reset scouted buildings for all cells within current los
 	//
-	const unsigned short *losMap = ai->GetAICallback()->GetLosMap();
+	const int* losMap = ai->GetLosMap();
 
 	int cellIndex(0);
 	for(int y = 0; y < yLOSMapSize; ++y)
 	{
 		for(int x = 0; x < xLOSMapSize; ++x)
 		{
-			if(losMap[cellIndex] > 0u)
+			if(losMap[cellIndex] > 0)
 			{
 				m_scoutedEnemyUnitsMap[cellIndex]    = 0;
 				m_lastLOSUpdateInFrameMap[cellIndex] = ai->GetAICallback()->GetCurrentFrame();
@@ -1841,6 +1841,20 @@ void AAIMap::UpdateEnemyScoutingData()
 			}
 		}
 	}
+}
+
+bool AAIMap::IsPositionInLOS(const float3& position) const
+{
+	const int* losMap = ai->GetLosMap();
+
+	const int xPos = (int)position.x / (losMapRes * SQUARE_SIZE);
+	const int yPos = (int)position.z / (losMapRes * SQUARE_SIZE);
+
+	// make sure unit is within the map
+	if( (xPos >= 0) && (xPos < xLOSMapSize) && (yPos >= 0) && (yPos < yLOSMapSize) )
+		return (losMap[xPos + yPos * xLOSMapSize] > 0);
+	else
+		return false;	
 }
 
 float3 AAIMap::DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const
@@ -2024,7 +2038,7 @@ const AAISector* AAIMap::DetermineSectorToAttack(const std::vector<float>& globa
 				const float enemyBuildings = static_cast<float>(sector->GetNumberOfEnemyBuildings());
 
 				// prefer sectors with many buildings, few lost units and low defence power/short distance to own base
-				float rating = lostUnitsFactor * enemyBuildings * myAttackPower / ( (0.1f + enemyDefencePower) * (float)(2 + sector->distance_to_base) );
+				float rating = lostUnitsFactor * (2.0f + enemyBuildings) * myAttackPower / ( (0.1f + enemyDefencePower) * (float)(1 + 2 * sector->distance_to_base) );
 	
 				if(rating > highestRating)
 				{

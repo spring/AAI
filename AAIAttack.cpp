@@ -17,8 +17,8 @@
 using namespace springLegacyAI;
 
 AAIAttack::AAIAttack(AAI *ai):
-	m_attackDestination(nullptr),
-	m_lastAttackOrderInFrame(0)
+	m_lastAttackOrderInFrame(0),
+	m_attackDestination(nullptr)
 {
 	this->ai = ai;
 }
@@ -49,6 +49,44 @@ bool AAIAttack::CheckIfFailed()
 	}
 
 	return true;
+}
+
+bool AAIAttack::HasTargetBeenCleared()
+{
+	if(m_attackDestination == nullptr)
+		return true;
+	else
+	{
+		if(m_attackDestination->GetNumberOfEnemyBuildings() == 0)
+			return true;
+		
+		// m_combatUnitGroups cannot be empty, otherwise attack would have been aborted before this function gets called
+		const float3& targetPosition = (*m_combatUnitGroups.begin())->GetTargetPosition();
+	
+		if( ai->Getmap()->IsPositionInLOS(targetPosition) )
+		{
+			// if target is in LOS but no enemy units in LOS target is supposed to be cleared
+			const int numberOfEnemyUnits = ai->GetAICallback()->GetEnemyUnits(&(ai->Getmap()->unitsInLOS.front()), targetPosition, 128.0f);
+			return (numberOfEnemyUnits == 0);
+		}
+		
+		return false;
+	}
+}
+
+const AAISector* AAIAttack::DetermineSectorToContinueAttack()
+{
+	AAIMovementType moveType( GetMovementTypeOfAssignedUnits() );
+
+	MobileTargetTypeValues targetTypesOfUnits;
+	DetermineTargetTypeOfInvolvedUnits(targetTypesOfUnits);
+
+	const AAISector *dest = ai->Getmap()->DetermineSectorToContinueAttack(m_attackDestination, targetTypesOfUnits, moveType);
+
+	if(dest && SufficientCombatPowerToAttackSector(dest, 3.0f))
+		return dest;
+	else
+		return nullptr;
 }
 
 bool AAIAttack::SufficientCombatPowerAt(const AAISector *sector, float aggressiveness) const

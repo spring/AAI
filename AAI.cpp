@@ -49,8 +49,10 @@ AAIBuildTree AAI::s_buildTree;
 
 int AAI::s_aaiInstances = 0;
 
-AAI::AAI() :
+AAI::AAI(int skirmishAIId, const struct SSkirmishAICallback* callback) :
 	m_aiCallback(nullptr),
+	m_skirmishAIId(skirmishAIId),
+	m_skirmishAICallbacks(callback),
 	brain(nullptr),
 	execute(nullptr),
 	ut(nullptr),
@@ -936,6 +938,18 @@ void AAI::Update()
 			}
 		}
 	}
+}
+
+
+const int* AAI::GetLosMap()
+{
+	if (m_losMap.empty()) {
+		m_losMap.resize(m_skirmishAICallbacks->Map_getLosMap(m_skirmishAIId, nullptr, 0));
+	}
+
+	m_skirmishAICallbacks->Map_getLosMap(m_skirmishAIId, &m_losMap[0], m_losMap.size());
+
+	return &m_losMap[0];
 }
 
 int AAI::HandleEvent(int msg, const void* data)

@@ -28,6 +28,8 @@ using namespace springLegacyAI;
 
 AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 	m_groupDefId(unitDefId),
+	m_targetPosition(ZeroVector),
+	m_targetSector(nullptr),
 	m_rallyPoint(ZeroVector),
 	m_continentId(continentId)
 {
@@ -70,8 +72,6 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 	lastCommand = Command(CMD_STOP);
 	lastCommandFrame = 0;
 
-	target_sector = 0;
-
 	// get a rally point
 	GetNewRallyPoint();
 
@@ -83,7 +83,7 @@ AAIGroup::~AAIGroup(void)
 	if(attack)
 	{
 		attack->RemoveGroup(this);
-		attack = 0;
+		attack = nullptr;
 	}
 
 	units.clear();
@@ -144,6 +144,7 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 				{
 					attack->RemoveGroup(this);
 					attack = nullptr;
+					task   = GROUP_IDLE;
 				}
 				else
 					ai->Getam()->AbortAttackIfFailed(attack);
@@ -197,21 +198,14 @@ void AAIGroup::Update()
 	task_importance *= 0.97f;
 
 	// attacking groups recheck target
-	if(task == GROUP_ATTACKING && target_sector)
+	/*if(task == GROUP_ATTACKING && m_targetSector)
 	{
-		if(target_sector->GetNumberOfEnemyBuildings() <= 0)
+		if(m_targetSector->GetNumberOfEnemyBuildings() <= 0)
 		{
 			task = GROUP_IDLE;
-			target_sector = 0;
+			m_targetSector = nullptr;
 		}
-	}
-
-	// idle empty groups so they can be filled with units again...
-	if(units.empty())
-	{
-		target_sector = 0;
-		task = GROUP_IDLE;
-	}
+	}*/
 
 	// check fall back of long range units
 	if(task == GROUP_ATTACKING)
@@ -288,23 +282,27 @@ void AAIGroup::AttackSector(const AAISector *sector, float importance)
 	c.PushPos(attackPosition);
 
 	// move group to that sector
-	GiveOrderToGroup(&c, importance + 8, UNIT_ATTACKING, "Group::AttackSector");
+	GiveOrderToGroup(&c, importance + 8.0f, UNIT_ATTACKING, "Group::AttackSector");
 
-	target_sector = sector;
+	m_targetPosition = attackPosition;
+	m_targetSector   = sector;
 	task = GROUP_ATTACKING;
 }
 
 void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance)
 {
-	Command cmd((enemyPosition == ZeroVector) ? CMD_FIGHT: CMD_GUARD);
+	const bool enemyPositionKnown = (enemyPosition.x > 0.0f);
 
-	if(enemyPosition != ZeroVector)
+	Command cmd(enemyPositionKnown ? CMD_FIGHT: CMD_GUARD);
+
+	if(enemyPositionKnown)
 	{
 		cmd.PushPos(enemyPosition);
 
 		GiveOrderToGroup(&cmd, importance, DEFENDING, "Group::Defend");
 
-		target_sector = ai->Getmap()->GetSectorOfPos(enemyPosition);
+		m_targetPosition = enemyPosition;
+		m_targetSector   = ai->Getmap()->GetSectorOfPos(enemyPosition);
 	}
 	else
 	{
@@ -314,7 +312,8 @@ void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance
 
 		const float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
 
-		target_sector = ai->Getmap()->GetSectorOfPos(pos);
+		m_targetPosition = pos;
+		m_targetSector   = ai->Getmap()->GetSectorOfPos(pos);
 	}
 
 	task = GROUP_DEFENDING;
@@ -330,7 +329,8 @@ void AAIGroup::Retreat(const float3& pos)
 	GiveOrderToGroup(&c, 105, MOVING, "Group::Retreat");
 
 	// set new dest sector
-	target_sector = ai->Getmap()->GetSectorOfPos(pos);
+	m_targetPosition = pos;
+	m_targetSector   = ai->Getmap()->GetSectorOfPos(pos);
 }
 
 int AAIGroup::GetRandomUnit()
@@ -411,10 +411,10 @@ void AAIGroup::UnitIdle(int unit)
 		const float3 pos = ai->GetAICallback()->GetUnitPos(unit);
 		const AAISector *sector = ai->Getmap()->GetSectorOfPos(pos);
 
-		if( (sector == target_sector) || (target_sector == nullptr) )
+		if( (sector == m_targetSector) || (m_targetSector == nullptr) )
 		{
 			// combat groups
-			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && (attack->m_attackDestination->GetNumberOfEnemyBuildings() <= 0) )
+			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && attack->HasTargetBeenCleared() )
 			{
 				ai->Log("Combat group idle - checking for next sector to attack\n");
 				ai->Getam()->AttackNextSectorOrAbort(attack);
@@ -446,7 +446,7 @@ void AAIGroup::UnitIdle(int unit)
 			{
 				Command c(CMD_FIGHT);
 
-				const float3 attackPosition = target_sector->DetermineAttackPosition();
+				const float3 attackPosition = m_targetSector->DetermineAttackPosition();
 				c.PushPos(attackPosition);
 
 				// move group to that sector
@@ -462,7 +462,7 @@ void AAIGroup::UnitIdle(int unit)
 
 		AAISector *temp = ai->Getmap()->GetSectorOfPos(pos);
 
-		if(temp == target_sector || !target_sector)
+		if(temp == m_targetSector || !m_targetSector)
 			task = GROUP_IDLE;
 	}
 	else if(task == GROUP_DEFENDING)
@@ -472,7 +472,7 @@ void AAIGroup::UnitIdle(int unit)
 
 		AAISector *temp = ai->Getmap()->GetSectorOfPos(pos);
 
-		if(temp == target_sector || !target_sector)
+		if(temp == m_targetSector || !m_targetSector)
 			task = GROUP_IDLE;
 	}
 }
@@ -519,19 +519,15 @@ void AAIGroup::UpdateRallyPoint()
 	if(sector->distance_to_base <= 0)
 		GetNewRallyPoint();
 
-	// check if rally point is blocked by building
-
-
+	//! @todo check if rally point is blocked by building
 }
 
 void AAIGroup::GetNewRallyPoint()
 {
-	AAISector *sector;
-
 	// delete old rally point (if there is any)
-	if(m_rallyPoint.x > 0)
+	if(m_rallyPoint.x > 0.0f)
 	{
-		sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
+		AAISector* sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
 
 		--sector->rally_points;
 	}
@@ -541,7 +537,7 @@ void AAIGroup::GetNewRallyPoint()
 	if(rallyPointFound)
 	{
 		//add new rally point to sector
-		sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
+		AAISector *sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
 		++sector->rally_points;
 
 		// send idle groups to new rally point

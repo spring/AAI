@@ -48,7 +48,7 @@ void AAIAttackManager::Update()
 			if( AbortAttackIfFailed(attack) )
 				availableAttackId = attackId;
 			// check if sector cleared
-			else if( attack->m_attackDestination && ( attack->m_attackDestination->GetNumberOfEnemyBuildings() == 0) )
+			else if( attack->HasTargetBeenCleared() )
 				AttackNextSectorOrAbort(attack);
 		}
 		else
@@ -228,8 +228,6 @@ void AAIAttackManager::DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& 
 
 void AAIAttackManager::AbortAttack(AAIAttack* attack)
 {
-	ai->Log("Attack aborted\n");
-
 	attack->StopAttack();
 
 	for(auto a = m_activeAttacks.begin(); a != m_activeAttacks.end(); ++a)
@@ -263,14 +261,10 @@ void AAIAttackManager::AttackNextSectorOrAbort(AAIAttack* attack)
 	if((ai->GetAICallback()->GetCurrentFrame() - attack->m_lastAttackOrderInFrame) < 60)
 		return;
 
-	AAIMovementType moveType( attack->GetMovementTypeOfAssignedUnits() );
-	MobileTargetTypeValues targetTypesOfUnits;
-	attack->DetermineTargetTypeOfInvolvedUnits(targetTypesOfUnits);
-
 	// get new target sector
-	const AAISector *dest = ai->Getmap()->DetermineSectorToContinueAttack(attack->m_attackDestination, targetTypesOfUnits, moveType);
+	const AAISector *dest = attack->DetermineSectorToContinueAttack();
 
-	if(dest && attack->SufficientCombatPowerToAttackSector(dest, 3.0f))
+	if(dest)
 		attack->AttackSector(dest);
 	else
 		AbortAttack(attack);

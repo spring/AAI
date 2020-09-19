@@ -10,6 +10,7 @@
 #ifndef AAI_H
 #define AAI_H
 
+#include "ExternalAI/Interface/SSkirmishAICallback.h"
 #include "LegacyCpp/IGlobalAI.h"
 #include <list>
 #include <vector>
@@ -36,7 +37,7 @@ class AAIGroup;
 class AAI : public IGlobalAI
 {
 public:
-	AAI();
+	AAI(int skirmishAIId, const struct SSkirmishAICallback* callback);
 	virtual ~AAI();
 
 	void InitAI(IGlobalAICallback* callback, int team);
@@ -76,6 +77,9 @@ public:
 	// called every frame
 	void Update();
 
+	//! Workaround to get current LOS Map (ai callback version of legacy CPP interface is bugged)
+	const int* GetLosMap();
+
 	//! @brief Returns pointer to AI callback
 	IAICallback* GetAICallback() const { return m_aiCallback; }
 
@@ -103,6 +107,15 @@ private:
 
 	//! Pointer to AI callback
 	IAICallback* m_aiCallback;
+
+	//! The ID of the AI (used to access the correct SkirmishAICallback)
+	int m_skirmishAIId;
+
+	//! The SkirmishAICallback of all AIs
+	const struct SSkirmishAICallback* m_skirmishAICallbacks;
+
+	//! LOS Map
+	std::vector<int> m_losMap;
 
 	// list of buildtasks
 	std::list<AAIBuildTask*> build_tasks;

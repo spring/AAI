@@ -409,7 +409,7 @@ public:
 	//! @brief Returns whether unit is considered to be able to fight against surface or submerged units (not anti air)
 	bool IsAssaultUnit()     const { return static_cast<bool>(m_unitType & (static_cast<int>(EUnitType::ANTI_SURFACE) + static_cast<int>(EUnitType::ANTI_SHIP) + static_cast<int>(EUnitType::ANTI_SUBMERGED) )); }
 
-	//! @brief Returns whether unit type is suitable to gight given target type
+	//! @brief Returns whether unit type is suitable to fight given target type
 	bool CanFightTargetType(const AAITargetType& targetType) const
 	{
 		return (targetType.IsSurface()   && IsAntiSurface())

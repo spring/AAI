@@ -104,8 +104,11 @@ public:
 
 	void UpdateFriendlyUnitsInLos();
 
-	// updates enemy buildings/enemy stat. combat strength in sectors based on scouted_buildings_map
+	//! @brief Updates enemy buildings/enemy combat power in sectors based on scout map entris updated by UpdateEnemyUnitsInLOS()
 	void UpdateEnemyScoutingData();
+
+	//! @brief Returns whether given position lies within current LOS
+	bool IsPositionInLOS(const float3& position) const;
 
 	//! @brief Returns position of first enemy building found in the part of the map (in build map coordinates)
 	float3 DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const;
