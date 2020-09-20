@@ -216,11 +216,11 @@ AAIGroup* AAIAirForceManager::GetAirGroup(float importance, EUnitType groupType)
 {
 	for(std::list<AAIGroup*>::iterator group = air_groups->begin(); group != air_groups->end(); ++group)
 	{
-		if( ((*group)->task_importance < importance) && (*group)->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) && ((*group)->units.size() > (*group)->maxSize/2) )
+		if( ((*group)->task_importance < importance) && (*group)->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) )
 			return *group;
 	}
 	
-	return 0;
+	return nullptr;
 }
 
 bool AAIAirForceManager::IsTarget(int unit_id)

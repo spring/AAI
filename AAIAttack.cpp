@@ -37,7 +37,7 @@ bool AAIAttack::CheckIfFailed()
 	if(!m_combatUnitGroups.empty())
 	{
 		// check if still enough power to attack target sector
-		if(SufficientCombatPowerToAttackSector(m_attackDestination, 3.0f))
+		if(SufficientCombatPowerToAttackSector(m_attackDestination, 2.0f))
 		{
 			// check if sufficient power to combat enemy units
 			const float3 pos = (*m_combatUnitGroups.begin())->GetGroupPos();
@@ -164,12 +164,12 @@ void AAIAttack::AttackSector(const AAISector *sector)
 	{
 		for(std::set<AAIGroup*>::iterator group = m_antiAirUnitGroups.begin(); group != m_antiAirUnitGroups.end(); ++group)
 		{
-			unit = (*m_combatUnitGroups.begin())->GetRandomUnit();
+			UnitId unitId = (*m_combatUnitGroups.begin())->GetRandomUnit();
 
-			if(unit >= 0)
+			if(unitId.IsValid())
 			{
 				Command c(CMD_GUARD);
-				c.PushParam(unit);
+				c.PushParam(unitId.id);
 
 				(*group)->GiveOrderToGroup(&c, 110, GUARDING, "Group::AttackSector");
 			}
@@ -217,7 +217,7 @@ AAIMovementType AAIAttack::GetMovementTypeOfAssignedUnits() const
 void AAIAttack::DetermineTargetTypeOfInvolvedUnits(MobileTargetTypeValues& targetTypesOfUnits) const
 {
 	for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
-		targetTypesOfUnits.AddValueForTargetType( (*group)->GetTargetType(), static_cast<float>( (*group)->GetNumberOfUnits() ) );
+		targetTypesOfUnits.AddValueForTargetType( (*group)->GetTargetType(), static_cast<float>( (*group)->GetCurrentSize() ) );
 }
 
 bool AAIAttack::AddGroup(AAIGroup *group)

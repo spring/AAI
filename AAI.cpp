@@ -93,10 +93,15 @@ AAI::~AAI()
 	}
 
 	Log("\nGround Groups:    " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].size());
-	Log("\nAir Groups:       " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size());
-	Log("\nHover Groups:     " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].size());
-	Log("\nSea Groups:       " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::SEA_COMBAT).GetArrayIndex()].size());
-	Log("\nSubmarine Groups: " _STPF_ "\n\n", group_list[AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT).GetArrayIndex()].size());
+	Log("Air Groups:       " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size());
+	Log("Hover Groups:     " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].size());
+	Log("Sea Groups:       " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::SEA_COMBAT).GetArrayIndex()].size());
+	Log("Submarine Groups: " _STPF_ "\n\n", group_list[AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT).GetArrayIndex()].size());
+
+	Log("\nGround group details - unit type, current number, continent id:\n");
+	std::list<AAIGroup*>& groundGroups = group_list[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()];
+	for(auto group = groundGroups.begin(); group != groundGroups.end(); ++group)
+		Log("%s %i %i\n", s_buildTree.GetUnitTypeProperties( (*group)->GetUnitDefIdOfGroup() ).m_name.c_str(), (*group)->GetCurrentSize(), (*group)->GetContinentId());
 
 	Log("Future metal/energy supply:  %i / %i\n\n", (int)execute->futureAvailableMetal, (int)execute->futureAvailableEnergy);
 
@@ -145,10 +150,8 @@ AAI::~AAI()
 	for(auto groupList = group_list.begin(); groupList != group_list.end(); ++groupList)
 	{
 		for(std::list<AAIGroup*>::iterator group = groupList->begin(); group != groupList->end(); ++group)
-		{
-			(*group)->attack = 0;
 			delete (*group);
-		}
+		
 		groupList->clear();
 	}
 
@@ -161,12 +164,10 @@ AAI::~AAI()
 
 	m_initialized = false;
 	fclose(m_logFile);
-	m_logFile = NULL;
+	m_logFile = nullptr;
 }
 
-
 //void AAI::EnemyDamaged(int damaged,int attacker,float damage,float3 dir) {}
-
 
 void AAI::InitAI(IGlobalAICallback* callback, int team)
 {
@@ -531,10 +532,10 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		bt->units_dynamic[def->id].under_construction -= 1;
 
 		// unfinished building
-		if (!def->canfly && !def->movedata)
+		if( category.isBuilding() )
 		{
 			// delete buildtask
-			for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
+			for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
 			{
 				if ((*task)->unit_id == unit)
 				{
@@ -673,7 +674,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 				if (ut->units[unit].status == HEADING_TO_RALLYPOINT)
 					ut->units[unit].group->GetNewRallyPoint();
 
-				ut->units[unit].group->RemoveUnit(unit, attacker);
+				ut->units[unit].group->RemoveUnit(UnitId(unit), UnitId(attacker) );
 			}
 			// builder
 			else if (s_buildTree.GetUnitType(unitDefId).IsBuilder())
@@ -950,6 +951,16 @@ const int* AAI::GetLosMap()
 	m_skirmishAICallbacks->Map_getLosMap(m_skirmishAIId, &m_losMap[0], m_losMap.size());
 
 	return &m_losMap[0];
+}
+
+UnitDefId AAI::GetUnitDefId(UnitId unitId) const
+{
+	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unitId.id);
+
+	if(def)
+		return UnitDefId(def->id);
+	else
+		return UnitDefId();
 }
 
 int AAI::HandleEvent(int msg, const void* data)

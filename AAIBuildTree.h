@@ -69,11 +69,14 @@ public:
 	//! @brief Returns the unit type properties of the given unit type
 	const UnitTypeProperties& GetUnitTypeProperties(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id]; }
 
-	//! @brief Return the total cost of the given unit type
+	//! @brief Returns the total cost of the given unit type
 	const float GetTotalCost(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_totalCost; }
 
-	//! @brief Return the buildtime of the given unit type
+	//! @brief Returns the buildtime of the given unit type
 	const float GetBuildtime(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_buildtime; }
+
+	//! @brief Returns the hitpoints/health of the given unit type
+	const float GetHealth(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_health; }
 
 	//! @brief Returns the primary ability (equal to maximum weapons range for combat units)
 	const float GetMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_primaryAbility; }

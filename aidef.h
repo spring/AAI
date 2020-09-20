@@ -11,6 +11,7 @@
 #define AAI_DEF_H
 
 #include "System/float3.h"
+#include "Sim/Misc/GlobalConstants.h"
 #include <vector>
 #include <string>
 
@@ -70,8 +71,11 @@ public:
 	//! Minimum averaged metal surplus before constrcution of non-resource generating units shall be assisted
 	static constexpr float minMetalSurplusForConstructionAssist = 0.5f;
 
-		//! Minimum averaged energy surplus before constrcution of non-resource generating units shall be assisted
+	//! Minimum averaged energy surplus before constrcution of non-resource generating units shall be assisted
 	static constexpr float minEnergySurplusForConstructionAssist = 40.0f;
+
+	//! Maximum distance to rally points for units to be considered to have reached it
+	static constexpr float maxSquaredDistToRallyPoint = static_cast<float>( (16*SQUARE_SIZE)*(16*SQUARE_SIZE) );
 };
 
 class AAIMetalSpot
@@ -113,6 +117,8 @@ public:
 	UnitId(int unitId) : id(unitId) { };
 
 	UnitId() : id(-1) { };
+
+	bool operator==(const UnitId& rhs) const { return (id == rhs.id); }
 
 	bool IsValid() const { return (id >= 0) ? true : false; };
 

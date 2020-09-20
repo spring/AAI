@@ -38,12 +38,14 @@ public:
 	AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId);
 	~AAIGroup(void);
 
+	//! @brief Tries to add the given unit to the group
 	bool AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId);
 
-	bool RemoveUnit(int unit, int attacker);
+	//! @brief Removes the given unit from the group and checks if air support to defend group shall be requested
+	bool RemoveUnit(UnitId unitId, UnitId attackerUnitId);
 
 	//! @brief Returns the number of units in the group
-	int GetNumberOfUnits() const { return static_cast<int>(units.size()); }
+	int GetCurrentSize() const { return static_cast<int>(m_units.size()); }
 
 	void GiveOrderToGroup(Command *c, float importance, UnitTask task, const char *owner);
 
@@ -68,7 +70,8 @@ public:
 	// orders air units to attack
 	void AirRaidUnit(int unit_id);
 
-	int GetRandomUnit();
+	//! @brief Returns a random unit from the group (or invalid unitId if group is empty)
+	UnitId GetRandomUnit() const;
 
 	void Update();
 
@@ -85,11 +88,11 @@ public:
 	//! @brief Returns combat power of the group vs given target type
 	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const;
 
-	//! @brief Returns whether group unit type is suitable to fight given target type
-	bool CanFightTargetType(const AAITargetType& targetType) const { return m_groupType.CanFightTargetType(targetType); }
-
 	//! @brief Return the id of the continent the units of this group are stationed on (-1 for non-continent bound movement types)
 	int GetContinentId() const { return m_continentId; }
+
+	//! @brief Returns the unitDefId of the units in the group 
+	const UnitDefId& GetUnitDefIdOfGroup() const { return m_groupDefId; }
 
 	//! @brief Returns the combat unit type of the units in the group 
 	const AAIUnitType& GetUnitTypeOfGroup() const { return m_groupType; }
@@ -106,16 +109,17 @@ public:
 	//! @brief Returns the current target position where the units shall move
 	const float3& GetTargetPosition() const { return m_targetPosition; }
 
-	float3 GetGroupPos();
+	//! @brief Returns the position of the group (to save effort, only the position of the last unit added to the group)
+	float3 GetGroupPos() const;
 
-	// checks if the group may participate in an attack (= idle, sufficient combat power, etc.)
-	bool AvailableForAttack();
+	//! @brief Returns true if most recently added unit is close to rally point
+	bool IsEntireGroupAtRallyPoint() const;
 
-	int maxSize;
-	int size;
+	//! @brief Returns rating of the group to perform a task (e.g. defend) of given performance at given position 
+	float GetDefenceRating(const AAITargetType& attackerTargetType, const float3& position, float importance, int continentId) const;
 
-	float avg_speed;
-	std::list<int2> units;
+	//! @brief Checks if the group may participate in an attack (= idle, sufficient combat power, etc.)
+	bool IsAvailableForAttack();
 
 	float task_importance;	// importance of current task
 
@@ -130,6 +134,12 @@ private:
 
 	int lastCommandFrame;
 	Command lastCommand;
+
+	//! The maximum number of units the group may consist of
+	int m_maxSize;
+
+	//! The units that belong to this group
+	std::list<UnitId> m_units;
 
 	//! The type of units in this group
 	UnitDefId m_groupDefId;

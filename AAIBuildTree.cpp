@@ -329,6 +329,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 	{
 		m_unitTypeProperties[id].m_totalCost = unitDefs[id]->metalCost + (unitDefs[id]->energyCost / AAIConstants::energyToMetalConversionFactor);
 		m_unitTypeProperties[id].m_buildtime = unitDefs[id]->buildTime;
+		m_unitTypeProperties[id].m_health    = unitDefs[id]->health;
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
 		m_unitTypeProperties[id].m_footprint = UnitFootprint(unitDefs[id]->xsize, unitDefs[id]->zsize);
 		

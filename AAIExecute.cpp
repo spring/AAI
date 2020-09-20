@@ -203,40 +203,31 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(unitDefId);
 	if( moveType.CannotMoveToOtherContinents() )
 	{
-		const float3 unitPos = ai->GetAICallback()->GetUnitPos(unitDefId.id);
+		const float3 unitPos = ai->GetAICallback()->GetUnitPos(unitId.id);
 		continentId = ai->Getmap()->GetContinentID(unitPos);
 	}
 
 	// try to add unit to an existing group
 	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
-	const AAICombatUnitCategory combatUnitCategory( category );
-
-	//ai->Log("Trying to add unit %s to group of combat category %i\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), combatUnitCategory.GetArrayIndex());
-
 	for(auto group = ai->GetGroupList()[category.GetArrayIndex()].begin(); group != ai->GetGroupList()[category.GetArrayIndex()].end(); ++group)
 	{
+
 		if((*group)->AddUnit(unitId, unitDefId, continentId))
 		{
 			ai->Getut()->units[unitId.id].group = *group;
+		
 			return;
 		}
+
 	}
 
 	// end of grouplist has been reached and unit has not been assigned to any group
 	// -> create new one
-
-	// get continent for ground assault units, even if they are amphibious (otherwise non amphib ground units will be added no matter which continent they are on)
-	if( (category.isGroundCombat())  && (continentId == -1) )  
-	{
-		const float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
-		continentId = ai->Getmap()->GetContinentID(pos);
-	}
-
 	AAIGroup *new_group = new AAIGroup(ai, unitDefId, continentId);
-
-	ai->GetGroupList()[category.GetArrayIndex()].push_back(new_group);
 	new_group->AddUnit(unitId, unitDefId, continentId);
 	ai->Getut()->units[unitId.id].group = new_group;
+
+	ai->GetGroupList()[category.GetArrayIndex()].push_back(new_group);
 }
 
 void AAIExecute::BuildScouts()
@@ -2429,35 +2420,24 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTar
 {
 	const int continentId = ai->Getmap()->GetContinentID(pos);
 
-	AAIGroup *best_group = nullptr;
-	float bestRating(0.0f);
+	AAIGroup *selectedGroup(nullptr);
+	float highestRating(0.0f);
 
 	for(auto category = ai->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 	{
-		for(list<AAIGroup*>::iterator group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
+		for(auto group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 		{
-			if( ((*group)->GetContinentId() == -1) || ((*group)->GetContinentId() == continentId) )
+			const float rating = (*group)->GetDefenceRating(attackerTargetType, pos, importance, continentId);
+			
+			if(rating > highestRating)
 			{
-				const bool matchingType  = (*group)->CanFightTargetType(attackerTargetType);
-				const bool groupAvailble = ((*group)->task == GROUP_IDLE) || ((*group)->task_importance < importance); //!(*group)->attack
-
-				if(matchingType && groupAvailble)
-				{
-					const float3& group_pos = (*group)->GetGroupPos();
-
-					const float myRating = (*group)->avg_speed / ( 1.0f + fastmath::apxsqrt((pos.x - group_pos.x) * (pos.x - group_pos.x)  + (pos.z - group_pos.z) * (pos.z - group_pos.z) ));
-
-					if(myRating > bestRating)
-					{
-						best_group = *group;
-						bestRating = myRating;
-					}
-				}
+				selectedGroup = *group;
+				highestRating = rating;
 			}
 		}
 	}
 
-	return best_group;
+	return selectedGroup;
 }
 
 void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const

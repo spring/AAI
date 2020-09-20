@@ -175,7 +175,7 @@ int AAIAttackManager::DetermineCombatUnitGroupsAvailableForattack(  std::list<AA
 	{
 		for(auto group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
 		{
-			if( (*group)->AvailableForAttack() )
+			if( (*group)->IsAvailableForAttack() )
 			{
 				const AAIUnitType& unitType = (*group)->GetUnitTypeOfGroup();
 				if(unitType.IsAssaultUnit())

@@ -181,6 +181,9 @@ struct UnitTypeProperties
 	//! Buildtime
 	float m_buildtime;
 
+	//! Hitpoints
+	float m_health;
+
 	//! Range of unit category relevant ability: 
 	//! max range of weapons (Combat units, artillery and static defences), line of sight (scouts), radar/sonar/jammer range
 	//! buildspeed for mobile/static constructors

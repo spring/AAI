@@ -46,25 +46,23 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 	// now we know type and category, determine max group size
 	if(cfg->AIR_ONLY_MOD)
 	{
-		maxSize = cfg->MAX_AIR_GROUP_SIZE;
+		m_maxSize = cfg->MAX_AIR_GROUP_SIZE;
 	}
 	else if(m_groupType.IsAntiAir() && !m_groupType.IsAntiSurface())
-		maxSize = cfg->MAX_ANTI_AIR_GROUP_SIZE;
+		m_maxSize = cfg->MAX_ANTI_AIR_GROUP_SIZE;
 	else
 	{
 		if(m_category.isMobileArtillery())
-			maxSize = cfg->MAX_ARTY_GROUP_SIZE;
+			m_maxSize = cfg->MAX_ARTY_GROUP_SIZE;
 		else if(m_category.isAirCombat())
-			maxSize = cfg->MAX_AIR_GROUP_SIZE;
+			m_maxSize = cfg->MAX_AIR_GROUP_SIZE;
 		else if(m_category.isSeaCombat())
-			maxSize = cfg->MAX_NAVAL_GROUP_SIZE;
+			m_maxSize = cfg->MAX_NAVAL_GROUP_SIZE;
 		else if(m_category.isSubmarineCombat())
-			maxSize = cfg->MAX_SUBMARINE_GROUP_SIZE;
+			m_maxSize = cfg->MAX_SUBMARINE_GROUP_SIZE;
 		else
-			maxSize = cfg->MAX_GROUP_SIZE;
+			m_maxSize = cfg->MAX_GROUP_SIZE;
 	}
-
-	size = 0;
 
 	task_importance = 0;
 	task = GROUP_IDLE;
@@ -75,7 +73,7 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 	// get a rally point
 	GetNewRallyPoint();
 
-	ai->Log("Creating new group - max size: %i   unit type: %s   continent: %i\n", maxSize, ai->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str(), m_continentId);
+	ai->Log("Creating new group - max size: %i   unit type: %s   continent: %i\n", m_maxSize, ai->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str(), m_continentId);
 }
 
 AAIGroup::~AAIGroup(void)
@@ -86,9 +84,9 @@ AAIGroup::~AAIGroup(void)
 		attack = nullptr;
 	}
 
-	units.clear();
+	m_units.clear();
 
-	if(m_rallyPoint.x > 0)
+	if(m_rallyPoint.x > 0.0f)
 	{
 		AAISector *sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
 
@@ -98,76 +96,72 @@ AAIGroup::~AAIGroup(void)
 
 bool AAIGroup::AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId)
 {
-	// for continent bound units: check if unit is on the same continent as the group
-	if(continentId == m_continentId)
+	if(    (m_continentId == continentId) // for continent bound units: check if unit is on the same continent as the group
+		&& (m_groupDefId  == unitDefId) 
+		&& (GetCurrentSize() < m_maxSize)
+		&& (attack == nullptr)
+		&& (task != GROUP_ATTACKING) && (task != GROUP_BOMBING))
 	{
-		//check if type match && current size
-		if( (m_groupDefId.id == unitDefId.id) && (units.size() < maxSize) && (attack == nullptr) && (task != GROUP_ATTACKING) && (task != GROUP_BOMBING))
+		m_units.push_back(unitId);
+
+		// send unit to rally point of the group
+		if(m_rallyPoint.x > 0.0f)
 		{
-			units.push_back(int2(unitId.id, unitDefId.id));
-			++size;
+			Command c(CMD_MOVE);
+			c.PushPos(m_rallyPoint);
 
-			// send unit to rally point of the group
-			if(m_rallyPoint.x > 0.0f)
-			{
-				Command c(CMD_MOVE);
-				c.PushPos(m_rallyPoint);
+			if(m_category.isAirCombat() )
+				c.SetOpts(c.GetOpts() | SHIFT_KEY);
 
-				if(m_category.isAirCombat() )
-					c.SetOpts(c.GetOpts() | SHIFT_KEY);
-
-				//ai->Getcb()->GiveOrder(unit_id, &c);
-				ai->Getexecute()->GiveOrder(&c, unitId.id, "Group::AddUnit");
-			}
-
-			return true;
+			//ai->Getcb()->GiveOrder(unit_id, &c);
+			ai->Getexecute()->GiveOrder(&c, unitId.id, "Group::AddUnit");
 		}
-	}
 
-	return false;
+		return true;
+	}
+	else
+		return false;
 }
 
-bool AAIGroup::RemoveUnit(int unit, int attacker)
+bool AAIGroup::RemoveUnit(UnitId unitId, UnitId attackerUnitId)
 {
 	// look for unit with that id
-	for(std::list<int2>::iterator i = units.begin(); i != units.end(); ++i)
+	for(auto unit = m_units.begin(); unit != m_units.end(); ++unit)
 	{
-		if(i->x == unit)
+		if( *unit == unitId)
 		{
-			units.erase(i);
-			--size;
+			const int newGroupSize = GetCurrentSize() - 1;
 
-			// remove from list of attacks groups if too less units
-			if(attack)
-			{	
-				if(units.size() == 0)
+			m_units.erase(unit);
+
+			if(newGroupSize == 0)
+			{
+				task   = GROUP_IDLE;
+
+				if(attack)
 				{
 					attack->RemoveGroup(this);
-					attack = nullptr;
-					task   = GROUP_IDLE;
+					attack = nullptr;		
 				}
-				else
-					ai->Getam()->AbortAttackIfFailed(attack);
 			}
-				
-			if(UnitId(attacker).IsValid())
-			{
-				const springLegacyAI::UnitDef *def = ai->GetAICallback()->GetUnitDef(attacker);
 
-				if(def && !cfg->AIR_ONLY_MOD)
+			if(attackerUnitId.IsValid() && (newGroupSize > 0) )
+			{
+				const UnitDefId attackerDefId = ai->GetUnitDefId(attackerUnitId);
+
+				if(attackerDefId.isValid() && !cfg->AIR_ONLY_MOD)
 				{
-					UnitDefId attackerUnitDefId(def->id);
-					const AAIUnitCategory& category    = ai->s_buildTree.GetUnitCategory(attackerUnitDefId);
-					const AAICombatPower&  combatPower = ai->s_buildTree.GetCombatPower(attackerUnitDefId);
+					const AAIUnitCategory& category    = ai->s_buildTree.GetUnitCategory(attackerDefId);
+					const AAICombatPower&  combatPower = ai->s_buildTree.GetCombatPower(attackerDefId);
 
 					if(category.isStaticDefence())
-						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
+						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
 					else if( category.isGroundCombat() && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
-						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
+						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
 					else if( category.isSeaCombat()    && (combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
-						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
+						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
 					else if( category.isHoverCombat()  && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
-						ai->Getaf()->CheckTarget( UnitId(attacker), category, def->health);
+						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
 				}
 			}
 
@@ -176,6 +170,12 @@ bool AAIGroup::RemoveUnit(int unit, int attacker)
 	}
 
 	// unit not found
+	const UnitDefId unitDefId = ai->GetUnitDefId(unitId);
+
+	if(unitDefId.isValid())
+		ai->Log("Error: Failed to remove unit %s from group of %s!\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str() );
+	else
+		ai->Log("Error: Failed to remove unit with unknown unit type from group of %s!\n", ai->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str() );
 	return false;
 }
 
@@ -185,11 +185,11 @@ void AAIGroup::GiveOrderToGroup(Command *c, float importance, UnitTask task, con
 
 	task_importance = importance;
 
-	for(std::list<int2>::iterator i = units.begin(); i != units.end(); ++i)
+	for(auto unit = m_units.begin(); unit != m_units.end(); ++unit)
 	{
 		//ai->Getcb()->GiveOrder(i->x, c);
-		ai->Getexecute()->GiveOrder(c, i->x, owner);
-		ai->Getut()->SetUnitStatus(i->x, task);
+		ai->Getexecute()->GiveOrder(c, (*unit).id, owner);
+		ai->Getut()->SetUnitStatus( (*unit).id, task);
 	}
 }
 
@@ -240,7 +240,7 @@ void AAIGroup::Update()
 float AAIGroup::GetCombatPowerVsTargetType(const AAITargetType& targetType) const
 {
 	const float combatPower = ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(targetType);
-	return static_cast<float>(units.size()) * combatPower;
+	return static_cast<float>(m_units.size()) * combatPower;
 }
 
 const AAITargetType& AAIGroup::GetTargetType() const
@@ -248,15 +248,50 @@ const AAITargetType& AAIGroup::GetTargetType() const
 	return ai->s_buildTree.GetTargetType(m_groupDefId);
 }
 
-float3 AAIGroup::GetGroupPos()
+float3 AAIGroup::GetGroupPos() const
 {
-	if(!units.empty())
+	if(!m_units.empty())
 	{
-		return ai->GetAICallback()->GetUnitPos(units.begin()->x);
+		std::list<UnitId>::const_iterator unit = std::prev(m_units.end());
+		return ai->GetAICallback()->GetUnitPos( (*unit).id );
 	}
 	else
 		return ZeroVector;
 }
+
+bool AAIGroup::IsEntireGroupAtRallyPoint() const
+{
+	const float3 position = GetGroupPos();
+
+	float dx = position.x - m_rallyPoint.x;
+	float dy = position.z - m_rallyPoint.z;
+
+	return (dx*dx+dy*dy) < AAIConstants::maxSquaredDistToRallyPoint;
+}
+
+float AAIGroup::GetDefenceRating(const AAITargetType& attackerTargetType, const float3& position, float importance, int continentId) const
+{
+	if( (m_continentId == -1) || (m_continentId == continentId) )
+	{
+		const bool matchingType  = m_groupType.CanFightTargetType(attackerTargetType);
+		const bool groupAvailble = (task == GROUP_IDLE) || (task_importance < importance); //!(*group)->attack
+
+		if(matchingType && groupAvailble)
+		{
+			const float3& groupPosition = GetGroupPos();
+
+			const float speed = ai->s_buildTree.GetMaxSpeed(m_groupDefId);
+
+			const float dx = position.x - groupPosition.x;
+			const float dy = position.z - groupPosition.z;
+
+			return speed / ( 1.0f + fastmath::apxsqrt(dx * dx  +  dy * dy));
+		}
+	}
+
+	return 0.0f;
+}
+
 
 void AAIGroup::TargetUnitKilled()
 {
@@ -333,18 +368,27 @@ void AAIGroup::Retreat(const float3& pos)
 	m_targetSector   = ai->Getmap()->GetSectorOfPos(pos);
 }
 
-int AAIGroup::GetRandomUnit()
+UnitId AAIGroup::GetRandomUnit() const
 {
-	if(units.empty())
-		return -1;
+	if(m_units.empty())
+		return UnitId();
 	else
-		return units.begin()->x;
+	{
+		const int selectedUnitId = rand()%static_cast<int>(m_units.size());
+
+		auto unit = m_units.begin();
+
+		for(int i = 0; i < selectedUnitId; ++i)
+			++unit;
+
+		return *unit;		
+	}
 }
 
 bool AAIGroup::SufficientAttackPower() const
 {
 	//! @todo Check if this criteria are really sensible
-	if(units.size() >= 3)
+	if(m_units.size() >= 3)
 		return true;
 
 	if(m_groupType.IsAntiAir())
@@ -376,16 +420,16 @@ bool AAIGroup::SufficientAttackPower() const
 	return false;
 }
 
-bool AAIGroup::AvailableForAttack()
+bool AAIGroup::IsAvailableForAttack()
 {
-	if(!attack)
+	if(!attack && IsEntireGroupAtRallyPoint())
 	{
 		if( m_groupType.IsAssaultUnit() && SufficientAttackPower())
 			return true;
-		else if( m_groupType.IsAntiAir() )
+		else if( m_groupType.IsAntiAir() && !m_groupType.IsAssaultUnit() )
 			return true;
 	}
-	
+
 	return false;
 }
 
@@ -425,12 +469,12 @@ void AAIGroup::UnitIdle(int unit)
 			{
 				if(!attack->m_combatUnitGroups.empty())
 				{
-					int unit = (*attack->m_combatUnitGroups.begin())->GetRandomUnit();
+					UnitId unitId = (*attack->m_combatUnitGroups.begin())->GetRandomUnit();
 
-					if(unit >= 0)
+					if(unitId.IsValid())
 					{
 						Command c(CMD_GUARD);
-						c.PushParam(unit);
+						c.PushParam(unitId.id);
 
 						GiveOrderToGroup(&c, 110, GUARDING, "Group::Idle_b");
 					}

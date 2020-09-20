@@ -80,6 +80,9 @@ public:
 	//! Workaround to get current LOS Map (ai callback version of legacy CPP interface is bugged)
 	const int* GetLosMap();
 
+	//! @brief Returns the unitDefId for a given unitId
+	UnitDefId GetUnitDefId(UnitId unitId) const;
+
 	//! @brief Returns pointer to AI callback
 	IAICallback* GetAICallback() const { return m_aiCallback; }
 
