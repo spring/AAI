@@ -276,8 +276,8 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 		// ------------------------------------------------------------------------------------------------------------
 
 		// retreat builders
-		if (category.isMobileConstructor())
-			ut->units[damaged].cons->Retreat(EUnitCategory::UNKNOWN);	
+		if (category.isMobileConstructor() && ut->units[damaged].cons)
+			ut->units[damaged].cons->CheckRetreatFromAttackBy(EUnitCategory::UNKNOWN);	
 	}
 	else 
 	{
@@ -304,8 +304,12 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 		// builder
 		else if ( category.isMobileConstructor() )
 		{
+			const AAIUnitCategory&  enemyCategory = s_buildTree.GetUnitCategory(enemyDefId);
+
 			execute->DefendUnitVS(unit, enemyTargetType, pos, 110);
-			ut->units[damaged].cons->Retreat(category);
+
+			if(ut->units[damaged].cons)
+				ut->units[damaged].cons->CheckRetreatFromAttackBy(enemyCategory);
 		}
 		// normal units
 		else

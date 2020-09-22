@@ -95,7 +95,7 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 		y = ai->Getmap()->ySectors-1;
 
 	// set sector as part of the base
-	if(ai->Getmap()->s_teamSectorMap.IsSectorOccupied(x,y) )
+	if(AAIMap::s_teamSectorMap.IsSectorOccupied(x,y) )
 	{
 		// sector already occupied by another aai team (coms starting too close to each other)
 		// choose next free sector

@@ -479,7 +479,7 @@ void AAIConstructor::Killed()
 	m_activity.SetActivity(EConstructorActivity::DESTROYED);
 }
 
-void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
+void AAIConstructor::CheckRetreatFromAttackBy(const AAIUnitCategory& attackedByCategory)
 {
 	if(m_activity.IsDestroyed() == false)
 	{
@@ -496,14 +496,14 @@ void AAIConstructor::Retreat(const AAIUnitCategory& attackedByCategory)
 			{
 				// dont flee outside from scouts of the base if health is > 50%
 				if(   attackedByCategory.isScout()
-				   && (ai->GetAICallback()->GetUnitHealth(m_myUnitId.id) > 0.5f * ai->Getbt()->GetUnitDef(m_myDefId.id).health))
+				   && (ai->GetAICallback()->GetUnitHealth(m_myUnitId.id) > 0.5f * ai->s_buildTree.GetHealth(m_myDefId)) )
 					return;	
 			}
 		}
 
 		const float3 retreatPos = ai->Getexecute()->DetermineSafePos(m_myDefId, unitPos);
 
-		if(retreatPos.x > 0)
+		if(retreatPos.x > 0.0f)
 		{
 			Command c(CMD_MOVE);
 			c.PushParam(retreatPos.x);
