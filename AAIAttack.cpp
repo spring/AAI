@@ -37,13 +37,13 @@ bool AAIAttack::CheckIfFailed()
 	if(!m_combatUnitGroups.empty())
 	{
 		// check if still enough power to attack target sector
-		if(SufficientCombatPowerToAttackSector(m_attackDestination, 2.0f))
+		if(SufficientCombatPowerToAttackSector(m_attackDestination, AAIConstants::attackCombatPowerFactor))
 		{
 			// check if sufficient power to combat enemy units
 			const float3 pos = (*m_combatUnitGroups.begin())->GetGroupPos();
 			const AAISector* sector = ai->Getmap()->GetSectorOfPos(pos);
 
-			if(sector && SufficientCombatPowerAt(sector, 2.0f))
+			if(sector && SufficientCombatPowerAt(sector, AAIConstants::attackCombatPowerFactor))
 				return false;
 		}
 	}
@@ -83,7 +83,7 @@ const AAISector* AAIAttack::DetermineSectorToContinueAttack()
 
 	const AAISector *dest = ai->Getmap()->DetermineSectorToContinueAttack(m_attackDestination, targetTypesOfUnits, moveType);
 
-	if(dest && SufficientCombatPowerToAttackSector(dest, 3.0f))
+	if(dest && SufficientCombatPowerToAttackSector(dest, AAIConstants::attackCombatPowerFactor))
 		return dest;
 	else
 		return nullptr;

@@ -318,6 +318,29 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 	return rating;			
 }
 
+
+float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, const std::vector< std::vector<float> >& continentCombatPower, const MobileTargetTypeValues& assaultGroupsOfType, float maxLostUnits) const
+{
+	float rating(0.0f);
+
+	if( (distance_to_base > 0) && (GetNumberOfEnemyBuildings() > 0))
+	{
+		const float myAttackPower     =   globalCombatPower[AAITargetType::staticIndex] + continentCombatPower[continent][AAITargetType::staticIndex];
+		const float enemyDefencePower =   assaultGroupsOfType.GetValueOfTargetType(ETargetType::SURFACE)   * GetEnemyCombatPower(ETargetType::SURFACE)
+										+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::FLOATER)   * GetEnemyCombatPower(ETargetType::FLOATER)
+										+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::SUBMERGED) * GetEnemyCombatPower(ETargetType::SUBMERGED);
+
+		const float lostUnitsFactor = (maxLostUnits > 1.0f) ? (2.0f - (GetLostUnits() / maxLostUnits) ) : 1.0f;
+
+		const float enemyBuildings = static_cast<float>(GetNumberOfEnemyBuildings());
+
+		// prefer sectors with many buildings, few lost units and low defence power/short distance to own base
+		rating = lostUnitsFactor * (2.0f + enemyBuildings) * myAttackPower / ( (1.5f + enemyDefencePower) * static_cast<float>(1 + 2 * distance_to_base) );
+	}
+
+	return rating;			
+}
+
 float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout)
 {
 	if(   (distance_to_base == 0) 

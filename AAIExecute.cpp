@@ -211,14 +211,11 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
 	for(auto group = ai->GetGroupList()[category.GetArrayIndex()].begin(); group != ai->GetGroupList()[category.GetArrayIndex()].end(); ++group)
 	{
-
 		if((*group)->AddUnit(unitId, unitDefId, continentId))
 		{
 			ai->Getut()->units[unitId.id].group = *group;
-		
 			return;
 		}
-
 	}
 
 	// end of grouplist has been reached and unit has not been assigned to any group

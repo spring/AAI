@@ -166,6 +166,9 @@ public:
 	//! @brief Returns the rating of this sector as destination to attack (0.0f if no suitable target)
 	float GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const MobileTargetTypeValues& targetTypeOfUnits) const;
 
+	//! @brief Returns the rating of this sector as destination to attack (0.0f if no suitable target)
+	float GetAttackRating(const std::vector<float>& globalCombatPower, const std::vector< std::vector<float> >& continentCombatPower, const MobileTargetTypeValues& assaultGroupsOfType, float maxLostUnits) const;
+
 	//! @brief Returns rating as next destination for scout of given movement type
 	float GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout);
 

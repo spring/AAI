@@ -2024,27 +2024,12 @@ const AAISector* AAIMap::DetermineSectorToAttack(const std::vector<float>& globa
 	{
 		for(int y = 0; y < ySectors; ++y)
 		{
-			const AAISector* sector = &m_sector[x][y];
+			const float rating = m_sector[x][y].GetAttackRating(globalCombatPower, continentCombatPower, assaultGroupsOfType, maxLostUnits);
 
-			if( (sector->distance_to_base > 0) && (sector->GetNumberOfEnemyBuildings() > 0))
+			if(rating > highestRating)
 			{
-				const float myAttackPower     =   globalCombatPower[AAITargetType::staticIndex] + continentCombatPower[sector->continent][AAITargetType::staticIndex];
-				const float enemyDefencePower =   assaultGroupsOfType.GetValueOfTargetType(ETargetType::SURFACE)   * sector->GetEnemyCombatPower(ETargetType::SURFACE)
-												+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::FLOATER)   * sector->GetEnemyCombatPower(ETargetType::FLOATER)
-												+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::SUBMERGED) * sector->GetEnemyCombatPower(ETargetType::SUBMERGED);
-				
-				const float lostUnitsFactor = (maxLostUnits > 1.0f) ? (2.0f - (sector->GetLostUnits() / maxLostUnits) ) : 1.0f;
-
-				const float enemyBuildings = static_cast<float>(sector->GetNumberOfEnemyBuildings());
-
-				// prefer sectors with many buildings, few lost units and low defence power/short distance to own base
-				float rating = lostUnitsFactor * (2.0f + enemyBuildings) * myAttackPower / ( (0.1f + enemyDefencePower) * (float)(1 + 2 * sector->distance_to_base) );
-	
-				if(rating > highestRating)
-				{
-					selectedSector = sector;
-					highestRating  = rating;
-				}
+				selectedSector = &m_sector[x][y];
+				highestRating  = rating;
 			}
 		}
 	}

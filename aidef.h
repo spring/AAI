@@ -76,6 +76,9 @@ public:
 
 	//! Maximum distance to rally points for units to be considered to have reached it
 	static constexpr float maxSquaredDistToRallyPoint = static_cast<float>( (16*SQUARE_SIZE)*(16*SQUARE_SIZE) );
+
+	//! The factor applied to the combat power of the own units (when deciding whether to attack)
+	static constexpr float attackCombatPowerFactor = 2.0f;
 };
 
 class AAIMetalSpot
