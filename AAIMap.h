@@ -12,6 +12,7 @@
 
 #include "aidef.h"
 #include "AAITypes.h"
+#include "AAIMapRelatedTypes.h"
 #include "AAIMapTypes.h"
 #include "AAIUnitTypes.h"
 #include "AAISector.h"
@@ -49,11 +50,17 @@ public:
 	//! @brief Returns whether x/y specify a valid sector
 	bool IsValidSector(int x, int y) const { return( (x >= 0) && (y >= 0) && (x < xSectors) && (y < ySectors) ); }
 
+	//! @brief Returns true if the given sector is a neighbour to the current base
+	bool IsSectorBorderToBase(int x, int y) const;
+
 	//! @brief Returns the id of continent the cell belongs to
-	int GetContinentID(int x, int y) const;
+	int GetContinentID(int x, int y) const { return continent_map[(y/4) * xContMapSize + x / 4]; }
 
 	//! @brief Returns the id of continent the given position belongs to
 	int GetContinentID(const float3& pos) const;
+
+	//! @brief Returns continent id with respect to the unit's movement type (e.g. ground (=non amphibious) unit being in shallow water will return id of nearest land continent)
+	int DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const;
 
 	//! @brief Returns whether continent to which given sector mainly belongs is sea 
 	bool IsSectorOnWaterContinent(const AAISector* sector) const { return continents[sector->continent].water; }
@@ -61,14 +68,8 @@ public:
 	//! @brief Returns whether the position is located on a small continent (meant to detect "ponds" or "small islands")
 	bool LocatedOnSmallContinent(const float3& pos) { return (continents[GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
 
-	//! @brief Returns continent id with respect to the unit's movement type (e.g. ground (=non amphibious) unit being in shallow water will return id of nearest land continent)
-	int DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const;
-
 	//! @brief Returns a bitmask storing which movement types are suitable for the map type
 	uint32_t GetSuitableMovementTypesForMap() const { return GetSuitableMovementTypes(s_mapType); }
-
-	//! @brief Returns whether the given sector is already occupied by another AAI player of the same team
-	bool IsAlreadyOccupiedByOtherAAI(const AAISector* sector) const { return (team_sector_map[sector->x][sector->y] != -1) && (team_sector_map[sector->x][sector->y] != m_myTeamId); }
 
 	//! @brief Returns the sector in which the given position lies (nullptr if out of sector map -> e.g. aircraft flying outside of the map) 
 	AAISector* GetSectorOfPos(const float3& pos);
@@ -172,11 +173,11 @@ public:
 	//! Indicates if map is considered to be a metal map (i.e. exctractors can be built anywhere)
 	static bool metalMap;
 	
-	static vector< vector<int> > team_sector_map;	// stores the number of ai player which has taken that sector (-1 if none)
-											// this helps preventing aai from expanding into sectors of other aai players
+	//! The map storing which sector has been occupied by what team
+	static AAITeamSectorMap s_teamSectorMap;
 
 	//! The buildmap stores the type/occupation status of every cell;
-	static std::vector<BuildMapTileType> m_buildmap;
+	static std::vector<BuildMapTileType> s_buildmap;
 
 	static vector<AAIContinent> continents;
 	static int avg_water_continent_size;
@@ -259,9 +260,6 @@ private:
 	std::string LocateMapCacheFile() const;
 
 	AAI *ai;
-
-	//! Id of the team (not ally team) of the AAI instance
-	int m_myTeamId;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// static (shared with other ai players)

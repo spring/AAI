@@ -111,6 +111,15 @@ public:
 	//! @brief Decreases number of lost units by a factor < 1 such that AAI "forgets" about lost unit over time
 	void DecreaseLostUnits();
 
+	//! @brief Returns true if further static defences may be built in this sector
+	bool AreFurtherStaticDefencesAllowed() const;
+
+	//! @brief Returns whether sector can be considered for expansion of base
+	bool IsSectorSuitableForBaseExpansion() const;
+
+	//! @brief Returns true if sector shall be considered for selection of construction of further metal extractor
+	bool ShallBeConsideredForExtractorConstruction() const;
+
 	// returns a buildsite for a defence building
 	float3 GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetType& targetType, float terrainModifier, bool water) const ;
 
@@ -171,6 +180,9 @@ public:
 
 	//! @brief Returns rating as next destination for scout of given movement type
 	float GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout);
+
+	//! @brief Returns the rating as starting sector (if a new one has to be selected as the current is already occupied by other AAI player)
+	float GetStartSectorRating() const;
 
 	//! @brief Shall be called when scout is sent to this sector (resets counter how often this sector has been skipped)
 	void SelectedAsScoutDestination() { m_skippedAsScoutDestination = 0; }

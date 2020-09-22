@@ -116,16 +116,16 @@ bool AAISector::SetBase(bool base)
 	if(base)
 	{
 		// check if already occupied (may happen if two coms start in same sector)
-		if(ai->Getmap()->team_sector_map[x][y] >= 0)
+		if(AAIMap::s_teamSectorMap.IsSectorOccupied(x,y))
 		{
-			ai->Log("\nTeam %i could not add sector %i,%i to base, already occupied by ally team %i!\n\n",ai->GetAICallback()->GetMyTeam(), x, y, ai->Getmap()->team_sector_map[x][y]);
+			ai->Log("\nTeam %i could not add sector %i,%i to base, already occupied by ally team %i!\n\n",ai->GetAICallback()->GetMyAllyTeam(), x, y, AAIMap::s_teamSectorMap.GetTeam(x, y));
 			return false;
 		}
 
 		distance_to_base = 0;
 
 		// if free metal spots in this sectors, base has free spots
-		for(list<AAIMetalSpot*>::iterator spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
+		for(auto spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
 		{
 			if(!(*spot)->occupied)
 			{
@@ -137,7 +137,7 @@ bool AAISector::SetBase(bool base)
 		// increase importance
 		importance_this_game += 1;
 
-		ai->Getmap()->team_sector_map[x][y] = ai->GetAICallback()->GetMyTeam();
+		AAIMap::s_teamSectorMap.SetSectorAsOccupiedByTeam(x, y, ai->GetAICallback()->GetMyTeam());
 
 		if(importance_this_game > cfg->MAX_SECTOR_IMPORTANCE)
 			importance_this_game = cfg->MAX_SECTOR_IMPORTANCE;
@@ -148,7 +148,7 @@ bool AAISector::SetBase(bool base)
 	{
 		distance_to_base = 1;
 
-		ai->Getmap()->team_sector_map[x][y] = -1;
+		AAIMap::s_teamSectorMap.SetSectorAsUnoccupied(x, y);
 
 		return true;
 	}
@@ -369,6 +369,35 @@ float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMov
 	}
 }
 
+float AAISector::GetStartSectorRating() const
+{
+	if(AAIMap::s_teamSectorMap.IsSectorOccupied(x, y))
+		return 0.0f;
+	else
+		return ( static_cast<float>(2 * GetNumberOfMetalSpots() + 1) ) * flat_ratio * flat_ratio;
+}
+
+bool AAISector::AreFurtherStaticDefencesAllowed() const
+{
+	return 	   (GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < cfg->MAX_DEFENCES) 
+			&& (GetNumberOfAlliedBuildings() < 3)
+			&& (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(x, y, ai->GetMyTeamId()) == false);
+}
+
+bool AAISector::IsSectorSuitableForBaseExpansion() const
+{
+	return     (IsOccupiedByEnemies() == false)
+			&& (GetNumberOfAlliedBuildings() < 3)
+			&& (AAIMap::s_teamSectorMap.IsSectorOccupied(x, y) == false);
+}
+
+bool AAISector::ShallBeConsideredForExtractorConstruction() const
+{
+	return 	   m_freeMetalSpots 
+			&& (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(x, y, ai->GetMyTeamId()) == false)
+			&& (IsOccupiedByEnemies() == false);	
+}
+
 float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetType& targetType, float terrainModifier, bool water) const
 {
 	float3 best_pos = ZeroVector, pos;
@@ -391,16 +420,16 @@ float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetTy
 		else
 		{
 			// filter out frontiers to other base sectors
-			if(x > 0 && ai->Getmap()->m_sector[x-1][y].distance_to_base > 0 && (ai->Getmap()->m_sector[x-1][y].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x-1][y] != my_team )
+			if( (x > 0) && ai->Getmap()->IsSectorBorderToBase(x-1, y) )
 				directions.push_back(WEST);
 
-			if(x < ai->Getmap()->xSectors-1 && ai->Getmap()->m_sector[x+1][y].distance_to_base > 0 && (ai->Getmap()->m_sector[x+1][y].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x+1][y] != my_team)
+			if( (x < AAIMap::xSectors-1) && ai->Getmap()->IsSectorBorderToBase(x+1, y) )
 				directions.push_back(EAST);
 
-			if(y > 0 && ai->Getmap()->m_sector[x][y-1].distance_to_base > 0 && (ai->Getmap()->m_sector[x][y-1].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x][y-1] != my_team)
+			if( (y > 0) && ai->Getmap()->IsSectorBorderToBase(x, y-1) )
 				directions.push_back(NORTH);
 
-			if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->m_sector[x][y+1].distance_to_base > 0 && (ai->Getmap()->m_sector[x][y+1].m_alliedBuildings < 5) && ai->Getmap()->team_sector_map[x][y+1] != my_team)
+			if( (y < AAIMap::ySectors-1) && ai->Getmap()->IsSectorBorderToBase(x, y+1) )
 				directions.push_back(SOUTH);
 		}
 	}
@@ -576,7 +605,7 @@ float AAISector::DetermineWaterRatio() const
 	{
 		for(int xPos = x * AAIMap::xSectorSizeMap; xPos < (x+1) * AAIMap::xSectorSizeMap; ++xPos)
 		{
-			if(AAIMap::m_buildmap[xPos + yPos * AAIMap::xMapSize].IsTileTypeSet(EBuildMapTileType::WATER))
+			if(AAIMap::s_buildmap[xPos + yPos * AAIMap::xMapSize].IsTileTypeSet(EBuildMapTileType::WATER))
 				++waterCells;
 		}
 	}
@@ -703,7 +732,7 @@ bool AAISector::IsValidMovePos(const float3& pos, BuildMapTileType forbiddenMapT
 	const int x = (int) (pos.x / SQUARE_SIZE);
 	const int y = (int) (pos.z / SQUARE_SIZE);
 
-	if(AAIMap::m_buildmap[x + y * AAIMap::xMapSize].IsTileTypeNotSet(forbiddenMapTileTypes))
+	if(AAIMap::s_buildmap[x + y * AAIMap::xMapSize].IsTileTypeNotSet(forbiddenMapTileTypes))
 	{
 		if( (continentId == AAIMap::ignoreContinentID) || (ai->Getmap()->GetContinentID(pos) == continentId) )
 			return true;

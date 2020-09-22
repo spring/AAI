@@ -226,13 +226,12 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 
 	for(int search_dist = 1; search_dist <= max_search_dist; ++search_dist)
 	{
-		for(std::list<AAISector*>::iterator sector = m_sectorsInDistToBase[search_dist].begin(); sector != m_sectorsInDistToBase[search_dist].end(); ++sector)
+		for(auto sector = m_sectorsInDistToBase[search_dist].begin(); sector != m_sectorsInDistToBase[search_dist].end(); ++sector)
 		{
-			// dont expand if enemy structures in sector && check for allied buildings
-			if(!(*sector)->IsOccupiedByEnemies() && (*sector)->GetNumberOfAlliedBuildings() < 3 && !ai->Getmap()->IsAlreadyOccupiedByOtherAAI(*sector))
+			if((*sector)->IsSectorSuitableForBaseExpansion() )
 			{
 				float sectorDistance(0.0f);
-				for(list<AAISector*>::iterator baseSector = m_sectorsInDistToBase[0].begin(); baseSector != m_sectorsInDistToBase[0].end(); ++baseSector) 
+				for(auto baseSector = m_sectorsInDistToBase[0].begin(); baseSector != m_sectorsInDistToBase[0].end(); ++baseSector) 
 				{
 					const int deltaX = (*sector)->x - (*baseSector)->x;
 					const int deltaY = (*sector)->y - (*baseSector)->y;

@@ -10,106 +10,42 @@
 #ifndef AAI_MAP_TYPES_H
 #define AAI_MAP_TYPES_H
 
-#include "Sim/Misc/GlobalConstants.h"
+#include <vector>
 
-class AAIMap;
-
-//! A continent is made up of  tiles of the same type (land or water) that are connected with each other
-struct AAIContinent
-{
-	//! Continent id
-	int id;
-
-	//! Size of continent (oin number of map tiles)
-	int size;
-
-	//! Flag if its a water continent
-	bool water;
-};
-
-//! Movement types that are used to describe the movement type of every unit
-enum class EBuildMapTileType : uint8_t
-{
-	NOT_SET       = 0x00u, //!< Unknown/not set
-	LAND          = 0x01u, //!< land tile
-	WATER         = 0x02u, //!< water tile
-	FLAT          = 0x04u, //!< flat terrain (i.e. suitable for contruction of buildings or destination to send units to))
-	CLIFF         = 0x08u, //!< cliffy terrain (i.e. not suitable for contruction of building or destination to send units to)
-	FREE          = 0x10u, //!< free (i.e. buildings cand be constructed here)
-	OCCUPIED      = 0x20u, //!< occupied by buidling
-	BLOCKED_SPACE = 0x40u, //!< tiles where no buildings shall be constructed  (e.g. exits of factory)
-};
-
-//! Contains convenience functions for tiles of th buildmap
-class BuildMapTileType
-{
-friend AAIMap;
-
-public:
-	BuildMapTileType(EBuildMapTileType tileType) { m_tileType = static_cast<uint8_t>(tileType); }
-
-	BuildMapTileType() : BuildMapTileType(EBuildMapTileType::NOT_SET) {}
-
-	BuildMapTileType(EBuildMapTileType tileType1, EBuildMapTileType tileType2) { m_tileType = static_cast<uint8_t>(tileType1) | static_cast<uint8_t>(tileType2); }
-
-	void SetTileType(EBuildMapTileType tileType) { m_tileType |= static_cast<uint8_t>(tileType); }
-
-	bool IsTileTypeSet(BuildMapTileType tileType) const { return static_cast<bool>(m_tileType & tileType.m_tileType); }
-
-	bool IsTileTypeNotSet(BuildMapTileType tileType) const { return !static_cast<bool>(m_tileType & tileType.m_tileType); }
-
-	void BlockTile()
-	{
-		m_tileType &= ~static_cast<uint8_t>(EBuildMapTileType::FREE);
-		m_tileType |= static_cast<uint8_t>(EBuildMapTileType::BLOCKED_SPACE); 
-	}
-
-	void OccupyTile()
-	{
-		m_tileType &= ~static_cast<uint8_t>(EBuildMapTileType::FREE);
-		m_tileType |= static_cast<uint8_t>(EBuildMapTileType::OCCUPIED); 
-	}
-
-	void FreeTile()
-	{ 
-		m_tileType &= ~(static_cast<uint8_t>(EBuildMapTileType::OCCUPIED) + static_cast<uint8_t>(EBuildMapTileType::BLOCKED_SPACE)); 
-		m_tileType |= static_cast<uint8_t>(EBuildMapTileType::FREE); 
-	}
-
-//private:
-	uint8_t m_tileType;
-};
-
-//! This class provides mapping between map coordinates (used by spring engine) and other, lower resolution maps used by AAI
-class MapCoordinates
+//! The map storing which sector has been taken (as base) by which AAI team. Used to avoid that multiple AAI instances expand 
+//! into the same sector or build defences in the sector of an allied player.
+class AAITeamSectorMap
 {
 public:
-	MapCoordinates() : m_resolution(1), m_xSize(0), m_ySize(0) {} 
+	AAITeamSectorMap() {}
 	
-	void Init(int resolution, int xMapSize, int yMapSize)
-	{
-		m_resolution = resolution;
-		m_xSize = xMapSize / resolution;
-		m_ySize = yMapSize / resolution;
-	}
+	//! @brief Initializes all sectors as unoccupied
+	void Init(int xSectors, int ySectors) { m_teamMap.resize(xSectors, std::vector<int>(ySectors, sectorUnoccupied) ); }
 
-	int GetNumberOfTiles() const { return m_xSize*m_ySize; }
+	//! Returns whether sector has been occupied by any AAI player (allied, enemy, or own instance)
+	bool IsSectorOccupied(int x, int y)            const { return (m_teamMap[x][y] != sectorUnoccupied); }
 
-	int GetTileIndex(int x, int y) const { return  x + y * m_xSize; }
+	//! @brief Returns true is sector is occupied by given team
+	bool IsOccupiedByTeam(int x, int y, int team) const { return (m_teamMap[x][y] == team); }
 
-	bool AreCoordinatesValid(int x, int y) const { return (x >= 0) && (x < m_xSize) && (y >= 0) && (y < m_ySize); }
+	//! @brief Returns true if sector is occupied by a team other than the given one
+	bool IsOccupiedByOtherTeam(int x, int y, int team) const { return (m_teamMap[x][y] != team) && (m_teamMap[x][y] != sectorUnoccupied);}
 
-	int GetCoordinateFromUnitPos(float pos) const { return static_cast<int>(pos) / (m_resolution * SQUARE_SIZE); }
+	//! @brief Returns the team that currently occupied the given sector
+	int GetTeam(int x, int y) const { return m_teamMap[x][y]; }
 
-public:
-	//! Resolution with respect to build map (i.e. map size defined by GetMapWidth() & GetMapHeight() callback) where values > 1 mean lower resolution of this map type compared to buildmap
-	int m_resolution;
+	//! @brief Set sector as occupied by given (ally) team
+	void SetSectorAsOccupiedByTeam(int x, int y, int team) { m_teamMap[x][y] = team; }
 
-	//! Number of tiles in x-direction
-	int m_xSize;
+	//! @brief Set sector as unoccupied
+	void SetSectorAsUnoccupied(int x, int y) { m_teamMap[x][y] = sectorUnoccupied; }
 
-	//! number of tiles in y-direction (AAI internal nomenclature, equals z-direction in spring
-	int m_ySize;
+private:
+	//! Stores the number of ai player which has taken that sector (-1 if none)
+	std::vector< std::vector<int> > m_teamMap;	
+
+	//! Valuefor unoccupied sector
+	static constexpr int sectorUnoccupied = -1;
 };
 
 #endif

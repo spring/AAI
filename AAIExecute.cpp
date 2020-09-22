@@ -95,17 +95,15 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 		y = ai->Getmap()->ySectors-1;
 
 	// set sector as part of the base
-	if(ai->Getmap()->team_sector_map[x][y] < 0)
-	{
-		ai->Getbrain()->AssignSectorToBase(&ai->Getmap()->m_sector[x][y], true);
-	}
-	else
+	if(ai->Getmap()->s_teamSectorMap.IsSectorOccupied(x,y) )
 	{
 		// sector already occupied by another aai team (coms starting too close to each other)
 		// choose next free sector
 		ChooseDifferentStartingSector(x, y);
 	}
-
+	else
+		ai->Getbrain()->AssignSectorToBase(&ai->Getmap()->m_sector[x][y], true);
+	
 	const AAIMapType& mapType = ai->Getmap()->GetMapType();
 
 	if(mapType.IsWaterMap())
@@ -658,9 +656,7 @@ bool AAIExecute::BuildExtractor()
 
 		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase].end(); ++sector)
 		{
-			if(    (*sector)->m_freeMetalSpots 
-				&& !ai->Getmap()->IsAlreadyOccupiedByOtherAAI(*sector)
-				&& !(*sector)->IsOccupiedByEnemies() )		
+			if( (*sector)->ShallBeConsideredForExtractorConstruction() )
 			{
 				for(auto spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
 				{
@@ -668,7 +664,7 @@ bool AAIExecute::BuildExtractor()
 					{
 						freeMetalSpotFound = true;
 
-						UnitDefId extractor = ((*spot)->pos.y >= 0) ? landExtractor : seaExtractor;
+						const UnitDefId extractor = ((*spot)->pos.y >= 0) ? landExtractor : seaExtractor;
 
 						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor.id, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
 
@@ -1745,27 +1741,24 @@ void AAIExecute::CheckBuildqueues()
 
 void AAIExecute::CheckDefences()
 {
-	const AAIUnitCategory staticDefence(EUnitCategory::STATIC_DEFENCE);
 	if(    (ai->Getut()->activeFactories < cfg->MIN_FACTORIES_FOR_DEFENCES)
-		|| (ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(staticDefence) +  ai->Getut()->GetNumberOfRequestedUnitsOfCategory(staticDefence) > 2) )
+		|| (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_DEFENCE) > 2) )
 		return;
 
-	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
+	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	const int maxSectorDistToBase(2);
-	float highestRating(0);
+	float highestRating(0.0f);
 
-	AAISector *first = nullptr, *second = nullptr;
+	AAISector *first(nullptr), *second(nullptr);
 	AAITargetType targetType1, targetType2;
 
 	for(int dist = 0; dist <= maxSectorDistToBase; ++dist)
 	{
-		for(list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[dist].end(); ++sector)
+		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[dist].end(); ++sector)
 		{
 			// stop building further defences if maximum has been reached / sector contains allied buildings / is occupied by another aai instance
-			if(    ((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < cfg->MAX_DEFENCES) 
-				&& ((*sector)->GetNumberOfAlliedBuildings() < 3)
-				&& (ai->Getmap()->team_sector_map[(*sector)->x][(*sector)->y] != ai->GetAICallback()->GetMyAllyTeam()) )
+			if( (*sector)->AreFurtherStaticDefencesAllowed())
 			{
 				if((*sector)->failed_defences > 1)
 					(*sector)->failed_defences = 0;
@@ -2524,27 +2517,24 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 		sectors.push_back( &ai->Getmap()->m_sector[x][y+1] );
 
 	// choose best
-	AAISector *best_sector = 0;
-	float my_rating, best_rating = 0;
+	AAISector *selectedSector(nullptr);
+	float highestRating(0.0f);
 
-	for(std::list<AAISector*>::iterator sector = sectors.begin(); sector != sectors.end(); ++sector)
+	for(auto sector = sectors.begin(); sector != sectors.end(); ++sector)
 	{
-		if(ai->Getmap()->team_sector_map[(*sector)->x][(*sector)->y] != -1)
-			my_rating = 0;
-		else
-			my_rating = ( (float)(2 * (*sector)->GetNumberOfMetalSpots() + 1) ) * (*sector)->flat_ratio * (*sector)->flat_ratio;
+		const float rating = (*sector)->GetStartSectorRating();
 
-		if(my_rating > best_rating)
+		if(rating > highestRating)
 		{
-			best_rating = my_rating;
-			best_sector = *sector;
+			highestRating  = rating;
+			selectedSector = *sector;
 		}
 	}
 
 	// add best sector to base
-	if(best_sector)
+	if(selectedSector)
 	{
-		ai->Getbrain()->AssignSectorToBase(best_sector, true);
+		ai->Getbrain()->AssignSectorToBase(selectedSector, true);
 	}
 }
 

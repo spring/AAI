@@ -42,8 +42,8 @@ int AAIMap::ySectorSize;
 int AAIMap::xSectorSizeMap;
 int AAIMap::ySectorSizeMap;
 
+bool AAIMap::metalMap;
 std::list<AAIMetalSpot>  AAIMap::metal_spots;
-
 int AAIMap::land_metal_spots;
 int AAIMap::water_metal_spots;
 
@@ -51,14 +51,12 @@ float AAIMap::land_ratio;
 float AAIMap::flat_land_ratio;
 float AAIMap::water_ratio;
 
-bool AAIMap::metalMap;
-AAIMapType AAIMap::s_mapType;
-
-std::vector< std::vector<int> > AAIMap::team_sector_map;
-std::vector<BuildMapTileType> AAIMap::m_buildmap;
-std::vector<int> AAIMap::blockmap;
-std::vector<float> AAIMap::plateau_map;
-std::vector<int> AAIMap::continent_map;
+AAIMapType                    AAIMap::s_mapType;
+AAITeamSectorMap              AAIMap::s_teamSectorMap;
+std::vector<BuildMapTileType> AAIMap::s_buildmap;
+std::vector<int>              AAIMap::blockmap;
+std::vector<float>            AAIMap::plateau_map;
+std::vector<int>              AAIMap::continent_map;
 
 std::vector<AAIContinent> AAIMap::continents;
 int AAIMap::land_continents;
@@ -73,7 +71,6 @@ int AAIMap::min_water_continent_size;
 AAIMap::AAIMap(AAI *ai)
 {
 	this->ai = ai;
-	m_myTeamId = ai->GetAICallback()->GetMyTeam();
 }
 
 AAIMap::~AAIMap(void)
@@ -102,7 +99,7 @@ AAIMap::~AAIMap(void)
 
 		fclose(save_file);
 
-		m_buildmap.clear();
+		s_buildmap.clear();
 		blockmap.clear();
 		plateau_map.clear();
 		continent_map.clear();
@@ -153,13 +150,13 @@ void AAIMap::Init()
 		xSectorSize = xSectorSizeMap * SQUARE_SIZE;
 		ySectorSize = ySectorSizeMap * SQUARE_SIZE;
 
-		m_buildmap.resize(xMapSize*yMapSize);
+		s_buildmap.resize(xMapSize*yMapSize);
 		blockmap.resize(xMapSize*yMapSize, 0);
 		continent_map.resize(xContMapSize*yContMapSize, -1);
 		plateau_map.resize(xContMapSize*yContMapSize, 0.0f);
 
 		// create map that stores which aai player has occupied which sector (visible to all aai players)
-		team_sector_map.resize(xSectors, std::vector<int>(ySectors, -1) );
+		s_teamSectorMap.Init(xSectors, ySectors);
 
 		ReadContinentFile();
 
@@ -289,7 +286,7 @@ void AAIMap::ReadMapCacheFile()
 					fscanf(file, "%u", &value);
 
 					const int cell = x + y * xMapSize;
-					m_buildmap[cell].m_tileType = static_cast<uint8_t>(value);
+					s_buildmap[cell].m_tileType = static_cast<uint8_t>(value);
 				}
 			}
 
@@ -361,7 +358,7 @@ void AAIMap::ReadMapCacheFile()
 			for(int x = 0; x < xMapSize; ++x)
 			{
 				const int cell = x + y * xMapSize;
-				fprintf(file, "%u ", m_buildmap[cell].m_tileType);
+				fprintf(file, "%u ", s_buildmap[cell].m_tileType);
 			}
 			fprintf(file, "\n");
 		}
@@ -588,6 +585,67 @@ void AAIMap::Learn()
 	}
 }
 
+bool AAIMap::IsSectorBorderToBase(int x, int y) const
+{
+	return     (m_sector[x][y].distance_to_base > 0) 
+			&& (m_sector[x][y].m_alliedBuildings < 5) 
+			&& (s_teamSectorMap.IsOccupiedByTeam(x, y, ai->GetMyTeamId()) == false);
+}
+
+int AAIMap::GetContinentID(const float3& pos) const
+{
+	int x = static_cast<int>(pos.x) / 32;
+	int y = static_cast<int>(pos.z) / 32;
+
+	// check if pos inside of the map
+	if(x < 0)
+		x = 0;
+	else if(x >= xContMapSize)
+		x = xContMapSize - 1;
+
+	if(y < 0)
+		y = 0;
+	else if(y >= yContMapSize)
+		y = yContMapSize - 1;
+
+	return continent_map[x + y * xContMapSize];
+}
+
+int AAIMap::DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const
+{
+	// check if non sea/amphib unit in shallow water
+	if(     (ai->GetAICallback()->GetElevation(pos.x, pos.z) < 0)
+	     && (moveType.GetMovementType() == EMovementType::MOVEMENT_TYPE_GROUND) )
+	{
+		//look for closest land cell
+		for(int k = 1; k < 10; ++k)
+		{
+			if(ai->GetAICallback()->GetElevation(pos.x + k * 16, pos.z) > 0)
+			{
+				pos.x += k *16;
+				break;
+			}
+			else if(ai->GetAICallback()->GetElevation(pos.x - k * 16, pos.z) > 0)
+			{
+				pos.x -= k *16;
+				break;
+			}
+			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z + k * 16) > 0)
+			{
+				pos.z += k *16;
+				break;
+			}
+			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z - k * 16) > 0)
+			{
+				pos.z -= k *16;
+				break;
+			}
+		}
+	}
+
+	return GetContinentID(pos);
+}
+
 // converts unit positions to cell coordinates
 void AAIMap::Pos2BuildMapPos(float3 *position, const UnitDef* def) const
 {
@@ -646,9 +704,9 @@ void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, 
 		for(int x = xPos; x < xEnd; ++x)
 		{
 			if(occupy)
-				m_buildmap[x+y*xMapSize].OccupyTile();
+				s_buildmap[x+y*xMapSize].OccupyTile();
 			else
-				m_buildmap[x+y*xMapSize].FreeTile();
+				s_buildmap[x+y*xMapSize].FreeTile();
 
 			// debug
 			/*if(x%2 == 0 && y%2 == 0)
@@ -881,7 +939,7 @@ bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& size, bool wate
 			for(int x = xPos; x < xPos+size.xSize; ++x)
 			{
 				// all squares must be valid
-				if(m_buildmap[x+y*xMapSize].IsTileTypeSet(invalidTileTypes))
+				if(s_buildmap[x+y*xMapSize].IsTileTypeSet(invalidTileTypes))
 					return false;
 			}
 		}
@@ -911,7 +969,7 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add)
 			for(int x = xPos+xSize; x < xPos+xSize+cfg->MAX_XROW; ++x)
 			{
 				// abort when first non occupied tile is found
-				if(m_buildmap[x+y*xMapSize].IsTileTypeSet(nonOccupiedTile))
+				if(s_buildmap[x+y*xMapSize].IsTileTypeSet(nonOccupiedTile))
 				{
 					xRight = x;
 					break;
@@ -924,7 +982,7 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add)
 			int xLeft(-1);
 			for(int x = xPos-1; x >= xPos - cfg->MAX_XROW; --x)
 			{
-				if(m_buildmap[x+y*xMapSize].IsTileTypeSet(nonOccupiedTile))
+				if(s_buildmap[x+y*xMapSize].IsTileTypeSet(nonOccupiedTile))
 				{
 					xLeft = x;
 					break;
@@ -978,7 +1036,7 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add)
 			int yBottom(-1);
 			for(int y = yPos+ySize; y < yPos+ySize+cfg->MAX_YROW; ++y)
 			{
-				if(m_buildmap[x+y*xMapSize].IsTileTypeSet(nonOccupiedTile))
+				if(s_buildmap[x+y*xMapSize].IsTileTypeSet(nonOccupiedTile))
 				{
 					yBottom = y;
 					break;
@@ -991,7 +1049,7 @@ void AAIMap::CheckRows(int xPos, int yPos, int xSize, int ySize, bool add)
 			int yTop(-1);
 			for(int y = yPos-1; y >= yPos - cfg->MAX_YROW; --y)
 			{
-				if(m_buildmap[x+y*xMapSize].IsTileTypeSet(nonOccupiedTile))
+				if(s_buildmap[x+y*xMapSize].IsTileTypeSet(nonOccupiedTile))
 				{
 					yTop = y;
 					break;
@@ -1047,8 +1105,8 @@ void AAIMap::BlockTiles(int xPos, int yPos, int width, int height, bool block)
 			{
 				// if no building ordered that cell to be blocked, update buildmap
 				// (only if space is not already occupied by a building)
-				if( (blockmap[tileIndex] == 0) && (m_buildmap[tileIndex].IsTileTypeSet(EBuildMapTileType::FREE)) )
-					m_buildmap[tileIndex].BlockTile();	
+				if( (blockmap[tileIndex] == 0) && (s_buildmap[tileIndex].IsTileTypeSet(EBuildMapTileType::FREE)) )
+					s_buildmap[tileIndex].BlockTile();	
 
 				++blockmap[tileIndex];
 			}
@@ -1060,8 +1118,8 @@ void AAIMap::BlockTiles(int xPos, int yPos, int width, int height, bool block)
 
 					// if cell is not blocked anymore, mark cell on buildmap as empty (only if it has been marked bloked
 					//					- if it is not marked as blocked its occupied by another building or unpassable)
-					if(blockmap[tileIndex] == 0 && m_buildmap[tileIndex].IsTileTypeSet(EBuildMapTileType::BLOCKED_SPACE))
-						m_buildmap[tileIndex].FreeTile();	
+					if(blockmap[tileIndex] == 0 && s_buildmap[tileIndex].IsTileTypeSet(EBuildMapTileType::BLOCKED_SPACE))
+						s_buildmap[tileIndex].FreeTile();	
 				}
 			}
 
@@ -1151,7 +1209,7 @@ int AAIMap::GetCliffyCells(int xPos, int yPos, int xSize, int ySize) const
 	{
 		for(int x = xPos; x < xPos + xSize; ++x)
 		{
-			if(m_buildmap[x+y*xMapSize].IsTileTypeSet(EBuildMapTileType::CLIFF))
+			if(s_buildmap[x+y*xMapSize].IsTileTypeSet(EBuildMapTileType::CLIFF))
 				++cliffs;
 		}
 	}
@@ -1168,13 +1226,13 @@ void AAIMap::AnalyseMap()
 	{
 		for(int y = 0; y < yMapSize; ++y)
 		{
-			m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FREE);
+			s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FREE);
 
 			// check for water
 			if(height_map[x + y * xMapSize] < 0.0f)
-				m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::WATER);
+				s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::WATER);
 			else
-				m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::LAND);	
+				s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::LAND);	
 			
 			// check slope
 			if( (x < xMapSize - 4) && (y < yMapSize - 4) )
@@ -1183,19 +1241,19 @@ void AAIMap::AnalyseMap()
 
 				// check x-direction
 				if( (xSlope > cfg->CLIFF_SLOPE) || (-xSlope > cfg->CLIFF_SLOPE) )
-					m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::CLIFF);
+					s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::CLIFF);
 				else	// check y-direction
 				{
 					const float ySlope = (height_map[y * xMapSize + x] - height_map[(y+4) * xMapSize + x])/64.0f;
 
 					if(ySlope > cfg->CLIFF_SLOPE || -ySlope > cfg->CLIFF_SLOPE)
-						m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::CLIFF);
+						s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::CLIFF);
 					else
-						m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FLAT);
+						s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FLAT);
 				}
 			}
 			else
-				m_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FLAT);	
+				s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FLAT);	
 		}
 	}
 
@@ -1218,7 +1276,7 @@ void AAIMap::AnalyseMap()
 					 if(diff > 0)
 					 {
 						 //! @todo Investigate the reason for this check
-						 if(m_buildmap[4 * (i + j * xMapSize)].IsTileTypeNotSet(EBuildMapTileType::CLIFF) )
+						 if(s_buildmap[4 * (i + j * xMapSize)].IsTileTypeNotSet(EBuildMapTileType::CLIFF) )
 							 plateau_map[i + j * xContMapSize] += diff;
 					 }
 					 else
@@ -1260,7 +1318,7 @@ void AAIMap::CalculateWaterRatio()
 	{
 		for(int x = 0; x < xMapSize; ++x)
 		{
-			if(m_buildmap[x + y*xMapSize].IsTileTypeSet(EBuildMapTileType::WATER))
+			if(s_buildmap[x + y*xMapSize].IsTileTypeSet(EBuildMapTileType::WATER))
 				++waterCells;
 		}
 	}
@@ -1812,7 +1870,7 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 
 			if(sector)
 			{
-				const bool unitBelongsToAlly( ai->GetAICallback()->GetUnitTeam(unitsInLOS[i]) != m_myTeamId );
+				const bool unitBelongsToAlly( ai->GetAICallback()->GetUnitTeam(unitsInLOS[i]) != ai->GetMyTeamId() );
 				sector->AddFriendlyUnitData(UnitDefId(def->id), unitBelongsToAlly);
 			}
 		}
@@ -2229,79 +2287,6 @@ void AAIMap::RemoveDefence(const float3& pos, UnitDefId defence)
 				submarine_defence_map[cell] = 0.0f;
 		}
 	}
-}
-
-int AAIMap::GetContinentID(int x, int y) const
-{
-	return continent_map[(y/4) * xContMapSize + x / 4];
-}
-
-int AAIMap::GetContinentID(const float3& pos) const
-{
-	int x = static_cast<int>(pos.x) / 32;
-	int y = static_cast<int>(pos.z) / 32;
-
-	// check if pos inside of the map
-	if(x < 0)
-		x = 0;
-	else if(x >= xContMapSize)
-		x = xContMapSize - 1;
-
-	if(y < 0)
-		y = 0;
-	else if(y >= yContMapSize)
-		y = yContMapSize - 1;
-
-	return continent_map[y * xContMapSize + x];
-}
-
-int AAIMap::DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const
-{
-	// check if non sea/amphib unit in shallow water
-	if(     (ai->GetAICallback()->GetElevation(pos.x, pos.z) < 0)
-	     && (moveType.GetMovementType() == EMovementType::MOVEMENT_TYPE_GROUND) )
-	{
-		//look for closest land cell
-		for(int k = 1; k < 10; ++k)
-		{
-			if(ai->GetAICallback()->GetElevation(pos.x + k * 16, pos.z) > 0)
-			{
-				pos.x += k *16;
-				break;
-			}
-			else if(ai->GetAICallback()->GetElevation(pos.x - k * 16, pos.z) > 0)
-			{
-				pos.x -= k *16;
-				break;
-			}
-			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z + k * 16) > 0)
-			{
-				pos.z += k *16;
-				break;
-			}
-			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z - k * 16) > 0)
-			{
-				pos.z -= k *16;
-				break;
-			}
-		}
-	}
-
-	int x = pos.x / 32;
-	int y = pos.z / 32;
-
-	// ensure determined position lies inside of the map
-	if(x < 0)
-		x = 0;
-	else if(x >= xContMapSize)
-		x = xContMapSize - 1;
-
-	if(y < 0)
-		y = 0;
-	else if(y >= yContMapSize)
-		y = yContMapSize - 1;
-
-	return continent_map[x + y * xContMapSize];
 }
 
 uint32_t AAIMap::GetSuitableMovementTypes(const AAIMapType& mapType) const

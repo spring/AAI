@@ -89,10 +89,12 @@ public:
 	//! @brief Returns the side of this AAI instance
 	int GetSide() const { return m_side; }
 
+	//! @brief Return team (not ally team) of this AAI instance
+	int GetMyTeamId() const { return m_myTeamId; }
+
 	std::list<AAIBuildTask*>& GetBuildTasks() { return build_tasks; }
 
 	std::vector<std::list<AAIGroup*> >& GetGroupList() { return group_list; }
-
 
 	AAIBrain*           Getbrain() { return brain; }
 	AAIExecute*         Getexecute() { return execute; }
@@ -134,6 +136,9 @@ private:
 	std::vector<std::list<AAIGroup*> > group_list;  // unit groups
 
 	Profiler* profiler;
+
+	//! Id of the team (not ally team) of the AAI instance
+	int m_myTeamId;
 
 	//! Side of this AAI instance; 0 always neutral, for TA-like mods 1 = Arm, 2 = Core
 	int m_side;

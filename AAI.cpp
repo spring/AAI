@@ -178,6 +178,8 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	AAI_SCOPED_TIMER("InitAI")
 	m_aiCallback = callback->GetAICallback();
 
+	m_myTeamId = m_aiCallback->GetMyTeam();
+
 	// open log file
 	// this size equals the one used in "AIAICallback::GetValue(AIVAL_LOCATE_FILE_..."
 	char filename[2048];
@@ -940,7 +942,6 @@ void AAI::Update()
 		}
 	}
 }
-
 
 const int* AAI::GetLosMap()
 {
