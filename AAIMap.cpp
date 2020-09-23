@@ -1915,6 +1915,15 @@ bool AAIMap::IsPositionInLOS(const float3& position) const
 		return false;	
 }
 
+bool AAIMap::IsPositionWithinMap(const float3& position) const
+{
+	const int x = static_cast<int>( std::ceil(position.x) );
+	const int y = static_cast<int>( std::ceil(position.z) );
+
+	// check if unit is within the map
+	return ( (x >= 0) && (x < xSize) && (y >= 0) && (y < ySize) );
+}
+
 float3 AAIMap::DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const
 {
 	for(int yCell = yStart/losMapRes; yCell < yEnd/losMapRes; ++yCell)

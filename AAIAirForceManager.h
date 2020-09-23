@@ -67,7 +67,7 @@ private:
 
 	list<AAIGroup*> *air_groups;
 	AAI *ai;
-	int my_team;
+
 	int num_of_targets;
 };
 

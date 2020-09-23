@@ -27,7 +27,6 @@ AAIAirForceManager::AAIAirForceManager(AAI *ai)
 {
 	this->ai = ai;
 
-	my_team = ai->GetAICallback()->GetMyTeam();
 	num_of_targets = 0;
 
 	targets.resize(cfg->MAX_AIR_TARGETS);
@@ -46,7 +45,7 @@ AAIAirForceManager::~AAIAirForceManager(void)
 void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory& category, float health)
 {
 	// do not attack own units
-	if(my_team != ai->GetAICallback()->GetUnitTeam(unitId.id))
+	if(ai->GetAICallback()->GetUnitTeam(unitId.id) != ai->GetMyTeamId()) 
 	{
 		float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
 
@@ -105,16 +104,12 @@ void AAIAirForceManager::CheckBombTarget(int unit_id, int def_id)
 		return;
 
 	// do not add own units or units that ar already on target list
-	if(my_team != ai->GetAICallback()->GetUnitTeam(unit_id) && !IsTarget(unit_id))
+	if( (ai->GetAICallback()->GetUnitTeam(unit_id) != ai->GetMyTeamId()) && !IsTarget(unit_id))
 	{
-		float3 pos = ai->GetAICallback()->GetUnitPos(unit_id);
-
-		// calculate in which sector unit is located
-		int x = pos.x/ai->Getmap()->xSectorSize;
-		int y = pos.z/ai->Getmap()->ySectorSize;
+		const float3 pos = ai->GetAICallback()->GetUnitPos(unit_id);
 
 		// check if unit is within the map
-		if(x >= 0 && x < ai->Getmap()->xSectors && y >= 0 && y < ai->Getmap()->ySectors)
+		if( ai->Getmap()->IsPositionWithinMap(pos) )
 		{
 			AddTarget(unit_id, def_id);
 		}

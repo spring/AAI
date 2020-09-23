@@ -111,6 +111,9 @@ public:
 	//! @brief Returns whether given position lies within current LOS
 	bool IsPositionInLOS(const float3& position) const;
 
+	//! @brief Returns whether given position lies within map (e.g. aircraft may leave map)
+	bool IsPositionWithinMap(const float3& position) const;
+
 	//! @brief Returns position of first enemy building found in the part of the map (in build map coordinates)
 	float3 DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const;
 

@@ -137,7 +137,7 @@ bool AAISector::SetBase(bool base)
 		// increase importance
 		importance_this_game += 1;
 
-		AAIMap::s_teamSectorMap.SetSectorAsOccupiedByTeam(x, y, ai->GetAICallback()->GetMyTeam());
+		AAIMap::s_teamSectorMap.SetSectorAsOccupiedByTeam(x, y, ai->GetMyTeamId());
 
 		if(importance_this_game > cfg->MAX_SECTOR_IMPORTANCE)
 			importance_this_game = cfg->MAX_SECTOR_IMPORTANCE;

@@ -78,7 +78,7 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 		return;
 	}
 
-	ai->Log("My team / ally team: %i / %i\n", ai->GetAICallback()->GetMyTeam(), ai->GetAICallback()->GetMyAllyTeam());
+	ai->Log("My team / ally team: %i / %i\n", ai->GetMyTeamId(), ai->GetAICallback()->GetMyAllyTeam());
 
 	// tell the brain about the starting sector
 	const float3 pos = ai->GetAICallback()->GetUnitPos(commanderUnitId.id);
@@ -1929,8 +1929,6 @@ void AAIExecute::CheckMexUpgrade()
 	float cost = 0.25f + ai->Getbrain()->Affordable() / 8.0f;
 	float eff  = 6.0f / (cost + 0.75f);
 
-	int my_team = ai->GetAICallback()->GetMyTeam();
-
 	UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, eff, false, false);
 	UnitDefId seaExtractor  = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, eff, false, true);
 
@@ -1958,7 +1956,7 @@ void AAIExecute::CheckMexUpgrade()
 					return;
 
 				if((*spot)->extractor_def > 0 && (*spot)->extractor > -1 && (*spot)->extractor < cfg->MAX_UNITS
-					&& ai->GetAICallback()->GetUnitTeam((*spot)->extractor) == my_team)	// only upgrade own extractors
+					&& ai->GetAICallback()->GetUnitTeam((*spot)->extractor) == ai->GetMyTeamId())	// only upgrade own extractors
 				{
 					float extractedMetalGain;
 
