@@ -14,6 +14,17 @@
 
 class AAIMap;
 
+//! A position in map coordinates
+struct MapPos
+{
+	MapPos(int xPos, int yPos) : x(xPos), y(yPos) {}
+
+	MapPos() : MapPos(0,0) {}
+
+	int x;
+	int y;
+};
+
 //! A continent is made up of  tiles of the same type (land or water) that are connected with each other
 struct AAIContinent
 {

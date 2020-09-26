@@ -30,21 +30,36 @@ using namespace std;
 
 struct UnitTypeDynamic
 {
-	int under_construction;	// how many units of that type are under construction
-	int requested;			// how many units of that type have been requested
-	int active;				// how many units of that type are currently alive
-	int constructorsAvailable;	// how many factories/builders available being able to build that unit
-	int constructorsRequested;	// how many factories/builders requested being able to build that unit
+	int under_construction;	    //!< how many units of that type are under construction
+	int requested;			    //!< how many units of that type have been requested
+	int active;				    //!< how many units of that type are currently alive
+	int constructorsAvailable;	//!< how many factories/builders available being able to build that unit
+	int constructorsRequested;	//!< how many factories/builders requested being able to build that unit
 };
 
 //! Criteria used for selection of units
 struct UnitSelectionCriteria
 {
-	float power;      //! Combat power for combat units; Buildpower for construction units 
-	float efficiency; //! Power relative to cost
-	float cost;       //! Unit cost
-	float speed;	  //! Speed of unit
-	float range;	  //! max range for combat units/artillery, los for scouts
+	float power;      //!< Combat power for combat units; Buildpower for construction units
+	float efficiency; //!< Power relative to cost
+	float cost;       //!< Unit cost
+	float speed;	  //!< Speed of unit
+	float range;	  //!< max range for combat units/artillery, los for scouts
+};
+
+//! Criteria used for selection of static defences
+struct StaticDefenceSelectionCriteria
+{
+	StaticDefenceSelectionCriteria(const AAITargetType& targetType, float combatPower, float range, float cost, float buildtime, float terrain, int randomness) : 
+		targetType(targetType), combatPower(combatPower), range(range), cost(cost), buildtime(buildtime), terrain(terrain), randomness(randomness) {}
+
+	AAITargetType targetType; //!< The target type the static defence shall counter
+	float combatPower;        //!< Combat power
+	float range;	          //!< Maximum range (i.e. range of highest ranged weapon) 
+	float cost;               //!< Total cost of static defence
+	float buildtime;          //!< Buildtime of static defence
+	float terrain;            //!< How important placement on elevated ground (e.g. for long ranged weapons)
+	int   randomness;         //!< Randomness applied (starting from 0, random addition to rating of up to randomness * 0.05)
 };
 
 //! Data used to calculate rating of factories
@@ -118,7 +133,7 @@ public:
 	UnitDefId SelectRadar(int side, float cost, float range, bool water);
 
 	//! @brief Selects a static defence according to given criteria; a builder is requested if none available and a different static defence is chosen.
-	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const AAITargetType& targetType, float range, int randomness, bool water);
+	UnitDefId SelectStaticDefence(int side, const StaticDefenceSelectionCriteria& selectionCriteria, bool water);
 
 	//! @brief Selects a metal maker - currently not implemented (returns no valid unit def id)
 	UnitDefId GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild) const;
@@ -227,7 +242,7 @@ private:
 	UnitDefId SelectRadar(int side, float cost, float range, bool water, bool canBuild) const;
 
 	//! @brief Selects a defence building according to given criteria
-	UnitDefId SelectStaticDefence(int side, float cost, float buildtime, float combatPower, const AAITargetType& targetType, float range, int randomness, bool water, bool constructable) const;
+	UnitDefId SelectStaticDefence(int side, const StaticDefenceSelectionCriteria& selectionCriteria, bool water, bool constructable) const;
 
 	//! @brief Selects a storage according to given criteria
 	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;

@@ -44,6 +44,9 @@ public:
 	//! @brief Returns max distance (in sectors) a sector can have to base
 	int GetMaxSectorDistanceToBase() const { return (xSectors + ySectors - 2); }
 
+	//! @brief Returns the approximated map coordinates of the center of the enemy base (determined based on scouted enemy buildings)
+	const MapPos& GetCenterOfEnemyBase() const { return m_centerOfEnemyBase; }
+
 	//! @brief Converts given position to final building position for the given unit type
 	void Pos2FinalBuildPos(float3 *pos, const UnitDef *def) const;
 
@@ -117,6 +120,7 @@ public:
 	//! @brief Returns position of first enemy building found in the part of the map (in build map coordinates)
 	float3 DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const;
 
+	//! @brief Decreases the lost units and updates the the "center of gravity" of the enemy base(s)
 	void UpdateSectors();
 
 	//! @brief Checks for new neighbours (and removes old ones if necessary)
@@ -182,7 +186,7 @@ public:
 	//! The buildmap stores the type/occupation status of every cell;
 	static std::vector<BuildMapTileType> s_buildmap;
 
-	static vector<AAIContinent> continents;
+	static std::vector<AAIContinent> continents;
 	static int avg_water_continent_size;
 
 	static constexpr int ignoreContinentID = -1;
@@ -194,14 +198,17 @@ private:
 	vector<float> air_defence_map; // air defence map has 1/2 of resolution of blockmap/buildmap
 	vector<float> submarine_defence_map; // submarine defence map has 1/2 of resolution of blockmap/buildmap
 	
-	//! @brief Converts the given position (in map coordinates) to a position in buildmap coordinates
-	void Pos2BuildMapPos(float3* position, const UnitDef* def) const;
-
 	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
 	std::vector<int> m_scoutedEnemyUnitsMap;
 
 	//! Stores the frame of the last update of a cell (same resolution as los map)
 	std::vector<int> m_lastLOSUpdateInFrameMap;
+
+	//! Approximate center of enemy base in build map coordinates (not reliable if enemy buldings are spread over map)
+	MapPos m_centerOfEnemyBase;
+
+	//! @brief Converts the given position (in map coordinates) to a position in buildmap coordinates
+	void Pos2BuildMapPos(float3* position, const UnitDef* def) const;
 
 	// krogothe's metal spot finder
 	void DetectMetalSpots();

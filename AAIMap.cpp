@@ -191,6 +191,9 @@ void AAIMap::Init()
 
 	unitsInLOS.resize(cfg->MAX_UNITS, 0);
 
+	m_centerOfEnemyBase.x = xMapSize/2;
+	m_centerOfEnemyBase.y = yMapSize/2;
+
 	// create defence
 	defence_map.resize(xDefMapSize*yDefMapSize, 0.0f);
 	air_defence_map.resize(xDefMapSize*yDefMapSize, 0.0f);
@@ -1958,10 +1961,32 @@ float3 AAIMap::DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, in
 
 void AAIMap::UpdateSectors()
 {
+	int scoutedEnemyBuildings(0);
+	MapPos sectorLocationOfEnemyBuidlings(0, 0);
+
 	for(int x = 0; x < xSectors; ++x)
 	{
 		for(int y = 0; y < ySectors; ++y)
+		{
 			m_sector[x][y].DecreaseLostUnits();
+
+			const int enemyBuildings = m_sector[x][y].GetNumberOfEnemyBuildings();
+			if(enemyBuildings > 0)
+			{
+				scoutedEnemyBuildings += enemyBuildings;
+
+				sectorLocationOfEnemyBuidlings.x += enemyBuildings * x;
+				sectorLocationOfEnemyBuidlings.y += enemyBuildings * y;
+			}
+		}
+	}
+
+	if(scoutedEnemyBuildings > 0)
+	{
+		m_centerOfEnemyBase.x =   static_cast<float>(xSectorSizeMap * sectorLocationOfEnemyBuidlings.x) / static_cast<float>(scoutedEnemyBuildings) 
+								+ static_cast<float>(xSectorSizeMap/2);
+		m_centerOfEnemyBase.y =   static_cast<float>(ySectorSizeMap * sectorLocationOfEnemyBuidlings.y) / static_cast<float>(scoutedEnemyBuildings) 
+								+ static_cast<float>(ySectorSizeMap/2);
 	}
 }
 

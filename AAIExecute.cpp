@@ -1127,7 +1127,7 @@ bool AAIExecute::BuildDefences()
 	if(status == BuildOrderStatus::NO_BUILDER_AVAILABLE)
 		return false;
 	else if(status == BuildOrderStatus::NO_BUILDSITE_FOUND)
-		++m_sectorToBuildNextDefence->failed_defences;
+		m_sectorToBuildNextDefence->FailedToConstructStaticDefence();
 
 	m_sectorToBuildNextDefence = nullptr;
 
@@ -1140,8 +1140,10 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	if(dest->GetNumberOfAlliedBuildings() > 2)
 		return BuildOrderStatus::SUCCESSFUL;
 
+	//-----------------------------------------------------------------------------------------------------------------
 	// dont start construction of further defences if expensive defences are already under construction in this sector
-	for(list<AAIBuildTask*>::iterator task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
+	//-----------------------------------------------------------------------------------------------------------------
+	for(auto task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
 	{
 		if(ai->s_buildTree.GetUnitCategory(UnitDefId((*task)->def_id)).isStaticDefence() == true)
 		{
@@ -1155,14 +1157,10 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 		}
 	}
 
+	//-----------------------------------------------------------------------------------------------------------------
+	// check if defence can be placed on land, water, or both
+	//-----------------------------------------------------------------------------------------------------------------
 	bool checkWater, checkGround;
-	float3 pos;
-	AAIConstructor *builder;
-
-	float terrain = 2.0f;
-
-	if(dest->distance_to_base > 0)
-		terrain = 5.0f;
 
 	if(dest->water_ratio < 0.15f)
 	{
@@ -1180,113 +1178,98 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 		checkGround = false;
 	}
 
-	float range       = 0.5f;
-	float combatPower = 1.0f;
-	float cost        = 1.0f;
-	float buildtime   = 1.0f;
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine criteria for selection of static defence and its buildsite
+	//-----------------------------------------------------------------------------------------------------------------
+	StaticDefenceSelectionCriteria selectionCriteria(targetType, 2.0f, 0.5f, 0.5f, 0.25f, 1.0f, 0);
+
+	if(dest->distance_to_base > 1)
+		selectionCriteria.terrain = 2.0f;
 
 	const int staticDefences = dest->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE);
 	if(staticDefences > 2)
 	{
-		buildtime   = 0.5f;
-		combatPower = 2.0f;
-
 		int t = rand()%500;
 
 		if(t < 100)
 		{
-			range   = 2.0f;
-			terrain = 10.0f;
+			selectionCriteria.range   = 2.0f;
+			selectionCriteria.terrain = 10.0f;
 		}
 		else if(t < 200)
 		{
-			range   = 1.0f;
-			terrain = 5.0f;
+			selectionCriteria.range   = 1.0f;
+			selectionCriteria.terrain = 5.0f;
 		}
 	}
-	else if(staticDefences > 0)
+	if(staticDefences == 2)
 	{
-		buildtime = 2.0f;
-		cost      = 1.5f;
-		range     = 0.2f;
+		selectionCriteria.cost        = 0.75f;
+		selectionCriteria.buildtime   = 1.0f;
+		selectionCriteria.combatPower = 1.5f;
+	}
+	else if(staticDefences == 1)
+	{
+		selectionCriteria.cost        = 1.5f;
+		selectionCriteria.buildtime   = 2.0f;
+		selectionCriteria.combatPower = 1.0f;
+		selectionCriteria.range       = 0.35f;
 	}
 	else // no static defences so far
 	{
-		buildtime = 3.0f;
-		cost      = 2.0f;
-		range     = 0.2f;
+		selectionCriteria.cost        = 2.0f;
+		selectionCriteria.buildtime   = 3.0f;
+		selectionCriteria.combatPower = 0.5f;
+		selectionCriteria.range       = 0.2f;
 	}
+
+	if( (staticDefences > 2) && (rand()%cfg->LEARN_RATE == 1) ) // select defence more randomly from time to time
+		selectionCriteria.randomness = 20;
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// try construction of static defence according to determined criteria
+	//-----------------------------------------------------------------------------------------------------------------
+	BuildOrderStatus status(BuildOrderStatus::BUILDING_INVALID);
 
 	if(checkGround)
+		status = BuildStaticDefence(dest, selectionCriteria, true);
+
+	if(checkWater && (status != BuildOrderStatus::SUCCESSFUL))
+		status = BuildStaticDefence(dest, selectionCriteria, false);
+
+	return status;
+}
+
+BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const StaticDefenceSelectionCriteria& selectionCriteria, bool water) const
+{
+	UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water);
+
+	if(selectedDefence.isValid())
 	{
-		int randomness(8);
-		if( (staticDefences > 4) && (rand()%cfg->LEARN_RATE == 1) ) // select defence more randomly from time to time
-			randomness = 20;
+		const float3 buildsite = sector->GetDefenceBuildsite(selectedDefence, selectionCriteria.targetType, selectionCriteria.terrain, water);
 
-		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, targetType, range, randomness, false);
-
-		if(selectedDefence.isValid())
+		if(buildsite.x > 0.0f)
 		{
-			pos = dest->GetDefenceBuildsite(selectedDefence.id, targetType, terrain, false);
+			float min_dist;
+			AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedDefence.id, &buildsite, true, &min_dist);
 
-			if(pos.x > 0)
+			if(builder)
 			{
-				float min_dist;
-				builder = ai->Getut()->FindClosestBuilder(selectedDefence.id, &pos, true, &min_dist);
-
-				if(builder)
-				{
-					builder->GiveConstructionOrder(selectedDefence, pos);
-					ai->Getmap()->AddStaticDefence(pos, selectedDefence);
-					return BuildOrderStatus::SUCCESSFUL;
-				}
-				else
-				{
-					ai->Getbt()->BuildBuilderFor(selectedDefence);
-					return BuildOrderStatus::NO_BUILDER_AVAILABLE;
-				}
+				builder->GiveConstructionOrder(selectedDefence, buildsite);
+				ai->Getmap()->AddStaticDefence(buildsite, selectedDefence);
+				return BuildOrderStatus::SUCCESSFUL;
 			}
 			else
-				return BuildOrderStatus::NO_BUILDSITE_FOUND;
-		}
-	}
-
-	if(checkWater)
-	{
-		int randomness(8);
-		if(staticDefences > 4 && (rand()%cfg->LEARN_RATE == 1) )// select defence more randomly from time to time
-			randomness = 20;
-
-		UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), cost, buildtime, combatPower, targetType, range, randomness, true);
-
-
-		if(selectedDefence.isValid())
-		{
-			pos = dest->GetDefenceBuildsite(selectedDefence.id, targetType, terrain, true);
-
-			if(pos.x > 0)
 			{
-				float min_dist;
-				builder = ai->Getut()->FindClosestBuilder(selectedDefence.id, &pos, true, &min_dist);
-
-				if(builder)
-				{
-					builder->GiveConstructionOrder(selectedDefence, pos);
-					ai->Getmap()->AddStaticDefence(pos, selectedDefence);
-					return BuildOrderStatus::SUCCESSFUL;
-				}
-				else
-				{
-					ai->Getbt()->BuildBuilderFor(selectedDefence);
-					return BuildOrderStatus::NO_BUILDER_AVAILABLE;
-				}
+				ai->Getbt()->BuildBuilderFor(selectedDefence);
+				return BuildOrderStatus::NO_BUILDER_AVAILABLE;
 			}
-			else
-				return BuildOrderStatus::NO_BUILDSITE_FOUND;
 		}
+		else
+			return BuildOrderStatus::NO_BUILDSITE_FOUND;
 	}
-
-	return BuildOrderStatus::BUILDING_INVALID;
+	else
+		return BuildOrderStatus::BUILDING_INVALID;
 }
 
 bool AAIExecute::BuildArty()
@@ -1620,19 +1603,21 @@ bool AAIExecute::BuildJammer()
 	return true;*/
 }
 
-void AAIExecute::DefendMex(int mex, int def_id)
+void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId extractorDefId) const
 {
 	if(ai->Getut()->activeFactories < cfg->MIN_FACTORIES_FOR_DEFENCES)
 		return;
 
-	float3 pos = ai->GetAICallback()->GetUnitPos(mex);
-	const float3& base_pos = ai->Getbrain()->GetCenterOfBase();
+	const float3 extractorPos = ai->GetAICallback()->GetUnitPos(extractorId.id);
 
+	const MapPos& centerOfBase = ai->Getbrain()->GetCenterOfBase(); 
+	const float3 base_pos(centerOfBase.x * SQUARE_SIZE, 0.0f, centerOfBase.y * SQUARE_SIZE);
+	
 	// check if mex is located in a small pond/on a little island
-	if(ai->Getmap()->LocatedOnSmallContinent(pos))
+	if(ai->Getmap()->LocatedOnSmallContinent(extractorPos))
 		return;
 
-	const AAISector *sector = ai->Getmap()->GetSectorOfPos(pos); 
+	const AAISector *sector = ai->Getmap()->GetSectorOfPos(extractorPos); 
 
 	if(sector) 
 	{
@@ -1640,45 +1625,48 @@ void AAIExecute::DefendMex(int mex, int def_id)
 			&& (sector->distance_to_base <= cfg->MAX_MEX_DEFENCE_DISTANCE)
 			&& (sector->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < 1) )
 		{
-			const bool water = ai->s_buildTree.GetMovementType(UnitDefId(def_id)).IsStaticSea() ? true : false;
+			const bool water = ai->s_buildTree.GetMovementType(extractorDefId).IsStaticSea() ? true : false;
 			const AAITargetType targetType( water ? ETargetType::FLOATER : ETargetType::SURFACE); 
 
-			UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), 2.0f, 2.0f, 1.0f, targetType, 0.2f, 1, water); 
+			UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), 2.0f, 3.0f, 0.75f, targetType, 0.2f, 0, water); 
 
 			// find closest builder
 			if(defence.isValid())
 			{
-				// place defences according to the direction of the main base
-				if(pos.x > base_pos.x + 500.0f)
-					pos.x += 120.0f;
-				else if(pos.x > base_pos.x + 300.0f)
-					pos.x += 70.0f;
-				else if(pos.x < base_pos.x - 500.0f)
-					pos.x -= 120.0f;
-				else if(pos.x < base_pos.x - 300.0f)
-					pos.x -= 70.0f;
+				const MapPos& enemyBase = ai->Getmap()->GetCenterOfEnemyBase();
 
-				if(pos.z > base_pos.z + 500.0f)
-					pos.z += 70.0f;
-				else if(pos.z > base_pos.z + 300.0f)
-					pos.z += 120.0f;
-				else if(pos.z < base_pos.z - 500.0f)
-					pos.z -= 120.0f;
-				else if(pos.z < base_pos.z - 300.0f)
-					pos.z -= 70.0f;
+				float xDir = static_cast<float>(SQUARE_SIZE*enemyBase.x) - extractorPos.x;
+				float yDir = static_cast<float>(SQUARE_SIZE*enemyBase.y) - extractorPos.z;
 
-				// get suitable pos
-				pos = ai->GetAICallback()->ClosestBuildSite(&ai->Getbt()->GetUnitDef(defence.id), pos, 1400.0f, 2);
+				const float inverseNorm = fastmath::isqrt_nosse(xDir*xDir+yDir*yDir);
+				xDir *= inverseNorm;
+				yDir *= inverseNorm;
 
-				if(pos.x > 0.0f)
+				// static defence shall be placed in sufficient distance to extractor in direction of assumed center of enemy base
+				const UnitFootprint extractorFootprint = ai->s_buildTree.GetFootprint(extractorDefId);
+				const float distToExtratcor = 80.f + static_cast<float>( SQUARE_SIZE * std::max(extractorFootprint.xSize, extractorFootprint.ySize) );
+
+				float3 defenceBuildPos;
+				defenceBuildPos.x = extractorPos.x + distToExtratcor * xDir;
+				defenceBuildPos.z = extractorPos.z + distToExtratcor * yDir;
+
+				// find final buildsite (close to previously determined location)
+				const float3 finalDefenceBuildPos = ai->GetAICallback()->ClosestBuildSite(&ai->Getbt()->GetUnitDef(defence.id), defenceBuildPos, 1400.0f, 2);
+
+				if(finalDefenceBuildPos.x > 0.0f)
 				{
-					const bool commanderAllowed = (ai->Getbrain()->m_sectorsInDistToBase[0].size() > 2);
+					const AAISector* sector = ai->Getmap()->GetSectorOfPos(finalDefenceBuildPos);
+
+					const bool commanderAllowed = sector ? (sector->distance_to_base < 3) : false;
 
 					float min_dist;
-					AAIConstructor *builder = ai->Getut()->FindClosestBuilder(defence.id, &pos, commanderAllowed, &min_dist);
+					AAIConstructor *builder = ai->Getut()->FindClosestBuilder(defence.id, &finalDefenceBuildPos, commanderAllowed, &min_dist);
 
 					if(builder)
-						builder->GiveConstructionOrder(defence, pos);
+						builder->GiveConstructionOrder(defence, finalDefenceBuildPos);
+					else
+						ai->Log("No construction unit found to defend extractor %s!\n", ai->s_buildTree.GetUnitTypeProperties(defence).m_name.c_str());
+					
 				}
 			}
 		}
@@ -1747,63 +1735,29 @@ void AAIExecute::CheckDefences()
 
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
-	const int maxSectorDistToBase(2);
-	float highestRating(0.0f);
+	const int maxSectorDistToBase(1);
+	float highestImportance(0.0f);
 
 	AAISector *first(nullptr), *second(nullptr);
 	AAITargetType targetType1, targetType2;
 
-	for(int dist = 0; dist <= maxSectorDistToBase; ++dist)
+	for(int dist = 1; dist <= maxSectorDistToBase; ++dist)
 	{
 		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[dist].end(); ++sector)
 		{
 			// stop building further defences if maximum has been reached / sector contains allied buildings / is occupied by another aai instance
-			if( (*sector)->AreFurtherStaticDefencesAllowed())
+			AAITargetType targetType;		
+			const float importance = (*sector)->GetImportanceForStaticDefenceVs(targetType, gamePhase, learned, current);
+
+			if(importance > highestImportance)
 			{
-				if((*sector)->failed_defences > 1)
-					(*sector)->failed_defences = 0;
-				else
-				{
-					for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
-					{
-						// anti air defences may be built anywhere
-						/*if(cfg->AIR_ONLY_MOD || *cat == AIR_ASSAULT)
-						{
-							//rating = (*sector)->own_structures * (0.25 + ai->Getbrain()->GetAttacksBy(*cat, game_period)) * (0.25 + (*sector)->GetLocalAttacksBy(targetType learned, current)) / ( 0.1 + (*sector)->GetMyDefencePowerAgainstAssaultCategory(*cat));
-							// how often did units of category attack that sector compared to current def power
-							rating = (1.0f + (*sector)->GetLocalAttacksBy(targetType, learned, current)) / ( 1.0f + (*sector)->GetMyDefencePowerAgainstAssaultCategory(*cat));
+				second = first;
+				targetType2 = targetType1;
 
-							// how often did unist of that category attack anywere in the current period of the game
-							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(*cat, game_period));
-						}*/
-						//else if(!(*sector)->interior)
-						if(true) //(*sector)->distance_to_base > 0) // dont build anti ground/hover/sea defences in interior sectors
-						{
-							// how often did units of category attack that sector compared to current def power
-							float rating = (1.0f + (*sector)->GetLocalAttacksBy(targetType, learned, current)) / ( 1.0f + (*sector)->GetFriendlyStaticDefencePower(targetType));
+				first = *sector;
+				targetType1 = targetType;
 
-							// how often did units of that category attack anywere in the current period of the game
-							rating *= (0.1f + ai->Getbrain()->GetAttacksBy(targetType, gamePhase));
-
-							if(rating > highestRating)
-							{
-								// dont block empty sectors with too much aa
-								if(    (targetType.IsAir() == false) 
-									|| ((*sector)->GetNumberOfBuildings(EUnitCategory::POWER_PLANT) > 0)
-									|| ((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_CONSTRUCTOR) > 0 ) ) 
-								{
-									second = first;
-									targetType2 = targetType1;
-
-									first = *sector;
-									targetType1 = targetType;
-
-									highestRating = rating;
-								}
-							}
-						}
-					}
-				}
+				highestImportance = importance;
 			}
 		}
 	}
@@ -1824,7 +1778,7 @@ void AAIExecute::CheckDefences()
 			m_nextDefenceVsTargetType = targetType1;
 		}
 		else if(status == BuildOrderStatus::NO_BUILDSITE_FOUND)
-			++first->failed_defences;
+			first->FailedToConstructStaticDefence();
 	}
 
 	if(second)

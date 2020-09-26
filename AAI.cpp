@@ -420,7 +420,7 @@ void AAI::UnitFinished(int unit)
 	bt->units_dynamic[def->id].active += 1;
 
 	// building was completed
-	if (s_buildTree.GetMovementType(unitDefId).IsStatic() == true)
+	if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 	{
 		// delete buildtask
 		for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
@@ -444,7 +444,7 @@ void AAI::UnitFinished(int unit)
 			ut->AddExtractor(unit);
 
 			// order defence if necessary
-			execute->DefendMex(unit, def->id);
+			execute->BuildStaticDefenceForExtractor(UnitId(unit), unitDefId);
 		}
 		else if (category.isPowerPlant() == true)
 		{
@@ -468,7 +468,7 @@ void AAI::UnitFinished(int unit)
 		}
 		else if (category.isStaticConstructor() == true)
 		{
-			ut->AddConstructor(UnitId(unit), UnitDefId(def->id));
+			ut->AddConstructor(UnitId(unit), unitDefId);
 
 			ut->units[unit].cons->Update();
 		}
@@ -503,7 +503,7 @@ void AAI::UnitFinished(int unit)
 		// builder
 		else if(category.isMobileConstructor() )
 		{
-			ut->AddConstructor(UnitId(unit), UnitDefId(def->id));
+			ut->AddConstructor(UnitId(unit), unitDefId);
 
 			ut->units[unit].cons->Update();
 		}

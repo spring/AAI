@@ -16,6 +16,7 @@ class AIIMap;
 class AAISector;
 
 #include "aidef.h"
+#include "AAIMapRelatedTypes.h"
 #include "AAIUnitStatistics.h"
 #include "AAIBuildTable.h"
 
@@ -37,7 +38,8 @@ public:
 
 	float GetBaseWaterRatio() const { return m_baseWaterRatio; }
 
-	const float3& GetCenterOfBase() const { return m_centerOfBase; }
+	//! @brief Returns the center of the base in map coordinates
+	const MapPos& GetCenterOfBase() const { return m_centerOfBase; }
 
 	//! @brief Adds/removes the given sector to the base
 	void AssignSectorToBase(AAISector *sector, bool addToBase);
@@ -133,8 +135,8 @@ private:
 	//! Ratio of cells with water of all base sectors (ranging from 0 (none) to 1(all))
 	float m_baseWaterRatio;
 
-	//! Center of base (mean value of centers of all base sectors)
-	float3 m_centerOfBase;
+	//! Center of base (mean value of centers of all base sectors) in build map coordinates
+	MapPos m_centerOfBase;
 
 	//! Average metal surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_metalSurplus;

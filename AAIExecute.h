@@ -99,8 +99,8 @@ public:
 	// called when building has been finished / contruction failed
 	void ConstructionFailed(float3 build_pos, UnitDefId unitDefId);
 
-	// builds defences around mex spot if necessary
-	void DefendMex(int mex, int def_id);
+	//! @brief Orders construction of static defence to protect metal extractor
+	void BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId extractorDefId) const;
 
 	//! @brief Returns a position for the unit to withdraw from close quarters combat (but try to keep enemies in weapons range)
 	//!        Returns ZeroVector if no suitable pos found (or no enemies close enough)
@@ -166,6 +166,9 @@ private:
 	//! @brief Tries to build a defence building vs target type in the specified sector
 	//!        returns BUILDORDER_SUCCESSFUL if successful
 	BuildOrderStatus BuildStationaryDefenceVS(const AAITargetType& targetType, const AAISector *dest);
+
+	//! @brief Tries to build a defence fitting to given criteria
+	BuildOrderStatus BuildStaticDefence(const AAISector* sector, const StaticDefenceSelectionCriteria& selectionCriteria, bool water) const;
 
 	//! @brief Returns true if a construction unit was ordered to assist construction of a building of givn category
 	bool AssistConstructionOfCategory(const AAIUnitCategory& category);

@@ -62,7 +62,7 @@ void AAISector::Init(AAI *ai, int x, int y)
 	m_enemyUnitsDetectedBySensor = 0;
 	m_enemyBuildings  = 0;
 	m_alliedBuildings = 0;
-	failed_defences = 0;
+	m_failedAttemptsToConstructStaticDefence = 0;
 
 	importance_this_game = 1.0f + (rand()%5)/20.0f;
 
@@ -293,6 +293,76 @@ float3 AAISector::GetCenter() const
 	return pos;
 }
 
+float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, const GamePhase& gamePhase, float previousGames, float currentGame)
+{
+	if( AreFurtherStaticDefencesAllowed() )
+	{
+		if(m_failedAttemptsToConstructStaticDefence < 2) // do not try to build defences if last two attempts failed
+		{
+			std::vector<float> importanceVsTargetType(AAITargetType::numberOfMobileTargetTypes, 0.0f);
+
+			importanceVsTargetType[AAITargetType::airIndex] =  
+						  (0.1f + GetLocalAttacksBy(ETargetType::AIR, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::AIR, gamePhase)) 
+						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::AIR));
+
+			if(water_ratio < 0.7f)
+			{
+				importanceVsTargetType[AAITargetType::surfaceIndex] =  
+						  (0.1f + GetLocalAttacksBy(ETargetType::SURFACE, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::SURFACE, gamePhase)) 
+						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::SURFACE));
+			}
+
+			if(water_ratio > 0.3f)
+			{
+				importanceVsTargetType[AAITargetType::floaterIndex] =  
+						  (0.1f + GetLocalAttacksBy(ETargetType::FLOATER, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::FLOATER, gamePhase)) 
+						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::FLOATER));
+
+				importanceVsTargetType[AAITargetType::submergedIndex] =  
+						  (0.1f + GetLocalAttacksBy(ETargetType::SUBMERGED, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::SUBMERGED, gamePhase)) 
+						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::SUBMERGED));
+			}
+
+			float highestImportance(0.0f);
+
+			for(int targetTypeId = 0; targetTypeId < importanceVsTargetType.size(); ++targetTypeId)
+			{
+				if( importanceVsTargetType[targetTypeId] > highestImportance )
+				{
+					highestImportance = importanceVsTargetType[targetTypeId];
+					targetType 		  = AAITargetType(static_cast<ETargetType>(targetTypeId));
+				}
+			}
+
+			// modify importance based on location of sector (higher importance for sectors "facing" the enemy)
+			if(highestImportance > 0.0f)
+			{
+				const MapPos& enemyBaseCenter = ai->Getmap()->GetCenterOfEnemyBase();
+				const MapPos& baseCenter      = ai->Getbrain()->GetCenterOfBase();
+
+				MapPos sectorCenter(x * AAIMap::xSectorSizeMap + AAIMap::xSectorSizeMap/2, y * AAIMap::ySectorSizeMap + AAIMap::ySectorSizeMap/2);
+
+				const int distEnemyBase =   (enemyBaseCenter.x - sectorCenter.x)*(enemyBaseCenter.x - sectorCenter.x)
+										  + (enemyBaseCenter.y - sectorCenter.y)*(enemyBaseCenter.y - sectorCenter.y);
+
+				const int distOwnToEnemyBase  =   (enemyBaseCenter.x - baseCenter.x)*(enemyBaseCenter.x - baseCenter.x)
+										  		+ (enemyBaseCenter.y - baseCenter.y)*(enemyBaseCenter.y - baseCenter.y);
+
+				if(distEnemyBase < distOwnToEnemyBase)
+					highestImportance *= 2.0f;
+
+				highestImportance *= static_cast<float>(2 + this->GetEdgeDistance());
+			}
+
+			return highestImportance;
+		}
+
+		m_failedAttemptsToConstructStaticDefence = 0;
+	}
+
+	return 0.0f;
+}
+
 float AAISector::GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const MobileTargetTypeValues& targetTypeOfUnits) const
 {
 	float rating(0.0f);
@@ -375,13 +445,6 @@ float AAISector::GetStartSectorRating() const
 		return 0.0f;
 	else
 		return ( static_cast<float>(2 * GetNumberOfMetalSpots() + 1) ) * flat_ratio * flat_ratio;
-}
-
-bool AAISector::AreFurtherStaticDefencesAllowed() const
-{
-	return 	   (GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < cfg->MAX_DEFENCES) 
-			&& (GetNumberOfAlliedBuildings() < 3)
-			&& (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(x, y, ai->GetMyTeamId()) == false);
 }
 
 bool AAISector::IsSectorSuitableForBaseExpansion() const
@@ -738,4 +801,11 @@ bool AAISector::IsValidMovePos(const float3& pos, BuildMapTileType forbiddenMapT
 			return true;
 	}
 	return false;
+}
+
+bool AAISector::AreFurtherStaticDefencesAllowed() const
+{
+	return 	   (GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < cfg->MAX_DEFENCES) 
+			&& (GetNumberOfAlliedBuildings() < 3)
+			&& (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(x, y, ai->GetMyTeamId()) == false);
 }

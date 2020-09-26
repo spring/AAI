@@ -111,9 +111,6 @@ public:
 	//! @brief Decreases number of lost units by a factor < 1 such that AAI "forgets" about lost unit over time
 	void DecreaseLostUnits();
 
-	//! @brief Returns true if further static defences may be built in this sector
-	bool AreFurtherStaticDefencesAllowed() const;
-
 	//! @brief Returns whether sector can be considered for expansion of base
 	bool IsSectorSuitableForBaseExpansion() const;
 
@@ -171,6 +168,12 @@ public:
 
 	//! @brief Returns center position of the sector
 	float3 GetCenter() const;
+
+	//! @brief Increments corresponding counter (used to avoid trying to build static defences in a sector with no suitable buildsites)
+	void FailedToConstructStaticDefence() { ++m_failedAttemptsToConstructStaticDefence; }
+
+	//! @brief Returns the importance of a static defence against the target type with highest priority
+	float GetImportanceForStaticDefenceVs(AAITargetType& targetType, const GamePhase& gamePhase, float previousGames, float currentGame);
 
 	//! @brief Returns the rating of this sector as destination to attack (0.0f if no suitable target)
 	float GetAttackRating(const AAISector* currentSector, bool landSectorSelectable, bool waterSectorSelectable, const MobileTargetTypeValues& targetTypeOfUnits) const;
@@ -235,9 +238,6 @@ public:
 	// how many groups got a rally point in that sector
 	int rally_points;
 
-	// how many times aai tried to build defences and could not find possible construction site
-	int failed_defences;
-
 	// importance of the sector
 	float importance_this_game;
 	float importance_learned;
@@ -246,6 +246,9 @@ private:
 
 	//! @brief Helper function to determine position to move units to
 	bool IsValidMovePos(const float3& pos, BuildMapTileType forbiddenMapTileTypes, int continentId) const;
+
+	//! @brief Returns true if further static defences may be built in this sector
+	bool AreFurtherStaticDefencesAllowed() const;
 
 	AAI *ai;
 
@@ -290,6 +293,9 @@ private:
 
 	//! indicates how many times scouts have been sent to another sector
 	int m_skippedAsScoutDestination;
+
+	//! How many times AAI tried to build defences in this sector but failed (because of unavailable buildsite)
+	int m_failedAttemptsToConstructStaticDefence;
 };
 
 #endif

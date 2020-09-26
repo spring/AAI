@@ -28,7 +28,7 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	m_freeMetalSpotsInBase(false),
 	m_baseFlatLandRatio(0.0f),
 	m_baseWaterRatio(0.0f),
-	m_centerOfBase(ZeroVector),
+	m_centerOfBase(0, 0),
 	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_metalIncome(AAIConfig::INCOME_SAMPLE_POINTS),
@@ -118,18 +118,25 @@ void AAIBrain::DefendCommander(int /*attacker*/)
 
 void AAIBrain::UpdateCenterOfBase()
 {
-	m_centerOfBase = ZeroVector;
+	m_centerOfBase.x = 0;
+	m_centerOfBase.y = 0;
 
 	if(m_sectorsInDistToBase[0].size() > 0)
 	{
 		for(std::list<AAISector*>::iterator sector = m_sectorsInDistToBase[0].begin(); sector != m_sectorsInDistToBase[0].end(); ++sector)
 		{
-			m_centerOfBase.x += (0.5f + static_cast<float>( (*sector)->x) ) * static_cast<float>(ai->Getmap()->xSectorSize);
-			m_centerOfBase.z += (0.5f + static_cast<float>( (*sector)->y) ) * static_cast<float>(ai->Getmap()->ySectorSize);
+			m_centerOfBase.x += (*sector)->x;
+			m_centerOfBase.y += (*sector)->y;
 		}
 
-		m_centerOfBase.x /= static_cast<float>(m_sectorsInDistToBase[0].size());
-		m_centerOfBase.z /= static_cast<float>(m_sectorsInDistToBase[0].size());
+		m_centerOfBase.x *= AAIMap::xSectorSizeMap;
+		m_centerOfBase.y *= AAIMap::ySectorSizeMap;
+
+		m_centerOfBase.x /= m_sectorsInDistToBase[0].size();
+		m_centerOfBase.y /= m_sectorsInDistToBase[0].size();
+
+		m_centerOfBase.x += AAIMap::xSectorSizeMap/2;
+		m_centerOfBase.y += AAIMap::ySectorSizeMap/2;
 	}
 }
 
