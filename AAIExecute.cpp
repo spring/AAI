@@ -355,62 +355,57 @@ float3 AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitD
 	return selectedBuildsite;
 }
 
-std::list<int>* AAIExecute::GetBuildqueueOfFactory(int def_id)
+std::list<int>* AAIExecute::GetBuildqueueOfFactory(UnitDefId constructorDefId)
 {
 	for(int i = 0; i < numOfFactories; ++i)
 	{
-		if(factory_table[i] == def_id)
+		if(factory_table[i] == constructorDefId.id)
 			return &buildques[i];
 	}
 
 	return nullptr;
 }
 
-bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent)
+bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent, bool ignoreMaxQueueLength)
 {
-	list<int> *buildqueue = 0, *temp_buildqueue = 0;
-
-	float my_rating, best_rating = 0.0f;
+	std::list<int>* selectedBuildqueue(nullptr);
+	float highestRating(0.0f);
 
 	for(std::list<UnitDefId>::const_iterator fac = ai->s_buildTree.GetConstructedByList(unitDefId).begin(); fac != ai->s_buildTree.GetConstructedByList(unitDefId).end(); ++fac)
 	{
 		if(ai->Getbt()->units_dynamic[(*fac).id].active > 0)
 		{
-			temp_buildqueue = GetBuildqueueOfFactory((*fac).id);
+			std::list<int>* buildqueue = GetBuildqueueOfFactory(*fac);
 
-			if(temp_buildqueue)
+			if(buildqueue)
 			{
-				my_rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[(*fac).id].active) / static_cast<float>(temp_buildqueue->size() + 3);
+				float rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[(*fac).id].active) / static_cast<float>(buildqueue->size() + 3);
 
 				// @todo rework criterion to reflect available buildspace instead of maptype
 				if(    (ai->Getmap()->GetMapType().IsWaterMap()) 
 				    && (ai->s_buildTree.GetMovementType(UnitDefId(*fac)).IsStaticSea() == false) )
-					my_rating /= 10.0f;
-			}
-			else
-				my_rating = 0.0f;
-		}
-		else
-			my_rating = 0.0f;
+					rating /= 10.0f;
 
-		if(my_rating > best_rating)
-		{
-			best_rating = my_rating;
-			buildqueue = temp_buildqueue;
+				if(rating > highestRating)
+				{
+					highestRating      = rating;
+					selectedBuildqueue = buildqueue;
+				}
+			}	
 		}
 	}
 
 	// determine position
-	if(buildqueue)
+	if(selectedBuildqueue)
 	{
 		if(urgent)
 		{
-				buildqueue->insert(buildqueue->begin(), number, unitDefId.id);
-				return true;
+			selectedBuildqueue->insert(selectedBuildqueue->begin(), number, unitDefId.id);
+			return true;
 		}
-		else if(buildqueue->size() < cfg->MAX_BUILDQUE_SIZE)
+		else if( (selectedBuildqueue->size() < cfg->MAX_BUILDQUE_SIZE) || ignoreMaxQueueLength)
 		{
-			buildqueue->insert(buildqueue->end(), number, unitDefId.id);
+			selectedBuildqueue->insert(selectedBuildqueue->end(), number, unitDefId.id);
 			return true;
 		}
 	}
@@ -531,7 +526,7 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 			}
 			else
 			{
-				ai->Getbt()->BuildBuilderFor(building);
+				ai->Getbt()->RequestBuilderFor(building);
 				return BuildOrderStatus::NO_BUILDER_AVAILABLE;
 			}
 		}
@@ -575,7 +570,7 @@ bool AAIExecute::BuildExtractor()
 			}
 			else
 			{
-				ai->Getbt()->BuildBuilderFor(landExtractor);
+				ai->Getbt()->RequestBuilderFor(landExtractor);
 				return false;
 			}
 		}
@@ -586,7 +581,6 @@ bool AAIExecute::BuildExtractor()
 	//-----------------------------------------------------------------------------------------------------------------
 
 	const GamePhase& gamePhase = ai->GetGamePhase();
-
 
 	float cost       = 0.5f;
 	float efficiency = 2.0f;
@@ -885,7 +879,7 @@ bool AAIExecute::BuildMetalMaker()
 			if(maker.isValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
 			{
 				if(ai->Getbt()->units_dynamic[maker.id].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(maker);
+					ai->Getbt()->RequestBuilderFor(maker);
 
 				maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), cost, efficiency, metal, urgency, false, true);
 			}
@@ -906,7 +900,7 @@ bool AAIExecute::BuildMetalMaker()
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(maker);
+						ai->Getbt()->RequestBuilderFor(maker);
 						return false;
 					}
 				}
@@ -926,7 +920,7 @@ bool AAIExecute::BuildMetalMaker()
 			if(maker.isValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
 			{
 				if(ai->Getbt()->units_dynamic[maker.id].constructorsRequested <= 0)
-					ai->Getbt()->BuildBuilderFor(maker);
+					ai->Getbt()->RequestBuilderFor(maker);
 
 				maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), ai->Getbrain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, true);
 			}
@@ -947,7 +941,7 @@ bool AAIExecute::BuildMetalMaker()
 					}
 					else
 					{
-						ai->Getbt()->BuildBuilderFor(maker);
+						ai->Getbt()->RequestBuilderFor(maker);
 						return false;
 					}
 				}
@@ -1211,15 +1205,15 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	{
 		selectionCriteria.cost        = 1.5f;
 		selectionCriteria.buildtime   = 2.0f;
-		selectionCriteria.combatPower = 1.0f;
-		selectionCriteria.range       = 0.35f;
+		selectionCriteria.combatPower = 1.25f;
+		selectionCriteria.range       = 0.3f;
 	}
 	else // no static defences so far
 	{
 		selectionCriteria.cost        = 2.0f;
 		selectionCriteria.buildtime   = 3.0f;
-		selectionCriteria.combatPower = 0.5f;
-		selectionCriteria.range       = 0.2f;
+		selectionCriteria.combatPower = 1.0f;
+		selectionCriteria.range       = 0.1f;
 	}
 
 	if( (staticDefences > 2) && (rand()%cfg->LEARN_RATE == 1) ) // select defence more randomly from time to time
@@ -1245,8 +1239,6 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 
 	if(selectedDefence.isValid())
 	{
-		ai->Log("Selected Defence: %s\n", ai->s_buildTree.GetUnitTypeProperties(selectedDefence).m_name.c_str());
-
 		const float3 buildsite = sector->GetDefenceBuildsite(selectedDefence, selectionCriteria.targetType, selectionCriteria.terrain, water);
 
 		if(buildsite.x > 0.0f)
@@ -1262,7 +1254,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 			}
 			else
 			{
-				ai->Getbt()->BuildBuilderFor(selectedDefence);
+				ai->Getbt()->RequestBuilderFor(selectedDefence);
 				return BuildOrderStatus::NO_BUILDER_AVAILABLE;
 			}
 		}
@@ -1290,13 +1282,13 @@ bool AAIExecute::BuildArty()
 	if(landArtillery.isValid() && (ai->Getbt()->units_dynamic[landArtillery.id].constructorsAvailable <= 0))
 	{
 		if(ai->Getbt()->units_dynamic[landArtillery.id].constructorsRequested <= 0)
-			ai->Getbt()->BuildBuilderFor(landArtillery);
+			ai->Getbt()->RequestBuilderFor(landArtillery);
 	}
 
 	if(seaArtillery.isValid() && (ai->Getbt()->units_dynamic[seaArtillery.id].constructorsAvailable <= 0))
 	{
 		if(ai->Getbt()->units_dynamic[seaArtillery.id].constructorsRequested <= 0)
-			ai->Getbt()->BuildBuilderFor(seaArtillery);
+			ai->Getbt()->RequestBuilderFor(seaArtillery);
 	}
 
 	//ai->Log("Selected artillery (land/sea): %s / %s\n", ai->s_buildTree.GetUnitTypeProperties(landArtillery).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(seaArtillery).m_name.c_str());
@@ -1346,7 +1338,7 @@ bool AAIExecute::BuildArty()
 		}
 		else
 		{
-			ai->Getbt()->BuildBuilderFor(artillery);
+			ai->Getbt()->RequestBuilderFor(artillery);
 			return false;
 		}
 	}
@@ -1427,7 +1419,7 @@ bool AAIExecute::BuildFactory()
 			else 
 			{
 				if(ai->Getbt()->units_dynamic[factory->id].constructorsRequested + ai->Getbt()->units_dynamic[factory->id].constructorsAvailable <= 0)
-					ai->Getbt()->BuildBuilderFor(*factory);
+					ai->Getbt()->RequestBuilderFor(*factory);
 
 				return false;
 			}
@@ -1520,7 +1512,7 @@ bool AAIExecute::BuildRadar()
 		}
 		else
 		{
-			ai->Getbt()->BuildBuilderFor(selectedRadar);
+			ai->Getbt()->RequestBuilderFor(selectedRadar);
 			return false;
 		}
 	}
@@ -1632,7 +1624,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 			const bool water = ai->s_buildTree.GetMovementType(extractorDefId).IsStaticSea() ? true : false;
 			const AAITargetType targetType( water ? ETargetType::FLOATER : ETargetType::SURFACE);
 
-			const StaticDefenceSelectionCriteria selectionCriteria(targetType, 0.5f, 0.2f, 2.0f, 3.0f, 1.0f, 0);
+			const StaticDefenceSelectionCriteria selectionCriteria(targetType, 1.0f, 0.1f, 2.0f, 3.0f, 1.0f, 0);
 			const UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water); 
 
 			// find closest builder

@@ -114,7 +114,7 @@ void AAIUnitTable::RemoveUnit(int unit_id)
 
 void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 {
-	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, IsFactory(unitDefId), IsBuilder(unitDefId), IsAssister(unitDefId), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId.id));
+	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, IsFactory(unitDefId), IsBuilder(unitDefId), IsAssister(unitDefId), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId));
 
 	constructors.insert(unitId.id);
 	units[unitId.id].cons = cons;
@@ -157,7 +157,7 @@ void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 
 void AAIUnitTable::AddCommander(UnitId unitId, UnitDefId unitDefId)
 {
-	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, IsFactory(unitDefId), IsBuilder(unitDefId), IsAssister(unitDefId), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId.id));
+	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, IsFactory(unitDefId), IsBuilder(unitDefId), IsAssister(unitDefId), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId));
 	units[unitId.id].cons = cons;
 
 	constructors.insert(unitId.id);

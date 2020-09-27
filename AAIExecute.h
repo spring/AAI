@@ -114,10 +114,10 @@ public:
 	void DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const;
 
 	//! @brief Adds the given number of units to the most suitable buildqueue
-	bool AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent);
+	bool AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent, bool ignoreMaxQueueLength = false);
 
-	// returns buildque for a certain factory
-	std::list<int>* GetBuildqueueOfFactory(int def_id);
+	//! @brief Returns buildque for a certain constructor
+	std::list<int>* GetBuildqueueOfFactory(UnitDefId constructorDefId);
 
 	//! @brief Determines buildsite for a unit (not building) that shall be constructed by the given construction unit
 	float3 DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitDefId) const;

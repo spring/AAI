@@ -159,7 +159,7 @@ public:
 	void BuildFactoryFor(int unit_def_id);
 
 	//! @brief Looks for most suitable construction unit for given building and places buildorder if such a unit is not already under construction/requested
-	void BuildBuilderFor(UnitDefId building, float cost = 1.0f, float buildtime = 0.5f, float buildpower = 0.75f, float constructableBuilderBonus = 0.25f);
+	void RequestBuilderFor(UnitDefId building);
 
 	// @brief Tries to build an assistant for the specified kind of unit
 	//void AddAssistant(uint32_t allowedMovementTypes, bool mustBeConstructable);
