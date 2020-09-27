@@ -13,6 +13,7 @@
 #include "aidef.h"
 #include "AAITypes.h"
 #include "AAIUnitTypes.h"
+#include "AAIBuildTable.h"
 
 namespace springLegacyAI {
 	struct UnitDef;

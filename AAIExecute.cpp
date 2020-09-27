@@ -10,7 +10,6 @@
 
 #include "AAI.h"
 #include "AAIExecute.h"
-#include "AAIBuildTable.h"
 #include "AAIBrain.h"
 #include "AAIUnitTable.h"
 #include "AAIConstructor.h"
@@ -1232,20 +1231,22 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	BuildOrderStatus status(BuildOrderStatus::BUILDING_INVALID);
 
 	if(checkGround)
-		status = BuildStaticDefence(dest, selectionCriteria, true);
+		status = BuildStaticDefence(dest, selectionCriteria, false);
 
 	if(checkWater && (status != BuildOrderStatus::SUCCESSFUL))
-		status = BuildStaticDefence(dest, selectionCriteria, false);
+		status = BuildStaticDefence(dest, selectionCriteria, true);
 
 	return status;
 }
 
 BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const StaticDefenceSelectionCriteria& selectionCriteria, bool water) const
 {
-	UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water);
+	const UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water);
 
 	if(selectedDefence.isValid())
 	{
+		ai->Log("Selected Defence: %s\n", ai->s_buildTree.GetUnitTypeProperties(selectedDefence).m_name.c_str());
+
 		const float3 buildsite = sector->GetDefenceBuildsite(selectedDefence, selectionCriteria.targetType, selectionCriteria.terrain, water);
 
 		if(buildsite.x > 0.0f)
@@ -1269,7 +1270,10 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 			return BuildOrderStatus::NO_BUILDSITE_FOUND;
 	}
 	else
+	{
+		ai->Log("No static Defence found!\n");
 		return BuildOrderStatus::BUILDING_INVALID;
+	}
 }
 
 bool AAIExecute::BuildArty()
@@ -1626,9 +1630,10 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 			&& (sector->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < 1) )
 		{
 			const bool water = ai->s_buildTree.GetMovementType(extractorDefId).IsStaticSea() ? true : false;
-			const AAITargetType targetType( water ? ETargetType::FLOATER : ETargetType::SURFACE); 
+			const AAITargetType targetType( water ? ETargetType::FLOATER : ETargetType::SURFACE);
 
-			UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), 2.0f, 3.0f, 0.75f, targetType, 0.2f, 0, water); 
+			const StaticDefenceSelectionCriteria selectionCriteria(targetType, 0.5f, 0.2f, 2.0f, 3.0f, 1.0f, 0);
+			const UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water); 
 
 			// find closest builder
 			if(defence.isValid())

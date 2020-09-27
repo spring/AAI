@@ -461,7 +461,7 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, const StaticDefenceSelect
 
 	for(auto defence = unitList.begin(); defence != unitList.end(); ++defence)
 	{
-		const float defenceCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetCombatPowerVsTargetType(targetType);
+		const float defenceCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetCombatPowerVsTargetType(selectionCriteria.targetType);
 		combatPowerStat.AddValue(defenceCombatPower);
 	}
 
