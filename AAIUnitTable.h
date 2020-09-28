@@ -75,8 +75,8 @@ public:
 
 	AAIConstructor* FindBuilder(int building, bool commander);
 
-	// finds closest builder and stores its distance to pos in min_dist
-	AAIConstructor* FindClosestBuilder(int building, const float3 *pos, bool commander, float *min_dist);
+	//! @brief Finds the closest builder and stores the time it needs to reach the given positon
+	AAIConstructor* FindClosestBuilder(UnitDefId building, const float3 *pos, bool commander, float *timeToReachPosition);
 
 	AAIConstructor* FindClosestAssistant(float3 pos, int importance, bool commander);
 
@@ -110,8 +110,6 @@ public:
 	// units[i].unitId = -1 -> not used , -2 -> enemy unit
 	vector<AAIUnit> units;
 
-	// id of commander
-	int cmdr;
 	set<int> constructors;
 	set<int> metal_makers;
 	set<int> jammers;
@@ -120,10 +118,8 @@ public:
 	// number of active/under construction units of all different types
 	int activeBuilders, futureBuilders;
 	int activeFactories, futureFactories;
+
 private:
-
-	bool IsUnitCommander(int unit_id);
-
 	//! @todo These functions are duplicated in buildtable -> remove duplication after unit category handling is reworked
 	bool IsFactory(UnitDefId unitDefId)  const { return ai->s_buildTree.GetUnitType(unitDefId).IsFactory(); };
 

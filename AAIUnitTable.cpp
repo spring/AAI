@@ -33,12 +33,11 @@ AAIUnitTable::AAIUnitTable(AAI *ai)
 	{
 		units[i].unit_id = -1;
 		units[i].def_id = 0;
-		units[i].group = 0;
+		units[i].group = nullptr;
 		units[i].cons = nullptr;
 		units[i].status = UNIT_KILLED;
 		units[i].last_order = 0;
 	}
-
 
 	m_activeUnitsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
 	m_underConstructionUnitsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
@@ -46,8 +45,6 @@ AAIUnitTable::AAIUnitTable(AAI *ai)
 
 	activeBuilders = futureBuilders = 0;
 	activeFactories = futureFactories = 0;
-
-	cmdr = -1;
 }
 
 AAIUnitTable::~AAIUnitTable(void)
@@ -162,8 +159,6 @@ void AAIUnitTable::AddCommander(UnitId unitId, UnitDefId unitDefId)
 
 	constructors.insert(unitId.id);
 
-	cmdr = unitId.id;
-
 	// increase number of builders for all buildoptions of the commander
 	ai->Getbt()->ConstructorRequested(unitDefId); // commander has not been requested -> increase "requested constructors" counter as it is decreased by ConstructorFinished(...)
 	ai->Getbt()->ConstructorFinished(unitDefId);
@@ -181,10 +176,6 @@ void AAIUnitTable::RemoveCommander(int unit_id, int def_id)
 	units[unit_id].cons->Killed();
 	delete units[unit_id].cons;
 	units[unit_id].cons = nullptr;
-
-	// commander has been destroyed, set pointer to zero
-	if(unit_id == cmdr)
-		cmdr = -1;
 }
 
 void AAIUnitTable::AddExtractor(int unit_id)
@@ -288,62 +279,52 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 	return 0;
 }
 
-AAIConstructor* AAIUnitTable::FindClosestBuilder(int building, const float3 *pos, bool commander, float *min_dist)
+AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float3 *pos, bool commander, float *timeToReachPosition)
 {
-	float my_dist;
-	AAIConstructor *best_builder = nullptr, *builder;
-	float3 builder_pos;
-	bool suitable;
+	const int continent = ai->Getmap()->GetContinentID(*pos);
 
-	int continent = ai->Getmap()->GetContinentID(*pos);
-	*min_dist = 100000.0f;
+	*timeToReachPosition = 0.0f;
+	AAIConstructor *selectedBuilder(nullptr);
 
 	// look for idle builder
 	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
 	{
 		// check all builders
-		if(IsBuilder(units[*i].cons->m_myDefId) == true)
+		if(IsBuilder(units[*i].cons->m_myDefId))
 		{
-			builder = units[*i].cons;
+			AAIConstructor* builder = units[*i].cons;
 
 			// find idle or assisting builder, who can build this building
-			if(    (builder->IsAvailableForConstruction() == true) 
-				&& ( ai->s_buildTree.CanBuildUnitType(builder->m_myDefId.id, building) == true) )
+			if(    builder->IsAvailableForConstruction()
+				&& ai->s_buildTree.CanBuildUnitType(builder->m_myDefId, building) )
 			{
-				builder_pos = ai->GetAICallback()->GetUnitPos(builder->m_myUnitId.id);
+				const float3 builderPosition = ai->GetAICallback()->GetUnitPos(builder->m_myUnitId.id);
 
-				const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(builder->m_myDefId);
-
-				// check continent if necessary
-				if( moveType.CannotMoveToOtherContinents() )
-				{
-					if(ai->Getmap()->GetContinentID(builder_pos) == continent)
-						suitable = true;
-					else
-						suitable = false;
-				}
-				else
-					suitable = true;
+				const bool continentCheckPassed =    (ai->s_buildTree.GetMovementType(builder->m_myDefId).CannotMoveToOtherContinents() == false) 
+												  || (ai->Getmap()->GetContinentID(builderPosition) == continent);
+				const bool commanderCheckPassed = commander
+												  || ! ai->s_buildTree.GetUnitCategory(builder->m_myDefId).isCommander();
 
 				// filter out commander
-				if(suitable && ( commander || ! ai->s_buildTree.GetUnitCategory(builder->m_myDefId).isCommander() ) )
+				if(continentCheckPassed && commanderCheckPassed)
 				{
-					my_dist = fastmath::apxsqrt( (builder_pos.x - pos->x) * (builder_pos.x - pos->x) + (builder_pos.z - pos->z) * (builder_pos.z - pos->z) );
+					float travelTime = fastmath::apxsqrt( (builderPosition.x - pos->x) * (builderPosition.x - pos->x) + (builderPosition.z - pos->z) * (builderPosition.z - pos->z) );
 
-					if(ai->Getbt()->GetUnitDef(builder->m_myDefId.id).speed > 0)
-						my_dist /= ai->Getbt()->GetUnitDef(builder->m_myDefId.id).speed;
+					const float maxSpeed = ai->s_buildTree.GetMaxSpeed(builder->m_myDefId);
+					if(maxSpeed > 0.0f)
+						travelTime /= maxSpeed;
 
-					if(my_dist < *min_dist)
+					if( (travelTime < *timeToReachPosition) || (selectedBuilder == nullptr))
 					{
-						best_builder = builder;
-						*min_dist = my_dist;
+						selectedBuilder      = builder;
+						*timeToReachPosition = travelTime;
 					}
 				}
 			}
 		}
 	}
 
-	return best_builder;
+	return selectedBuilder;
 }
 
 AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*/, bool commander)
@@ -416,16 +397,6 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 	}
 
 	return best_assistant;
-}
-
-bool AAIUnitTable::IsUnitCommander(int unit_id)
-{
-	if(cmdr != -1)
-		return false;
-	else if(cmdr == unit_id)
-		return true;
-	else
-		return false;
 }
 
 void AAIUnitTable::EnemyKilled(int unit)

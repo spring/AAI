@@ -513,7 +513,7 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 		if(buildsite.x > 0.0f)
 		{
 			float min_dist;
-			AAIConstructor* builder = ai->Getut()->FindClosestBuilder(building.id, &buildsite, true, &min_dist);
+			AAIConstructor* builder = ai->Getut()->FindClosestBuilder(building, &buildsite, true, &min_dist);
 
 			if(builder)
 			{
@@ -659,7 +659,7 @@ bool AAIExecute::BuildExtractor()
 
 						const UnitDefId extractor = ((*spot)->pos.y >= 0) ? landExtractor : seaExtractor;
 
-						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor.id, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
+						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
 
 						if(builder)
 							extractorSpots.push_back(PossibleSpotForMetalExtractor(*spot, builder, min_dist));
@@ -891,7 +891,7 @@ bool AAIExecute::BuildMetalMaker()
 				if(pos.x > 0)
 				{
 					float min_dist;
-					builder = ai->Getut()->FindClosestBuilder(maker.id, &pos, true, &min_dist);
+					builder = ai->Getut()->FindClosestBuilder(maker, &pos, true, &min_dist);
 
 					if(builder)
 					{
@@ -932,7 +932,7 @@ bool AAIExecute::BuildMetalMaker()
 				if(pos.x > 0)
 				{
 					float min_dist;
-					builder = ai->Getut()->FindClosestBuilder(maker.id, &pos, true, &min_dist);
+					builder = ai->Getut()->FindClosestBuilder(maker, &pos, true, &min_dist);
 
 					if(builder)
 					{
@@ -1244,7 +1244,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 		if(buildsite.x > 0.0f)
 		{
 			float min_dist;
-			AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedDefence.id, &buildsite, true, &min_dist);
+			AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedDefence, &buildsite, true, &min_dist);
 
 			if(builder)
 			{
@@ -1329,7 +1329,7 @@ bool AAIExecute::BuildArty()
 		//ai->Log("Position for %s found\n", ai->s_buildTree.GetUnitTypeProperties(artillery).m_name.c_str());
 
 		float minDistance;
-		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(artillery.id, &bestPosition, true, &minDistance);
+		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(artillery, &bestPosition, true, &minDistance);
 
 		if(builder)
 		{
@@ -1406,7 +1406,7 @@ bool AAIExecute::BuildFactory()
 		{
 			// buildpos found -> l
 			float min_dist;
-			builder = ai->Getut()->FindClosestBuilder(factory->id, &buildpos, true, &min_dist);
+			builder = ai->Getut()->FindClosestBuilder(*factory, &buildpos, true, &min_dist);
 
 			if(builder != nullptr)
 			{
@@ -1503,7 +1503,7 @@ bool AAIExecute::BuildRadar()
 	if(selectedRadar.isValid())
 	{
 		float min_dist;
-		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedRadar.id, &bestPosition, true, &min_dist);
+		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedRadar, &bestPosition, true, &min_dist);
 
 		if(builder)
 		{
@@ -1657,7 +1657,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 					const bool commanderAllowed = sector ? (sector->distance_to_base < 3) : false;
 
 					float min_dist;
-					AAIConstructor *builder = ai->Getut()->FindClosestBuilder(defence.id, &finalDefenceBuildPos, commanderAllowed, &min_dist);
+					AAIConstructor *builder = ai->Getut()->FindClosestBuilder(defence, &finalDefenceBuildPos, commanderAllowed, &min_dist);
 
 					if(builder)
 						builder->GiveConstructionOrder(defence, finalDefenceBuildPos);
