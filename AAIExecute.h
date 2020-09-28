@@ -31,15 +31,15 @@ class AAISector;
 
 struct PossibleSpotForMetalExtractor
 {
-	PossibleSpotForMetalExtractor(AAIMetalSpot* metalSpot, AAIConstructor* builder, float distanceToClosestBuilder) :
+	PossibleSpotForMetalExtractor(AAIMetalSpot* metalSpot, AAIConstructor* builder, float rating) :
 		m_metalSpot(metalSpot),
 		m_builder(builder),
-		m_distanceToClosestBuilder(m_distanceToClosestBuilder)
+		m_rating(rating)
 		{}
 
 	AAIMetalSpot*   m_metalSpot;
 	AAIConstructor* m_builder;
-	float           m_distanceToClosestBuilder;
+	float           m_rating;
 };
 
 class AAIExecute

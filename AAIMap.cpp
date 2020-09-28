@@ -1990,6 +1990,14 @@ void AAIMap::UpdateSectors()
 	}
 }
 
+float AAIMap::GetDistanceToCenterOfEnemyBase(const float3& position) const
+{
+	const float dx = position.x - m_centerOfEnemyBase.x * SQUARE_SIZE;
+	const float dy = position.z - m_centerOfEnemyBase.y * SQUARE_SIZE;
+
+	return fastmath::apxsqrt(dx*dx + dy*dy);
+}
+
 void AAIMap::UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sectorsInDistToBase)
 {
 	// delete old values

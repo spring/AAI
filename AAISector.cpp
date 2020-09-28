@@ -503,7 +503,7 @@ float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetTy
 	int yEnd = 0;
 
 	// check possible directions
-	for(list<Direction>::iterator dir =directions.begin(); dir != directions.end(); ++dir)
+	for(std::list<Direction>::iterator dir = directions.begin(); dir != directions.end(); ++dir)
 	{
 		// get area to perform search
 		if(*dir == CENTER)

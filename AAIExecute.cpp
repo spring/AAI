@@ -636,12 +636,11 @@ bool AAIExecute::BuildExtractor()
 	std::list<PossibleSpotForMetalExtractor> extractorSpots;
 
 	// determine max search dist - prevent crashes on smaller maps
-	int max_search_dist = min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->m_sectorsInDistToBase.size()) );
-	float min_dist;
+	const int maxSearchDist = min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->m_sectorsInDistToBase.size()) );
 
 	bool freeMetalSpotFound = false;
 	
-	for(int distanceFromBase = 0; distanceFromBase < max_search_dist; ++distanceFromBase)
+	for(int distanceFromBase = 0; distanceFromBase < maxSearchDist; ++distanceFromBase)
 	{
 		//! @todo Fix possible wrong value if metal spots are skipped because enemy units are within base sector
 		if(distanceFromBase == 1)
@@ -657,12 +656,15 @@ bool AAIExecute::BuildExtractor()
 					{
 						freeMetalSpotFound = true;
 
-						const UnitDefId extractor = ((*spot)->pos.y >= 0) ? landExtractor : seaExtractor;
+						const UnitDefId extractor = ((*spot)->pos.y >= 0.0f) ? landExtractor : seaExtractor;
 
-						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &min_dist);
+						float distanceToClosestBuilder;
+						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &distanceToClosestBuilder);
+						
+						const float rating = (1.0f + ai->Getmap()->GetDistanceToCenterOfEnemyBase((*spot)->pos)) / (1.0f + distanceToClosestBuilder);
 
 						if(builder)
-							extractorSpots.push_back(PossibleSpotForMetalExtractor(*spot, builder, min_dist));
+							extractorSpots.push_back(PossibleSpotForMetalExtractor(*spot, builder, rating));
 
 						if(extractorSpots.size() >= maxExtractorBuildSpots)
 							break;
@@ -675,7 +677,7 @@ bool AAIExecute::BuildExtractor()
 		}
 
 		// stop looking for metal spots further away from base if already one found
-		if( (distanceFromBase > 1) && (extractorSpots.size() > 0) )
+		if( (distanceFromBase > 3) && (extractorSpots.size() > 0) )
 			break;
 	}
 
@@ -684,14 +686,14 @@ bool AAIExecute::BuildExtractor()
 	{
 		PossibleSpotForMetalExtractor& bestSpot = *(extractorSpots.begin());
 
-		float minDistanceToClosestBuilder = (extractorSpots.begin())->m_distanceToClosestBuilder;
+		float highestRating(0.0f);
 
 		for(auto spot = extractorSpots.begin(); spot != extractorSpots.end(); ++spot)
 		{
-			if(spot->m_distanceToClosestBuilder < min_dist)
+			if(spot->m_rating > highestRating)
 			{
 				bestSpot = *spot;
-				min_dist = spot->m_distanceToClosestBuilder;
+				highestRating = spot->m_rating;
 			}
 		}
 

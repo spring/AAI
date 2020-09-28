@@ -47,6 +47,9 @@ public:
 	//! @brief Returns the approximated map coordinates of the center of the enemy base (determined based on scouted enemy buildings)
 	const MapPos& GetCenterOfEnemyBase() const { return m_centerOfEnemyBase; }
 
+	//! @brief Returns the distance to the estimated center of enemy base
+	float GetDistanceToCenterOfEnemyBase(const float3& position) const;
+
 	//! @brief Converts given position to final building position for the given unit type
 	void Pos2FinalBuildPos(float3 *pos, const UnitDef *def) const;
 
