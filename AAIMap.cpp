@@ -105,10 +105,6 @@ AAIMap::~AAIMap(void)
 		continent_map.clear();
 	}
 
-	defence_map.clear();
-	air_defence_map.clear();
-	submarine_defence_map.clear();
-
 	m_scoutedEnemyUnitsMap.clear();
 	m_lastLOSUpdateInFrameMap.clear();
 
@@ -194,10 +190,7 @@ void AAIMap::Init()
 	m_centerOfEnemyBase.x = xMapSize/2;
 	m_centerOfEnemyBase.y = yMapSize/2;
 
-	// create defence
-	defence_map.resize(xDefMapSize*yDefMapSize, 0.0f);
-	air_defence_map.resize(xDefMapSize*yDefMapSize, 0.0f);
-	submarine_defence_map.resize(xDefMapSize*yDefMapSize, 0.0f);
+	m_defenceMaps.Init(xMapSize, yMapSize);
 
 	// for log file
 	ai->Log("Map: %s\n",ai->GetAICallback()->GetMapName());
@@ -293,6 +286,8 @@ void AAIMap::ReadMapCacheFile()
 				}
 			}
 
+			//const springLegacyAI::UnitDef* def = ai->GetAICallback()->GetUnitDef("armmine1");
+
 			// load plateau map
 			for(int y = 0; y < yContMapSize; ++y)
 			{
@@ -300,6 +295,14 @@ void AAIMap::ReadMapCacheFile()
 				{
 					const int cell = x + y * xContMapSize;
 					fscanf(file, "%f ", &plateau_map[cell]);
+
+					/*if(	plateau_map[cell] > 0.0f)
+					{
+						float3 myPos(static_cast<float>(x*4), 0.0, static_cast<float>(y*4) );
+						BuildMapPos2Pos(&myPos, def); 
+						myPos.y = ai->GetAICallback()->GetElevation(myPos.x, myPos.z);
+						ai->GetAICallback()->DrawUnit("armmine1", myPos, 0.0f, 1000, ai->GetAICallback()->GetMyAllyTeam(), true, true);	
+					}*/
 				}
 			}
 
@@ -853,54 +856,100 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 	return selectedPosition;
 }
 
-float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAITargetType& targetType, float terrainModifier, bool water) const
+float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const AAISector* sector, const AAITargetType& targetType, float terrainModifier) const
 {
-	*buildPos = ZeroVector;
+	const UnitDef *def = &ai->Getbt()->GetUnitDef(staticDefence.id);
 
-	const std::vector<float> *map = &defence_map;
+	const int           range     = static_cast<int>(ai->s_buildTree.GetMaxRange(staticDefence)) / SQUARE_SIZE;
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(staticDefence);
+	const bool          water     = ai->s_buildTree.GetMovementType(staticDefence).IsStaticSea();
 
-	if(targetType.IsAir() )
-		map = &air_defence_map;
-	else if(targetType.IsSubmerged() )
-		map = &submarine_defence_map;
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine search horizontal and vertical search range
+	//-----------------------------------------------------------------------------------------------------------------
+	const int xStart =  sector->x    * xSectorSizeMap;
+	const int xEnd   = (sector->x+1) * xSectorSizeMap;
+	const int yStart =  sector->y    * ySectorSizeMap;
+	const int yEnd   = (sector->y+1) * ySectorSizeMap;
 
-	const float         range     =  ai->s_buildTree.GetMaxRange(UnitDefId(def->id)) / 8.0f;
-	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine distances to center of base of tiles to be checked and statistcis (for calculation of rating later)
+	//-----------------------------------------------------------------------------------------------------------------
+	const int numberOfTilesToBeChecked = (1+(xEnd-xStart)/4) * (1+(yEnd-yStart)/4);
+	std::vector<float> distancesToBaseCenter(numberOfTilesToBeChecked);
+	StatisticalData distanceStatistics;
 
-	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
-	FILE* file = fopen(filename.c_str(), "w+");
-	fprintf(file, "Search area: (%i, %i) x (%i, %i)\n", xStart, yStart, xEnd, yEnd);
-	fprintf(file, "Range: %g\n", range);
+	int index(0);
+	const MapPos& baseCenter = ai->Getbrain()->GetCenterOfBase();
 
-	float highestRating(-10000.0f);
-
-	// check rect
 	for(int yPos = yStart; yPos < yEnd; yPos += 4)
 	{
 		for(int xPos = xStart; xPos < xEnd; xPos += 4)
 		{
-			// check if buildmap allows construction
+			const int dx = xPos - baseCenter.x;
+			const int dy = yPos - baseCenter.y;
+			const float squaredDist = static_cast<float>(dx*dx + dy*dy);
+
+			distancesToBaseCenter[index] = squaredDist;
+			distanceStatistics.AddValue(squaredDist);
+
+			++index;
+		}
+	}
+
+	distanceStatistics.Finalize();
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// find highest rated positon with search range
+	//-----------------------------------------------------------------------------------------------------------------
+	float3 buildsite(ZeroVector);
+	float highestRating(0.0f);
+	index = 0;
+
+	FILE* file(nullptr);
+	if(ai->GetAAIInstance() == 1)
+	{
+		const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
+		file = fopen(filename.c_str(), "w+");
+		fprintf(file, "Base center: %i, %i\n", baseCenter.x, baseCenter.y);
+		fprintf(file, "Defence Map: Defence value / distance value / terrain value\n");
+	}
+
+	for(int yPos = yStart; yPos < yEnd; yPos += 4)
+	{
+		for(int xPos = xStart; xPos < xEnd; xPos += 4)
+		{
 			if(CanBuildAt(xPos, yPos, footprint, water))
 			{
-				const int cell = (xPos/4 + xDefMapSize * yPos/4);
+				// criterion 1: how well is tile already covered by existing static defences
+				const MapPos mapPos(xPos, yPos);
+				const float defenceValue = 2.0f * AAIConstants::maxCombatPower / (1.0f + 0.2f * m_defenceMaps.GetValue(mapPos, targetType) );
 
-				float rating = terrainModifier * plateau_map[cell] - (*map)[cell] + 0.5f * (float)(rand()%10);
-				//my_rating = - (*map)[cell];
+				// criterion 2: distance to center of base (prefer static defences closer to base)
+				const float distanceValue = AAIConstants::maxCombatPower * distanceStatistics.GetNormalizedDeviationFromMax(distancesToBaseCenter[index]);
+
+				// criterion 3: terrain (prefer defences on high ground, avoid defences close to walls of canyons/valleys)
+				const int cell = (xPos/4 + xContMapSize * yPos/4);
+				const float terrainValue = std::min(AAIConstants::maxCombatPower, terrainModifier * plateau_map[cell]);
+
+				float rating = defenceValue + distanceValue + terrainValue + 0.2f * (float)(rand()%15);
+
+				if(ai->GetAAIInstance() == 1)
+				{
+					//fprintf(file, "%f:%f / %f / %f   ", m_defenceMaps.GetValue(mapPos, targetType), defenceValue, distanceValue, terrainValue);
+					fprintf(file, "%-3.1f %-2.1f: %-2.1f    ", m_defenceMaps.GetValue(mapPos, targetType), distanceValue, rating);
+				}
 
 				// determine minimum distance from buildpos to the edges of the map
 				const int edge_distance = GetEdgeDistance(xPos, yPos);
 
-				fprintf(file, "Pos: (%i,%i) -> Def map cell %i -> rating: %i  , edge_dist: %i\n",xPos, yPos, cell, (int)rating, edge_distance);
-
 				// prevent aai from building defences too close to the edges of the map
-				if( (float)edge_distance < range)
-					rating -= (range - (float)edge_distance) * (range - (float)edge_distance);
+				if( edge_distance < range)
+					rating *= (1.0f - (range - edge_distance) / range);
 
 				if(rating > highestRating)
 				{
-					float3 pos;
-					pos.x = static_cast<float>(xPos);
-					pos.z = static_cast<float>(yPos);
+					float3 pos(static_cast<float>(xPos), 0.0f, static_cast<float>(yPos));
 
 					// buildmap allows construction, now check if otherwise blocked
 					BuildMapPos2Pos(&pos, def);
@@ -908,17 +957,27 @@ float AAIMap::GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xSta
 
 					if(ai->GetAICallback()->CanBuildAt(def, pos))
 					{
-						*buildPos = pos;
+						buildsite = pos;
 						highestRating = rating;
 					}
 				}
 			}
+
+			++index;
+		}
+
+		if(ai->GetAAIInstance() == 1)
+		{
+			fprintf(file, "\n");
 		}
 	}
 
-	fclose(file);
+	if(ai->GetAAIInstance() == 1)
+	{
+		fclose(file);
+	}
 
-	return highestRating;
+	return buildsite;
 }
 
 bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& size, bool water) const
@@ -1155,7 +1214,7 @@ bool AAIMap::InitBuilding(const UnitDef *def, const float3& position)
 		// update defence map (if necessary)
 		UnitDefId unitDefId(def->id);
 		if(ai->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence())
-			AddStaticDefence(position, unitDefId);
+			AddOrRemoveStaticDefence(position, unitDefId, true);
 
 		// increase number of units of that category in the target sector
 		sector->AddBuilding(ai->s_buildTree.GetUnitCategory(unitDefId));
@@ -2160,175 +2219,33 @@ AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 		return nullptr;
 }
 
-void AAIMap::AddStaticDefence(const float3& position, UnitDefId defence)
+void AAIMap::AddOrRemoveStaticDefence(const float3& position, UnitDefId defence, bool addDefence)
 {
-	const int range = static_cast<int>( ai->s_buildTree.GetMaxRange(defence) ) / (SQUARE_SIZE * 4);
-	const int xPos = (position.x + ai->Getbt()->GetUnitDef(defence.id).xsize/2)/ (SQUARE_SIZE * 4);
-	const int yPos = (position.z + ai->Getbt()->GetUnitDef(defence.id).zsize/2)/ (SQUARE_SIZE * 4);
+	// (un-)block area close to static defence
+	const AAICombatPower blockValues(100.0f);
+	m_defenceMaps.ModifyTiles(position, 120.0f, ai->s_buildTree.GetFootprint(defence), blockValues, addDefence);
 
-	// x range will change from line to line -  y range is const
-	int yStart = yPos - range;
-	int yEnd = yPos + range;
+	m_defenceMaps.ModifyTiles(position, ai->s_buildTree.GetMaxRange(defence), ai->s_buildTree.GetFootprint(defence), ai->s_buildTree.GetCombatPower(defence), addDefence);
 
-	if(yStart < 0)
-		yStart = 0;
-	if(yEnd > yDefMapSize)
-		yEnd = yDefMapSize;
-
-	for(int y = yStart; y < yEnd; ++y)
+	/*if(ai->GetAAIInstance() == 1)
 	{
-		// determine x-range
-		int xRange = (int) floor( fastmath::apxsqrt2( (float) ( std::max(1, range * range - (y - yPos) * (y - yPos)) ) ) + 0.5f );
+		const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
+		FILE* file = fopen(filename.c_str(), "w+");
 
-		int xStart = xPos - xRange;
-		int xEnd = xPos + xRange;
-
-		if(xStart < 0)
-			xStart = 0;
-		if(xEnd > xDefMapSize)
-			xEnd = xDefMapSize;
-
-		for(int x = xStart; x < xEnd; ++x)
+		for(int y = 0; y < yMapSize; ++y)
 		{
-			const int cell = x + xDefMapSize*y;
+			for(int x = 0; x < xMapSize; ++x)
+			{
+				const float value = m_defenceMaps.GetValue(MapPos(x,y), ETargetType::SURFACE);
 
-			const AAICombatPower& combatPower = ai->s_buildTree.GetCombatPower(defence);
+				fprintf(file, "%3.1f ", value);
+			}
 
-			defence_map[cell]           += combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
-			air_defence_map[cell]       += combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
-			submarine_defence_map[cell] += combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER) + combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
-		}
-	}
-
-	// further increase values close around the bulding (to prevent aai from packing buildings too close together)
-	int xStart = xPos - 2;
-	int xEnd = xPos + 2;
-	yStart = yPos - 2;
-	yEnd = yPos + 2;
-
-	if(xStart < 0)
-		xStart = 0;
-	if(xEnd >= xDefMapSize)
-		xEnd = xDefMapSize-1;
-
-	if(yStart < 0)
-		yStart = 0;
-	if(yEnd >= yDefMapSize)
-		yEnd = yDefMapSize-1;
-
-	for(int y = yStart; y <= yEnd; ++y)
-	{
-		for(int x = xStart; x <= xEnd; ++x)
-		{
-			const int cell = x + xDefMapSize*y;
-
-			defence_map[cell] += 5000.0f;
-			air_defence_map[cell] += 5000.0f;
-			submarine_defence_map[cell] += 5000.0f;
-
-			/*float3 my_pos;
-			my_pos.x = x * 32;
-			my_pos.z = y * 32;
-			my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
-			ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 4000, ai->Getcb()->GetMyAllyTeam(), false, true);
-			my_pos.x = (x+1) * 32;
-			my_pos.z = (y+1) * 32;
-			my_pos.y = ai->Getcb()->GetElevation(my_pos.x, my_pos.z);
-			ai->Getcb()->DrawUnit("ARMMINE1", my_pos, 0.0f, 4000, ai->Getcb()->GetMyAllyTeam(), false, true);*/
-		}
-	}
-
-	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDefMap.txt", "", "", true);
-	FILE* file = fopen(filename.c_str(), "w+");
-	for(int y = 0; y < yDefMapSize; ++y)
-	{
-		for(int x = 0; x < xDefMapSize; ++x)
-		{
-			fprintf(file, "%i ", (int) defence_map[x + y *xDefMapSize]);
+			fprintf(file, "\n");
 		}
 
-		fprintf(file, "\n");
-	}
-	fclose(file);
-}
-
-void AAIMap::RemoveDefence(const float3& pos, UnitDefId defence)
-{
-	const int range = static_cast<int>( ai->s_buildTree.GetMaxRange(defence) ) / (SQUARE_SIZE * 4);
-
-	int xPos = (pos.x + ai->Getbt()->GetUnitDef(defence.id).xsize/2) / (SQUARE_SIZE * 4);
-	int yPos = (pos.z + ai->Getbt()->GetUnitDef(defence.id).zsize/2) / (SQUARE_SIZE * 4);
-
-	// further decrease values close around the bulding (to prevent aai from packing buildings too close together)
-	int xStart = xPos - 2;
-	int xEnd = xPos + 2;
-	int yStart = yPos - 2;
-	int yEnd = yPos + 2;
-
-	if(xStart < 0)
-		xStart = 0;
-	if(xEnd >= xDefMapSize)
-		xEnd = xDefMapSize-1;
-
-	if(yStart < 0)
-		yStart = 0;
-	if(yEnd >= yDefMapSize)
-		yEnd = yDefMapSize-1;
-
-	for(int y = yStart; y <= yEnd; ++y)
-	{
-		for(int x = xStart; x <= xEnd; ++x)
-		{
-			const int cell = x + xDefMapSize*y;
-
-			defence_map[cell] -= 5000.0f;
-			air_defence_map[cell] -= 5000.0f;
-			submarine_defence_map[cell] -= 5000.0f;
-		}
-	}
-
-	// y range is const
-	yStart = yPos - range;
-	yEnd = yPos + range;
-
-	if(yStart < 0)
-		yStart = 0;
-	if(yEnd > yDefMapSize)
-		yEnd = yDefMapSize;
-
-	for(int y = yStart; y < yEnd; ++y)
-	{
-		// determine x-range
-		int xRange = (int) floor( fastmath::apxsqrt2( (float) ( std::max(1, range * range - (y - yPos) * (y - yPos)) ) ) + 0.5f );
-
-		xStart = xPos - xRange;
-		xEnd = xPos + xRange;
-
-		if(xStart < 0)
-			xStart = 0;
-		if(xEnd > xDefMapSize)
-			xEnd = xDefMapSize;
-
-		for(int x = xStart; x < xEnd; ++x)
-		{
-			const int cell = x + xDefMapSize*y;
-			
-			const AAICombatPower& combatPower = ai->s_buildTree.GetCombatPower(defence);
-
-			defence_map[cell]           -= combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
-			air_defence_map[cell]       -= combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
-			submarine_defence_map[cell] -= (combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER) + combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
-
-			if(defence_map[cell] < 0.0f)
-				defence_map[cell] = 0.0f;
-
-			if(air_defence_map[cell] < 0.0f)
-				air_defence_map[cell] = 0.0f;
-
-			if(submarine_defence_map[cell] < 0.0f)
-				submarine_defence_map[cell] = 0.0f;
-		}
-	}
+		fclose(file);
+	}*/
 }
 
 uint32_t AAIMap::GetSuitableMovementTypes(const AAIMapType& mapType) const
@@ -2368,20 +2285,17 @@ int AAIMap::GetEdgeDistance(int xPos, int yPos) const
 	return edge_distance;
 }
 
-float AAIMap::GetEdgeDistance(float3 *pos)
+float AAIMap::GetEdgeDistance(const float3& pos) const
 {
-	float edge_distance = pos->x;
+	// determine minimum dist to horizontal map edges
+	const float distRight(static_cast<float>(xSize) - pos.x);
+	const float hDist( std::min(pos.x, distRight) );
 
-	if(xSize - pos->x < edge_distance)
-		edge_distance = xSize - pos->x;
+	// determine minimum dist to vertical map edges
+	const float distBottom(static_cast<float>(ySize) - pos.z);
+	const float vDist( std::min(pos.z, distBottom) );
 
-	if(pos->z < edge_distance)
-		edge_distance = pos->z;
-
-	if(ySize - pos->z < edge_distance)
-		edge_distance = ySize - pos->z;
-
-	return edge_distance;
+	return std::min(hDist, vDist);
 }
 
 float AAIMap::GetMaximumNumberOfLostUnits() const

@@ -117,9 +117,6 @@ public:
 	//! @brief Returns true if sector shall be considered for selection of construction of further metal extractor
 	bool ShallBeConsideredForExtractorConstruction() const;
 
-	// returns a buildsite for a defence building
-	float3 GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetType& targetType, float terrainModifier, bool water) const ;
-
 	float3 GetRandomBuildsite(int building, int tries, bool water = false);
 
 	float3 GetRadarArtyBuildsite(int building, float range, bool water);

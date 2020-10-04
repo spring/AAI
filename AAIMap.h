@@ -80,7 +80,8 @@ public:
 	//! @brief Returns the sector in which the given position lies (nullptr if out of sector map -> e.g. aircraft flying outside of the map) 
 	AAISector* GetSectorOfPos(const float3& pos);
 
-	float GetEdgeDistance(float3 *pos);
+	//! @brief Returns distance to closest edge of the map (in unit map coordinates)
+	float GetEdgeDistance(const float3& pos) const;
 
 	//! @brief Returns the maximum number of units lost in any sector of the map
 	float GetMaximumNumberOfLostUnits() const;
@@ -93,8 +94,8 @@ public:
 	// prefer buildsites that are on plateus and not too close to the edge of the map
 	float3 GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, float range, bool water);
 
-	// return rating of a the best buidliste fpr a def. building vs category within specified rect (and stores pos in pointer)
-	float GetDefenceBuildsite(float3 *buildPos, const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, const AAITargetType& targetType, float terrainModifier, bool water) const;
+	//! @brief Determines the most suitable buidliste for the given static defence in the given sector (returns ZeroVector if no buildsite found)
+	float3 DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const AAISector* sector, const AAITargetType& targetType, float terrainModifier) const;
 
 	//! @brief Updates buildmap & defence map (for static defences) and building data of target sector 
 	//!        Return true if building will be placed at a valid position, i.e. inside sectors
@@ -129,11 +130,8 @@ public:
 	//! @brief Checks for new neighbours (and removes old ones if necessary)
 	void UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sectorsInDistToBase);
 
-	//! @brief Adds a defence buidling to the defence map
-	void AddStaticDefence(const float3& position, UnitDefId defence);
-
-	//! @brief Removes a defence buidling from the defence map
-	void RemoveDefence(const float3& pos, UnitDefId defence);
+	//! @brief Adds or removes a defence buidling to/from the defence map
+	void AddOrRemoveStaticDefence(const float3& position, UnitDefId defence, bool addDefence);
 
 	//! @brief Determines to which location a given scout schould be sent to next
 	float3 GetNewScoutDest(UnitId scoutUnitId);
@@ -195,12 +193,9 @@ public:
 	static constexpr int ignoreContinentID = -1;
 
 private:
+	//! The defence maps (storing combat power by static defences vs the different mobile target types)
+	AAIDefenceMaps m_defenceMaps;
 
-	// defence maps
-	vector<float> defence_map;	//  ground/sea defence map has 1/2 of resolution of blockmap/buildmap
-	vector<float> air_defence_map; // air defence map has 1/2 of resolution of blockmap/buildmap
-	vector<float> submarine_defence_map; // submarine defence map has 1/2 of resolution of blockmap/buildmap
-	
 	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
 	std::vector<int> m_scoutedEnemyUnitsMap;
 

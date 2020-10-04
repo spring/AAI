@@ -461,101 +461,6 @@ bool AAISector::ShallBeConsideredForExtractorConstruction() const
 			&& (IsOccupiedByEnemies() == false);	
 }
 
-float3 AAISector::GetDefenceBuildsite(UnitDefId buildingDefId, const AAITargetType& targetType, float terrainModifier, bool water) const
-{
-	float3 best_pos = ZeroVector, pos;
-	
-	int my_team = ai->GetAICallback()->GetMyAllyTeam();
-
-	float my_rating, best_rating = -10000;
-
-	std::list<Direction> directions;
-
-	// get possible directions
-	if(targetType.IsAir() && !cfg->AIR_ONLY_MOD)
-	{
-		directions.push_back(CENTER);
-	}
-	else
-	{
-		if(distance_to_base > 0)
-			directions.push_back(CENTER);
-		else
-		{
-			// filter out frontiers to other base sectors
-			if( (x > 0) && ai->Getmap()->IsSectorBorderToBase(x-1, y) )
-				directions.push_back(WEST);
-
-			if( (x < AAIMap::xSectors-1) && ai->Getmap()->IsSectorBorderToBase(x+1, y) )
-				directions.push_back(EAST);
-
-			if( (y > 0) && ai->Getmap()->IsSectorBorderToBase(x, y-1) )
-				directions.push_back(NORTH);
-
-			if( (y < AAIMap::ySectors-1) && ai->Getmap()->IsSectorBorderToBase(x, y+1) )
-				directions.push_back(SOUTH);
-		}
-	}
-
-	int xStart = 0;
-	int xEnd = 0;
-	int yStart = 0;
-	int yEnd = 0;
-
-	// check possible directions
-	for(std::list<Direction>::iterator dir = directions.begin(); dir != directions.end(); ++dir)
-	{
-		// get area to perform search
-		if(*dir == CENTER)
-		{
-			xStart = x * ai->Getmap()->xSectorSizeMap;
-			xEnd = (x+1) * ai->Getmap()->xSectorSizeMap;
-			yStart = y * ai->Getmap()->ySectorSizeMap;
-			yEnd = (y+1) * ai->Getmap()->ySectorSizeMap;
-		}
-		else if(*dir == WEST)
-		{
-			xStart = x * ai->Getmap()->xSectorSizeMap;
-			xEnd = x * ai->Getmap()->xSectorSizeMap + ai->Getmap()->xSectorSizeMap/4.0f;
-			yStart = y * ai->Getmap()->ySectorSizeMap;
-			yEnd = (y+1) * ai->Getmap()->ySectorSizeMap;
-		}
-		else if(*dir == EAST)
-		{
-			xStart = (x+1) * ai->Getmap()->xSectorSizeMap - ai->Getmap()->xSectorSizeMap/4.0f;
-			xEnd = (x+1) * ai->Getmap()->xSectorSizeMap;
-			yStart = y * ai->Getmap()->ySectorSizeMap;
-			yEnd = (y+1) * ai->Getmap()->ySectorSizeMap;
-		}
-		else if(*dir == NORTH)
-		{
-			xStart = x * ai->Getmap()->xSectorSizeMap;
-			xEnd = (x+1) * ai->Getmap()->xSectorSizeMap;
-			yStart = y * ai->Getmap()->ySectorSizeMap;
-			yEnd = y * ai->Getmap()->ySectorSizeMap + ai->Getmap()->ySectorSizeMap/4.0f;
-		}
-		else if(*dir == SOUTH)
-		{
-			xStart = x * ai->Getmap()->xSectorSizeMap ;
-			xEnd = (x+1) * ai->Getmap()->xSectorSizeMap;
-			yStart = (y+1) * ai->Getmap()->ySectorSizeMap - ai->Getmap()->ySectorSizeMap/4.0f;
-			yEnd = (y+1) * ai->Getmap()->ySectorSizeMap;
-		}
-
-		//
-		const UnitDef *def = &ai->Getbt()->GetUnitDef(buildingDefId.id);
-		my_rating = ai->Getmap()->GetDefenceBuildsite(&pos, def, xStart, xEnd, yStart, yEnd, targetType, terrainModifier, water);
-
-		if(my_rating > best_rating)
-		{
-			best_pos = pos;
-			best_rating = my_rating;
-		}
-	}
-
-	return best_pos;
-}
-
 float3 AAISector::GetRandomBuildsite(int building, int tries, bool water)
 {
 	if(building < 1)
@@ -609,7 +514,7 @@ void AAISector::DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart,
 		*yStart = 8;
 
 	// reserve buildspace for def. buildings
-	if(x > 0 && ai->Getmap()->m_sector[x-1][y].distance_to_base > 0 )
+	/*if(x > 0 && ai->Getmap()->m_sector[x-1][y].distance_to_base > 0 )
 		*xStart += ai->Getmap()->xSectorSizeMap/8;
 
 	if(x < ai->Getmap()->xSectors-1 && ai->Getmap()->m_sector[x+1][y].distance_to_base > 0)
@@ -619,7 +524,7 @@ void AAISector::DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart,
 		*yStart += ai->Getmap()->ySectorSizeMap/8;
 
 	if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->m_sector[x][y+1].distance_to_base > 0)
-		*yEnd -= ai->Getmap()->ySectorSizeMap/8;
+		*yEnd -= ai->Getmap()->ySectorSizeMap/8;*/
 }
 
 float AAISector::GetLocalAttacksBy(const AAITargetType& targetType, float previousGames, float currentGame) const

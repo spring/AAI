@@ -609,7 +609,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			if (category.isStaticDefence())
 			{
 				// remove defence from map
-				map->RemoveDefence(pos, unitDefId);
+				map->AddOrRemoveStaticDefence(pos, unitDefId, false);
 			}
 			else if (category.isMetalExtractor())
 			{

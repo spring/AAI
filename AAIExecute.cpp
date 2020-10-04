@@ -1176,7 +1176,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	//-----------------------------------------------------------------------------------------------------------------
 	// determine criteria for selection of static defence and its buildsite
 	//-----------------------------------------------------------------------------------------------------------------
-	StaticDefenceSelectionCriteria selectionCriteria(targetType, 2.0f, 0.5f, 0.5f, 0.25f, 1.0f, 0);
+	StaticDefenceSelectionCriteria selectionCriteria(targetType, 2.5f, 0.5f, 1.0f, 0.2f, 1.0f, 0);
 
 	if(dest->distance_to_base > 1)
 		selectionCriteria.terrain = 2.0f;
@@ -1196,17 +1196,20 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 			selectionCriteria.range   = 1.0f;
 			selectionCriteria.terrain = 5.0f;
 		}
+
+		selectionCriteria.randomness = 15;
 	}
 	if(staticDefences == 2)
 	{
 		selectionCriteria.cost        = 0.75f;
-		selectionCriteria.buildtime   = 1.0f;
+		selectionCriteria.buildtime   = 0.5f;
 		selectionCriteria.combatPower = 1.5f;
+		selectionCriteria.randomness  = 10;
 	}
 	else if(staticDefences == 1)
 	{
 		selectionCriteria.cost        = 1.5f;
-		selectionCriteria.buildtime   = 2.0f;
+		selectionCriteria.buildtime   = 1.5f;
 		selectionCriteria.combatPower = 1.25f;
 		selectionCriteria.range       = 0.3f;
 	}
@@ -1241,7 +1244,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 
 	if(selectedDefence.isValid())
 	{
-		const float3 buildsite = sector->GetDefenceBuildsite(selectedDefence, selectionCriteria.targetType, selectionCriteria.terrain, water);
+		const float3 buildsite = ai->Getmap()->DetermineBuildsiteForStaticDefence(selectedDefence, sector, selectionCriteria.targetType, selectionCriteria.terrain);
 
 		if(buildsite.x > 0.0f)
 		{
@@ -1251,7 +1254,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 			if(builder)
 			{
 				builder->GiveConstructionOrder(selectedDefence, buildsite);
-				ai->Getmap()->AddStaticDefence(buildsite, selectedDefence);
+				ai->Getmap()->AddOrRemoveStaticDefence(buildsite, selectedDefence, true);
 				return BuildOrderStatus::SUCCESSFUL;
 			}
 			else
@@ -1312,7 +1315,7 @@ bool AAIExecute::BuildArty()
 			
 			if(position.x > 0)
 			{
-				const float myRating = ai->Getmap()->GetEdgeDistance(&position);
+				const float myRating = ai->Getmap()->GetEdgeDistance(position);
 
 				if(myRating > bestRating)
 				{
@@ -1489,7 +1492,7 @@ bool AAIExecute::BuildRadar()
 
 				if(myPosition.x > 0.0f)
 				{
-					const float myRating = - ai->Getmap()->GetEdgeDistance(&myPosition);
+					const float myRating = - ai->Getmap()->GetEdgeDistance(myPosition);
 
 					if(myRating > bestRating)
 					{
@@ -2344,7 +2347,7 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 	}
 	else if(category.isStaticDefence())
 	{
-		ai->Getmap()->RemoveDefence(build_pos, unitDefId);
+		ai->Getmap()->AddOrRemoveStaticDefence(build_pos, unitDefId, false);
 	}
 	else if(category.isStaticConstructor())
 	{

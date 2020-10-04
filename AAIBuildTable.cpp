@@ -934,17 +934,15 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 	float cost = 1.0f;
 	float buildtime = 0.5f;
 	float buildpower = 1.0f;
-	float constructableBuilderBonus = 1.0f;
+	float constructableBuilderBonus = 2.0f;
 
 	if(units_dynamic[building.id].constructorsAvailable == 0)
 	{
 		buildtime                 = 2.0f;
-		constructableBuilderBonus = 1.5f;
 	}
 	else if(units_dynamic[building.id].constructorsAvailable < 2)
 	{
 		buildtime                 = 1.0f;
-		constructableBuilderBonus = 1.5f;
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------

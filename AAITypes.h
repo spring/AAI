@@ -258,7 +258,9 @@ private:
 class AAICombatPower
 {
 public:
-	AAICombatPower() { m_combatPower.resize(AAITargetType::numberOfTargetTypes, 0.0f); }
+	AAICombatPower(float value) { m_combatPower.resize(AAITargetType::numberOfTargetTypes, value); }
+
+	AAICombatPower() : AAICombatPower(0.0f) {}
 
 	void SetCombatPower(const AAITargetType& targetType, float value) { m_combatPower[targetType.GetArrayIndex()] = value; }
 
