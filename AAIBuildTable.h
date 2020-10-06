@@ -26,7 +26,7 @@ using namespace springLegacyAI;
 #include <vector>
 #include <string>
 
-using namespace std;
+//using namespace std;
 
 struct UnitTypeDynamic
 {
@@ -85,9 +85,6 @@ public:
 	void Init();
 
 	void SaveModLearnData(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const AAIMapType& mapType) const;
-
-	// cache for combat eff (needs side, thus initialized later)
-	void InitCombatEffCache(int side);
 
 	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
 	void ConstructorRequested(UnitDefId constructor);
@@ -189,36 +186,14 @@ public:
 	//! @brief Returns the unit category for a given index (0 to 5) of an combat unit type (ground, air, hover, sea, submarine, static)
 	AAIUnitCategory GetUnitCategoryOfCombatUnitIndex(int index) const;
 
-	//
-	// these data are shared by several instances of aai
-	//
-
-	// number of assault categories
-	static const int ass_categories = 5;
-
-	// number of assault cat + arty & stat defences
-	static const int combat_categories = 6;
-
-	//
-	//	non static variales
-	//
-
 	// number of sides
 	int numOfSides;
 
 	// side names
-	vector<string> sideNames;
-
-	vector<float> combat_eff;
-
-	// true if initialized correctly
-	bool initialized;
+	std::vector<std::string> sideNames;
 
 	// AAI unit defs with aai-instance specific information (number of requested, active units, etc.)
-	vector<UnitTypeDynamic> units_dynamic;
-
-	// all assault unit categories
-	std::list<UnitCategory> assault_categories;
+	std::vector<UnitTypeDynamic> units_dynamic;
 
 	const UnitDef& GetUnitDef(int i) const { assert(IsValidUnitDefID(i));	return *unitList[i]; };
 	bool IsValidUnitDefID(int i) { return (i>=0) && (i<=unitList.size()); }

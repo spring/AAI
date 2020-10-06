@@ -108,12 +108,12 @@ public:
 	void ActiveUnitKilled(const AAIUnitCategory& category);
 
 	// units[i].unitId = -1 -> not used , -2 -> enemy unit
-	vector<AAIUnit> units;
+	std::vector<AAIUnit> units;
 
-	set<int> constructors;
-	set<int> metal_makers;
-	set<int> jammers;
-	set<int> recon;
+	std::set<int> constructors;
+	std::set<int> metal_makers;
+	std::set<int> jammers;
+	std::set<int> recon;
 
 	// number of active/under construction units of all different types
 	int activeBuilders, futureBuilders;
@@ -136,10 +136,10 @@ private:
 	//! Number of requested units (i.e. construction has not started yet) of each unit category
 	std::vector<int> m_requestedUnitsOfCategory;
 
-	set<int> scouts;
-	set<int> extractors;
-	set<int> power_plants;
-	set<int> stationary_arty;
+	std::set<int> scouts;
+	std::set<int> extractors;
+	std::set<int> power_plants;
+	std::set<int> stationary_arty;
 	AAI *ai;
 
 };

@@ -94,7 +94,11 @@ public:
 
 	std::list<AAIBuildTask*>& GetBuildTasks() { return build_tasks; }
 
-	std::vector<std::list<AAIGroup*> >& GetGroupList() { return group_list; }
+	//! @brief Returns the list of units groups for the given unit category
+	std::list<AAIGroup*>& GetUnitGroupsList(const AAIUnitCategory& category) 
+	{
+		return m_unitGroupsOfCategoryLists[category.GetArrayIndex()]; 
+	}
 
 	AAIBrain*           Getbrain() { return brain; }
 	AAIExecute*         Getexecute() { return execute; }
@@ -133,7 +137,8 @@ private:
 	AAIAirForceManager *af;		// coordinates the airforce
 	AAIAttackManager *am;		// coordinates combat forces
 
-	std::vector<std::list<AAIGroup*> > group_list;  // unit groups
+	//! List of groups of unit of the different categories
+	std::vector< std::list<AAIGroup*> > m_unitGroupsOfCategoryLists;
 
 	Profiler* profiler;
 

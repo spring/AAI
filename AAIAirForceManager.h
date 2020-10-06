@@ -65,7 +65,6 @@ private:
 	// adds new target to bombing targets (if free space in list)
 	void AddTarget(int unit_id, int def_id);
 
-	list<AAIGroup*> *air_groups;
 	AAI *ai;
 
 	int num_of_targets;

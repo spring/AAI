@@ -92,15 +92,14 @@ AAI::~AAI()
 								ut->GetNumberOfRequestedUnitsOfCategory(category));
 	}
 
-	Log("\nGround Groups:    " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()].size());
-	Log("Air Groups:       " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size());
-	Log("Hover Groups:     " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::HOVER_COMBAT).GetArrayIndex()].size());
-	Log("Sea Groups:       " _STPF_ "\n", group_list[AAIUnitCategory(EUnitCategory::SEA_COMBAT).GetArrayIndex()].size());
-	Log("Submarine Groups: " _STPF_ "\n\n", group_list[AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT).GetArrayIndex()].size());
+	Log("\nGround Groups:    " _STPF_ "\n", GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).size());
+	Log("Air Groups:       " _STPF_ "\n",   GetUnitGroupsList(EUnitCategory::AIR_COMBAT).size());
+	Log("Hover Groups:     " _STPF_ "\n",   GetUnitGroupsList(EUnitCategory::HOVER_COMBAT).size());
+	Log("Sea Groups:       " _STPF_ "\n",   GetUnitGroupsList(EUnitCategory::SEA_COMBAT).size());
+	Log("Submarine Groups: " _STPF_ "\n\n", GetUnitGroupsList(EUnitCategory::SUBMARINE_COMBAT).size());
 
 	Log("\nGround group details - unit type, current number, continent id:\n");
-	std::list<AAIGroup*>& groundGroups = group_list[AAIUnitCategory(EUnitCategory::GROUND_COMBAT).GetArrayIndex()];
-	for(auto group = groundGroups.begin(); group != groundGroups.end(); ++group)
+	for(auto group = GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).begin(); group != GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).end(); ++group)
 		Log("%s %i %i\n", s_buildTree.GetUnitTypeProperties( (*group)->GetUnitDefIdOfGroup() ).m_name.c_str(), (*group)->GetCurrentSize(), (*group)->GetContinentId());
 
 	Log("Future metal/energy supply:  %i / %i\n\n", (int)execute->futureAvailableMetal, (int)execute->futureAvailableEnergy);
@@ -147,7 +146,7 @@ AAI::~AAI()
 	spring::SafeDelete(af);
 
 	// delete unit groups
-	for(auto groupList = group_list.begin(); groupList != group_list.end(); ++groupList)
+	for(auto groupList = m_unitGroupsOfCategoryLists.begin(); groupList != m_unitGroupsOfCategoryLists.end(); ++groupList)
 	{
 		for(std::list<AAIGroup*>::iterator group = groupList->begin(); group != groupList->end(); ++group)
 			delete (*group);
@@ -240,7 +239,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	execute = new AAIExecute(this);
 
 	// create unit groups
-	group_list.resize(MOBILE_CONSTRUCTOR+1);
+	m_unitGroupsOfCategoryLists.resize(AAIUnitCategory::numberOfUnitCategories);
 
 	// init airforce manager
 	af = new AAIAirForceManager(this);
@@ -821,9 +820,9 @@ void AAI::Update()
 	if (!(tick % 169))
 	{
 		AAI_SCOPED_TIMER("Groups")
-		for(list<UnitCategory>::const_iterator category = bt->assault_categories.begin(); category != bt->assault_categories.end(); ++category)
+		for (auto category = s_buildTree.GetCombatUnitCatgegories().begin();  category != s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
-			for(list<AAIGroup*>::iterator group = group_list[*category].begin(); group != group_list[*category].end(); ++group)
+			for (auto group = GetUnitGroupsList(*category).begin(); group != GetUnitGroupsList(*category).end(); ++group)
 			{
 				(*group)->Update();
 			}
@@ -937,9 +936,9 @@ void AAI::Update()
 	if (!(tick % 1877))
 	{
 		AAI_SCOPED_TIMER("Recheck-Rally-Points")
-		for (list<UnitCategory>::const_iterator category = bt->assault_categories.begin(); category != bt->assault_categories.end(); ++category)
+		for (auto category = s_buildTree.GetCombatUnitCatgegories().begin();  category != s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
-			for (list<AAIGroup*>::iterator group = group_list[*category].begin(); group != group_list[*category].end(); ++group)
+			for (auto group = GetUnitGroupsList(*category).begin(); group != GetUnitGroupsList(*category).end(); ++group)
 			{
 				(*group)->UpdateRallyPoint();
 			}

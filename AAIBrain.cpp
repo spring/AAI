@@ -366,7 +366,7 @@ void AAIBrain::UpdateDefenceCapabilities()
 	// anti air power
 	for(auto category = ai->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 	{
-		for(auto group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
+		for(auto group = ai->GetUnitGroupsList(*category).begin(); group != ai->GetUnitGroupsList(*category).end(); ++group)
 		{
 			if((*group)->GetUnitTypeOfGroup().IsAssaultUnit())
 			{
@@ -394,13 +394,6 @@ void AAIBrain::UpdateDefenceCapabilities()
 				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::AIR, (*group)->GetCombatPowerVsTargetType(ETargetType::AIR));
 		}
 	}
-	
-	// debug
-	/*ai->Log("Defence capabilities:\n");
-
-	for(int i = 0; i < ai->Getbt()->assault_categories.size(); ++i)
-		ai->Log("%-20s %f\n" , ai->Getbt()->GetCategoryString2(ai->Getbt()->GetAssaultCategoryOfID(i)),defence_power_vs[i]);
-	*/
 }
 
 void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
@@ -649,10 +642,10 @@ void AAIBrain::UpdatePressureByEnemy()
 	enemy_pressure_estimation = 0;
 
 	// check base and neighbouring sectors for enemies
-	for(list<AAISector*>::iterator s = m_sectorsInDistToBase[0].begin(); s != m_sectorsInDistToBase[0].end(); ++s)
+	for(std::list<AAISector*>::iterator s = m_sectorsInDistToBase[0].begin(); s != m_sectorsInDistToBase[0].end(); ++s)
 		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
 
-	for(list<AAISector*>::iterator s = m_sectorsInDistToBase[1].begin(); s != m_sectorsInDistToBase[1].end(); ++s)
+	for(std::list<AAISector*>::iterator s = m_sectorsInDistToBase[1].begin(); s != m_sectorsInDistToBase[1].end(); ++s)
 		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
 
 	if(enemy_pressure_estimation > 1.0f)

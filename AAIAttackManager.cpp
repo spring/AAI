@@ -164,16 +164,16 @@ int AAIAttackManager::DetermineCombatUnitGroupsAvailableForattack(  std::list<AA
 																	std::vector< std::list<AAIGroup*> >& availableAssaultGroupsOnContinent,
 																	std::vector< std::list<AAIGroup*> >& availableAAGroupsOnContinent) const
 {
-	const std::vector<AAIUnitCategory> combatCategories = { AAIUnitCategory(EUnitCategory::GROUND_COMBAT), 
+	const std::vector<AAIUnitCategory> combatUnitCategories = { AAIUnitCategory(EUnitCategory::GROUND_COMBAT), 
 															AAIUnitCategory(EUnitCategory::HOVER_COMBAT), 
 															AAIUnitCategory(EUnitCategory::SEA_COMBAT),
 															AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT) };
 
 	int numberOfAssaultUnitGroups(0);
 
-	for(auto category = combatCategories.begin(); category != combatCategories.end(); ++category)
+	for(auto category = combatUnitCategories.begin(); category != combatUnitCategories.end(); ++category)
 	{
-		for(auto group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
+		for(auto group = ai->GetUnitGroupsList(*category).begin(); group != ai->GetUnitGroupsList(*category).end(); ++group)
 		{
 			if( (*group)->IsAvailableForAttack() )
 			{

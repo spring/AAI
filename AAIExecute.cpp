@@ -115,8 +115,6 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 	// now that we know the side, init buildques
 	InitBuildques();
 
-	ai->Getbt()->InitCombatEffCache(ai->GetSide());
-
 	ai->Getut()->AddCommander(commanderUnitId, commanderDefId);
 
 	// get economy working
@@ -206,7 +204,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 
 	// try to add unit to an existing group
 	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
-	for(auto group = ai->GetGroupList()[category.GetArrayIndex()].begin(); group != ai->GetGroupList()[category.GetArrayIndex()].end(); ++group)
+	for(auto group = ai->GetUnitGroupsList(category).begin(); group != ai->GetUnitGroupsList(category).end(); ++group)
 	{
 		if((*group)->AddUnit(unitId, unitDefId, continentId))
 		{
@@ -221,7 +219,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	new_group->AddUnit(unitId, unitDefId, continentId);
 	ai->Getut()->units[unitId.id].group = new_group;
 
-	ai->GetGroupList()[category.GetArrayIndex()].push_back(new_group);
+	ai->GetUnitGroupsList(category).push_back(new_group);
 }
 
 void AAIExecute::BuildScouts()
@@ -2089,7 +2087,7 @@ void AAIExecute::CheckAirBase()
 {
 	urgency[AIR_BASE] = 0.0f; // Detection of air base currently broken
 	// only build repair pad if any air units have been built yet
-	//if(ai->Getut()->activeUnits[AIR_BASE] +  ai->Getut()->requestedUnits[AIR_BASE] + ai->Getut()->futureUnits[AIR_BASE] < cfg->MAX_AIR_BASE && ai->GetGroupList()[AIR_ASSAULT].size() > 0)
+	//if(ai->Getut()->activeUnits[AIR_BASE] +  ai->Getut()->requestedUnits[AIR_BASE] + ai->Getut()->futureUnits[AIR_BASE] < cfg->MAX_AIR_BASE && ai->GetUnitGroupsList([AIR_ASSAULT]).size() > 0)
 	//		urgency[AIR_BASE] = 0.5f;
 }
 
@@ -2369,7 +2367,7 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTar
 
 	for(auto category = ai->s_buildTree.GetCombatUnitCatgegories().begin(); category != ai->s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 	{
-		for(auto group = ai->GetGroupList()[category->GetArrayIndex()].begin(); group != ai->GetGroupList()[category->GetArrayIndex()].end(); ++group)
+		for(auto group = ai->GetUnitGroupsList(*category).begin(); group != ai->GetUnitGroupsList(*category).end(); ++group)
 		{
 			const float rating = (*group)->GetDefenceRating(attackerTargetType, pos, importance, continentId);
 			

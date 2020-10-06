@@ -33,8 +33,6 @@ AAIAirForceManager::AAIAirForceManager(AAI *ai)
 
 	for(int i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
 		targets[i].unit_id = -1;
-
-	air_groups = &ai->GetGroupList()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()];
 }
 
 AAIAirForceManager::~AAIAirForceManager(void)
@@ -56,7 +54,7 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 		if(sector)
 		{
 			// check for anti air defences if low on units
-			if( (sector->GetLostAirUnits() > 2.5f) && (ai->GetGroupList()[AAIUnitCategory(EUnitCategory::AIR_COMBAT).GetArrayIndex()].size() < 5) )
+			if( (sector->GetLostAirUnits() > 2.5f) && (ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT).size() < 5) )
 				return;
 
 			AAIGroup *group(nullptr);
@@ -209,7 +207,7 @@ void AAIAirForceManager::BombBestUnit(float cost, float danger)
 
 AAIGroup* AAIAirForceManager::GetAirGroup(float importance, EUnitType groupType) const
 {
-	for(std::list<AAIGroup*>::iterator group = air_groups->begin(); group != air_groups->end(); ++group)
+	for(auto group = ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT).begin(); group != ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT).end(); ++group)
 	{
 		if( ((*group)->task_importance < importance) && (*group)->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) )
 			return *group;

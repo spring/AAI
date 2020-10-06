@@ -23,8 +23,7 @@ using namespace springLegacyAI;
 
 AttackedByRatesPerGamePhaseAndMapType AAIBuildTable::s_attackedByRates;
 
-AAIBuildTable::AAIBuildTable(AAI* ai) :
-	initialized(false)
+AAIBuildTable::AAIBuildTable(AAI* ai)
 {
 	this->ai = ai;
 
@@ -36,13 +35,6 @@ AAIBuildTable::AAIBuildTable(AAI* ai) :
 	{
 		sideNames[i+1].assign(cfg->SIDE_NAMES[i]);
 	}
-
-	// add assault categories
-	assault_categories.push_back(GROUND_ASSAULT);
-	assault_categories.push_back(AIR_ASSAULT);
-	assault_categories.push_back(HOVER_ASSAULT);
-	assault_categories.push_back(SEA_ASSAULT);
-	assault_categories.push_back(SUBMARINE_ASSAULT);
 }
 
 AAIBuildTable::~AAIBuildTable(void)
@@ -92,24 +84,6 @@ void AAIBuildTable::Init()
 			ai->LogConsole("New BuildTable has been created");
 		}
 	}
-
-	// buildtable is initialized
-	initialized = true;
-}
-
-void AAIBuildTable::InitCombatEffCache(int side)
-{
-	size_t maxNumberOfUnits = 0;
-
-	for(int cat = 0; cat < combat_categories; ++cat)
-	{
-		const AAIUnitCategory& category = GetUnitCategoryOfCombatUnitIndex(cat);
-		const size_t numberOfUnits = ai->s_buildTree.GetUnitsInCategory(category, side).size();
-		if( numberOfUnits > maxNumberOfUnits)
-			maxNumberOfUnits = numberOfUnits;
-	}
-
-	combat_eff.resize(maxNumberOfUnits, 0);
 }
 
 void AAIBuildTable::ConstructorRequested(UnitDefId constructor)
