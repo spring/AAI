@@ -878,12 +878,13 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 	{
 		ConstructorRequested(UnitDefId(constructor));
 
-		units_dynamic[constructor].requested += 1;
 		m_factoryBuildqueue.push_back(UnitDefId(constructor));
 
 		// factory requested
 		if( ai->s_buildTree.GetUnitCategory(UnitDefId(constructor)).isStaticConstructor() )
 		{
+			units_dynamic[constructor].requested += 1;
+
 			if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
 			{
 				ai->Log("BuildFactoryFor(%s) is requesting builder for %s\n", ai->s_buildTree.GetUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
@@ -1002,14 +1003,11 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 		}
 
 		// mark as urgent (unit gets added to front of buildqueue) if no/only one constructor of that type already exists
-		bool urgent = (units_dynamic[selectedBuilder.id].active > 1) ? false : true;
+		const bool urgent = (units_dynamic[selectedBuilder.id].active > 1) ? false : true;
 
 		if(ai->Getexecute()->AddUnitToBuildqueue(selectedBuilder, 1, urgent, true))
 		{
-			units_dynamic[selectedBuilder.id].requested += 1;
 			ai->Getut()->futureBuilders += 1;
-			ai->Getut()->UnitRequested(EUnitCategory::MOBILE_CONSTRUCTOR);
-	
 			ConstructorRequested(selectedBuilder);
 
 			ai->Log("RequestBuilderFor(%s) requested %s\n", ai->s_buildTree.GetUnitTypeProperties(building).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedBuilder).m_name.c_str());

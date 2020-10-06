@@ -906,15 +906,12 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	float highestRating(0.0f);
 	index = 0;
 
-	FILE* file(nullptr);
-	if(ai->GetAAIInstance() == 1)
-	{
-		const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
-		file = fopen(filename.c_str(), "w+");
-		fprintf(file, "Base center: %i, %i\n", baseCenter.x, baseCenter.y);
-		fprintf(file, "Defence Map: Defence value / distance value / terrain value\n");
-	}
-
+	/*FILE* file(nullptr);
+	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
+	file = fopen(filename.c_str(), "w+");
+	fprintf(file, "Base center: %i, %i\n", baseCenter.x, baseCenter.y);
+	fprintf(file, "Defence Map: Defence value / distance value / terrain value\n");*/
+	
 	for(int yPos = yStart; yPos < yEnd; yPos += 4)
 	{
 		for(int xPos = xStart; xPos < xEnd; xPos += 4)
@@ -933,12 +930,6 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 				const float terrainValue = std::min(AAIConstants::maxCombatPower, terrainModifier * plateau_map[cell]);
 
 				float rating = defenceValue + distanceValue + terrainValue + 0.2f * (float)(rand()%15);
-
-				if(ai->GetAAIInstance() == 1)
-				{
-					//fprintf(file, "%f:%f / %f / %f   ", m_defenceMaps.GetValue(mapPos, targetType), defenceValue, distanceValue, terrainValue);
-					fprintf(file, "%-3.1f %-2.1f: %-2.1f    ", m_defenceMaps.GetValue(mapPos, targetType), distanceValue, rating);
-				}
 
 				// determine minimum distance from buildpos to the edges of the map
 				const int edge_distance = GetEdgeDistance(xPos, yPos);
@@ -965,17 +956,9 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 
 			++index;
 		}
-
-		if(ai->GetAAIInstance() == 1)
-		{
-			fprintf(file, "\n");
-		}
 	}
 
-	if(ai->GetAAIInstance() == 1)
-	{
-		fclose(file);
-	}
+	//fclose(file);
 
 	return buildsite;
 }

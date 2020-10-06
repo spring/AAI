@@ -280,11 +280,7 @@ void AAIExecute::BuildScouts()
 		{
 			const bool urgent = (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) > 1) ? false : true;
 
-			if(AddUnitToBuildqueue(scoutId.id, 1, urgent))
-			{
-				ai->Getut()->UnitRequested(EUnitCategory::SCOUT);
-				++ai->Getbt()->units_dynamic[scoutId.id].requested;
-			}
+			AddUnitToBuildqueue(scoutId.id, 1, urgent);
 		}
 	}
 }
@@ -401,11 +397,15 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgen
 		if(urgent)
 		{
 			selectedBuildqueue->insert(selectedBuildqueue->begin(), number, unitDefId.id);
+			ai->Getbt()->units_dynamic[unitDefId.id].requested += number;
+			ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), 2);
 			return true;
 		}
 		else if( (selectedBuildqueue->size() < cfg->MAX_BUILDQUE_SIZE) || ignoreMaxQueueLength)
 		{
 			selectedBuildqueue->insert(selectedBuildqueue->end(), number, unitDefId.id);
+			ai->Getbt()->units_dynamic[unitDefId.id].requested += number;
+			ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), 2);
 			return true;
 		}
 	}
@@ -1737,7 +1737,7 @@ void AAIExecute::CheckDefences()
 
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
-	const int maxSectorDistToBase(1);
+	const int maxSectorDistToBase(2);
 	float highestImportance(0.0f);
 
 	AAISector *first(nullptr), *second(nullptr);
@@ -1771,7 +1771,7 @@ void AAIExecute::CheckDefences()
 
 		if(status == BuildOrderStatus::NO_BUILDER_AVAILABLE)
 		{
-			float temp = 0.03f + 1.0f / ( static_cast<float>(first->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE)) + 0.5f);
+			const float temp = 0.03f + 1.0f / ( static_cast<float>(first->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE)) + 0.5f);
 
 			if(urgency[STATIONARY_DEF] < temp)
 				urgency[STATIONARY_DEF] = temp;

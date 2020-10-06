@@ -540,30 +540,83 @@ void AAIBrain::BuildUnits()
 
 void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const AAICombatPower& combatPowerCriteria, bool urgent)
 {
-	UnitSelectionCriteria unitCriteria;
-	unitCriteria.speed      = 0.25f;
-	unitCriteria.range      = 0.25f;
-	unitCriteria.cost       = 0.5f;
-	unitCriteria.power      = 1.0f;
-	unitCriteria.efficiency = 1.0f;
+	UnitSelectionCriteria unitSelectionCriteria;
+	DetermineCombatUnitSelectionCriteria(unitSelectionCriteria);
 
-	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
+	//-----------------------------------------------------------------------------------------------------------------
+	// Select unit according to determined criteria
+	//-----------------------------------------------------------------------------------------------------------------
+	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatPowerCriteria, unitSelectionCriteria, 6, false);
+
+	if( unitDefId.isValid() && (ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0) )
+	{
+		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
+			ai->Getbt()->BuildFactoryFor(unitDefId.id);
+
+		unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatPowerCriteria, unitSelectionCriteria, 6, true);
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// Order construction of selected unit
+	//-----------------------------------------------------------------------------------------------------------------
+	if(unitDefId.isValid())
+	{
+		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
+		const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
+
+		if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
+		{
+			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 3, urgent);
+		}
+		else if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
+		{
+			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 2, urgent);
+		}
+		else
+		{
+			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 1, urgent);
+		}
+	}
+}
+
+void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const
+{
+	unitSelectionCriteria.speed      = 0.25f;
+	unitSelectionCriteria.range      = 0.25f;
+	unitSelectionCriteria.cost       = 0.5f;
+	unitSelectionCriteria.power      = 1.0f;
+	unitSelectionCriteria.efficiency = 1.0f;
+
+	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	// prefer cheaper but effective units in the first few minutes
 	if(gamePhase.IsStartingPhase())
 	{
-		unitCriteria.cost       = 2.0f;
-		unitCriteria.efficiency = 2.0f;
+		unitSelectionCriteria.cost       = 2.0f;
+		unitSelectionCriteria.efficiency = 2.0f;
+	}
+	else if(gamePhase.IsEarlyPhase())
+	{
+		unitSelectionCriteria.cost       = 1.0f;
+		unitSelectionCriteria.efficiency = 1.5f;
+
+		if(rand()%cfg->FAST_UNITS_RATE == 1)
+		{
+			if(rand()%100 < 70)
+				unitSelectionCriteria.speed = 1.0f;
+			else
+				unitSelectionCriteria.speed = 2.0f;
+		}
 	}
 	else
 	{
 		// determine speed, range & eff
 		if(rand()%cfg->FAST_UNITS_RATE == 1)
 		{
-			if(rand()%2 == 1)
-				unitCriteria.speed = 1.0f;
+			if(rand()%100 < 70)
+				unitSelectionCriteria.speed = 1.0f;
 			else
-				unitCriteria.speed = 2.0f;
+				unitSelectionCriteria.speed = 2.0f;
 		}
 
 		if(rand()%cfg->HIGH_RANGE_UNITS_RATE == 1)
@@ -571,57 +624,17 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 			const int t = rand()%1000;
 
 			if(t < 350)
-				unitCriteria.range = 0.5f;
+				unitSelectionCriteria.range = 0.75f;
 			else if(t == 700)
-				unitCriteria.range = 1.0f;
+				unitSelectionCriteria.range = 1.2f;
 			else
-				unitCriteria.range = 1.5f;
+				unitSelectionCriteria.range = 1.5f;
 		}
 
 		if(rand()%3 == 1)
-			unitCriteria.power = 2.0f;
-	}
-
-	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatPowerCriteria, unitCriteria, 6, false);
-
-	if( (unitDefId.isValid() == true) && (ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0) )
-	{
-		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
-			ai->Getbt()->BuildFactoryFor(unitDefId.id);
-
-		unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatPowerCriteria, unitCriteria, 6, true);
-	}
-
-	if(unitDefId.isValid() == true)
-	{
-		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable > 0)
-		{
-			const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
-			const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
-
-			if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
-			{
-				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 3, urgent))
-				{
-					ai->Getbt()->units_dynamic[unitDefId.id].requested += 3;
-					ai->Getut()->UnitRequested(category, 3);
-				}
-			}
-			else if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
-			{
-				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 2, urgent))
-					ai->Getbt()->units_dynamic[unitDefId.id].requested += 2;
-					ai->Getut()->UnitRequested(category, 2);
-			}
-			else
-			{
-				if(ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 1, urgent))
-					ai->Getbt()->units_dynamic[unitDefId.id].requested += 1;
-					ai->Getut()->UnitRequested(category);
-			}
-		}
-		else if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
-			ai->Getbt()->BuildFactoryFor(unitDefId.id);
+			unitSelectionCriteria.power = 2.5f;
+		else
+			unitSelectionCriteria.power = 1.5f;	
 	}
 }
 
