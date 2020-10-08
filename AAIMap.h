@@ -194,7 +194,7 @@ public:
 
 private:
 	//! The defence maps (storing combat power by static defences vs the different mobile target types)
-	AAIDefenceMaps m_defenceMaps;
+	static AAIDefenceMaps s_defenceMaps;
 
 	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
 	std::vector<int> m_scoutedEnemyUnitsMap;

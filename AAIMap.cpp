@@ -51,6 +51,7 @@ float AAIMap::land_ratio;
 float AAIMap::flat_land_ratio;
 float AAIMap::water_ratio;
 
+AAIDefenceMaps                AAIMap::s_defenceMaps;
 AAIMapType                    AAIMap::s_mapType;
 AAITeamSectorMap              AAIMap::s_teamSectorMap;
 std::vector<BuildMapTileType> AAIMap::s_buildmap;
@@ -154,6 +155,8 @@ void AAIMap::Init()
 		// create map that stores which aai player has occupied which sector (visible to all aai players)
 		s_teamSectorMap.Init(xSectors, ySectors);
 
+		s_defenceMaps.Init(xMapSize, yMapSize);
+
 		ReadContinentFile();
 
 		ReadMapCacheFile();
@@ -190,7 +193,7 @@ void AAIMap::Init()
 	m_centerOfEnemyBase.x = xMapSize/2;
 	m_centerOfEnemyBase.y = yMapSize/2;
 
-	m_defenceMaps.Init(xMapSize, yMapSize);
+	
 
 	// for log file
 	ai->Log("Map: %s\n",ai->GetAICallback()->GetMapName());
@@ -920,7 +923,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 			{
 				// criterion 1: how well is tile already covered by existing static defences
 				const MapPos mapPos(xPos, yPos);
-				const float defenceValue = 2.0f * AAIConstants::maxCombatPower / (1.0f + 0.2f * m_defenceMaps.GetValue(mapPos, targetType) );
+				const float defenceValue = 2.0f * AAIConstants::maxCombatPower / (1.0f + 0.2f * s_defenceMaps.GetValue(mapPos, targetType) );
 
 				// criterion 2: distance to center of base (prefer static defences closer to base)
 				const float distanceValue = AAIConstants::maxCombatPower * distanceStatistics.GetNormalizedDeviationFromMax(distancesToBaseCenter[index]);
@@ -2206,9 +2209,9 @@ void AAIMap::AddOrRemoveStaticDefence(const float3& position, UnitDefId defence,
 {
 	// (un-)block area close to static defence
 	const AAICombatPower blockValues(100.0f);
-	m_defenceMaps.ModifyTiles(position, 120.0f, ai->s_buildTree.GetFootprint(defence), blockValues, addDefence);
+	s_defenceMaps.ModifyTiles(position, 120.0f, ai->s_buildTree.GetFootprint(defence), blockValues, addDefence);
 
-	m_defenceMaps.ModifyTiles(position, ai->s_buildTree.GetMaxRange(defence), ai->s_buildTree.GetFootprint(defence), ai->s_buildTree.GetCombatPower(defence), addDefence);
+	s_defenceMaps.ModifyTiles(position, ai->s_buildTree.GetMaxRange(defence), ai->s_buildTree.GetFootprint(defence), ai->s_buildTree.GetCombatPower(defence), addDefence);
 
 	/*if(ai->GetAAIInstance() == 1)
 	{
@@ -2219,7 +2222,7 @@ void AAIMap::AddOrRemoveStaticDefence(const float3& position, UnitDefId defence,
 		{
 			for(int x = 0; x < xMapSize; ++x)
 			{
-				const float value = m_defenceMaps.GetValue(MapPos(x,y), ETargetType::SURFACE);
+				const float value = s_defenceMaps.GetValue(MapPos(x,y), ETargetType::SURFACE);
 
 				fprintf(file, "%3.1f ", value);
 			}
