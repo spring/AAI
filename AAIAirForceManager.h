@@ -58,10 +58,10 @@ private:
 
 	// returns true if uni already in target list
 	bool IsTarget(int unit_id);
-	// tries to attack units of a certain category
-	void BombUnitsOfCategory(UnitCategory category);
+
 	// checks if target is possible bombing target and adds to list of bomb targets (used for buildings e.g. stationary arty, nuke launchers..)
 	void CheckBombTarget(int unit_id, int def_id);
+	
 	// adds new target to bombing targets (if free space in list)
 	void AddTarget(int unit_id, int def_id);
 

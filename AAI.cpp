@@ -643,8 +643,6 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			if (category.isStaticConstructor())
 			{
 				ut->RemoveConstructor(unit, def->id);
-				// speed up reconstruction
-				execute->urgency[STATIONARY_CONSTRUCTOR] += 1.5;
 			}
 			// hq
 			else if (category.isCommander())

@@ -25,11 +25,14 @@ using namespace springLegacyAI;
 
 
 // all the static vars
-float AAIExecute::current = 0.5;
-float AAIExecute::learned = 2.5;
+float AAIExecute::current = 0.5f;
+float AAIExecute::learned = 2.5f;
 
 
 AAIExecute::AAIExecute(AAI *ai) :
+	m_constructionUrgency(AAIUnitCategory::numberOfUnitCategories, 0.0f),
+	m_constructionFunctions(AAIUnitCategory::numberOfUnitCategories, nullptr),
+	m_sectorToBuildNextDefence(nullptr),	
 	m_nextDefenceVsTargetType(ETargetType::UNKNOWN),
 	m_linkingBuildTaskToBuilderFailed(0u)
 {
@@ -45,26 +48,21 @@ AAIExecute::AAIExecute(AAI *ai) :
 	averageEnergyUsage = 0;
 	disabledMMakers = 0;
 
-	m_sectorToBuildNextDefence = nullptr;
-
-	for(int i = 0; i <= METAL_MAKER; ++i)
-		urgency[i] = 0;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_DEFENCE).GetArrayIndex()]     = &BuildDefences;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_ARTILLERY).GetArrayIndex()]   = &BuildArty;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STORAGE).GetArrayIndex()]            = &BuildStorage;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR).GetArrayIndex()] = &BuildFactory;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_SENSOR).GetArrayIndex()]      = &BuildRadar;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()]        = &BuildPowerPlant;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR).GetArrayIndex()]    = &BuildExtractor;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::METAL_MAKER).GetArrayIndex()]        = &BuildMetalMaker;
 }
 
 AAIExecute::~AAIExecute(void)
 {
-//	if(buildques)
-//	{
-//		for(int i = 0; i < numOfFactories; ++i)
-//			buildques[i].clear();
-
-//		spring::SafeDeleteArray(buildques);
-//	}
-
 //	if(factory_table)
 //		spring::SafeDeleteArray(factory_table);
 }
-
 
 void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 {
@@ -437,7 +435,6 @@ void AAIExecute::InitBuildques()
 			++numOfFactories;
 	}
 
-//	buildques = new list<int>[numOfFactories];
 	buildques.resize(numOfFactories);
 
 	// set up factory buildque identification
@@ -1688,8 +1685,7 @@ void AAIExecute::CheckStationaryArty()
 
 	float temp = 0.05f;
 
-	if(temp > urgency[STATIONARY_ARTY])
-		urgency[STATIONARY_ARTY] = temp;
+	SetConstructionUrgencyIfHigher(EUnitCategory::STATIC_ARTILLERY, temp);
 }
 
 void AAIExecute::CheckBuildqueues()
@@ -1769,10 +1765,9 @@ void AAIExecute::CheckDefences()
 
 		if(status == BuildOrderStatus::NO_BUILDER_AVAILABLE)
 		{
-			const float temp = 0.03f + 1.0f / ( static_cast<float>(first->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE)) + 0.5f);
+			const float urgencyOfStaticDefence = 0.03f + 1.0f / ( static_cast<float>(first->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE)) + 0.5f);
 
-			if(urgency[STATIONARY_DEF] < temp)
-				urgency[STATIONARY_DEF] = temp;
+			SetConstructionUrgencyIfHigher(EUnitCategory::STATIC_DEFENCE, urgencyOfStaticDefence);
 
 			m_sectorToBuildNextDefence = first;
 			m_nextDefenceVsTargetType = targetType1;
@@ -1791,14 +1786,8 @@ void AAIExecute::CheckRessources()
 	if(futureAvailableEnergy < 0.0f)
 		futureAvailableEnergy = 0.0f;
 
-	// determine how much metal/energy is needed based on net surplus
-	const float extractorUrgency  = ai->Getbrain()->GetMetalUrgency();
-	if(urgency[EXTRACTOR] < extractorUrgency) // && urgency[EXTRACTOR] > 0.05)
-		urgency[EXTRACTOR] = extractorUrgency;
-
-	const float plantUrgency = ai->Getbrain()->GetEnergyUrgency();
-	if(urgency[POWER_PLANT] < plantUrgency) // && urgency[POWER_PLANT] > 0.05)
-		urgency[POWER_PLANT] = plantUrgency;
+	SetConstructionUrgencyIfHigher(EUnitCategory::METAL_EXTRACTOR, ai->Getbrain()->GetMetalUrgency());
+	SetConstructionUrgencyIfHigher(EUnitCategory::POWER_PLANT,     ai->Getbrain()->GetEnergyUrgency());
 
 	// build storages if needed
 	const AAIUnitCategory storage(EUnitCategory::STORAGE);
@@ -1807,8 +1796,7 @@ void AAIExecute::CheckRessources()
 	{
 		const float storageUrgency = max(ai->Getbrain()->GetMetalStorageUrgency(), ai->Getbrain()->GetEnergyStorageUrgency());
 
-		if(storageUrgency > urgency[STORAGE])
-			urgency[STORAGE] = storageUrgency;
+		SetConstructionUrgencyIfHigher(EUnitCategory::STORAGE, storageUrgency);
 	}
 
 	// energy low
@@ -2054,15 +2042,9 @@ void AAIExecute::CheckFactories()
 		if(ai->Getbt()->units_dynamic[fac->id].requested > 0)
 		{
 			// at least one requested factory has not been built yet
-			float urgency;
+			const float urgency = (ai->Getut()->activeFactories > 0) ? 0.4f : 3.5f;
 
-			if(ai->Getut()->activeFactories > 0)
-				urgency = 0.4f;
-			else
-				urgency = 3.5f;
-
-			if(this->urgency[STATIONARY_CONSTRUCTOR] < urgency)
-				this->urgency[STATIONARY_CONSTRUCTOR] = urgency;
+			SetConstructionUrgencyIfHigher(EUnitCategory::STATIC_CONSTRUCTOR, urgency);
 
 			return;
 		}
@@ -2071,142 +2053,80 @@ void AAIExecute::CheckFactories()
 
 void AAIExecute::CheckRecon()
 {
-	float urgency;
+	float radarUrgency(0.0f);
 	
 	// do not build radar before at least one factory is finished.
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STATIC_CONSTRUCTOR) < 1)
-		urgency = 0.0f;
-	else
-		urgency = 0.02f + 0.5f / ((float)(2 * ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_SENSOR)) + 1));
+	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STATIC_CONSTRUCTOR) > 0)
+		radarUrgency = 0.02f + 0.5f / ((float)(2 * ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STATIC_SENSOR) + 1));
 
-	if(this->urgency[STATIONARY_RECON] < urgency)
-		this->urgency[STATIONARY_RECON] = urgency;
+	SetConstructionUrgencyIfHigher(EUnitCategory::STATIC_SENSOR, radarUrgency);
 }
 
-void AAIExecute::CheckAirBase()
+struct CompareConstructionUrgency
 {
-	urgency[AIR_BASE] = 0.0f; // Detection of air base currently broken
-	// only build repair pad if any air units have been built yet
-	//if(ai->Getut()->activeUnits[AIR_BASE] +  ai->Getut()->requestedUnits[AIR_BASE] + ai->Getut()->futureUnits[AIR_BASE] < cfg->MAX_AIR_BASE && ai->GetUnitGroupsList([AIR_ASSAULT]).size() > 0)
-	//		urgency[AIR_BASE] = 0.5f;
-}
-
-void AAIExecute::CheckJammer()
-{
-	this->urgency[STATIONARY_JAMMER] = 0; //! @todo Activate construction of stationary jammers later
-	
-	/*if(ai->Getut()->activeFactories < 2 || ai->Getut()->activeUnits[STATIONARY_JAMMER] > ai->Getbrain()->sectors[0].size())
-	{
-		this->urgency[STATIONARY_JAMMER] = 0;
-	}
-	else
-	{
-		float temp = 0.2f / ((float) (ai->Getut()->activeUnits[STATIONARY_JAMMER]+1)) + 0.05f;
-
-		if(urgency[STATIONARY_JAMMER] < temp)
-			urgency[STATIONARY_JAMMER] = temp;
-	}*/
-}
+    bool operator()(const std::pair<int, float>& lhs, const std::pair<int, float>& rhs)
+    {
+		return lhs.second > rhs.second;
+    }
+};
 
 void AAIExecute::CheckConstruction()
 {
-	UnitCategory category = UNKNOWN;
-	float highest_urgency = 0.5f;		// min urgency (prevents aai from building things it doesnt really need that much)
-	bool construction_started = false;
+	float highestUrgency(0.5f);		// min urgency (prevents aai from building things it doesnt really need that much)
+	AAIUnitCategory buildingCategory;
 
-	// get category with highest urgency
-	if(ai->Getbrain()->enemy_pressure_estimation > 0.01f)
+	std::set< std::pair<int, float>, CompareConstructionUrgency> categoriesToBeChecked;
+
+	// ----------------------------------------------------------------------------------------------------------------
+	// determine category with highest urgency
+	// ----------------------------------------------------------------------------------------------------------------
+	for(int i = 0; i < m_constructionUrgency.size(); ++i)
 	{
-//		double current_urgency;
+		m_constructionUrgency[i] *= 1.02f;
 
-		for(int i = 1; i <= METAL_MAKER; ++i)
+		if(m_constructionUrgency[i] > 20.0f)
+			m_constructionUrgency[i] -= 1.0f;
+
+		if(m_constructionUrgency[i] > 2.5f)
 		{
-/*
-			current_urgency = urgency[i];
-
-			if(i != STATIONARY_DEF && i != POWER_PLANT && i != EXTRACTOR && i != STATIONARY_CONSTRUCTOR)
-				current_urgency *= (1.1f - ai->Getbrain()->enemy_pressure_estimation);
-*/
-			if(urgency[i] > highest_urgency)
-			{
-				highest_urgency = urgency[i];
-				category = (UnitCategory)i;
-			}
+			categoriesToBeChecked.insert( std::pair<int, float>(i, m_constructionUrgency[i]) );
+		}
+		else if(m_constructionUrgency[i] > highestUrgency)
+		{
+			highestUrgency = m_constructionUrgency[i];
+			buildingCategory = static_cast<EUnitCategory>(i);
 		}
 	}
+
+	// ----------------------------------------------------------------------------------------------------------------
+	// check construction for selected building categories
+	// ----------------------------------------------------------------------------------------------------------------
+	if(categoriesToBeChecked.size() > 0)
+	{
+		for(auto category = categoriesToBeChecked.begin(); category != categoriesToBeChecked.end(); ++category)
+		{
+			TryConstruction(static_cast<EUnitCategory>(category->first));
+		}
+	}
+	else if(buildingCategory.isValid())
+	{
+		TryConstruction(buildingCategory);
+	}
+}
+
+void AAIExecute::TryConstruction(const AAIUnitCategory& category)
+{
+	bool (AAIExecute::*constructionFunction) () = m_constructionFunctions[category.GetArrayIndex()];
+
+	bool constructionStarted(false);
+
+	if(constructionFunction != nullptr)
+		constructionStarted = (this->*constructionFunction)();
 	else
-	{
-		for(int i = 1; i <= METAL_MAKER; ++i)
-		{
-			if(urgency[i] > highest_urgency)
-			{
-				highest_urgency = urgency[i];
-				category = (UnitCategory)i;
-			}
-		}
-	}
-
-	if(category == POWER_PLANT)
-	{
-		if(BuildPowerPlant())
-			construction_started = true;
-	}
-	else if(category == EXTRACTOR)
-	{
-		if(BuildExtractor())
-			construction_started = true;
-	}
-	else if(category == STATIONARY_CONSTRUCTOR)
-	{
-		if(BuildFactory())
-			construction_started = true;
-	}
-	else if(category == STATIONARY_DEF)
-	{
-		if(BuildDefences())
-			construction_started = true;
-	}
-	else if(category == STATIONARY_RECON)
-	{
-		if(BuildRadar())
-			construction_started = true;
-	}
-	else if(category == STATIONARY_JAMMER)
-	{
-		if(BuildJammer())
-			construction_started = true;
-	}
-	else if(category == STATIONARY_ARTY)
-	{
-		if(BuildArty())
-			construction_started = true;
-	}
-	else if(category == STORAGE)
-	{
-		if(BuildStorage())
-			construction_started = true;
-	}
-	else if(category == METAL_MAKER)
-	{
-		if(BuildMetalMaker())
-			construction_started = true;
-	}
-	else if(category == AIR_BASE)
-	{
-		if(BuildAirBase())
-			construction_started = true;
-	}
-
-	if(construction_started)
-		urgency[category] = 0;
-
-	for(int i = 1; i <= METAL_MAKER; ++i)
-	{
-		urgency[i] *= 1.02f;
-
-		if(urgency[i] > 20.0f)
-			urgency[i] -= 1.0f;
-	}
+		constructionStarted = true;
+	
+	if(constructionStarted)
+		m_constructionUrgency[category.GetArrayIndex()] = 0.0f;
 }
 
 bool AAIExecute::AssistConstructionOfCategory(const AAIUnitCategory& category)

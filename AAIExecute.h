@@ -71,7 +71,6 @@ public:
 	// checks if ressources are sufficient and orders construction of new buildings
 	void CheckRessources();
 
-
 	// checks if buildings of that type could be replaced with more efficient one (e.g. mex -> moho)
 	void CheckMexUpgrade();
 	void CheckRadarUpgrade();
@@ -82,9 +81,9 @@ public:
 
 	// the following functions determine how urgent it is to build a further building of the specified type
 	void CheckFactories();
-	void CheckAirBase();
+
 	void CheckRecon();
-	void CheckJammer();
+
 	void CheckStationaryArty();
 
 	// checks length of buildqueues and adjusts rate of unit production
@@ -92,10 +91,6 @@ public:
 
 	//
 	void CheckDefences();
-
-	// builds all kind of buildings
-
-//	void BuildUnit(UnitCategory category, float speed, float cost, float range, float power, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, float eff, bool urgent);
 
 	// called when building has been finished / contruction failed
 	void ConstructionFailed(float3 build_pos, UnitDefId unitDefId);
@@ -130,10 +125,12 @@ public:
 	float futureAvailableEnergy;
 	int disabledMMakers;
 
-	// urgency of construction of building of the different categories
-	float urgency[METAL_MAKER+1];
-
-	// sector where next def vs category needs to be built (0 if none)
+	//! @brief Sets urgency to construct building of given category to given value if larger than current value
+	void SetConstructionUrgencyIfHigher(const AAIUnitCategory& category, float urgency)
+	{
+		if(m_constructionUrgency[category.GetArrayIndex()] < urgency)
+			m_constructionUrgency[category.GetArrayIndex()] = urgency;
+	}
 
 	// debug
 	void GiveOrder(Command *c, int unit, const char *owner);
@@ -163,6 +160,9 @@ private:
 
 	//! Number of factories (both mobile and sationary)
 	int numOfFactories;
+
+	//! @brief Calls construction fucntion for given category and resets urgency to 0.0f if construction order has been given
+	void TryConstruction(const AAIUnitCategory& category);
 
 	//! @brief Tries to build a defence building vs target type in the specified sector
 	//!        returns BUILDORDER_SUCCESSFUL if successful
@@ -207,6 +207,12 @@ private:
 
 	float averageMetalUsage;
 	float averageEnergyUsage;
+
+	//! Urgency of construction of building of the different categories
+	std::vector<float> m_constructionUrgency;
+
+	//! Pointer to correspondind construction function for each category (or nullptr if none)
+	std::vector< bool (AAIExecute::*) ()> m_constructionFunctions;
 
 	//! Sector where next static defence shall be build (nullptr if none)
 	AAISector*    m_sectorToBuildNextDefence;

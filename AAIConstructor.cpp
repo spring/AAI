@@ -216,9 +216,6 @@ void AAIConstructor::CheckAssistance()
 			{
 				ai->Getbt()->units_dynamic[m_myDefId.id].requested += 1;
 
-				if(ai->Getexecute()->urgency[STATIONARY_CONSTRUCTOR] < 1.5f)
-					ai->Getexecute()->urgency[STATIONARY_CONSTRUCTOR] = 1.5f;
-
 				ai->Getbt()->ConstructorRequested(m_myDefId);
 			}
 		}
