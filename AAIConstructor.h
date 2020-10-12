@@ -106,8 +106,8 @@ public:
 	//! @brief Issues a construction order for given building at position and sets all internal variables of the construction unit accordingly
 	void GiveConstructionOrder(UnitDefId building, const float3& pos);
 
-	//! @brief Assist given contructor
-	void AssistConstruction(UnitId constructorUnitId);
+	//! @brief Assist given contructor (factories will be guarded, constructed units/buildings will be repaired)
+	void AssistConstruction(UnitId constructorUnitId, bool factory = false);
 
 	// continue with construction after original builder has been killed
 	void TakeOverConstruction(AAIBuildTask *build_task);
@@ -144,6 +144,12 @@ public:
 	AAIBuildTask *build_task;
 
 private:
+	//! @brief Returns true if constructor needs assistance
+	bool DoesFactoryNeedAssistance() const;
+
+	//! @brief Returns the time the constructor would need to build the given unit
+	float GetBuildtimeOfUnit(UnitDefId constructedUnitDefId) const;
+
     //! @brief Construction has failed (e.g. unit/building has been destroyed before being finished)
     void ConstructionFailed();
 

@@ -270,13 +270,13 @@ void AAIExecute::BuildScouts()
 		// request cloakable scouts from time to time
 		const bool cloaked = (rand()%5 == 1) ? true : false;
 		
-		UnitDefId scoutId = ai->Getbt()->selectScout(ai->GetSide(), sightRange, cost, suitableMovementTypes, 10, cloaked, availableFactoryNeeded);
+		const UnitDefId scoutId = ai->Getbt()->selectScout(ai->GetSide(), sightRange, cost, suitableMovementTypes, 10, cloaked, availableFactoryNeeded);
 
 		if(scoutId.isValid())
 		{
-			const bool urgent = (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) > 1) ? false : true;
+			const BuildQueuePosition queuePosition = (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) > 1) ? BuildQueuePosition::END : BuildQueuePosition::FRONT;
 
-			AddUnitToBuildqueue(scoutId.id, 1, urgent);
+			AddUnitToBuildqueue(scoutId.id, 1, queuePosition);
 		}
 	}
 }
@@ -358,7 +358,7 @@ std::list<int>* AAIExecute::GetBuildqueueOfFactory(UnitDefId constructorDefId)
 	return nullptr;
 }
 
-bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent, bool ignoreMaxQueueLength)
+bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength)
 {
 	std::list<int>* selectedBuildqueue(nullptr);
 	float highestRating(0.0f);
@@ -390,16 +390,16 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgen
 	// determine position
 	if(selectedBuildqueue)
 	{
-		if(urgent)
+		if( ignoreMaxQueueLength || (selectedBuildqueue->size() < cfg->MAX_BUILDQUE_SIZE))
 		{
-			selectedBuildqueue->insert(selectedBuildqueue->begin(), number, unitDefId.id);
-			ai->Getbt()->units_dynamic[unitDefId.id].requested += number;
-			ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), 2);
-			return true;
-		}
-		else if( (selectedBuildqueue->size() < cfg->MAX_BUILDQUE_SIZE) || ignoreMaxQueueLength)
-		{
-			selectedBuildqueue->insert(selectedBuildqueue->end(), number, unitDefId.id);
+			auto insertPosition = selectedBuildqueue->begin();
+
+			if( (queuePosition == BuildQueuePosition::SECOND) && (selectedBuildqueue->size() > 0))
+				++insertPosition;
+			else if(queuePosition == BuildQueuePosition::END)
+				insertPosition = selectedBuildqueue->end();
+	
+			selectedBuildqueue->insert(insertPosition, number, unitDefId.id);
 			ai->Getbt()->units_dynamic[unitDefId.id].requested += number;
 			ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), 2);
 			return true;
@@ -2131,10 +2131,10 @@ void AAIExecute::TryConstruction(const AAIUnitCategory& category)
 
 bool AAIExecute::AssistConstructionOfCategory(const AAIUnitCategory& category)
 {
-	AAIConstructor *builder, *assistant;
-
-	for(list<AAIBuildTask*>::iterator task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
+	for(auto task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
 	{
+		AAIConstructor *builder;
+
 		if((*task)->builder_id >= 0)
 			builder = ai->Getut()->units[(*task)->builder_id].cons;
 		else
@@ -2144,7 +2144,7 @@ bool AAIExecute::AssistConstructionOfCategory(const AAIUnitCategory& category)
 		   && (builder->GetCategoryOfConstructedUnit() == category)
 		   && (builder->assistants.size() < cfg->MAX_ASSISTANTS) )
 		{
-			assistant = ai->Getut()->FindClosestAssistant(builder->GetBuildPos(), 5, true);
+			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(builder->GetBuildPos(), 5, true);
 
 			if(assistant)
 			{

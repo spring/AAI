@@ -559,15 +559,15 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 
 		if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
 		{
-			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 3, urgent);
+			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 3, BuildQueuePosition::END);
 		}
 		else if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
 		{
-			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 2, urgent);
+			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 2, BuildQueuePosition::END);
 		}
 		else
 		{
-			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 1, urgent);
+			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 1, BuildQueuePosition::END);
 		}
 	}
 }
@@ -694,9 +694,11 @@ float AAIBrain::GetMetalStorageUrgency() const
 		return 0.0f;
 }
 
-bool AAIBrain::CheckConstructionAssist(const AAIUnitCategory& category) const
+bool AAIBrain::SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const
 {
-	if(  category.isMetalExtractor() ||category.isPowerPlant() )
+	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(defId);
+
+	if(  category.isMetalExtractor() || category.isPowerPlant() )
 		return true;
 	else if(   (m_metalSurplus.GetAverageValue()  > AAIConstants::minMetalSurplusForConstructionAssist)
 			&& (m_energySurplus.GetAverageValue() > AAIConstants::minEnergySurplusForConstructionAssist) )

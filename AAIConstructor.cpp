@@ -207,10 +207,13 @@ void AAIConstructor::Update()
 
 void AAIConstructor::CheckAssistance()
 {
+	//-----------------------------------------------------------------------------------------------------------------
+	// Check construction assistance for factories
+	//-----------------------------------------------------------------------------------------------------------------
 	if(m_isFactory && (m_buildqueue != nullptr))
 	{
 		// check if another factory of that type needed
-		if(m_buildqueue->size() >= cfg->MAX_BUILDQUE_SIZE - 2 && assistants.size() >= cfg->MAX_ASSISTANTS-2)
+		if( (m_buildqueue->size() >= cfg->MAX_BUILDQUE_SIZE - 1) && (assistants.size() > 1) )
 		{
 			if(ai->Getbt()->units_dynamic[m_myDefId.id].active + ai->Getbt()->units_dynamic[m_myDefId.id].requested + ai->Getbt()->units_dynamic[m_myDefId.id].under_construction  < cfg->MAX_FACTORIES_PER_TYPE)
 			{
@@ -221,33 +224,16 @@ void AAIConstructor::CheckAssistance()
 		}
 
 		// check if support needed
-		if(assistants.size() < cfg->MAX_ASSISTANTS)
+		const bool assistanceNeeded = DoesFactoryNeedAssistance();
+
+		if(assistanceNeeded)
 		{
-			bool assist = false;
+			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(m_myUnitId.id), 5, true);
 
-			if(m_buildqueue->size() > 2)
-				assist = true;
-			else if(m_constructedDefId.isValid() == true) 
+			if(assistant)
 			{
-				const float buildspeed( ai->s_buildTree.GetBuildspeed(m_myDefId) ); 
-				if (buildspeed > 0.0f) 
-				{
-					const float buildtime = ai->s_buildTree.GetBuildtime(m_constructedDefId) / buildspeed;
-
-					if (buildtime > static_cast<float>(cfg->MIN_ASSISTANCE_BUILDTIME))
-						assist = true;
-				}
-			}
-
-			if(assist)
-			{
-				AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(m_myUnitId.id), 5, true);
-
-				if(assistant)
-				{
-					assistants.insert(assistant->m_myUnitId.id);
-					assistant->AssistConstruction(m_myUnitId);
-				}
+				assistants.insert(assistant->m_myUnitId.id);
+				assistant->AssistConstruction(m_myUnitId, true);
 			}
 		}
 		// check if assistants are needed anymore
@@ -256,39 +242,60 @@ void AAIConstructor::CheckAssistance()
 			//ai->LogConsole("factory releasing assistants");
 			ReleaseAllAssistants();
 		}
-
 	}
 
+	//-----------------------------------------------------------------------------------------------------------------
+	// Check construction assistance for builders
+	//-----------------------------------------------------------------------------------------------------------------
 	if(m_isBuilder && build_task)
 	{
 		// prevent assisting when low on ressources
-		const bool  assistConstruction = ai->Getbrain()->CheckConstructionAssist(ai->s_buildTree.GetUnitCategory(m_constructedDefId));
-		const float buildspeed( ai->s_buildTree.GetBuildspeed(m_myDefId) ); 
-
-		if (assistConstruction && (buildspeed > 0.0f))
+		if(    ai->Getbrain()->SufficientResourcesToAssistsConstructionOf(m_constructedDefId)
+			&& (GetBuildtimeOfUnit(m_constructedDefId) > static_cast<float>(cfg->MIN_ASSISTANCE_BUILDTIME) ) 
+			&& (assistants.size() < cfg->MAX_ASSISTANTS))
 		{
-			const float buildtime = ai->s_buildTree.GetBuildtime(m_constructedDefId) / buildspeed;
+			// commander only allowed if buildpos is inside the base
+			const AAISector* sector = ai->Getmap()->GetSectorOfPos(m_buildPos);
+			const bool commanderAllowed = (sector && (sector->distance_to_base == 0) ) ? true : false;
 
-			if((buildtime > static_cast<float>(cfg->MIN_ASSISTANCE_BUILDTIME)) && (assistants.size() < cfg->MAX_ASSISTANTS))
+			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(m_buildPos, 5, commanderAllowed);
+
+			if(assistant)
 			{
-				// com only allowed if buildpos is inside the base
-				bool commander = false;
-
-				const AAISector* sector = ai->Getmap()->GetSectorOfPos(m_buildPos);
-
-				if(sector && (sector->distance_to_base == 0) )
-					commander = true;
-
-				AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(m_buildPos, 5, commander);
-
-				if(assistant)
-				{
-					assistants.insert(assistant->m_myUnitId.id);
-					assistant->AssistConstruction(m_myUnitId);
-				}
+				assistants.insert(assistant->m_myUnitId.id);
+				assistant->AssistConstruction(m_myUnitId);
 			}
+		}	
+	}
+}
+
+bool AAIConstructor::DoesFactoryNeedAssistance() const
+{
+	if(assistants.size() < cfg->MAX_ASSISTANTS)
+	{
+		if(m_buildqueue->size() > 2)
+			return true;
+
+		if(m_constructedDefId.isValid() ) 
+		{
+			const float buildtime = GetBuildtimeOfUnit(m_constructedDefId);
+
+			if (buildtime > static_cast<float>(cfg->MIN_ASSISTANCE_BUILDTIME))
+				return true;
 		}
 	}
+
+	return false;
+}
+
+float AAIConstructor::GetBuildtimeOfUnit(UnitDefId constructedUnitDefId) const
+{
+	const float buildspeed( ai->s_buildTree.GetBuildspeed(m_myDefId) ); 
+
+	if(buildspeed > 0.0f)
+		return ai->s_buildTree.GetBuildtime(constructedUnitDefId) / buildspeed;
+	else
+		return 0.0f;
 }
 
 void AAIConstructor::GiveReclaimOrder(int unit_id)
@@ -347,11 +354,10 @@ void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos
 	}
 }
 
-void AAIConstructor::AssistConstruction(UnitId constructorUnitId)
+void AAIConstructor::AssistConstruction(UnitId constructorUnitId, bool factory)
 {
-	// Check if the target can be assisted at all. If not, try to repair it instead
-	const UnitDef* def = ai->GetAICallback()->GetUnitDef(constructorUnitId.id);
-	Command c(def->canBeAssisted? CMD_GUARD: CMD_REPAIR);
+	//Command c(factory ? CMD_GUARD: CMD_REPAIR);
+	Command c(CMD_GUARD);
 	c.PushParam(constructorUnitId.id);
 
 	//ai->Getcb()->GiveOrder(unit_id, &c);

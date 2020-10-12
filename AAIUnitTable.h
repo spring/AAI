@@ -78,7 +78,8 @@ public:
 	//! @brief Finds the closest builder and stores the time it needs to reach the given positon
 	AAIConstructor* FindClosestBuilder(UnitDefId building, const float3 *pos, bool commander, float *timeToReachPosition);
 
-	AAIConstructor* FindClosestAssistant(float3 pos, int importance, bool commander);
+	//! @brief Finds the closests assistance suitable to assist cosntruction at given position (nullptr if none found) 
+	AAIConstructor* FindClosestAssistant(const float3& pos, int importance, bool commander);
 
 	void EnemyKilled(int unit);
 

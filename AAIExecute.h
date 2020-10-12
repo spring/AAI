@@ -22,6 +22,8 @@ using namespace springLegacyAI;
 
 enum class BuildOrderStatus : int {BUILDING_INVALID, NO_BUILDSITE_FOUND, NO_BUILDER_AVAILABLE, SUCCESSFUL};
 
+enum class BuildQueuePosition : int {FRONT, SECOND, END};
+
 class AAI;
 class AAIBuildTable;
 class AAIBrain;
@@ -109,7 +111,7 @@ public:
 	void DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const;
 
 	//! @brief Adds the given number of units to the most suitable buildqueue
-	bool AddUnitToBuildqueue(UnitDefId unitDefId, int number, bool urgent, bool ignoreMaxQueueLength = false);
+	bool AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength = false);
 
 	//! @brief Returns buildque for a certain constructor
 	std::list<int>* GetBuildqueueOfFactory(UnitDefId constructorDefId);

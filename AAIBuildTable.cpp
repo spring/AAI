@@ -872,9 +872,9 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 		else
 		{
 			// only mark as urgent (unit gets added to front of buildqueue) if no constructor of that type already exists
-			bool urgent = (units_dynamic[constructor].active > 0) ? false : true;
+			const BuildQueuePosition queuePosition = (units_dynamic[constructor].active > 0) ? BuildQueuePosition::SECOND : BuildQueuePosition::FRONT;
 
-			if(ai->Getexecute()->AddUnitToBuildqueue(UnitDefId(constructor), 1, urgent, true))
+			if(ai->Getexecute()->AddUnitToBuildqueue(UnitDefId(constructor), 1, queuePosition, true))
 			{
 				// increase counter if mobile factory is a builder as well
 				if(ai->s_buildTree.GetUnitType(UnitDefId(constructor)).IsBuilder())
@@ -977,9 +977,9 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 		}
 
 		// mark as urgent (unit gets added to front of buildqueue) if no/only one constructor of that type already exists
-		const bool urgent = (units_dynamic[selectedBuilder.id].active > 1) ? false : true;
+		const BuildQueuePosition queuePosition = (units_dynamic[selectedBuilder.id].active > 1) ? BuildQueuePosition::SECOND : BuildQueuePosition::FRONT;
 
-		if(ai->Getexecute()->AddUnitToBuildqueue(selectedBuilder, 1, urgent, true))
+		if(ai->Getexecute()->AddUnitToBuildqueue(selectedBuilder, 1, queuePosition, true))
 		{
 			ai->Getut()->futureBuilders += 1;
 			ConstructorRequested(selectedBuilder);

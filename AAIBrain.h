@@ -101,8 +101,8 @@ public:
 	//! @brief Returns urgency to build metal storage
 	float GetMetalStorageUrgency() const;
 
-	//! @brief Returns whether construction of unit of given category shall be assisted (taking current resources into account)
-	bool CheckConstructionAssist(const AAIUnitCategory& category) const;
+	//! @brief Returns whether construction of unit of given type shall be assisted (taking current resources into account)
+	bool SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const;
 
 	//! A list of sectors with ceratain distance (in number of sectors) to base; 0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	std::vector< std::list<AAISector*> > m_sectorsInDistToBase;

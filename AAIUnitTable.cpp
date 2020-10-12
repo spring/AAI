@@ -327,50 +327,40 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float
 	return selectedBuilder;
 }
 
-AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*/, bool commander)
+AAIConstructor* AAIUnitTable::FindClosestAssistant(const float3& pos, int /*importance*/, bool commander)
 {
-	AAIConstructor *best_assistant(nullptr);
-	float maxDist( 0.0f );
-	float3 assistant_pos;
-	bool suitable;
-
-	int continent = ai->Getmap()->GetContinentID(pos);
+	const int continent = ai->Getmap()->GetContinentID(pos);
+	AAIConstructor *selectedAssistant(nullptr);
+	float maxDist(0.0f);
 
 	// find idle builder
-	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
+	for(auto i = constructors.begin(); i != constructors.end(); ++i)
 	{
 		// check all assisters
-		if(IsAssister(units[*i].cons->m_myDefId) == true)
+		if(IsAssister(units[*i].cons->m_myDefId))
 		{
 			AAIConstructor* assistant = units[*i].cons;
 
 			// find idle assister
-			if(assistant->IsIdle() == true)
+			if(assistant->IsIdle())
 			{
-				assistant_pos = ai->GetAICallback()->GetUnitPos(assistant->m_myUnitId.id);
-
+				const float3 assistantPosition = ai->GetAICallback()->GetUnitPos(assistant->m_myUnitId.id);
 				const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(assistant->m_myDefId.id);
 
-				// check continent if necessary
-				if( moveType.CannotMoveToOtherContinents() )
-				{
-					if(ai->Getmap()->GetContinentID(assistant_pos) == continent)
-						suitable = true;
-					else
-						suitable = false;
-				}
-				else
-					suitable = true;
+				const bool continentCheckPassed = (moveType.CannotMoveToOtherContinents() == false) || (ai->Getmap()->GetContinentID(assistantPosition) == continent);
+				const bool commanderCheckPassed = (commander || (ai->s_buildTree.GetUnitCategory(assistant->m_myDefId).isCommander() == false) );
 
 				// filter out commander
-				if(suitable && ( commander || !ai->s_buildTree.GetUnitCategory(assistant->m_myDefId).isCommander() ) )
+				if(continentCheckPassed && commanderCheckPassed)
 				{
-					const float dist = (pos.x - assistant_pos.x) * (pos.x - assistant_pos.x) + (pos.z - assistant_pos.z) * (pos.z - assistant_pos.z);
+					const float dx = (pos.x - assistantPosition.x);
+					const float dy = (pos.z - assistantPosition.z);
+					const float squaredDist = dx * dx + dy * dy;
 
-					if( (dist < maxDist) || (maxDist == 0.0f) )
+					if( (squaredDist < maxDist) || (maxDist == 0.0f) )
 					{
-						maxDist = dist;
-						best_assistant = assistant;
+						maxDist = squaredDist;
+						selectedAssistant = assistant;
 					}
 				}
 			}
@@ -378,7 +368,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 	}
 
 	// no assister found -> request one
-	if(!best_assistant)
+	/*if(!best_assistant)
 	{
 		uint32_t allowedMovementTypes =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_AIR)
 										+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
@@ -393,10 +383,10 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(float3 pos, int /*importance*
 			allowedMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
 		}
 
-		//ai->Getbt()->AddAssistant(allowedMovementTypes, true);
-	}
+		ai->Getbt()->AddAssistant(allowedMovementTypes, true);
+	}*/
 
-	return best_assistant;
+	return selectedAssistant;
 }
 
 void AAIUnitTable::EnemyKilled(int unit)
