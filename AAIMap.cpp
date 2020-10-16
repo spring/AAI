@@ -106,9 +106,6 @@ AAIMap::~AAIMap(void)
 		continent_map.clear();
 	}
 
-	m_scoutedEnemyUnitsMap.clear();
-	m_lastLOSUpdateInFrameMap.clear();
-
 	unitsInLOS.clear();
 }
 
@@ -185,8 +182,7 @@ void AAIMap::Init()
 	ReadMapLearnFile();
 
 	// for scouting
-	m_scoutedEnemyUnitsMap.resize(xLOSMapSize*yLOSMapSize, 0);
-	m_lastLOSUpdateInFrameMap.resize(xLOSMapSize*yLOSMapSize, 0);
+	m_scoutedEnemyUnitsMap.Init(xMapSize, yMapSize, losMapRes);
 
 	unitsInLOS.resize(cfg->MAX_UNITS, 0);
 
@@ -1831,6 +1827,8 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 	//
 	const int* losMap = ai->GetLosMap();
 
+	const int frame = ai->GetAICallback()->GetCurrentFrame();
+
 	int cellIndex(0);
 	for(int y = 0; y < yLOSMapSize; ++y)
 	{
@@ -1838,8 +1836,7 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 		{
 			if(losMap[cellIndex] > 0)
 			{
-				m_scoutedEnemyUnitsMap[cellIndex]    = 0;
-				m_lastLOSUpdateInFrameMap[cellIndex] = ai->GetAICallback()->GetCurrentFrame();
+				m_scoutedEnemyUnitsMap.ResetTiles(x, y, frame);
 			}
 
 			++cellIndex;
@@ -1863,23 +1860,23 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 
 		if(def) // unit is within los
 		{
-			const int x_pos = (int)pos.x / (losMapRes * SQUARE_SIZE);
-			const int y_pos = (int)pos.z / (losMapRes * SQUARE_SIZE);
+			ScoutMapTile tile = m_scoutedEnemyUnitsMap.GetScoutMapTile(pos);
 
 			// make sure unit is within the map (e.g. no aircraft that has flown outside of the map)
-			if( (x_pos >= 0) && (x_pos < xLOSMapSize) && (y_pos >= 0) && (y_pos < yLOSMapSize) )
+			if(tile.IsValid())
 			{
-				const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
+				const UnitDefId defId(def->id);
+				const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(defId);
 
 				// add buildings/combat units to scout map
 				if( category.isBuilding() || category.isCombatUnit() )
 				{
-					m_scoutedEnemyUnitsMap[x_pos + y_pos * xLOSMapSize] = def->id;
+					m_scoutedEnemyUnitsMap.AddEnemyUnit(defId, tile);
 				}
 
 				if(category.isCombatUnit())
 				{
-					const AAITargetType& targetType = ai->s_buildTree.GetTargetType(UnitDefId(def->id));
+					const AAITargetType& targetType = ai->s_buildTree.GetTargetType(defId);
 					spottedEnemyCombatUnitsByTargetType.AddValueForTargetType(targetType, 1.0f);
 				}
 			}
@@ -1934,17 +1931,7 @@ void AAIMap::UpdateEnemyScoutingData()
 		{
 			m_sector[x][y].ResetScoutedEnemiesData();
 
-			for(int yCell = y * ySectorSizeMap/losMapRes; yCell < (y + 1) * ySectorSizeMap/losMapRes; ++yCell)
-			{
-				for(int xCell = x * xSectorSizeMap/losMapRes; xCell < (x + 1) * xSectorSizeMap/losMapRes; ++xCell)
-				{
-					const int cellIndex = xCell + yCell * xLOSMapSize;
-					const UnitDefId unitDefId(m_scoutedEnemyUnitsMap[cellIndex]);
-
-					if(unitDefId.isValid())
-						m_sector[x][y].AddScoutedEnemyUnit(unitDefId, m_lastLOSUpdateInFrameMap[cellIndex]);
-				}
-			}
+			m_scoutedEnemyUnitsMap.UpdateSectorWithScoutedUnits(&m_sector[x][y], xSectorSizeMap, ySectorSizeMap);
 		}
 	}
 }
@@ -1974,20 +1961,24 @@ bool AAIMap::IsPositionWithinMap(const float3& position) const
 
 float3 AAIMap::DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const
 {
-	for(int yCell = yStart/losMapRes; yCell < yEnd/losMapRes; ++yCell)
+	const int xScoutMapStart = m_scoutedEnemyUnitsMap.BuildMapToScoutMapCoordinate(xStart);
+	const int xScoutMapEnd   = m_scoutedEnemyUnitsMap.BuildMapToScoutMapCoordinate(xEnd);
+	const int yScoutMapStart = m_scoutedEnemyUnitsMap.BuildMapToScoutMapCoordinate(yStart);
+	const int yScoutMapEnd   = m_scoutedEnemyUnitsMap.BuildMapToScoutMapCoordinate(yEnd);
+
+	for(int yCell = yScoutMapStart; yCell < yScoutMapEnd; ++yCell)
 	{
-		for(int xCell = xStart/losMapRes; xCell < xEnd/losMapRes; ++xCell)
+		for(int xCell = xScoutMapStart; xCell < xScoutMapEnd; ++xCell)
 		{	
-			const int tileIndex = xCell + xLOSMapSize * yCell;
-			const UnitDefId unitDefId(m_scoutedEnemyUnitsMap[tileIndex]);
+			const UnitDefId unitDefId( m_scoutedEnemyUnitsMap.GetUnitAt(xCell, yCell) );
 
 			if(unitDefId.isValid())
 			{
 				if(ai->s_buildTree.GetUnitCategory(unitDefId).isBuilding())
 				{
 					float3 selectedPosition;
-					selectedPosition.x = static_cast<float>(xCell * losMapRes * SQUARE_SIZE);
-					selectedPosition.z = static_cast<float>(yCell * losMapRes * SQUARE_SIZE);
+					selectedPosition.x = static_cast<float>(m_scoutedEnemyUnitsMap.ScoutMapToBuildMapCoordinate(xCell) * SQUARE_SIZE);
+					selectedPosition.z = static_cast<float>(m_scoutedEnemyUnitsMap.ScoutMapToBuildMapCoordinate(yCell) * SQUARE_SIZE);
 					selectedPosition.y = ai->GetAICallback()->GetElevation(selectedPosition.x, selectedPosition.z);
 					return selectedPosition;
 				}

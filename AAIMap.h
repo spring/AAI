@@ -197,10 +197,7 @@ private:
 	static AAIDefenceMaps s_defenceMaps;
 
 	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
-	std::vector<int> m_scoutedEnemyUnitsMap;
-
-	//! Stores the frame of the last update of a cell (same resolution as los map)
-	std::vector<int> m_lastLOSUpdateInFrameMap;
+	AAIScoutedUnitsMap m_scoutedEnemyUnitsMap;
 
 	//! Approximate center of enemy base in build map coordinates (not reliable if enemy buldings are spread over map)
 	MapPos m_centerOfEnemyBase;

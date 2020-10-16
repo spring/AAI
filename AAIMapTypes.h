@@ -11,6 +11,7 @@
 #define AAI_MAP_TYPES_H
 
 #include "AAIUnitTypes.h"
+#include "AAISector.h"
 #include <vector>
 
 //! The map storing which sector has been taken (as base) by which AAI team. Used to avoid that multiple AAI instances expand 
@@ -135,6 +136,130 @@ private:
 
 	//! Lower resolution factor with respect to map resolution
 	static constexpr int defenceMapResolution = 4;
+};
+
+//! This type is used to access a specific tile of a scout map
+class ScoutMapTile
+{
+	friend class AAIScoutedUnitsMap;
+
+public:
+	ScoutMapTile(int tileIndex) : m_tileIndex(tileIndex) {}
+
+	bool IsValid() const { return (m_tileIndex >= 0); }
+
+private:
+	//! The index of the tile
+	int m_tileIndex;
+};
+
+//! This map stores the id of scouted units
+class AAIScoutedUnitsMap
+{
+public:
+
+	//! @brief Initializes all tiles as empty
+	void Init(int xMapSize, int yMapSize, int losMapResolution)
+	{ 
+		m_losToScoutMapResolution = losMapResolution / scoutMapResolution;
+		m_xScoutMapSize           = xMapSize/scoutMapResolution;
+		m_yScoutMapSize           = yMapSize/scoutMapResolution;
+
+		m_scoutedUnitsMap.resize(m_xScoutMapSize*m_yScoutMapSize, 0);
+		m_lastUpdateInFrameMap.resize(m_xScoutMapSize*m_yScoutMapSize, 0);
+	}
+
+	//! @brief Converts given build map coordinate to scout map coordinate
+	int BuildMapToScoutMapCoordinate(int buildMapCoordinate) const { return buildMapCoordinate/scoutMapResolution; }
+
+	//! @brief Converts given scout map coordinate to build map coordinate
+	int ScoutMapToBuildMapCoordinate(int scoutMapCoordinate) const { return scoutMapCoordinate*scoutMapResolution; }
+
+	//! @brief Returns id of unit at given tile
+	int GetUnitAt(int x, int y) const { return m_scoutedUnitsMap[x + y * m_xScoutMapSize]; }
+
+	//! @brief Adds unit to tile
+	void AddEnemyUnit(UnitDefId defId, ScoutMapTile tile)
+	{
+		m_scoutedUnitsMap[tile.m_tileIndex] = defId.id;
+	}
+
+	//! @brief Erases the given tiles
+	void ResetTiles(int xLosMap, int yLosMap, int frame)
+	{
+		int tileIndex = xLosMap*m_losToScoutMapResolution + yLosMap*m_losToScoutMapResolution * m_xScoutMapSize;
+
+		for(int y = 0; y < m_losToScoutMapResolution; ++y)
+		{
+			for(int x = 0; x < m_losToScoutMapResolution; ++x)
+			{
+				m_scoutedUnitsMap[tileIndex]      = 0;
+				m_lastUpdateInFrameMap[tileIndex] = frame;
+
+				++tileIndex;
+			}
+
+			tileIndex += (m_xScoutMapSize-m_losToScoutMapResolution);
+		}
+	}
+
+	//! @brief Return tile index to corresponding position (int unit coordinates)
+	ScoutMapTile GetScoutMapTile(const float3& position) const
+	{
+		const int xPos = static_cast<int>(position.x) / (scoutMapResolution * SQUARE_SIZE);
+		const int yPos = static_cast<int>(position.z) / (scoutMapResolution * SQUARE_SIZE);
+
+		if( (xPos >= 0) && (xPos < m_xScoutMapSize) && (yPos >= 0) && (yPos < m_yScoutMapSize) )
+			return ScoutMapTile(xPos + yPos * m_xScoutMapSize);
+		else
+			return ScoutMapTile(-1);	
+	}
+
+	//! @brief Updates the scouted units within the given sector
+	void UpdateSectorWithScoutedUnits(AAISector *sector, int xSectorSizeMap, int ySectorSizeMap )
+	{
+		const int xStart = (sector->x * xSectorSizeMap) / scoutMapResolution;
+		const int yStart = (sector->y * ySectorSizeMap) / scoutMapResolution;
+		int tileIndex = xStart + yStart * m_xScoutMapSize;
+
+		const int xCells = xSectorSizeMap/scoutMapResolution;
+		const int yCells = ySectorSizeMap/scoutMapResolution;
+
+		for(int y = 0; y < yCells; ++y)
+		{
+			for(int x = 0; x < xCells; ++x)
+			{
+				//const int tileIndex = x + y * m_xScoutMapSize;
+				const UnitDefId unitDefId(m_scoutedUnitsMap[tileIndex]);
+
+				if(unitDefId.isValid())
+					 sector->AddScoutedEnemyUnit(unitDefId, m_lastUpdateInFrameMap[tileIndex]);
+				
+				++tileIndex;
+			}
+
+			tileIndex += (m_xScoutMapSize-xCells);
+		}
+	}
+
+private:
+	//! The map containing the unit definition id of a scouted unit on occupying this tile (or 0 if none)
+	std::vector<int> m_scoutedUnitsMap;
+
+	//! The map storing the frame of the last update of each tile
+	std::vector<int> m_lastUpdateInFrameMap;
+
+	//! Horizontal size of the scouted units map
+	int m_xScoutMapSize;
+	
+	//! Vertical size of the scouted units map
+	int m_yScoutMapSize;
+
+	//! Factor how much larger the resolution of the scout map is compared to the LOS map
+	int m_losToScoutMapResolution;
+
+	//! Lower resolution factor with respect to map resolution
+	static constexpr int scoutMapResolution = 2;
 };
 
 #endif
