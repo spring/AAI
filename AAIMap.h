@@ -69,7 +69,7 @@ public:
 	int DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const;
 
 	//! @brief Returns whether continent to which given sector mainly belongs is sea 
-	bool IsSectorOnWaterContinent(const AAISector* sector) const { return continents[sector->continent].water; }
+	bool IsSectorOnWaterContinent(const AAISector* sector) const { return continents[sector->GetContinentID()].water; }
 
 	//! @brief Returns whether the position is located on a small continent (meant to detect "ponds" or "small islands")
 	bool LocatedOnSmallContinent(const float3& pos) { return (continents[GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }

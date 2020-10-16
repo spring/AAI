@@ -109,7 +109,7 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 		m_activeAttacks[availableAttackId] = attack;
 
 		// add combat unit groups
-		AddGroupsToAttack(attack, availableAssaultGroupsOnContinent[targetSector->continent]);
+		AddGroupsToAttack(attack, availableAssaultGroupsOnContinent[targetSector->GetContinentID()]);
 		AddGroupsToAttack(attack, availableAssaultGroupsGlobal);
 
 		// add anti air units if necessary
@@ -117,7 +117,7 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 			|| (ai->Getbrain()->GetRecentAttacksBy(ETargetType::AIR) > 0.9f) )
 		{
 			std::list<AAIGroup*> antiAirGroups;
-			SelectNumberOfGroups(antiAirGroups, 1, availableAAGroupsOnContinent[targetSector->continent], availableAAGroupsGlobal);
+			SelectNumberOfGroups(antiAirGroups, 1, availableAAGroupsOnContinent[targetSector->GetContinentID()], availableAAGroupsGlobal);
 
 			AddGroupsToAttack(attack, antiAirGroups);
 		}

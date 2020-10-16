@@ -479,12 +479,12 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId landBuilding, UnitDefId
 {
 	BuildOrderStatus buildOrderStatus;
 
-	if(sector->water_ratio < 0.15f)
+	if(sector->GetWaterTilesRatio() < 0.15f)
 	{
 		buildOrderStatus = TryConstructionOf(landBuilding, sector);
 
 	}
-	else if(sector->water_ratio < 0.85f)
+	else if(sector->GetWaterTilesRatio() < 0.85f)
 	{
 		buildOrderStatus = TryConstructionOf(landBuilding, sector);
 
@@ -850,14 +850,14 @@ bool AAIExecute::BuildMetalMaker()
 
 	ai->Getbrain()->m_sectorsInDistToBase[0].sort(least_dangerous);
 
-	for(list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
+	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 	{
-		if((*sector)->water_ratio < 0.15)
+		if((*sector)->GetWaterTilesRatio() < 0.15f)
 		{
 			checkWater = false;
 			checkGround = true;
 		}
-		else if((*sector)->water_ratio < 0.85)
+		else if((*sector)->GetWaterTilesRatio() < 0.85f)
 		{
 			checkWater = true;
 			checkGround = true;
@@ -1005,12 +1005,12 @@ bool AAIExecute::BuildAirBase()
 
 	for(list<AAISector*>::iterator sector = ai->Getbrain()->sectors[0].begin(); sector != ai->Getbrain()->sectors[0].end(); ++sector)
 	{
-		if((*sector)->water_ratio < 0.15)
+		if((*sector)->GetWaterTilesRatio() < 0.15)
 		{
 			checkWater = false;
 			checkGround = true;
 		}
-		else if((*sector)->water_ratio < 0.85)
+		else if((*sector)->GetWaterTilesRatio() < 0.85)
 		{
 			checkWater = true;
 			checkGround = true;
@@ -1152,12 +1152,12 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	//-----------------------------------------------------------------------------------------------------------------
 	bool checkWater, checkGround;
 
-	if(dest->water_ratio < 0.15f)
+	if(dest->GetWaterTilesRatio() < 0.15f)
 	{
 		checkWater = false;
 		checkGround = true;
 	}
-	else if(dest->water_ratio < 0.85f)
+	else if(dest->GetWaterTilesRatio() < 0.85f)
 	{
 		checkWater = true;
 		checkGround = true;
@@ -1302,10 +1302,10 @@ bool AAIExecute::BuildArty()
 		{
 			float3 position = ZeroVector;
 
-			if(landArtillery.isValid()  && ((*sector)->water_ratio < 0.9f) )
+			if(landArtillery.isValid()  && ((*sector)->GetWaterTilesRatio() < 0.9f) )
 				position = (*sector)->GetRadarArtyBuildsite(landArtillery.id, ai->s_buildTree.GetMaxRange(landArtillery)/4.0f, false);
 
-			if((position.x <= 0.0f) && seaArtillery.isValid() && ((*sector)->water_ratio > 0.1f) )
+			if((position.x <= 0.0f) && seaArtillery.isValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
 				position = (*sector)->GetRadarArtyBuildsite(seaArtillery.id, ai->s_buildTree.GetMaxRange(seaArtillery)/4.0f, true);
 			
 			if(position.x > 0)
@@ -1476,10 +1476,10 @@ bool AAIExecute::BuildRadar()
 				float3 myPosition(ZeroVector);
 				bool   seaPositionFound(false);
 
-				if( landRadar.isValid() && ((*sector)->water_ratio < 0.9f) )
+				if( landRadar.isValid() && ((*sector)->GetWaterTilesRatio() < 0.9f) )
 					myPosition = (*sector)->GetRadarArtyBuildsite(landRadar.id, ai->s_buildTree.GetMaxRange(landRadar), false);
 
-				if( (myPosition.x == 0.0f) && seaRadar.isValid() && ((*sector)->water_ratio > 0.1f) )
+				if( (myPosition.x == 0.0f) && seaRadar.isValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
 				{
 					myPosition = (*sector)->GetRadarArtyBuildsite(seaRadar.id, ai->s_buildTree.GetMaxRange(seaRadar), true);
 					seaPositionFound = true;
@@ -1549,7 +1549,7 @@ bool AAIExecute::BuildJammer()
 	}
 
 	// get sea jammer
-	if(ai->Getmap()->water_ratio > 0.02f)
+	if(ai->Getmap()->GetWaterTilesRatio() > 0.02f)
 	{
 		sea_jammer = ai->Getbt()->GetJammer(ai->Getside(), cost, range, false, false);
 
@@ -1566,10 +1566,10 @@ bool AAIExecute::BuildJammer()
 	{
 		if((*sector)->my_buildings[STATIONARY_JAMMER] <= 0)
 		{
-			if(ground_jammer && (*sector)->water_ratio < 0.9f)
+			if(ground_jammer && (*sector)->GetWaterTilesRatio() < 0.9f)
 				pos = (*sector)->GetCenterBuildsite(ground_jammer, false);
 
-			if(pos.x == 0 && sea_jammer && (*sector)->water_ratio > 0.1f)
+			if(pos.x == 0 && sea_jammer && (*sector)->GetWaterTilesRatio() > 0.1f)
 			{
 				pos = (*sector)->GetCenterBuildsite(sea_jammer, true);
 
@@ -2179,32 +2179,32 @@ bool AAIExecute::suitable_for_power_plant(AAISector *left, AAISector *right)
 
 bool AAIExecute::suitable_for_ground_factory(AAISector *left, AAISector *right)
 {
-	return ( (2.0f * left->flat_ratio + static_cast<float>( left->GetEdgeDistance() ))
-			> (2.0f * right->flat_ratio + static_cast<float>( right->GetEdgeDistance() )) );
+	return ( (2.0f * left->GetFlatTilesRatio()  + static_cast<float>( left->GetEdgeDistance() ))
+		   > (2.0f * right->GetFlatTilesRatio() + static_cast<float>( right->GetEdgeDistance() )) );
 }
 
 bool AAIExecute::suitable_for_sea_factory(AAISector *left, AAISector *right)
 {
-	return ( (2.0f * left->water_ratio + static_cast<float>( left->GetEdgeDistance() ))
-			> (2.0f * right->water_ratio + static_cast<float>( right->GetEdgeDistance() )) );
+	return ( (2.0f * left->GetWaterTilesRatio()  + static_cast<float>( left->GetEdgeDistance() ))
+		   > (2.0f * right->GetWaterTilesRatio() + static_cast<float>( right->GetEdgeDistance() )) );
 }
 
 bool AAIExecute::suitable_for_ground_rallypoint(AAISector *left, AAISector *right)
 {
-	return ( (left->flat_ratio  + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
-		>  (right->flat_ratio  + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
+	return ( (left->GetFlatTilesRatio()  + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
+		  >  (right->GetFlatTilesRatio() + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
 }
 
 bool AAIExecute::suitable_for_sea_rallypoint(AAISector *left, AAISector *right)
 {
-	return ( (left->water_ratio  + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
-		>  (right->water_ratio  + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
+	return ( (left->GetWaterTilesRatio()  + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
+		  >  (right->GetWaterTilesRatio() + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
 }
 
 bool AAIExecute::suitable_for_all_rallypoint(AAISector *left, AAISector *right)
 {
-	return ( (left->flat_ratio + left->water_ratio + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
-		>  (right->flat_ratio + right->water_ratio + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
+	return ( (left->GetFlatTilesRatio() + left->GetWaterTilesRatio() + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
+		>  (right->GetFlatTilesRatio() + right->GetWaterTilesRatio() + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
 }
 
 bool AAIExecute::defend_vs_ground(const AAISector *left, const AAISector *right)
@@ -2304,10 +2304,15 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTar
 
 void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const
 {
-	AAIGroup *support = GetClosestGroupForDefence(attackerTargetType, attackerPosition, importance);
+	AAISector* sector = ai->Getmap()->GetSectorOfPos(attackerPosition);
 
-	if(support)
-		support->Defend(unitId, attackerPosition, importance);
+	if(sector)
+	{
+		AAIGroup *support = GetClosestGroupForDefence(attackerTargetType, attackerPosition, importance);
+
+		if(support)
+			support->Defend(unitId, attackerPosition, importance);
+	}
 }
 
 float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const

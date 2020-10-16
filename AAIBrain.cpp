@@ -78,12 +78,12 @@ void AAIBrain::AssignSectorToBase(AAISector *sector, bool addToBase)
 	{
 		for(std::list<AAISector*>::iterator s = m_sectorsInDistToBase[0].begin(); s != m_sectorsInDistToBase[0].end(); ++s)
 		{
-			m_baseFlatLandRatio += (*s)->DetermineFlatRatio();
-			m_baseWaterRatio += (*s)->DetermineWaterRatio();
+			m_baseFlatLandRatio += (*s)->GetFlatTilesRatio();
+			m_baseWaterRatio    += (*s)->GetWaterTilesRatio();
 		}
 
 		m_baseFlatLandRatio /= (float)m_sectorsInDistToBase[0].size();
-		m_baseWaterRatio /= (float)m_sectorsInDistToBase[0].size();
+		m_baseWaterRatio    /= (float)m_sectorsInDistToBase[0].size();
 	}
 
 	ai->Getmap()->UpdateNeighbouringSectors(m_sectorsInDistToBase);
@@ -176,15 +176,15 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 			
 			if( moveType.IsGround() )
 			{
-				myRating += 3.0f * (*sector)->flat_ratio;
+				myRating += 3.0f * (*sector)->GetFlatTilesRatio();
 			}
 			else if( moveType.IsAir() || moveType.IsAmphibious() || moveType.IsHover())
 			{
-				myRating += 3.0f * ((*sector)->flat_ratio + (*sector)->water_ratio);
+				myRating += 3.0f * ((*sector)->GetFlatTilesRatio() + (*sector)->GetWaterTilesRatio());
 			}
 			else
 			{
-				myRating += 3.0f * (*sector)->water_ratio;
+				myRating += 3.0f * (*sector)->GetWaterTilesRatio();
 			}
 			
 			if(myRating > bestRating)
@@ -265,17 +265,17 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 
 		if(sectorType == LAND_SECTOR)
 			// prefer flat sectors without water
-			myRating += ((candidate->first)->flat_ratio - (candidate->first)->water_ratio) * 16.0f;
+			myRating += ((candidate->first)->GetFlatTilesRatio() - (candidate->first)->GetWaterTilesRatio()) * 16.0f;
 		else if(sectorType == WATER_SECTOR)
 		{
 			// check for continent size (to prevent aai to expand into little ponds instead of big ocean)
-			if( ((candidate->first)->water_ratio > 0.1f) && (candidate->first)->ConnectedToOcean() )
-				myRating += 16.0f * (candidate->first)->water_ratio;
+			if( ((candidate->first)->GetWaterTilesRatio() > 0.1f) && (candidate->first)->ConnectedToOcean() )
+				myRating += 16.0f * (candidate->first)->GetWaterTilesRatio();
 			else
 				myRating = 0.0f;
 		}
 		else // LAND_WATER_SECTOR
-			myRating += ((candidate->first)->flat_ratio + (candidate->first)->water_ratio) * 16.0f;
+			myRating += ((candidate->first)->GetFlatTilesRatio() + (candidate->first)->GetWaterTilesRatio()) * 16.0f;
 
 		if(myRating > bestRating)
 		{

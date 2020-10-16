@@ -545,9 +545,9 @@ void AAIMap::ReadMapLearnFile()
 			//---------------------------------------------------------------------------------------------------------
 			AAIMapType mapType(EMapType::LAND_MAP);
 
-			if(m_sector[i][j].water_ratio > 0.7f)
+			if(m_sector[i][j].GetWaterTilesRatio() > 0.7f)
 				mapType.SetMapType(EMapType::WATER_MAP);
-			else if(m_sector[i][j].water_ratio > 0.3f)
+			else if(m_sector[i][j].GetWaterTilesRatio() > 0.3f)
 				mapType.SetMapType(EMapType::LAND_WATER_MAP);
 
 			m_sector[i][j].m_suitableMovementTypes = GetSuitableMovementTypes(mapType);
@@ -564,8 +564,8 @@ void AAIMap::ReadMapLearnFile()
 	{
 		for(int i = 0; i < xSectors; ++i)
 		{
-			flat_land_ratio += m_sector[i][j].flat_ratio;
-			water_ratio += m_sector[i][j].water_ratio;
+			flat_land_ratio += m_sector[i][j].GetFlatTilesRatio();
+			water_ratio += m_sector[i][j].GetWaterTilesRatio();
 		}
 	}
 

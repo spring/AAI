@@ -166,6 +166,15 @@ public:
 	//! @brief Returns center position of the sector
 	float3 GetCenter() const;
 
+	//! @brief Returns the continent ID of the center of the sector
+	int GetContinentID() const { return m_continentId; }
+
+	//! @brief Returns the ratio of flat terrain tiles in this sector
+	float GetFlatTilesRatio() const { return m_flatTilesRatio; }
+
+	//! @brief Returns the ratio of water tiles in this sector
+	float GetWaterTilesRatio() const { return m_waterTilesRatio; }
+
 	//! @brief Increments corresponding counter (used to avoid trying to build static defences in a sector with no suitable buildsites)
 	void FailedToConstructStaticDefence() { ++m_failedAttemptsToConstructStaticDefence; }
 
@@ -200,8 +209,8 @@ public:
 	//! @brief Determines ratio of flat cells of this sector
 	float DetermineFlatRatio() const;
 
-	// returns true if sector is connected with a big ocean (and not only a small pond)
-	bool ConnectedToOcean();
+	//! @brief Returns true if sector is connected with a big ocean (and not only a small pond)
+	bool ConnectedToOcean() const;
 
 	//! @brief Returns minimum distance to one of the map edges (in sector sizes)
 	int GetEdgeDistance() const { return m_minSectorDistanceToMapEdge; }
@@ -211,16 +220,6 @@ public:
 
 	// sector x/y index
 	int x, y;
-
-	// water and flat terrain ratio
-	float flat_ratio;
-	float water_ratio;
-
-	// id of the continent of the center of the sector
-	int continent;
-
-	// coordinates of the edges
-	float left, right, top, bottom;
 
 	// list of all metal spots in the sector
 	std::list<AAIMetalSpot*> metalSpots;
@@ -248,6 +247,15 @@ private:
 	bool AreFurtherStaticDefencesAllowed() const;
 
 	AAI *ai;
+
+	//! Id of the continent of the center of the sector
+	int m_continentId;
+
+	//! Ratio of flat terrain tiles
+	float m_flatTilesRatio;
+
+	//! Ratio of water tiles
+	float m_waterTilesRatio;
 
 	//! Minimum distance to one of the map edges (in sector sizes)
 	int m_minSectorDistanceToMapEdge;

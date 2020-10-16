@@ -38,11 +38,6 @@ void AAISector::Init(AAI *ai, int x, int y)
 	this->x = x;
 	this->y = y;
 
-	left   =     x * AAIMap::xSectorSize;
-	right  = (x+1) * AAIMap::xSectorSize;
-	top    =     y * AAIMap::ySectorSize;
-	bottom = (y+1) * AAIMap::ySectorSize;
-
 	// determine map border distance
 	const int xEdgeDist = std::min(x, AAIMap::xSectors - 1 - x);
 	const int yEdgeDist = std::min(y, AAIMap::ySectors - 1 - y);
@@ -50,7 +45,7 @@ void AAISector::Init(AAI *ai, int x, int y)
 	m_minSectorDistanceToMapEdge = std::min(xEdgeDist, yEdgeDist);
 
 	const float3 center = GetCenter();
-	continent = ai->Getmap()->GetContinentID(center);
+	m_continentId = ai->Getmap()->GetContinentID(center);
 
 	// init all kind of stuff
 	m_freeMetalSpots = false;
@@ -75,7 +70,7 @@ void AAISector::LoadDataFromFile(FILE* file)
 {
 	if(file != nullptr)
 	{
-		fscanf(file, "%f %f %f", &flat_ratio, &water_ratio, &importance_learned);
+		fscanf(file, "%f %f %f", &m_flatTilesRatio, &m_waterTilesRatio, &importance_learned);
 			
 		if(importance_learned < 1.0f)
 			importance_learned += (rand()%5)/20.0f;
@@ -85,8 +80,8 @@ void AAISector::LoadDataFromFile(FILE* file)
 	else // no learning data available -> init with default data
 	{
 		importance_learned = 1.0f + (rand()%5)/20.0f;
-		flat_ratio  = DetermineFlatRatio();
-		water_ratio = DetermineWaterRatio();
+		m_flatTilesRatio  = DetermineFlatRatio();
+		m_waterTilesRatio = DetermineWaterRatio();
 	}
 
 	importance_this_game = importance_learned;
@@ -95,7 +90,7 @@ void AAISector::LoadDataFromFile(FILE* file)
 
 void AAISector::SaveDataToFile(FILE* file)
 {
-	fprintf(file, "%f %f %f ", flat_ratio, water_ratio, importance_this_game);
+	fprintf(file, "%f %f %f ", m_flatTilesRatio, m_waterTilesRatio, importance_this_game);
 
 	m_attacksByTargetTypeInPreviousGames.SaveToFile(file);
 }
@@ -286,11 +281,7 @@ void AAISector::AddExtractor(int unit_id, int def_id, float3 *pos)
 
 float3 AAISector::GetCenter() const
 {
-	float3 pos;
-	pos.x = (left + right)/2.0f;
-	pos.z = (top + bottom)/2.0f;
-
-	return pos;
+	return float3( static_cast<float>(x * AAIMap::xSectorSize +  AAIMap::xSectorSize/2), 0.0f, static_cast<float>(y * AAIMap::ySectorSize + AAIMap::ySectorSize/2));
 }
 
 float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, const GamePhase& gamePhase, float previousGames, float currentGame)
@@ -305,14 +296,14 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 						  (0.1f + GetLocalAttacksBy(ETargetType::AIR, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::AIR, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::AIR));
 
-			if(water_ratio < 0.7f)
+			if(m_waterTilesRatio < 0.7f)
 			{
 				importanceVsTargetType[AAITargetType::surfaceIndex] =  
 						  (0.1f + GetLocalAttacksBy(ETargetType::SURFACE, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::SURFACE, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::SURFACE));
 			}
 
-			if(water_ratio > 0.3f)
+			if(m_waterTilesRatio > 0.3f)
 			{
 				importanceVsTargetType[AAITargetType::floaterIndex] =  
 						  (0.1f + GetLocalAttacksBy(ETargetType::FLOATER, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::FLOATER, gamePhase)) 
@@ -369,8 +360,8 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 
 	if( (distance_to_base > 0) && (GetNumberOfEnemyBuildings() > 0) )
 	{
-		const bool landCheckPassed  = landSectorSelectable  && (water_ratio < 0.35f);
-		const bool waterCheckPassed = waterSectorSelectable && (water_ratio > 0.65f);
+		const bool landCheckPassed  = landSectorSelectable  && (m_waterTilesRatio < 0.35f);
+		const bool waterCheckPassed = waterSectorSelectable && (m_waterTilesRatio > 0.65f);
 
 		if(landCheckPassed || waterCheckPassed)
 		{
@@ -395,7 +386,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 
 	if( (distance_to_base > 0) && (GetNumberOfEnemyBuildings() > 0))
 	{
-		const float myAttackPower     =   globalCombatPower[AAITargetType::staticIndex] + continentCombatPower[continent][AAITargetType::staticIndex];
+		const float myAttackPower     =   globalCombatPower[AAITargetType::staticIndex] + continentCombatPower[m_continentId][AAITargetType::staticIndex];
 		const float enemyDefencePower =   assaultGroupsOfType.GetValueOfTargetType(ETargetType::SURFACE)   * GetEnemyCombatPower(ETargetType::SURFACE)
 										+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::FLOATER)   * GetEnemyCombatPower(ETargetType::FLOATER)
 										+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::SUBMERGED) * GetEnemyCombatPower(ETargetType::SUBMERGED);
@@ -444,7 +435,7 @@ float AAISector::GetStartSectorRating() const
 	if(AAIMap::s_teamSectorMap.IsSectorOccupied(x, y))
 		return 0.0f;
 	else
-		return ( static_cast<float>(2 * GetNumberOfMetalSpots() + 1) ) * flat_ratio * flat_ratio;
+		return ( static_cast<float>(2 * GetNumberOfMetalSpots() + 1) ) * m_flatTilesRatio * m_flatTilesRatio;
 }
 
 bool AAISector::IsSectorSuitableForBaseExpansion() const
@@ -586,7 +577,7 @@ float AAISector::DetermineWaterRatio() const
 float AAISector::DetermineFlatRatio() const
 {
 	// get number of cliffy & flat cells
-	const int cliffyCells = ai->Getmap()->GetCliffyCells(left/SQUARE_SIZE, top/SQUARE_SIZE, ai->Getmap()->xSectorSizeMap, ai->Getmap()->ySectorSizeMap);
+	const int cliffyCells = ai->Getmap()->GetCliffyCells(x * AAIMap::xSectorSizeMap, y * AAIMap::ySectorSizeMap, AAIMap::xSectorSizeMap, AAIMap::ySectorSizeMap);
 	const int totalCells  = ai->Getmap()->xSectorSizeMap * ai->Getmap()->ySectorSizeMap;
 	const int flatCells   = totalCells - cliffyCells;
 
@@ -619,27 +610,27 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 
 bool AAISector::PosInSector(const float3& pos) const
 {
-	if( (pos.x < left) || (pos.x > right) || (pos.z < top) || (pos.z > bottom) )
+	if(    (pos.x < static_cast<float>(  x    * AAIMap::xSectorSize)) 
+		|| (pos.x > static_cast<float>( (x+1) * AAIMap::xSectorSize))
+		|| (pos.z < static_cast<float>(  y    * AAIMap::ySectorSize))
+		|| (pos.z > static_cast<float>( (y+1) * AAIMap::ySectorSize)) )
 		return false;
 	else
 		return true;
 }
 
-bool AAISector::ConnectedToOcean()
+bool AAISector::ConnectedToOcean() const
 {
-	if(water_ratio < 0.2)
+	if(m_waterTilesRatio < 0.2f)
 		return false;
 
-	// find water cell
-	int x_cell = (left + right) / 16.0f;
-	int y_cell = (top + bottom) / 16.0f;
+	//! @todo: improve criterion -> look for water tiles in sector instead of just checking the center tile
+	const MapPos center(x * AAIMap::xSectorSizeMap + AAIMap::xSectorSizeMap/2, y * AAIMap::ySectorSizeMap + AAIMap::ySectorSizeMap/2);
+	const int continentId = ai->Getmap()->GetContinentID(center.x, center.y);
 
-	// get continent
-	int cont = ai->Getmap()->GetContinentID(x_cell, y_cell);
-
-	if(ai->Getmap()->continents[cont].water)
+	if(ai->Getmap()->continents[continentId].water)
 	{
-		if(ai->Getmap()->continents[cont].size > 1200 && ai->Getmap()->continents[cont].size > 0.5f * (float)ai->Getmap()->avg_water_continent_size )
+		if(ai->Getmap()->continents[continentId].size > 1200 && ai->Getmap()->continents[continentId].size > 0.5f * (float)ai->Getmap()->avg_water_continent_size )
 			return true;
 	}
 
@@ -661,12 +652,15 @@ float3 AAISector::DetermineUnitMovePos(AAIMovementType moveType, int continentId
 		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::CLIFF);
 	}
 
+	const float xPosStart = static_cast<float>(x * AAIMap::xSectorSize);
+	const float yPosStart = static_cast<float>(y * AAIMap::ySectorSize);
+
 	// try to get random spot
 	for(int i = 0; i < 6; ++i)
 	{
 		float3 position;
-		position.x = left + AAIMap::xSectorSize * (0.2f + 0.06f * (float)(rand()%11) );
-		position.z = top  + AAIMap::ySectorSize * (0.2f + 0.06f * (float)(rand()%11) );
+		position.x = xPosStart + static_cast<float>(AAIMap::xSectorSize) * (0.1f + 0.08f * (float)(rand()%11) );
+		position.z = yPosStart + static_cast<float>(AAIMap::ySectorSize) * (0.1f + 0.08f * (float)(rand()%11) );
 
 		if(IsValidMovePos(position, forbiddenMapTileTypes, continentId))
 		{
@@ -681,8 +675,8 @@ float3 AAISector::DetermineUnitMovePos(AAIMovementType moveType, int continentId
 		for(int j = 0; j < AAIMap::ySectorSizeMap; j += 4)
 		{
 			float3 position;
-			position.x = left + i * SQUARE_SIZE;
-			position.z = top  + j * SQUARE_SIZE;
+			position.x = xPosStart + static_cast<float>(i * SQUARE_SIZE);
+			position.z = yPosStart + static_cast<float>(j * SQUARE_SIZE);
 
 			if(IsValidMovePos(position, forbiddenMapTileTypes, continentId))
 			{
