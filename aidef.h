@@ -84,31 +84,6 @@ public:
 	static constexpr float localDefencePowerToRequestSupportThreshold = 2.0f;
 };
 
-class AAIMetalSpot
-{
-public:
-	AAIMetalSpot(float3 _pos, float _amount):
-		pos(_pos),
-		occupied(false),
-		extractor(-1),
-		extractor_def(-1),
-		amount(_amount)
-	{}
-	AAIMetalSpot():
-		pos(ZeroVector),
-		occupied(false),
-		extractor(-1),
-		extractor_def(-1),
-		amount(0)
-	{}
-
-	float3 pos;
-	bool occupied;
-	int extractor;		// -1 if unocuppied
-	int extractor_def;	// -1 if unocuppied
-	float amount;
-};
-
 enum UnitTask {UNIT_IDLE, UNIT_ATTACKING, DEFENDING, GUARDING, MOVING, BUILDING, SCOUTING, ASSISTING, RECLAIMING, HEADING_TO_RALLYPOINT, UNIT_KILLED, ENEMY_UNIT, BOMB_TARGET};
 
 //! @brief An id identifying a specific unit - used to prevent mixing ids referring to units and unit definitions
@@ -126,6 +101,68 @@ public:
 	void Invalidate() { id = -1; };
 
 	int id;
+};
+
+//! @brief An id identifying a unit type - used to prevent mixing ids referring to units and unit definitions
+class UnitDefId
+{
+public:
+	UnitDefId() : id(0) { }
+
+	UnitDefId(int unitDefId) : id(unitDefId) { }
+
+	bool operator==(const UnitDefId& rhs) const { return (id == rhs.id); }
+
+	bool isValid() const { return (id > 0) ? true : false; }
+
+	void invalidate() { id = 0; }
+
+	int id;
+};
+
+//! This class stores the information required for placing/upgrading metal extractors
+class AAIMetalSpot
+{
+public:
+	AAIMetalSpot(const float3& _pos, float _amount):
+		pos(_pos),
+		occupied(false),
+		amount(_amount)
+	{}
+
+	AAIMetalSpot():
+		pos(ZeroVector),
+		occupied(false),
+		amount(0.0f)
+	{}
+
+	void SetUnoccupied()
+	{
+		occupied = false;
+		extractorUnitId.Invalidate();
+		extractorDefId.invalidate();
+	}
+
+	//! @brief Returns whether spot belong to given map position
+	bool DoesSpotBelongToPosition(const float3& position) const
+	{
+		return (std::fabs(pos.x - position.x) < 16.0f) && (std::fabs(pos.z - position.z) < 16.0f);
+	}
+
+	//! The position of the metal spot in the map
+	float3    pos;
+
+	//! Flag whether the spot is currently occupied by any AAI player
+	bool      occupied;
+
+	//! UnitId of the extractor occupying the spot
+	UnitId    extractorUnitId;
+
+	//! UnitDefId of the extractor occupying the spot
+	UnitDefId extractorDefId;
+
+	//! The ammount of metal that can be extracted from the spot
+	float     amount;
 };
 
 //! @brief This class encapsulates the determination of the current game phase (ranging from start to late game) 

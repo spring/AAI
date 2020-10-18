@@ -298,9 +298,9 @@ float AAIConstructor::GetBuildtimeOfUnit(UnitDefId constructedUnitDefId) const
 		return 0.0f;
 }
 
-void AAIConstructor::GiveReclaimOrder(int unit_id)
+void AAIConstructor::GiveReclaimOrder(UnitId unitId)
 {
-	if(m_assistUnitId.IsValid() == true)
+	if(m_assistUnitId.IsValid())
 	{
 		ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
 		m_assistUnitId.Invalidate();
@@ -309,7 +309,7 @@ void AAIConstructor::GiveReclaimOrder(int unit_id)
 	m_activity.SetActivity(EConstructorActivity::RECLAIMING);
 
 	Command c(CMD_RECLAIM);
-	c.PushParam(unit_id);
+	c.PushParam(unitId.id);
 	//ai->Getcb()->GiveOrder(this->unit_id, &c);
 	ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "Builder::GiveRelaimOrder");
 }

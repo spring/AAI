@@ -112,7 +112,8 @@ public:
 	// continue with construction after original builder has been killed
 	void TakeOverConstruction(AAIBuildTask *build_task);
 
-	void GiveReclaimOrder(int unit_id);
+	//! Let constructor reclaim the given unit
+	void GiveReclaimOrder(UnitId unitId);
 
 	void Killed();
 

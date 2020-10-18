@@ -107,9 +107,6 @@ public:
 	//! A list of sectors with ceratain distance (in number of sectors) to base; 0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	std::vector< std::list<AAISector*> > m_sectorsInDistToBase;
 
-	//! Indicates whether there are any free metal spots within the base
-	bool m_freeMetalSpotsInBase;
-
 	//! Holding max number of units of a category spotted at the same time (float as maximum values will slowly decay over time)
 	MobileTargetTypeValues m_maxSpottedCombatUnitsOfTargetType;
 

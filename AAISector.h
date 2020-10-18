@@ -52,14 +52,14 @@ public:
 	//! @brief Adds a metal spot to the list of metal spots in the sector
 	void AddMetalSpot(AAIMetalSpot *spot);
 
+	//! @brief Associates an extractor with a metal spot in that sector 
+	void AddExtractor(UnitId unitId, UnitDefId unitDefId, const float3& pos);
+
 	//! @brief Looks for metal spot that corresponds to given position and marks it as free
 	void FreeMetalSpot(float3 pos, const UnitDef *extractor);
 
 	//! Update if there are still empty metal spots in the sector
 	void UpdateFreeMetalSpots();
-
-	//! @brief Associates an extractor with a metal spot in that sector 
-	void AddExtractor(int unit_id, int def_id, float3 *pos);
 
 	void Init(AAI *ai, int x, int y);
 

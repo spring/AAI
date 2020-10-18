@@ -392,7 +392,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 				AAISector* sector = map->GetSectorOfPos(pos);
 
 				if(sector)
-					sector->AddExtractor(unit, def->id, &pos);
+					sector->AddExtractor(UnitId(unit), unitDefId, pos);
 			}
 		}
 	}

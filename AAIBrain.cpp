@@ -25,7 +25,6 @@ using namespace springLegacyAI;
 AttackedByRatesPerGamePhase AAIBrain::s_attackedByRates;
 
 AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
-	m_freeMetalSpotsInBase(false),
 	m_baseFlatLandRatio(0.0f),
 	m_baseWaterRatio(0.0f),
 	m_centerOfBase(0, 0),
@@ -439,7 +438,7 @@ void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 
 float AAIBrain::Affordable()
 {
-	return 25.0f /(ai->GetAICallback()->GetMetalIncome() + 5.0f);
+	return 25.0f / (ai->GetAICallback()->GetMetalIncome() + 5.0f);
 }
 
 void AAIBrain::BuildUnits()

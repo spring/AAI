@@ -119,16 +119,6 @@ bool AAISector::AddToBase(bool addToBase)
 
 		distance_to_base = 0;
 
-		// if free metal spots in this sectors, base has free spots
-		for(auto spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
-		{
-			if(!(*spot)->occupied)
-			{
-				ai->Getbrain()->m_freeMetalSpotsInBase = true;
-				break;
-			}
-		}
-
 		// increase importance
 		importance_this_game += 1;
 
@@ -221,30 +211,40 @@ void AAISector::AddMetalSpot(AAIMetalSpot *spot)
 	m_freeMetalSpots = true;
 }
 
+void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, const float3& pos)
+{
+	for(auto spot : metalSpots)
+	{
+		// only check occupied spots
+		if(spot->occupied)
+		{
+			ai->Getmap()->Pos2FinalBuildPos(&spot->pos, &ai->Getbt()->GetUnitDef(unitDefId.id));
+
+			if(spot->DoesSpotBelongToPosition(pos))
+			{
+				spot->extractorUnitId = unitId;
+				spot->extractorDefId  = unitDefId;
+			}
+		}
+	}
+}
+
 void AAISector::FreeMetalSpot(float3 pos, const UnitDef *extractor)
 {
 	// get metalspot according to position
-	for(auto spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
+	for(auto spot : metalSpots)
 	{
 		// only check occupied spots
-		if((*spot)->occupied)
+		if(spot->occupied)
 		{
 			// compare positions
-			ai->Getmap()->Pos2FinalBuildPos(&(*spot)->pos, extractor);
+			ai->Getmap()->Pos2FinalBuildPos(&spot->pos, extractor);
 
-			//! @todo Replace with comparison accounting for floating point inaccuracy
-			if(pos.x == (*spot)->pos.x && pos.z == (*spot)->pos.z)
+			if( spot->DoesSpotBelongToPosition(pos) )
 			{
-				(*spot)->occupied = false;
-				(*spot)->extractor = -1;
-				(*spot)->extractor_def = -1;
+				spot->SetUnoccupied();
 
 				m_freeMetalSpots = true;
-
-				// if part of the base, tell the brain that the base has now free spots again
-				if(distance_to_base == 0)
-					ai->Getbrain()->m_freeMetalSpotsInBase = true;
-
 				return;
 			}
 		}
@@ -261,24 +261,6 @@ void AAISector::UpdateFreeMetalSpots()
 		{
 			m_freeMetalSpots = true;
 			return;
-		}
-	}
-}
-
-void AAISector::AddExtractor(int unit_id, int def_id, float3 *pos)
-{
-	for(std::list<AAIMetalSpot*>::iterator spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
-	{
-		// only check occupied spots
-		if((*spot)->occupied)
-		{
-			ai->Getmap()->Pos2FinalBuildPos(&(*spot)->pos, &ai->Getbt()->GetUnitDef(def_id));
-
-			if(pos->x == (*spot)->pos.x && pos->z == (*spot)->pos.z)
-			{
-				(*spot)->extractor = unit_id;
-				(*spot)->extractor_def = def_id;
-			}
 		}
 	}
 }

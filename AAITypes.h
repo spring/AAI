@@ -17,23 +17,6 @@ typedef unsigned int   uint32_t;
 #include "aidef.h"
 #include "AAIUnitTypes.h"
 
-//! @brief An id identifying a unit type - used to prevent mixing ids referring to units and unit definitions
-class UnitDefId
-{
-public:
-	UnitDefId() : id(0) { }
-
-	UnitDefId(int unitDefId) : id(unitDefId) { }
-
-	bool operator==(const UnitDefId& rhs) const { return (id == rhs.id); }
-
-	bool isValid() const { return (id > 0) ? true : false; }
-
-	void invalidate() { id = 0; }
-
-	int id;
-};
-
 //! Movement types that are used to describe the movement type of every unit
 enum class EMovementType : uint32_t
 {

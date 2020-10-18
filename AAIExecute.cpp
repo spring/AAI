@@ -637,29 +637,25 @@ bool AAIExecute::BuildExtractor()
 	
 	for(int distanceFromBase = 0; distanceFromBase < maxSearchDist; ++distanceFromBase)
 	{
-		//! @todo Fix possible wrong value if metal spots are skipped because enemy units are within base sector
-		if(distanceFromBase == 1)
-			ai->Getbrain()->m_freeMetalSpotsInBase = false;
-
-		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase].end(); ++sector)
+		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase])
 		{
-			if( (*sector)->ShallBeConsideredForExtractorConstruction() )
+			if( sector->ShallBeConsideredForExtractorConstruction() )
 			{
-				for(auto spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
+				for(auto spot : sector->metalSpots)
 				{
-					if(!(*spot)->occupied)
+					if(!spot->occupied)
 					{
 						freeMetalSpotFound = true;
 
-						const UnitDefId extractor = ((*spot)->pos.y >= 0.0f) ? landExtractor : seaExtractor;
+						const UnitDefId extractor = (spot->pos.y >= 0.0f) ? landExtractor : seaExtractor;
 
 						float distanceToClosestBuilder;
-						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor, &(*spot)->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(*sector, &(*spot)->pos), &distanceToClosestBuilder);
+						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor, &spot->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(sector, &spot->pos), &distanceToClosestBuilder);
 						
-						const float rating = (1.0f + ai->Getmap()->GetDistanceToCenterOfEnemyBase((*spot)->pos)) / (1.0f + distanceToClosestBuilder);
+						const float rating = (1.0f + ai->Getmap()->GetDistanceToCenterOfEnemyBase(spot->pos)) / (1.0f + distanceToClosestBuilder);
 
 						if(builder)
-							extractorSpots.push_back(PossibleSpotForMetalExtractor(*spot, builder, rating));
+							extractorSpots.push_back(PossibleSpotForMetalExtractor(spot, builder, rating));
 
 						if(extractorSpots.size() >= maxExtractorBuildSpots)
 							break;
@@ -1865,64 +1861,77 @@ void AAIExecute::CheckRessources()
 
 void AAIExecute::CheckMexUpgrade()
 {
-	if(ai->Getbrain()->m_freeMetalSpotsInBase)
+	//-----------------------------------------------------------------------------------------------------------------
+	// skip check for extarctor upgrade if there are empty metal spots or extractors under construction
+	//-----------------------------------------------------------------------------------------------------------------
+	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
+	{
+		for(auto spot : sector->metalSpots)
+		{
+			if(spot->occupied == false)
+				return;
+		}
+	}
+
+	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::METAL_EXTRACTOR) > 0)
 		return;
 
-	float cost = 0.25f + ai->Getbrain()->Affordable() / 8.0f;
-	float eff  = 6.0f / (cost + 0.75f);
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine which type of extractor could be build on land/sea
+	//-----------------------------------------------------------------------------------------------------------------
+	const float cost = 0.25f + ai->Getbrain()->Affordable() / 8.0f;
+	const float extractedMetal  = 6.0f / (cost + 0.75f);
 
-	UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, eff, false, false);
-	UnitDefId seaExtractor  = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, eff, false, true);
+	const UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, extractedMetal, false, false);
+	const UnitDefId seaExtractor  = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, extractedMetal, false, true);
 
-	float landExtractedMetal = 0.0f;
-	float seaExtractedMetal  = 0.0f;
+	const float landExtractedMetal = landExtractor.isValid() ? ai->s_buildTree.GetMaxRange(landExtractor) : 0.0f;
+	const float seaExtractedMetal  = seaExtractor.isValid()  ? ai->s_buildTree.GetMaxRange(seaExtractor)  : 0.0f;
 
-	if(landExtractor.isValid())
-		landExtractedMetal = ai->s_buildTree.GetMaxRange(landExtractor);
-
-	if(seaExtractor.isValid())
-		seaExtractedMetal = ai->s_buildTree.GetMaxRange(seaExtractor);
-
+	//-----------------------------------------------------------------------------------------------------------------
+	// check existing extractors within/close to base for possible upgrade
+	//-----------------------------------------------------------------------------------------------------------------
 	float maxExtractedMetalGain(0.0f);
 	AAIMetalSpot *selectedMetalSpot = nullptr;
 
-	// check extractor upgrades
 	for(int dist = 0; dist < 2; ++dist)
 	{
-		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[dist].end(); ++sector)
+		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[dist])
 		{
-			for(auto spot = (*sector)->metalSpots.begin(); spot != (*sector)->metalSpots.end(); ++spot)
+			for(auto spot : sector->metalSpots)
 			{
 				// quit when finding empty spots
-				if(!(*spot)->occupied && ((*sector)->GetNumberOfEnemyBuildings() <= 0) && ((*sector)->GetLostUnits() < 0.2f) )
+				if(!spot->occupied && (sector->GetNumberOfEnemyBuildings() <= 0) && (sector->GetLostUnits() < 0.2f) )
 					return;
 
-				if((*spot)->extractor_def > 0 && (*spot)->extractor > -1 && (*spot)->extractor < cfg->MAX_UNITS
-					&& ai->GetAICallback()->GetUnitTeam((*spot)->extractor) == ai->GetMyTeamId())	// only upgrade own extractors
+				if(    spot->extractorDefId.isValid() 
+				    && spot->extractorUnitId.IsValid()
+					&& ai->GetAICallback()->GetUnitTeam(spot->extractorUnitId.id) == ai->GetMyTeamId())	// only upgrade own extractors
 				{
-					float extractedMetalGain;
+					const bool isLand = ai->s_buildTree.GetMovementType( spot->extractorDefId ).IsStaticLand();
 
-					if(ai->s_buildTree.GetMovementType( UnitDefId((*spot)->extractor_def) ).IsStaticLand() )	// land mex
-						extractedMetalGain = landExtractedMetal - ai->s_buildTree.GetMaxRange( UnitDefId((*spot)->extractor_def) );
-					else	// water mex
-						extractedMetalGain = seaExtractedMetal  - ai->s_buildTree.GetMaxRange( UnitDefId((*spot)->extractor_def) );
+					const float extractedMetalGain =  (isLand ? landExtractedMetal : seaExtractedMetal) 
+													- ai->s_buildTree.GetMaxRange( spot->extractorDefId );
 
-					if(extractedMetalGain > 0.0001f && extractedMetalGain > maxExtractedMetalGain)
+					if( (extractedMetalGain > 0.0001f) && (extractedMetalGain > maxExtractedMetalGain) )
 					{
 						maxExtractedMetalGain = extractedMetalGain;
-						selectedMetalSpot = *spot;
+						selectedMetalSpot     = spot;
 					}
 				}
 			}
 		}
 	}
-
+	
+	//-----------------------------------------------------------------------------------------------------------------
+	// order builder to reclaim exctractor which shall be upgraded
+	//-----------------------------------------------------------------------------------------------------------------
 	if(selectedMetalSpot)
 	{
 		AAIConstructor *builder = ai->Getut()->FindClosestAssistant(selectedMetalSpot->pos, 10, true);
 
 		if(builder)
-			builder->GiveReclaimOrder(selectedMetalSpot->extractor);
+			builder->GiveReclaimOrder(selectedMetalSpot->extractorUnitId);
 	}
 }
 
@@ -1965,7 +1974,7 @@ void AAIExecute::CheckRadarUpgrade()
 
 			if(builder)
 			{
-				builder->GiveReclaimOrder(*sensor);
+				builder->GiveReclaimOrder( UnitId(*sensor) );
 				return;
 			}
 		}
@@ -2009,7 +2018,7 @@ void AAIExecute::CheckJammerUpgrade()
 
 					if(builder)
 					{
-						builder->GiveReclaimOrder(*jammer);
+						builder->GiveReclaimOrder( UnitId(*jammer) );
 						return;
 					}
 				}
@@ -2023,7 +2032,7 @@ void AAIExecute::CheckJammerUpgrade()
 
 					if(builder)
 					{
-						builder->GiveReclaimOrder(*jammer);
+						builder->GiveReclaimOrder( UnitId(*jammer) );
 						return;
 					}
 				}
@@ -2315,10 +2324,10 @@ void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attacke
 			if(support)
 				support->Defend(unitId, attackerPosition, importance);
 		}
-		/*else
+		else
 		{
 			ai->Log("No further combat units needed for defence; friendly/enemy local combat power: %f / %f\n", sector->GetFriendlyCombatPower(attackerTargetType), sector->GetEnemyCombatPower(attackerTargetType));
-		}*/
+		}
 	}
 }
 
