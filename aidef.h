@@ -79,6 +79,9 @@ public:
 
 	//! The factor applied to the combat power of the own units (when deciding whether to attack)
 	static constexpr float attackCombatPowerFactor = 2.0f;
+
+	//! If the local defence power against the target type of the attacker is below this threshold combat units shall be orderd to support.
+	static constexpr float localDefencePowerToRequestSupportThreshold = 2.0f;
 };
 
 class AAIMetalSpot

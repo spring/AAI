@@ -72,8 +72,8 @@ public:
 	//! @brief Updates learning data for sector
 	void UpdateLearnedData();
 
-	// adds/removes the sector from base sectors; returns true if succesful
-	bool SetBase(bool base);
+	//! @brief Adds/removes the sector from base sectors; returns true if succesful
+	bool AddToBase(bool addToBase);
 
 	//! @brief Returns the number of metal spots in this sector
 	int GetNumberOfMetalSpots() const { return metalSpots.size(); }
@@ -130,6 +130,9 @@ public:
 	//! @brief Removes building from sector
 	void RemoveBuilding(const AAIUnitCategory& category) { m_ownBuildingsOfCategory[category.GetArrayIndex()] -= 1; };
 
+	//! @brief Returns true if local combat power does not suffice to defend vs attack by given target type
+	bool IsSupportNeededToDefenceVs(const AAITargetType& targetType) const;
+
 	//! @brief Returns how often units in sector have been attacked by given mobile target type
 	float GetLocalAttacksBy(const AAITargetType& targetType, float previousGames, float currentGame) const;
 
@@ -139,8 +142,11 @@ public:
 	//! @brief Get total (mobile + static) defence power vs given target type
 	float GetEnemyCombatPower(const AAITargetType& targetType) const { return m_enemyStaticCombatPower.GetValueOfTargetType(targetType) + m_enemyMobileCombatPower.GetValueOfTargetType(targetType); }
 
-	//! @brief Returns cmbat power of own/allied static defences against given target type
+	//! @brief Returns combat power of own/allied static defences against given target type
 	float GetFriendlyStaticDefencePower(const AAITargetType& targetType) const { return m_friendlyStaticCombatPower.GetValueOfTargetType(targetType); }
+
+	//! @brief Returns cmbat power of own/allied static defences against given target type
+	float GetFriendlyCombatPower(const AAITargetType& targetType) const { return m_friendlyStaticCombatPower.GetValueOfTargetType(targetType) + m_friendlyMobileCombatPower.GetValueOfTargetType(targetType); }
 
 	// returns combat power of units in that and neighbouring sectors vs combat cat
 	float GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const;
@@ -228,9 +234,6 @@ public:
 
 	int distance_to_base;	// 0 = base, 1 = neighbour to base
 
-	//! Bitmask storing movement types that may maneuver in this sector
-	uint32_t m_suitableMovementTypes;	
-
 	// how many groups got a rally point in that sector
 	int rally_points;
 
@@ -256,6 +259,9 @@ private:
 
 	//! Ratio of water tiles
 	float m_waterTilesRatio;
+
+	//! Bitmask storing movement types that may maneuver in this sector
+	uint32_t m_suitableMovementTypes;	
 
 	//! Minimum distance to one of the map edges (in sector sizes)
 	int m_minSectorDistanceToMapEdge;
@@ -287,8 +293,11 @@ private:
 	//! The combat power against mobile targets of all hostile combat units in this sector
 	MobileTargetTypeValues m_enemyMobileCombatPower;
 
-	//! The combat power against mobile targets of all hostile static defences in this sector
+	//! The combat power against mobile targets of all friendly static defences in this sector
 	MobileTargetTypeValues m_friendlyStaticCombatPower;
+
+	//! The combat power against mobile targets of all friendly combat units in this sector
+	MobileTargetTypeValues m_friendlyMobileCombatPower;
 
 	//! Stores how often buildings in this sector have been attacked(=destroyed) by a certain target type in previous games
 	MobileTargetTypeValues m_attacksByTargetTypeInPreviousGames;

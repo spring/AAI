@@ -59,15 +59,14 @@ bool AAIBrain::RessourcesForConstr(int /*unit*/, int /*wokertime*/)
 
 void AAIBrain::AssignSectorToBase(AAISector *sector, bool addToBase)
 {
-	if(addToBase)
+	const bool successful = sector->AddToBase(addToBase);
+
+	if(successful)
 	{
-		m_sectorsInDistToBase[0].push_back(sector);
-		sector->SetBase(true);
-	}
-	else
-	{
-		m_sectorsInDistToBase[0].remove(sector);
-		sector->SetBase(false);
+		if(addToBase)
+			m_sectorsInDistToBase[0].push_back(sector);
+		else
+			m_sectorsInDistToBase[0].remove(sector);
 	}
 
 	// update base land/water ratio
@@ -76,14 +75,15 @@ void AAIBrain::AssignSectorToBase(AAISector *sector, bool addToBase)
 
 	if(m_sectorsInDistToBase[0].size() > 0)
 	{
-		for(std::list<AAISector*>::iterator s = m_sectorsInDistToBase[0].begin(); s != m_sectorsInDistToBase[0].end(); ++s)
+		//for(auto sector = m_sectorsInDistToBase[0].begin(); sector != m_sectorsInDistToBase[0].end(); ++sector)
+		for(auto sector : m_sectorsInDistToBase[0])
 		{
-			m_baseFlatLandRatio += (*s)->GetFlatTilesRatio();
-			m_baseWaterRatio    += (*s)->GetWaterTilesRatio();
+			m_baseFlatLandRatio += sector->GetFlatTilesRatio();
+			m_baseWaterRatio    += sector->GetWaterTilesRatio();
 		}
 
-		m_baseFlatLandRatio /= (float)m_sectorsInDistToBase[0].size();
-		m_baseWaterRatio    /= (float)m_sectorsInDistToBase[0].size();
+		m_baseFlatLandRatio /= static_cast<float>(m_sectorsInDistToBase[0].size());
+		m_baseWaterRatio    /= static_cast<float>(m_sectorsInDistToBase[0].size());
 	}
 
 	ai->Getmap()->UpdateNeighbouringSectors(m_sectorsInDistToBase);

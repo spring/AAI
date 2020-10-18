@@ -106,9 +106,9 @@ void AAISector::UpdateLearnedData()
 	m_attacksByTargetTypeInCurrentGame.DecreaseByFactor(0.225f); // 0.225f = 0.9f / 4.0f ->decrease by 0.9 and account for 3.0f in line above
 }
 
-bool AAISector::SetBase(bool base)
+bool AAISector::AddToBase(bool addToBase)
 {
-	if(base)
+	if(addToBase)
 	{
 		// check if already occupied (may happen if two coms start in same sector)
 		if(AAIMap::s_teamSectorMap.IsSectorOccupied(x,y))
@@ -153,6 +153,7 @@ void AAISector::ResetLocalCombatPower()
 {
 	m_alliedBuildings = 0;
 	m_friendlyStaticCombatPower.Reset();
+	m_friendlyMobileCombatPower.Reset();
 }
 
 void AAISector::ResetScoutedEnemiesData() 
@@ -175,6 +176,9 @@ void AAISector::AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly)
 
 		if(category.isStaticDefence())
 			m_friendlyStaticCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(unitDefId) );
+
+		if(category.isCombatUnit())
+			m_friendlyMobileCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(unitDefId) );
 	}
 }
 
@@ -492,14 +496,14 @@ float3 AAISector::DetermineAttackPosition() const
 
 void AAISector::DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const
 {
-	*xStart = x * ai->Getmap()->xSectorSizeMap;
-	*xEnd = *xStart + ai->Getmap()->xSectorSizeMap;
+	*xStart = x * AAIMap::xSectorSizeMap;
+	*xEnd = *xStart + AAIMap::xSectorSizeMap;
 
 	if(*xStart == 0)
 		*xStart = 8;
 
-	*yStart = y * ai->Getmap()->ySectorSizeMap;
-	*yEnd = *yStart + ai->Getmap()->ySectorSizeMap;
+	*yStart = y * AAIMap::ySectorSizeMap;
+	*yEnd = *yStart + AAIMap::ySectorSizeMap;
 
 	if(*yStart == 0)
 		*yStart = 8;
@@ -516,6 +520,25 @@ void AAISector::DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart,
 
 	if(y < ai->Getmap()->ySectors-1 && ai->Getmap()->m_sector[x][y+1].distance_to_base > 0)
 		*yEnd -= ai->Getmap()->ySectorSizeMap/8;*/
+}
+
+bool AAISector::IsSupportNeededToDefenceVs(const AAITargetType& targetType) const
+{
+	const float enemyCombatPower    = GetEnemyCombatPower(targetType);
+	const float friendlyCombatPower = GetFriendlyCombatPower(targetType);
+	
+	if(enemyCombatPower < 0.02f)
+	{
+		if(friendlyCombatPower < AAIConstants::localDefencePowerToRequestSupportThreshold)
+			return true;
+	}
+	else
+	{
+		if(friendlyCombatPower < enemyCombatPower)
+			return true;
+	}
+
+	return false;
 }
 
 float AAISector::GetLocalAttacksBy(const AAITargetType& targetType, float previousGames, float currentGame) const

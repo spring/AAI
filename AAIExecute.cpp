@@ -2308,10 +2308,17 @@ void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attacke
 
 	if(sector)
 	{
-		AAIGroup *support = GetClosestGroupForDefence(attackerTargetType, attackerPosition, importance);
+		if(sector->IsSupportNeededToDefenceVs(attackerTargetType))
+		{
+			AAIGroup *support = GetClosestGroupForDefence(attackerTargetType, attackerPosition, importance);
 
-		if(support)
-			support->Defend(unitId, attackerPosition, importance);
+			if(support)
+				support->Defend(unitId, attackerPosition, importance);
+		}
+		/*else
+		{
+			ai->Log("No further combat units needed for defence; friendly/enemy local combat power: %f / %f\n", sector->GetFriendlyCombatPower(attackerTargetType), sector->GetEnemyCombatPower(attackerTargetType));
+		}*/
 	}
 }
 
