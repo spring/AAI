@@ -237,7 +237,7 @@ void AAIConstructor::CheckAssistance()
 			}
 		}
 		// check if assistants are needed anymore
-		else if(!assistants.empty() && m_buildqueue->empty() && (m_constructedDefId.isValid() == false))
+		else if(!assistants.empty() && m_buildqueue->empty() && (m_constructedDefId.IsValid() == false))
 		{
 			//ai->LogConsole("factory releasing assistants");
 			ReleaseAllAssistants();
@@ -276,7 +276,7 @@ bool AAIConstructor::DoesFactoryNeedAssistance() const
 		if(m_buildqueue->size() > 2)
 			return true;
 
-		if(m_constructedDefId.isValid() ) 
+		if(m_constructedDefId.IsValid() ) 
 		{
 			const float buildtime = GetBuildtimeOfUnit(m_constructedDefId);
 
@@ -377,7 +377,7 @@ void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 
 	m_constructedDefId.id  = build_task->def_id;
 	m_constructedUnitId.id = build_task->unit_id;
-	assert(m_constructedDefId.isValid());
+	assert(m_constructedDefId.IsValid());
 	assert(m_constructedUnitId.IsValid());
 
 	m_buildPos = build_task->build_pos;
@@ -426,7 +426,7 @@ void AAIConstructor::ConstructionFinished()
 
 	m_buildPos = ZeroVector;
 	m_constructedUnitId.Invalidate();
-	m_constructedDefId.invalidate();
+	m_constructedDefId.Invalidate();
 
 	build_task = nullptr;
 
@@ -498,7 +498,7 @@ void AAIConstructor::CheckRetreatFromAttackBy(const AAIUnitCategory& attackedByC
 			else
 			{
 				// dont flee outside from scouts of the base if health is > 50%
-				if(   attackedByCategory.isScout()
+				if(   attackedByCategory.IsScout()
 				   && (ai->GetAICallback()->GetUnitHealth(m_myUnitId.id) > 0.5f * ai->s_buildTree.GetHealth(m_myDefId)) )
 					return;	
 			}

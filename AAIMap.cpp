@@ -171,7 +171,7 @@ void AAIMap::Init()
 	}
 
 	// add metalspots to their sectors
-	for(std::list<AAIMetalSpot>::iterator spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
+	for(auto spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
 	{
 		AAISector* sector = GetSectorOfPos(spot->pos);
 
@@ -1195,7 +1195,7 @@ bool AAIMap::InitBuilding(const UnitDef *def, const float3& position)
 
 		// update defence map (if necessary)
 		UnitDefId unitDefId(def->id);
-		if(ai->s_buildTree.GetUnitCategory(unitDefId).isStaticDefence())
+		if(ai->s_buildTree.GetUnitCategory(unitDefId).IsStaticDefence())
 			AddOrRemoveStaticDefence(position, unitDefId, true);
 
 		// increase number of units of that category in the target sector
@@ -1639,7 +1639,7 @@ void AAIMap::CalculateContinentMaps()
 void AAIMap::DetectMetalSpots()
 {
 	const UnitDefId largestExtractor = ai->Getbt()->GetLargestExtractor();
-	if ( largestExtractor.isValid() == false ) 
+	if ( largestExtractor.IsValid() == false ) 
 	{
 		ai->Log("No metal extractor unit known!");
 		return;
@@ -1869,12 +1869,12 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 				const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(defId);
 
 				// add buildings/combat units to scout map
-				if( category.isBuilding() || category.isCombatUnit() )
+				if( category.IsBuilding() || category.IsCombatUnit() )
 				{
 					m_scoutedEnemyUnitsMap.AddEnemyUnit(defId, tile);
 				}
 
-				if(category.isCombatUnit())
+				if(category.IsCombatUnit())
 				{
 					const AAITargetType& targetType = ai->s_buildTree.GetTargetType(defId);
 					spottedEnemyCombatUnitsByTargetType.AddValueForTargetType(targetType, 1.0f);
@@ -1909,7 +1909,7 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 		const UnitDef* def = ai->GetAICallback()->GetUnitDef(unitsInLOS[i]);
 		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
-		if( category.isBuilding() || category.isCombatUnit() )
+		if( category.IsBuilding() || category.IsCombatUnit() )
 		{
 			AAISector* sector = GetSectorOfPos( ai->GetAICallback()->GetUnitPos(unitsInLOS[i]) );
 
@@ -1972,9 +1972,9 @@ float3 AAIMap::DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, in
 		{	
 			const UnitDefId unitDefId( m_scoutedEnemyUnitsMap.GetUnitAt(xCell, yCell) );
 
-			if(unitDefId.isValid())
+			if(unitDefId.IsValid())
 			{
-				if(ai->s_buildTree.GetUnitCategory(unitDefId).isBuilding())
+				if(ai->s_buildTree.GetUnitCategory(unitDefId).IsBuilding())
 				{
 					float3 selectedPosition;
 					selectedPosition.x = static_cast<float>(m_scoutedEnemyUnitsMap.ScoutMapToBuildMapCoordinate(xCell) * SQUARE_SIZE);

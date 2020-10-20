@@ -159,15 +159,15 @@ void AAISector::AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly)
 	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
 
 	// add building to sector (and update stat_combat_power if it's a stat defence)
-	if(category.isBuilding())
+	if(category.IsBuilding())
 	{
 		if(unitBelongsToAlly)
 			++m_alliedBuildings;
 
-		if(category.isStaticDefence())
+		if(category.IsStaticDefence())
 			m_friendlyStaticCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(unitDefId) );
 
-		if(category.isCombatUnit())
+		if(category.IsCombatUnit())
 			m_friendlyMobileCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(unitDefId) );
 	}
 }
@@ -176,17 +176,17 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 {
 	const AAIUnitCategory& categoryOfEnemyUnit = ai->s_buildTree.GetUnitCategory(enemyDefId);
 	// add building to sector (and update stat_combat_power if it's a stat defence)
-	if(categoryOfEnemyUnit.isBuilding())
+	if(categoryOfEnemyUnit.IsBuilding())
 	{
 		++m_enemyBuildings;
 
-		if(categoryOfEnemyUnit.isStaticDefence())
+		if(categoryOfEnemyUnit.IsStaticDefence())
 		{
 			m_enemyStaticCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(enemyDefId) );
 		}
 	}
 	// add unit to sector and update mobile_combat_power
-	else if(categoryOfEnemyUnit.isCombatUnit())
+	else if(categoryOfEnemyUnit.IsCombatUnit())
 	{
 		// units that have been scouted long time ago matter less
 		const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(lastUpdateInFrame - ai->GetAICallback()->GetCurrentFrame())) / 3600.0f  );
@@ -391,7 +391,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout)
 {
 	if(   (distance_to_base == 0) 
-	   || (scoutMoveType.isIncludedIn(m_suitableMovementTypes) == false) 
+	   || (scoutMoveType.IsIncludedIn(m_suitableMovementTypes) == false) 
 	   || (GetNumberOfAlliedBuildings() > 0) )
 		return 0.0f;
 	else
@@ -595,9 +595,9 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 	const AAIUnitCategory& attackerCategory  = ai->s_buildTree.GetUnitCategory(attackerDefId);
 
 	// if lost unit is a building, increase attacked_by
-	if(destroyedCategory.isBuilding())
+	if(destroyedCategory.IsBuilding())
 	{
-		if(attackerCategory.isCombatUnit())
+		if(attackerCategory.IsCombatUnit())
 		{
 			const float increment = (distance_to_base == 0) ? 0.5f : 1.0f;
 			

@@ -147,7 +147,7 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 	for(int id = 1; id < m_combatPowerOfUnits.size(); ++id)
 	{
 		const UnitDefId unitDefId(id);
-		if( (GetSideOfUnitType(unitDefId) > 0) && (GetUnitCategory(unitDefId).isCombatUnit() || GetUnitCategory(unitDefId).isStaticDefence()))
+		if( (GetSideOfUnitType(unitDefId) > 0) && (GetUnitCategory(unitDefId).IsCombatUnit() || GetUnitCategory(unitDefId).IsStaticDefence()))
 		{
 			unsigned int allowedTargetCategories(0u);
 			for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDefs[id]->weapons.begin(); w != unitDefs[id]->weapons.end(); ++w)
@@ -194,7 +194,7 @@ void AAIBuildTree::UpdateUnitTypesOfCombatUnits()
 {
 	for(int id = 1; id < m_unitTypeProperties.size(); ++id)
 	{
-		if(m_unitTypeProperties[id].m_unitCategory.isCombatUnit() || m_unitTypeProperties[id].m_unitCategory.isStaticDefence() )
+		if(m_unitTypeProperties[id].m_unitCategory.IsCombatUnit() || m_unitTypeProperties[id].m_unitCategory.IsStaticDefence() )
 		{
 			if(m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::SURFACE) > AAIConstants::minAntiTargetTypeCombatPower)
 				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_SURFACE);
@@ -231,8 +231,8 @@ void AAIBuildTree::UpdateCombatPowerStatistics(UnitDefId attackerUnitDefId, Unit
 	const AAIUnitCategory& attackerCategory = GetUnitCategory(attackerUnitDefId);
 	const AAIUnitCategory& killedCategory   = GetUnitCategory(killedUnitDefId);
 
-	if(    (attackerCategory.isCombatUnit() || attackerCategory.isStaticDefence())
-		&& (killedCategory.isCombatUnit()   || killedCategory.isStaticDefence()) )
+	if(    (attackerCategory.IsCombatUnit() || attackerCategory.IsStaticDefence())
+		&& (killedCategory.IsCombatUnit()   || killedCategory.IsStaticDefence()) )
 	{
 		const float combatPowerChange = CalculateCombatPowerChange(attackerUnitDefId, killedUnitDefId);
 
@@ -352,15 +352,15 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		}
 
 		// add combat units to combat category lists
-		if(unitCategory.isGroundCombat())
+		if(unitCategory.IsGroundCombat())
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::surfaceIndex].push_back(id);
-		else if(unitCategory.isAirCombat())
+		else if(unitCategory.IsAirCombat())
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::airIndex].push_back(id);
-		else if(unitCategory.isHoverCombat())
+		else if(unitCategory.IsHoverCombat())
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::surfaceIndex].push_back(id);
-		else if(unitCategory.isSeaCombat())
+		else if(unitCategory.IsSeaCombat())
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(id);
-		else if(unitCategory.isSubmarineCombat())
+		else if(unitCategory.IsSubmarineCombat())
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::submergedIndex].push_back(id);
 
 		// set primary and secondary abilities
@@ -438,7 +438,7 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 		fprintf(file, "\nCombat power of combat units & static defences (vs. surface, air, ship, submarine, buildings)\n");
 		for(int id = 1; id < unitDefs.size(); ++id)
 		{
-			if(m_unitTypeProperties[id].m_unitCategory.isCombatUnit() || m_unitTypeProperties[id].m_unitCategory.isStaticDefence())
+			if(m_unitTypeProperties[id].m_unitCategory.IsCombatUnit() || m_unitTypeProperties[id].m_unitCategory.IsStaticDefence())
 			{
 				fprintf(file, "%-30s %-2.3f %-2.3f %-2.3f %-2.3f %-2.3f\n",  m_unitTypeProperties[id].m_name.c_str(),
 														m_combatPowerOfUnits[id].GetCombatPowerVsTargetType(ETargetType::SURFACE),
@@ -544,10 +544,10 @@ float AAIBuildTree::DeterminePrimaryAbility(const springLegacyAI::UnitDef* unitD
 {
 	float primaryAbility(0.0f);
 
-	if(   unitCategory.isCombatUnit()
-	   || unitCategory.isMobileArtillery()
-	   || unitCategory.isStaticArtillery() 
-	   || unitCategory.isStaticDefence() )
+	if(   unitCategory.IsCombatUnit()
+	   || unitCategory.IsMobileArtillery()
+	   || unitCategory.IsStaticArtillery() 
+	   || unitCategory.IsStaticDefence() )
 	{
 		for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDef->weapons.begin(); w != unitDef->weapons.end(); ++w)
 		{
@@ -555,17 +555,17 @@ float AAIBuildTree::DeterminePrimaryAbility(const springLegacyAI::UnitDef* unitD
 				primaryAbility = (*w).def->range;
 		}
 	}
-	else if(unitCategory.isScout())
+	else if(unitCategory.IsScout())
 		primaryAbility = unitDef->losRadius;
-	else if(unitCategory.isStaticSensor())
+	else if(unitCategory.IsStaticSensor())
 		primaryAbility = static_cast<float>(unitDef->radarRadius);
-	else if(unitCategory.isStaticConstructor() || unitCategory.isMobileConstructor() || unitCategory.isCommander())
+	else if(unitCategory.IsStaticConstructor() || unitCategory.IsMobileConstructor() || unitCategory.IsCommander())
 		primaryAbility = unitDef->buildSpeed;
-	else if(unitCategory.isMetalExtractor())
+	else if(unitCategory.IsMetalExtractor())
 		primaryAbility = unitDef->extractsMetal;
-	else if(unitCategory.isPowerPlant())
+	else if(unitCategory.IsPowerPlant())
 		primaryAbility = DetermineGeneratedPower(unitDef, cb);
-	else if(unitCategory.isStorage())
+	else if(unitCategory.IsStorage())
 		primaryAbility = unitDef->metalStorage;
 
 	return primaryAbility;
@@ -575,15 +575,15 @@ float AAIBuildTree::DetermineSecondaryAbility(const springLegacyAI::UnitDef* uni
 {
 	float secondaryAbility(0.0f);
 
-	if(   unitCategory.isCombatUnit()
-	   || unitCategory.isMobileArtillery()
-	   || unitCategory.isScout()
-	   || unitCategory.isMobileConstructor()
-	   || unitCategory.isCommander() )
+	if(   unitCategory.IsCombatUnit()
+	   || unitCategory.IsMobileArtillery()
+	   || unitCategory.IsScout()
+	   || unitCategory.IsMobileConstructor()
+	   || unitCategory.IsCommander() )
 		secondaryAbility = unitDef->speed;
-	else if(unitCategory.isStaticSensor())
+	else if(unitCategory.IsStaticSensor())
 		secondaryAbility = unitDef->sonarRadius;
-	else if(unitCategory.isStorage())
+	else if(unitCategory.IsStorage())
 		secondaryAbility = unitDef->energyStorage;
 	
 	return secondaryAbility;
@@ -655,21 +655,21 @@ ETargetType AAIBuildTree::DetermineTargetType(const AAIMovementType& moveType) c
 
 void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef)
 {
-	if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isAirCombat())
+	if(m_unitTypeProperties[unitDefId.id].m_unitCategory.IsAirCombat())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
 	}
-	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.isGroundCombat()
-	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.isHoverCombat())
+	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.IsGroundCombat()
+	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.IsHoverCombat())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
 	}
-	else if(    m_unitTypeProperties[unitDefId.id].m_unitCategory.isSeaCombat()
-	         || m_unitTypeProperties[unitDefId.id].m_unitCategory.isSubmarineCombat())
+	else if(    m_unitTypeProperties[unitDefId.id].m_unitCategory.IsSeaCombat()
+	         || m_unitTypeProperties[unitDefId.id].m_unitCategory.IsSubmarineCombat())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
 	}
-	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticSensor())
+	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.IsStaticSensor())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);
 
@@ -682,7 +682,7 @@ void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::Un
 		if(unitDef->seismicRadius > 0)
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::SEISMIC);
 	}
-	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticSupport())
+	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.IsStaticSupport())
 	{
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);
 
@@ -695,9 +695,9 @@ void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::Un
 		if(unitDef->canAssist)
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::CONSTRUCTION_ASSIST);
 	}
-	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.isMobileConstructor() 
-	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.isStaticConstructor()
-			|| m_unitTypeProperties[unitDefId.id].m_unitCategory.isCommander() )
+	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.IsMobileConstructor() 
+	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.IsStaticConstructor()
+			|| m_unitTypeProperties[unitDefId.id].m_unitCategory.IsCommander() )
 	{
 		if( GetMovementType(unitDefId).IsStatic() )
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);

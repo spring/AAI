@@ -369,7 +369,7 @@ void AAIBrain::UpdateDefenceCapabilities()
 		{
 			if((*group)->GetUnitTypeOfGroup().IsAssaultUnit())
 			{
-				switch((*group)->GetUnitCategoryOfGroup().getUnitCategory())
+				switch((*group)->GetUnitCategoryOfGroup().GetUnitCategory())
 				{
 					case EUnitCategory::GROUND_COMBAT:
 						m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE, (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE));
@@ -403,7 +403,7 @@ void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 	{
 		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
 
-		switch (category.getUnitCategory())
+		switch (category.GetUnitCategory())
 		{
 			case EUnitCategory::GROUND_COMBAT:
 			{
@@ -540,7 +540,7 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 	//-----------------------------------------------------------------------------------------------------------------
 	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatPowerCriteria, unitSelectionCriteria, 6, false);
 
-	if( unitDefId.isValid() && (ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0) )
+	if( unitDefId.IsValid() && (ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0) )
 	{
 		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
 			ai->Getbt()->BuildFactoryFor(unitDefId.id);
@@ -551,7 +551,7 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Order construction of selected unit
 	//-----------------------------------------------------------------------------------------------------------------
-	if(unitDefId.isValid())
+	if(unitDefId.IsValid())
 	{
 		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
 		const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
@@ -697,7 +697,7 @@ bool AAIBrain::SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const
 {
 	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(defId);
 
-	if(  category.isMetalExtractor() || category.isPowerPlant() )
+	if(  category.IsMetalExtractor() || category.IsPowerPlant() )
 		return true;
 	else if(   (m_metalSurplus.GetAverageValue()  > AAIConstants::minMetalSurplusForConstructionAssist)
 			&& (m_energySurplus.GetAverageValue() > AAIConstants::minEnergySurplusForConstructionAssist) )

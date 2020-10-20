@@ -269,7 +269,7 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 				&& (ai->s_buildTree.CanBuildUnitType(builder->m_myDefId.id, building) == true) )
 			{
 				// filter out commander (if not allowed)
-				if(! (!commander &&  ai->s_buildTree.GetUnitCategory(builder->m_myDefId).isCommander() ) )
+				if(! (!commander &&  ai->s_buildTree.GetUnitCategory(builder->m_myDefId).IsCommander() ) )
 					return builder;
 			}
 		}
@@ -303,7 +303,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float
 				const bool continentCheckPassed =    (ai->s_buildTree.GetMovementType(builder->m_myDefId).CannotMoveToOtherContinents() == false) 
 												  || (ai->Getmap()->GetContinentID(builderPosition) == continent);
 				const bool commanderCheckPassed = commander
-												  || ! ai->s_buildTree.GetUnitCategory(builder->m_myDefId).isCommander();
+												  || ! ai->s_buildTree.GetUnitCategory(builder->m_myDefId).IsCommander();
 
 				// filter out commander
 				if(continentCheckPassed && commanderCheckPassed)
@@ -348,7 +348,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(const float3& pos, int /*impo
 				const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(assistant->m_myDefId.id);
 
 				const bool continentCheckPassed = (moveType.CannotMoveToOtherContinents() == false) || (ai->Getmap()->GetContinentID(assistantPosition) == continent);
-				const bool commanderCheckPassed = (commander || (ai->s_buildTree.GetUnitCategory(assistant->m_myDefId).isCommander() == false) );
+				const bool commanderCheckPassed = (commander || (ai->s_buildTree.GetUnitCategory(assistant->m_myDefId).IsCommander() == false) );
 
 				// filter out commander
 				if(continentCheckPassed && commanderCheckPassed)

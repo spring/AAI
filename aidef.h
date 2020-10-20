@@ -113,9 +113,9 @@ public:
 
 	bool operator==(const UnitDefId& rhs) const { return (id == rhs.id); }
 
-	bool isValid() const { return (id > 0) ? true : false; }
+	bool IsValid() const { return (id > 0) ? true : false; }
 
-	void invalidate() { id = 0; }
+	void Invalidate() { id = 0; }
 
 	int id;
 };
@@ -140,7 +140,7 @@ public:
 	{
 		occupied = false;
 		extractorUnitId.Invalidate();
-		extractorDefId.invalidate();
+		extractorDefId.Invalidate();
 	}
 
 	//! @brief Returns whether spot belong to given map position

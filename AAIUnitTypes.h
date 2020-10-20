@@ -51,58 +51,58 @@ public:
 
 	AAIUnitCategory(EUnitCategory unitCategory) : m_unitCategory(unitCategory) {};
 
-    bool operator==(const AAIUnitCategory& rhs) const { return (m_unitCategory == rhs.getUnitCategory()); };
+    bool operator==(const AAIUnitCategory& rhs) const { return (m_unitCategory == rhs.GetUnitCategory()); };
 
-	void setUnitCategory(EUnitCategory unitCategory) { m_unitCategory = unitCategory; };
+	void SetUnitCategory(EUnitCategory unitCategory) { m_unitCategory = unitCategory; };
 
-	EUnitCategory getUnitCategory() const { return m_unitCategory; };
+	EUnitCategory GetUnitCategory() const { return m_unitCategory; };
 
-	bool isValid()             const { return (m_unitCategory != EUnitCategory::UNKNOWN) ? true : false; };
+	bool IsValid()             const { return (m_unitCategory != EUnitCategory::UNKNOWN) ? true : false; };
 
-	bool isStaticDefence()     const { return (m_unitCategory == EUnitCategory::STATIC_DEFENCE) ? true : false; };
+	bool IsStaticDefence()     const { return (m_unitCategory == EUnitCategory::STATIC_DEFENCE) ? true : false; };
 
-	bool isStaticArtillery()   const { return (m_unitCategory == EUnitCategory::STATIC_ARTILLERY) ? true : false; };
+	bool IsStaticArtillery()   const { return (m_unitCategory == EUnitCategory::STATIC_ARTILLERY) ? true : false; };
 
-	bool isStorage()           const { return (m_unitCategory == EUnitCategory::STORAGE) ? true : false; };
+	bool IsStorage()           const { return (m_unitCategory == EUnitCategory::STORAGE) ? true : false; };
 
-	bool isStaticConstructor() const { return (m_unitCategory == EUnitCategory::STATIC_CONSTRUCTOR) ? true : false; };
+	bool IsStaticConstructor() const { return (m_unitCategory == EUnitCategory::STATIC_CONSTRUCTOR) ? true : false; };
 
-	bool isStaticSupport()     const { return (m_unitCategory == EUnitCategory::STATIC_SUPPORT) ? true : false; };
+	bool IsStaticSupport()     const { return (m_unitCategory == EUnitCategory::STATIC_SUPPORT) ? true : false; };
 
-	bool isStaticSensor()      const { return (m_unitCategory == EUnitCategory::STATIC_SENSOR) ? true : false; };
+	bool IsStaticSensor()      const { return (m_unitCategory == EUnitCategory::STATIC_SENSOR) ? true : false; };
 
-	bool isPowerPlant()        const { return (m_unitCategory == EUnitCategory::POWER_PLANT) ? true : false; };
+	bool IsPowerPlant()        const { return (m_unitCategory == EUnitCategory::POWER_PLANT) ? true : false; };
 
-	bool isMetalExtractor()    const { return (m_unitCategory == EUnitCategory::METAL_EXTRACTOR) ? true : false; };
+	bool IsMetalExtractor()    const { return (m_unitCategory == EUnitCategory::METAL_EXTRACTOR) ? true : false; };
 
-	bool isMetalMaker()        const { return (m_unitCategory == EUnitCategory::METAL_MAKER) ? true : false; };
+	bool IsMetalMaker()        const { return (m_unitCategory == EUnitCategory::METAL_MAKER) ? true : false; };
 
-	bool isCommander()         const { return (m_unitCategory == EUnitCategory::COMMANDER) ? true : false; };
+	bool IsCommander()         const { return (m_unitCategory == EUnitCategory::COMMANDER) ? true : false; };
 
-	bool isGroundCombat()      const { return (m_unitCategory == EUnitCategory::GROUND_COMBAT) ? true : false; };
+	bool IsGroundCombat()      const { return (m_unitCategory == EUnitCategory::GROUND_COMBAT) ? true : false; };
 
-	bool isAirCombat()         const { return (m_unitCategory == EUnitCategory::AIR_COMBAT) ? true : false; };
+	bool IsAirCombat()         const { return (m_unitCategory == EUnitCategory::AIR_COMBAT) ? true : false; };
 
-	bool isHoverCombat()       const { return (m_unitCategory == EUnitCategory::HOVER_COMBAT) ? true : false; };
+	bool IsHoverCombat()       const { return (m_unitCategory == EUnitCategory::HOVER_COMBAT) ? true : false; };
 
-	bool isSeaCombat()         const { return (m_unitCategory == EUnitCategory::SEA_COMBAT) ? true : false; };
+	bool IsSeaCombat()         const { return (m_unitCategory == EUnitCategory::SEA_COMBAT) ? true : false; };
 
-	bool isSubmarineCombat()   const { return (m_unitCategory == EUnitCategory::SUBMARINE_COMBAT) ? true : false; };
+	bool IsSubmarineCombat()   const { return (m_unitCategory == EUnitCategory::SUBMARINE_COMBAT) ? true : false; };
 
-	bool isMobileArtillery()   const { return (m_unitCategory == EUnitCategory::MOBILE_ARTILLERY) ? true : false; };
+	bool IsMobileArtillery()   const { return (m_unitCategory == EUnitCategory::MOBILE_ARTILLERY) ? true : false; };
 	
-	bool isScout()             const { return (m_unitCategory == EUnitCategory::SCOUT) ? true : false; };
+	bool IsScout()             const { return (m_unitCategory == EUnitCategory::SCOUT) ? true : false; };
 	
-	bool isTransport()         const { return (m_unitCategory == EUnitCategory::TRANSPORT) ? true : false; };
+	bool IsTransport()         const { return (m_unitCategory == EUnitCategory::TRANSPORT) ? true : false; };
 	
-	bool isMobileConstructor() const { return (m_unitCategory == EUnitCategory::MOBILE_CONSTRUCTOR) ? true : false; };
+	bool IsMobileConstructor() const { return (m_unitCategory == EUnitCategory::MOBILE_CONSTRUCTOR) ? true : false; };
 	
-	bool isMobileSupport()     const { return (m_unitCategory == EUnitCategory::MOBILE_SUPPORT) ? true : false; };
+	bool IsMobileSupport()     const { return (m_unitCategory == EUnitCategory::MOBILE_SUPPORT) ? true : false; };
 
-	bool isBuilding()          const { return      (static_cast<int>(m_unitCategory) >= static_cast<int>(EUnitCategory::STATIC_DEFENCE) )
+	bool IsBuilding()          const { return      (static_cast<int>(m_unitCategory) >= static_cast<int>(EUnitCategory::STATIC_DEFENCE) )
 												&& (static_cast<int>(m_unitCategory) <= static_cast<int>(EUnitCategory::METAL_MAKER) ); };
 
-	bool isCombatUnit()        const { return      (static_cast<int>(m_unitCategory) >= static_cast<int>(EUnitCategory::GROUND_COMBAT) )
+	bool IsCombatUnit()        const { return      (static_cast<int>(m_unitCategory) >= static_cast<int>(EUnitCategory::GROUND_COMBAT) )
 												&& (static_cast<int>(m_unitCategory) <= static_cast<int>(EUnitCategory::SEA_COMBAT) ); };
 
 	static constexpr int numberOfUnitCategories = static_cast<int>(EUnitCategory::NUMBER_OF_CATEGORIES);

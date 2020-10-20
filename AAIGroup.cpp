@@ -52,13 +52,13 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 		m_maxSize = cfg->MAX_ANTI_AIR_GROUP_SIZE;
 	else
 	{
-		if(m_category.isMobileArtillery())
+		if(m_category.IsMobileArtillery())
 			m_maxSize = cfg->MAX_ARTY_GROUP_SIZE;
-		else if(m_category.isAirCombat())
+		else if(m_category.IsAirCombat())
 			m_maxSize = cfg->MAX_AIR_GROUP_SIZE;
-		else if(m_category.isSeaCombat())
+		else if(m_category.IsSeaCombat())
 			m_maxSize = cfg->MAX_NAVAL_GROUP_SIZE;
-		else if(m_category.isSubmarineCombat())
+		else if(m_category.IsSubmarineCombat())
 			m_maxSize = cfg->MAX_SUBMARINE_GROUP_SIZE;
 		else
 			m_maxSize = cfg->MAX_GROUP_SIZE;
@@ -110,7 +110,7 @@ bool AAIGroup::AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId)
 			Command c(CMD_MOVE);
 			c.PushPos(m_rallyPoint);
 
-			if(m_category.isAirCombat() )
+			if(m_category.IsAirCombat() )
 				c.SetOpts(c.GetOpts() | SHIFT_KEY);
 
 			//ai->Getcb()->GiveOrder(unit_id, &c);
@@ -149,18 +149,18 @@ bool AAIGroup::RemoveUnit(UnitId unitId, UnitId attackerUnitId)
 			{
 				const UnitDefId attackerDefId = ai->GetUnitDefId(attackerUnitId);
 
-				if(attackerDefId.isValid() && !cfg->AIR_ONLY_MOD)
+				if(attackerDefId.IsValid() && !cfg->AIR_ONLY_MOD)
 				{
 					const AAIUnitCategory& category    = ai->s_buildTree.GetUnitCategory(attackerDefId);
 					const AAICombatPower&  combatPower = ai->s_buildTree.GetCombatPower(attackerDefId);
 
-					if(category.isStaticDefence())
+					if(category.IsStaticDefence())
 						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
-					else if( category.isGroundCombat() && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.IsGroundCombat() && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
-					else if( category.isSeaCombat()    && (combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.IsSeaCombat()    && (combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
-					else if( category.isHoverCombat()  && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.IsHoverCombat()  && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
 				}
 			}
@@ -172,7 +172,7 @@ bool AAIGroup::RemoveUnit(UnitId unitId, UnitId attackerUnitId)
 	// unit not found
 	const UnitDefId unitDefId = ai->GetUnitDefId(unitId);
 
-	if(unitDefId.isValid())
+	if(unitDefId.IsValid())
 		ai->Log("Error: Failed to remove unit %s from group of %s!\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str() );
 	else
 		ai->Log("Error: Failed to remove unit with unknown unit type from group of %s!\n", ai->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str() );
@@ -299,7 +299,7 @@ void AAIGroup::TargetUnitKilled()
 	if(!cfg->AIR_ONLY_MOD)
 	{
 		// air groups retreat to rally point
-		if(m_category.isAirCombat())
+		if(m_category.IsAirCombat())
 		{
 			Command c(CMD_MOVE);
 			c.PushPos(m_rallyPoint);
@@ -439,7 +439,7 @@ void AAIGroup::UnitIdle(int unit)
 		return;
 
 	// special behaviour of aircraft in non air only mods
-	if(m_category.isAirCombat() && (task != GROUP_IDLE) && !cfg->AIR_ONLY_MOD)
+	if(m_category.IsAirCombat() && (task != GROUP_IDLE) && !cfg->AIR_ONLY_MOD)
 	{
 		Command c(CMD_MOVE);
 		c.PushPos(m_rallyPoint);

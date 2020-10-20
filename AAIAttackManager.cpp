@@ -211,14 +211,14 @@ void AAIAttackManager::DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& 
 
 		const AAIUnitCategory& category = (*group)->GetUnitCategoryOfGroup();
 
-		if(category.isGroundCombat())
+		if(category.IsGroundCombat())
 			combatPower[AAITargetType::surfaceIndex] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
-		else if(category.isHoverCombat())
+		else if(category.IsHoverCombat())
 		{
 			combatPower[AAITargetType::surfaceIndex] += (*group)->GetCombatPowerVsTargetType(ETargetType::SURFACE);
 			combatPower[AAITargetType::floaterIndex] += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
 		}
-		else if(category.isSeaCombat() || category.isSubmarineCombat())
+		else if(category.IsSeaCombat() || category.IsSubmarineCombat())
 		{
 			combatPower[AAITargetType::floaterIndex]   += (*group)->GetCombatPowerVsTargetType(ETargetType::FLOATER);
 			combatPower[AAITargetType::submergedIndex] += (*group)->GetCombatPowerVsTargetType(ETargetType::SUBMERGED);

@@ -132,7 +132,7 @@ UnitDefId AAIBuildTable::SelectPowerPlant(int side, float cost, float buildtime,
 {
 	UnitDefId powerPlant = SelectPowerPlant(side, cost, buildtime, powerGeneration, water, false);
 
-	if(powerPlant.isValid() && (units_dynamic[powerPlant.id].constructorsAvailable + units_dynamic[powerPlant.id].constructorsRequested <= 0) )
+	if(powerPlant.IsValid() && (units_dynamic[powerPlant.id].constructorsAvailable + units_dynamic[powerPlant.id].constructorsRequested <= 0) )
 	{
 		ai->Getbt()->RequestBuilderFor(powerPlant);
 		powerPlant = SelectPowerPlant(side, cost, buildtime, powerGeneration, water, true);
@@ -178,7 +178,7 @@ UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMe
 {
 	UnitDefId extractor = SelectExtractor(side, cost, extractedMetal, armed, water, false);
 
-	if(extractor.isValid() && (units_dynamic[extractor.id].constructorsAvailable <= 0) && (units_dynamic[extractor.id].constructorsRequested <= 0) )
+	if(extractor.IsValid() && (units_dynamic[extractor.id].constructorsAvailable <= 0) && (units_dynamic[extractor.id].constructorsRequested <= 0) )
 	{
 		ai->Getbt()->RequestBuilderFor(extractor);
 		extractor = SelectExtractor(side, cost, extractedMetal, armed, water, true);
@@ -247,7 +247,7 @@ UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, fl
 {
 	UnitDefId selectedStorage = SelectStorage(side, cost, buildtime, metal, energy, water, false);
 
-	if(selectedStorage.isValid() && (units_dynamic[selectedStorage.id].constructorsAvailable <= 0))
+	if(selectedStorage.IsValid() && (units_dynamic[selectedStorage.id].constructorsAvailable <= 0))
 	{
 		if(units_dynamic[selectedStorage.id].constructorsRequested <= 0)
 			RequestBuilderFor(selectedStorage);
@@ -334,7 +334,7 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 	{
 		const AAICombatPower& combatPowerOfUnit = ai->s_buildTree.GetCombatPower(*unit);
 
-		switch(ai->s_buildTree.GetUnitCategory(*unit).getUnitCategory())
+		switch(ai->s_buildTree.GetUnitCategory(*unit).GetUnitCategory())
 		{
 			case EUnitCategory::GROUND_COMBAT:
 				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
@@ -409,7 +409,7 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, const StaticDefenceSelect
 {
 	UnitDefId selectedDefence = SelectStaticDefence(side, selectionCriteria, water, false);
 
-	if(selectedDefence.isValid() && (units_dynamic[selectedDefence.id].constructorsAvailable <= 0))
+	if(selectedDefence.IsValid() && (units_dynamic[selectedDefence.id].constructorsAvailable <= 0))
 	{
 		if(units_dynamic[selectedDefence.id].constructorsRequested <= 0)
 			RequestBuilderFor(selectedDefence);
@@ -533,7 +533,7 @@ UnitDefId AAIBuildTable::SelectRadar(int side, float cost, float range, bool wat
 {
 	UnitDefId radar = SelectRadar(side, cost, range, water, false);
 
-	if(radar.isValid() && (units_dynamic[radar.id].constructorsAvailable <= 0) )
+	if(radar.IsValid() && (units_dynamic[radar.id].constructorsAvailable <= 0) )
 	{
 		if(units_dynamic[radar.id].constructorsRequested <= 0)
 			RequestBuilderFor(radar);
@@ -608,7 +608,7 @@ UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uin
 
 	for(auto scout = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side).begin(); scout != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side).end(); ++scout)
 	{
-		const bool movementTypeAllowed     = ai->s_buildTree.GetMovementType(scout->id).isIncludedIn(movementType);
+		const bool movementTypeAllowed     = ai->s_buildTree.GetMovementType(scout->id).IsIncludedIn(movementType);
 		const bool factoryPrerequisitesMet = !factoryAvailable || (units_dynamic[scout->id].constructorsAvailable > 0);
 
 		if( movementTypeAllowed && factoryPrerequisitesMet )
@@ -855,7 +855,7 @@ void AAIBuildTable::BuildFactoryFor(int unit_def_id)
 		m_factoryBuildqueue.push_back(UnitDefId(constructor));
 
 		// factory requested
-		if( ai->s_buildTree.GetUnitCategory(UnitDefId(constructor)).isStaticConstructor() )
+		if( ai->s_buildTree.GetUnitCategory(UnitDefId(constructor)).IsStaticConstructor() )
 		{
 			units_dynamic[constructor].requested += 1;
 
@@ -967,7 +967,7 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 	//-----------------------------------------------------------------------------------------------------------------
 	// order construction if valid builder found and check if factory needs to ordered
 	//-----------------------------------------------------------------------------------------------------------------
-	if( selectedBuilder.isValid() && (units_dynamic[selectedBuilder.id].under_construction + units_dynamic[selectedBuilder.id].requested <= 0) )
+	if( selectedBuilder.IsValid() && (units_dynamic[selectedBuilder.id].under_construction + units_dynamic[selectedBuilder.id].requested <= 0) )
 	{
 		// build factory if necessary
 		if(units_dynamic[selectedBuilder.id].constructorsAvailable + units_dynamic[selectedBuilder.id].constructorsRequested <= 0)

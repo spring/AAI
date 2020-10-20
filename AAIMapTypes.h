@@ -232,7 +232,7 @@ public:
 				//const int tileIndex = x + y * m_xScoutMapSize;
 				const UnitDefId unitDefId(m_scoutedUnitsMap[tileIndex]);
 
-				if(unitDefId.isValid())
+				if(unitDefId.IsValid())
 					 sector->AddScoutedEnemyUnit(unitDefId, m_lastUpdateInFrameMap[tileIndex]);
 				
 				++tileIndex;

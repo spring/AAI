@@ -69,14 +69,14 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 
 			for(int i = 0; i < max_groups; ++i)
 			{
-				if(category.isAirCombat() == true)
+				if(category.IsAirCombat() == true)
 				{
 					group = GetAirGroup(100.0, EUnitType::ANTI_AIR);
 
 					if(group)
 						group->DefendAirSpace(&pos);
 				}
-				else if(category.isBuilding() == true)
+				else if(category.IsBuilding() == true)
 				{
 					group = GetAirGroup(100.0, EUnitType::ANTI_STATIC);
 

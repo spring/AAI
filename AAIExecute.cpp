@@ -272,7 +272,7 @@ void AAIExecute::BuildScouts()
 		
 		const UnitDefId scoutId = ai->Getbt()->selectScout(ai->GetSide(), sightRange, cost, suitableMovementTypes, 10, cloaked, availableFactoryNeeded);
 
-		if(scoutId.isValid())
+		if(scoutId.IsValid())
 		{
 			const BuildQueuePosition queuePosition = (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) > 1) ? BuildQueuePosition::END : BuildQueuePosition::FRONT;
 
@@ -501,7 +501,7 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId landBuilding, UnitDefId
 
 BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISector* sector)
 {
-	if(building.isValid())
+	if(building.IsValid())
 	{
 		const float3 buildsite = ai->Getmap()->DetermineBuildsiteInSector(building, sector);
 
@@ -514,7 +514,7 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 			{
 				builder->GiveConstructionOrder(building, buildsite);
 
-				if( ai->s_buildTree.GetUnitCategory(building).isPowerPlant() )
+				if( ai->s_buildTree.GetUnitCategory(building).IsPowerPlant() )
 					futureAvailableEnergy += ai->s_buildTree.GetPrimaryAbility(building);
 
 				return BuildOrderStatus::SUCCESSFUL;
@@ -550,7 +550,7 @@ bool AAIExecute::BuildExtractor()
 		// get id of an extractor and look for suitable builder
 		UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), 1.0f, 0.5f, false, false);
 
-		if(landExtractor.isValid())
+		if(landExtractor.IsValid())
 		{
 			AAIConstructor* land_builder  = ai->Getut()->FindBuilder(landExtractor.id, true);
 
@@ -610,7 +610,7 @@ bool AAIExecute::BuildExtractor()
 	{
 		landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, false);
 
-		if(landExtractor.isValid())
+		if(landExtractor.IsValid())
 			land_builder = ai->Getut()->FindBuilder(landExtractor.id, true);
 	}
 
@@ -618,7 +618,7 @@ bool AAIExecute::BuildExtractor()
 	{
 		seaExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, true);
 
-		if(seaExtractor.isValid())
+		if(seaExtractor.IsValid())
 			water_builder = ai->Getut()->FindBuilder(seaExtractor.id, true);
 	}
 
@@ -728,7 +728,7 @@ bool AAIExecute::BuildPowerPlant()
 				builder = 0;
 
 			// find the power plant that is already under construction
-			if(builder && builder->GetCategoryOfConstructedUnit().isPowerPlant() == true)
+			if(builder && builder->GetCategoryOfConstructedUnit().IsPowerPlant() == true)
 			{
 				// dont build further power plants if already building an expensive plant
 				const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::POWER_PLANT));
@@ -869,7 +869,7 @@ bool AAIExecute::BuildMetalMaker()
 			UnitDefId maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), cost,  efficiency, metal, urgency, false, false);
 
 			// currently aai cannot build this building
-			if(maker.isValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
+			if(maker.IsValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
 			{
 				if(ai->Getbt()->units_dynamic[maker.id].constructorsRequested <= 0)
 					ai->Getbt()->RequestBuilderFor(maker);
@@ -877,7 +877,7 @@ bool AAIExecute::BuildMetalMaker()
 				maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), cost, efficiency, metal, urgency, false, true);
 			}
 
-			if(maker.isValid())
+			if(maker.IsValid())
 			{
 				pos = ai->Getmap()->DetermineBuildsiteInSector(maker, *sector);
 
@@ -910,7 +910,7 @@ bool AAIExecute::BuildMetalMaker()
 			UnitDefId maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), ai->Getbrain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, false);
 
 			// currently aai cannot build this building
-			if(maker.isValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
+			if(maker.IsValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
 			{
 				if(ai->Getbt()->units_dynamic[maker.id].constructorsRequested <= 0)
 					ai->Getbt()->RequestBuilderFor(maker);
@@ -918,7 +918,7 @@ bool AAIExecute::BuildMetalMaker()
 				maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), ai->Getbrain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, true);
 			}
 
-			if(maker.isValid())
+			if(maker.IsValid())
 			{
 				pos = ai->Getmap()->DetermineBuildsiteInSector(maker, *sector);
 
@@ -1131,7 +1131,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	//-----------------------------------------------------------------------------------------------------------------
 	for(auto task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
 	{
-		if(ai->s_buildTree.GetUnitCategory(UnitDefId((*task)->def_id)).isStaticDefence() == true)
+		if(ai->s_buildTree.GetUnitCategory(UnitDefId((*task)->def_id)).IsStaticDefence() == true)
 		{
 			if(dest->PosInSector((*task)->build_pos))
 			{
@@ -1233,7 +1233,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 {
 	const UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water);
 
-	if(selectedDefence.isValid())
+	if(selectedDefence.IsValid())
 	{
 		const float3 buildsite = ai->Getmap()->DetermineBuildsiteForStaticDefence(selectedDefence, sector, selectionCriteria.targetType, selectionCriteria.terrain);
 
@@ -1275,13 +1275,13 @@ bool AAIExecute::BuildArty()
 	UnitDefId landArtillery = ai->Getbt()->SelectStaticArtillery(ai->GetSide(), cost, range, false);
 	UnitDefId seaArtillery  = ai->Getbt()->SelectStaticArtillery(ai->GetSide(), cost, range, true);
 
-	if(landArtillery.isValid() && (ai->Getbt()->units_dynamic[landArtillery.id].constructorsAvailable <= 0))
+	if(landArtillery.IsValid() && (ai->Getbt()->units_dynamic[landArtillery.id].constructorsAvailable <= 0))
 	{
 		if(ai->Getbt()->units_dynamic[landArtillery.id].constructorsRequested <= 0)
 			ai->Getbt()->RequestBuilderFor(landArtillery);
 	}
 
-	if(seaArtillery.isValid() && (ai->Getbt()->units_dynamic[seaArtillery.id].constructorsAvailable <= 0))
+	if(seaArtillery.IsValid() && (ai->Getbt()->units_dynamic[seaArtillery.id].constructorsAvailable <= 0))
 	{
 		if(ai->Getbt()->units_dynamic[seaArtillery.id].constructorsRequested <= 0)
 			ai->Getbt()->RequestBuilderFor(seaArtillery);
@@ -1298,10 +1298,10 @@ bool AAIExecute::BuildArty()
 		{
 			float3 position = ZeroVector;
 
-			if(landArtillery.isValid()  && ((*sector)->GetWaterTilesRatio() < 0.9f) )
+			if(landArtillery.IsValid()  && ((*sector)->GetWaterTilesRatio() < 0.9f) )
 				position = (*sector)->GetRadarArtyBuildsite(landArtillery.id, ai->s_buildTree.GetMaxRange(landArtillery)/4.0f, false);
 
-			if((position.x <= 0.0f) && seaArtillery.isValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
+			if((position.x <= 0.0f) && seaArtillery.IsValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
 				position = (*sector)->GetRadarArtyBuildsite(seaArtillery.id, ai->s_buildTree.GetMaxRange(seaArtillery)/4.0f, true);
 			
 			if(position.x > 0)
@@ -1472,10 +1472,10 @@ bool AAIExecute::BuildRadar()
 				float3 myPosition(ZeroVector);
 				bool   seaPositionFound(false);
 
-				if( landRadar.isValid() && ((*sector)->GetWaterTilesRatio() < 0.9f) )
+				if( landRadar.IsValid() && ((*sector)->GetWaterTilesRatio() < 0.9f) )
 					myPosition = (*sector)->GetRadarArtyBuildsite(landRadar.id, ai->s_buildTree.GetMaxRange(landRadar), false);
 
-				if( (myPosition.x == 0.0f) && seaRadar.isValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
+				if( (myPosition.x == 0.0f) && seaRadar.IsValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
 				{
 					myPosition = (*sector)->GetRadarArtyBuildsite(seaRadar.id, ai->s_buildTree.GetMaxRange(seaRadar), true);
 					seaPositionFound = true;
@@ -1496,7 +1496,7 @@ bool AAIExecute::BuildRadar()
 		}
 	}
 
-	if(selectedRadar.isValid())
+	if(selectedRadar.IsValid())
 	{
 		float min_dist;
 		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedRadar, &bestPosition, true, &min_dist);
@@ -1624,7 +1624,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 			const UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water); 
 
 			// find closest builder
-			if(defence.isValid())
+			if(defence.IsValid())
 			{
 				const MapPos& enemyBase = ai->Getmap()->GetCenterOfEnemyBase();
 
@@ -1885,8 +1885,8 @@ void AAIExecute::CheckMexUpgrade()
 	const UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, extractedMetal, false, false);
 	const UnitDefId seaExtractor  = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, extractedMetal, false, true);
 
-	const float landExtractedMetal = landExtractor.isValid() ? ai->s_buildTree.GetMaxRange(landExtractor) : 0.0f;
-	const float seaExtractedMetal  = seaExtractor.isValid()  ? ai->s_buildTree.GetMaxRange(seaExtractor)  : 0.0f;
+	const float landExtractedMetal = landExtractor.IsValid() ? ai->s_buildTree.GetMaxRange(landExtractor) : 0.0f;
+	const float seaExtractedMetal  = seaExtractor.IsValid()  ? ai->s_buildTree.GetMaxRange(seaExtractor)  : 0.0f;
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// check existing extractors within/close to base for possible upgrade
@@ -1904,7 +1904,7 @@ void AAIExecute::CheckMexUpgrade()
 				if(!spot->occupied && (sector->GetNumberOfEnemyBuildings() <= 0) && (sector->GetLostUnits() < 0.2f) )
 					return;
 
-				if(    spot->extractorDefId.isValid() 
+				if(    spot->extractorDefId.IsValid() 
 				    && spot->extractorUnitId.IsValid()
 					&& ai->GetAICallback()->GetUnitTeam(spot->extractorUnitId.id) == ai->GetMyTeamId())	// only upgrade own extractors
 				{
@@ -1954,14 +1954,14 @@ void AAIExecute::CheckRadarUpgrade()
 		
 		if(ai->s_buildTree.GetMovementType(UnitDefId(*sensor)).IsStaticLand() == true )	// land recon
 		{
-			if( (landRadar.isValid() == true) &&  (ai->s_buildTree.GetMaxRange(UnitDefId(*sensor)) < ai->s_buildTree.GetMaxRange(landRadar)) )
+			if( (landRadar.IsValid() == true) &&  (ai->s_buildTree.GetMaxRange(UnitDefId(*sensor)) < ai->s_buildTree.GetMaxRange(landRadar)) )
 			{
 				upgradeRadar = true;
 			}
 		}
 		else	// water radar
 		{
-			if( (waterRadar.isValid() == true) && (ai->s_buildTree.GetMaxRange(UnitDefId(*sensor)) < ai->s_buildTree.GetMaxRange(waterRadar)) )
+			if( (waterRadar.IsValid() == true) && (ai->s_buildTree.GetMaxRange(UnitDefId(*sensor)) < ai->s_buildTree.GetMaxRange(waterRadar)) )
 			{
 				upgradeRadar = true;
 			}
@@ -2117,7 +2117,7 @@ void AAIExecute::CheckConstruction()
 			TryConstruction(static_cast<EUnitCategory>(category->first));
 		}
 	}
-	else if(buildingCategory.isValid())
+	else if(buildingCategory.IsValid())
 	{
 		TryConstruction(buildingCategory);
 	}
@@ -2260,23 +2260,23 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 		ai->Getmap()->m_sector[x][y].RemoveBuilding(category);
 
 	// free metalspot if mex was odered to be built
-	if(category.isMetalExtractor())
+	if(category.IsMetalExtractor())
 	{
 		if(validSector)
 			ai->Getmap()->m_sector[x][y].FreeMetalSpot(build_pos, def);
 	}
-	else if(category.isPowerPlant())
+	else if(category.IsPowerPlant())
 	{
 		futureAvailableEnergy -= ai->s_buildTree.GetPrimaryAbility(unitDefId);
 
 		if(futureAvailableEnergy < 0.0f)
 			futureAvailableEnergy = 0.0f;
 	}
-	else if(category.isStaticDefence())
+	else if(category.IsStaticDefence())
 	{
 		ai->Getmap()->AddOrRemoveStaticDefence(build_pos, unitDefId, false);
 	}
-	else if(category.isStaticConstructor())
+	else if(category.IsStaticConstructor())
 	{
 		ai->Getut()->futureFactories -= 1;
 

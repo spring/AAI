@@ -134,7 +134,7 @@ public:
 	}
 
 	//! @brief Returns whether this movement type is included in the given movement type bitmask.
-	bool isIncludedIn(uint32_t moveTypesBitmask) const { return static_cast<bool>( static_cast<uint32_t>(m_movementType) & moveTypesBitmask); }
+	bool IsIncludedIn(uint32_t moveTypesBitmask) const { return static_cast<bool>( static_cast<uint32_t>(m_movementType) & moveTypesBitmask); }
 
 private:
 	//! Movement type
