@@ -51,7 +51,6 @@ void AAISector::Init(AAI *ai, int x, int y)
 	m_freeMetalSpots = false;
 	distance_to_base = -1;
 	m_skippedAsScoutDestination = 0;
-	rally_points = 0;
 
 	// nothing sighted in that sector
 	m_enemyUnitsDetectedBySensor = 0;
@@ -416,7 +415,35 @@ float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMov
 	}
 }
 
-float AAISector::GetStartSectorRating() const
+float AAISector::GetRatingForRallyPoint(const AAIMovementType& moveType, int continentId) const
+{
+	if( (continentId != AAIMap::ignoreContinentID) && (continentId != m_continentId) )
+		return 0.0f;
+
+	const float edgeDistance = static_cast<float>( GetEdgeDistance() );
+	const float totalAttacks = GetLostUnits() + GetTotalAttacksInThisGame();
+
+	float rating = std::min(totalAttacks, 5.0f)
+				 + std::min(2.0f * edgeDistance, 6.0f)
+				 + 3.0f * GetNumberOfBuildings(EUnitCategory::METAL_EXTRACTOR); 
+	
+	if( moveType.IsGround() )
+	{
+		rating += 3.0f * GetFlatTilesRatio();
+	}
+	else if( moveType.IsAir() || moveType.IsAmphibious() || moveType.IsHover())
+	{
+		rating += 3.0f * (GetFlatTilesRatio() + GetWaterTilesRatio());
+	}
+	else
+	{
+		rating += 3.0f * GetWaterTilesRatio();
+	}
+
+	return rating;
+}
+
+float AAISector::GetRatingAsStartSector() const
 {
 	if(AAIMap::s_teamSectorMap.IsSectorOccupied(x, y))
 		return 0.0f;

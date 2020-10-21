@@ -159,38 +159,19 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 	AAISector* bestSector(nullptr);
 	AAISector* secondBestSector(nullptr);
 
-	float bestRating(0.0f);
+	float highestRating(0.0f);
 
 	for(int i = 1; i <= 2; ++i)
 	{
-		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[i].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[i].end(); ++sector)
+		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[i])
 		{
-			const float edgeDistance = static_cast<float>( (*sector)->GetEdgeDistance() );
-			const float totalAttacks = (*sector)->GetLostUnits() + (*sector)->GetTotalAttacksInThisGame();
-
-			float myRating = std::min(totalAttacks, 5.0f)
-			               + std::min(2.0f* edgeDistance, 6.0f)
-			               + 3.0f * (*sector)->GetNumberOfBuildings(EUnitCategory::METAL_EXTRACTOR)
-						   + 4.0f / (2.0f + static_cast<float>( (*sector)->rally_points ) ); 
+			const float rating = sector->GetRatingForRallyPoint(moveType, continentId);
 			
-			if( moveType.IsGround() )
+			if(rating > highestRating)
 			{
-				myRating += 3.0f * (*sector)->GetFlatTilesRatio();
-			}
-			else if( moveType.IsAir() || moveType.IsAmphibious() || moveType.IsHover())
-			{
-				myRating += 3.0f * ((*sector)->GetFlatTilesRatio() + (*sector)->GetWaterTilesRatio());
-			}
-			else
-			{
-				myRating += 3.0f * (*sector)->GetWaterTilesRatio();
-			}
-			
-			if(myRating > bestRating)
-			{
-				bestRating       = myRating;
+				highestRating    = rating;
 				secondBestSector = bestSector;
-				bestSector       = *sector;
+				bestSector       = sector;
 			}
 		}
 	}

@@ -196,8 +196,11 @@ public:
 	//! @brief Returns rating as next destination for scout of given movement type
 	float GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout);
 
+	//! @brief Returns the rating to be selected for a rally point for units of given movement type
+	float GetRatingForRallyPoint(const AAIMovementType& moveType, int continentId) const;
+
 	//! @brief Returns the rating as starting sector (if a new one has to be selected as the current is already occupied by other AAI player)
-	float GetStartSectorRating() const;
+	float GetRatingAsStartSector() const;
 
 	//! @brief Shall be called when scout is sent to this sector (resets counter how often this sector has been skipped)
 	void SelectedAsScoutDestination() { m_skippedAsScoutDestination = 0; }
@@ -233,9 +236,6 @@ public:
 	bool m_freeMetalSpots;
 
 	int distance_to_base;	// 0 = base, 1 = neighbour to base
-
-	// how many groups got a rally point in that sector
-	int rally_points;
 
 	// importance of the sector
 	float importance_this_game;

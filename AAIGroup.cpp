@@ -85,13 +85,6 @@ AAIGroup::~AAIGroup(void)
 	}
 
 	m_units.clear();
-
-	if(m_rallyPoint.x > 0.0f)
-	{
-		AAISector *sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
-
-		--sector->rally_points;
-	}
 }
 
 bool AAIGroup::AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId)
@@ -568,22 +561,10 @@ void AAIGroup::UpdateRallyPoint()
 
 void AAIGroup::GetNewRallyPoint()
 {
-	// delete old rally point (if there is any)
-	if(m_rallyPoint.x > 0.0f)
-	{
-		AAISector* sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
-
-		--sector->rally_points;
-	}
-
 	const bool rallyPointFound = ai->Getbrain()->DetermineRallyPoint(m_rallyPoint, m_moveType, m_continentId);
 
 	if(rallyPointFound)
 	{
-		//add new rally point to sector
-		AAISector *sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
-		++sector->rally_points;
-
 		// send idle groups to new rally point
 		if(task == GROUP_IDLE)
 		{

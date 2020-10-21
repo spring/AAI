@@ -2198,24 +2198,6 @@ bool AAIExecute::suitable_for_sea_factory(AAISector *left, AAISector *right)
 		   > (2.0f * right->GetWaterTilesRatio() + static_cast<float>( right->GetEdgeDistance() )) );
 }
 
-bool AAIExecute::suitable_for_ground_rallypoint(AAISector *left, AAISector *right)
-{
-	return ( (left->GetFlatTilesRatio()  + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
-		  >  (right->GetFlatTilesRatio() + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
-}
-
-bool AAIExecute::suitable_for_sea_rallypoint(AAISector *left, AAISector *right)
-{
-	return ( (left->GetWaterTilesRatio()  + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
-		  >  (right->GetWaterTilesRatio() + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
-}
-
-bool AAIExecute::suitable_for_all_rallypoint(AAISector *left, AAISector *right)
-{
-	return ( (left->GetFlatTilesRatio() + left->GetWaterTilesRatio() + 0.5f * static_cast<float>( left->GetEdgeDistance() ))/ ((float) (left->rally_points + 1) )
-		>  (right->GetFlatTilesRatio() + right->GetWaterTilesRatio() + 0.5f * static_cast<float>( right->GetEdgeDistance() ))/ ((float) (right->rally_points + 1) ) );
-}
-
 bool AAIExecute::defend_vs_ground(const AAISector *left, const AAISector *right)
 {
 	return ((2.0f + left->GetLocalAttacksBy(ETargetType::SURFACE, learned, current)) / (left->GetFriendlyStaticDefencePower(ETargetType::SURFACE) + 0.5f))
@@ -2415,7 +2397,7 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 
 	for(auto sector = sectors.begin(); sector != sectors.end(); ++sector)
 	{
-		const float rating = (*sector)->GetStartSectorRating();
+		const float rating = (*sector)->GetRatingAsStartSector();
 
 		if(rating > highestRating)
 		{
