@@ -313,7 +313,7 @@ void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spotted
 {
 	m_maxSpottedCombatUnitsOfTargetType.DecreaseByFactor(0.996f);
 
-	for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
+	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
 		// check for new max values
 		const float value = spottedCombatUnits.GetValueOfTargetType(targetType);
@@ -436,7 +436,7 @@ void AAIBrain::BuildUnits()
 	StatisticalData unitsSpottedStatistics;
 	StatisticalData defenceStatistics;
 
-	for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
+	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
 		attackedByCategory.SetValueForTargetType(targetType, GetAttacksBy(targetType, gamePhase) );
 		attackedByCatStatistics.AddValue( attackedByCategory.GetValueOfTargetType(targetType) );
@@ -455,7 +455,7 @@ void AAIBrain::BuildUnits()
 	//-----------------------------------------------------------------------------------------------------------------
 	AAICombatPower threatByTargetType;
 
-	for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
+	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
 		const float threat =  attackedByCatStatistics.GetNormalizedDeviationFromMin( attackedByCategory.GetValueOfTargetType(targetType) ) 
 	                    	+ unitsSpottedStatistics.GetNormalizedDeviationFromMin( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )

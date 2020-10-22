@@ -11,6 +11,7 @@
 #define AAI_UNIT_CATEGORY_H
 
 #include <string>
+#include <array>
 
 typedef unsigned int   uint32_t;
 
@@ -148,11 +149,11 @@ public:
 	
 	static const int numberOfCombatUnitCategories = static_cast<int>(ECombatUnitCategory::NUMBER_OF_CATEGORIES);
 
-	static const ECombatUnitCategory firstCombatUnitCategory = ECombatUnitCategory::GROUND_COMBAT;
+	//static const ECombatUnitCategory firstCombatUnitCategory = ECombatUnitCategory::GROUND_COMBAT;
 
-	void Next() { m_combatUnitCategory = static_cast<ECombatUnitCategory>( static_cast<int>(m_combatUnitCategory) + 1 ); }
+	//void Next() { m_combatUnitCategory = static_cast<ECombatUnitCategory>( static_cast<int>(m_combatUnitCategory) + 1 ); }
 
-	bool End() const { return (m_combatUnitCategory == ECombatUnitCategory::NUMBER_OF_CATEGORIES); }
+	//bool End() const { return (m_combatUnitCategory == ECombatUnitCategory::NUMBER_OF_CATEGORIES); }
 
 	//! Returns index to access arrays storing combat unit data, i.e. ranging from 0 to numberOfCombatUnitCategories-1
 	int GetArrayIndex() const {return static_cast<int>(m_combatUnitCategory); }
@@ -309,15 +310,11 @@ public:
 
 	static constexpr int numberOfTargetTypes = static_cast<int>(ETargetType::NUMBER_OF_CATEGORIES);
 
-	static constexpr ETargetType first = ETargetType::SURFACE;
-
-	void Next() { m_targetType = static_cast<ETargetType>( static_cast<int>(m_targetType) + 1 ); }
-
-	bool MobileTargetTypeEnd() const { return (static_cast<int>(m_targetType) >= numberOfMobileTargetTypes); }
+	static constexpr std::array<ETargetType, 4> m_mobileTargetTypes = {ETargetType::SURFACE, ETargetType::AIR, ETargetType::FLOATER, ETargetType::SUBMERGED};
 
 	const std::string& GetName() const { return m_targetTypeNames[GetArrayIndex()]; }
 
-	const static std::vector<std::string> m_targetTypeNames;
+	static const std::vector<std::string> m_targetTypeNames;
 	//const static std::vector<std::string> m_targetTypeNames = {"surface", "air", "floater", "submerged"};
 private:
 	ETargetType m_targetType;

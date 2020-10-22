@@ -45,6 +45,8 @@ const std::vector<std::string> AAICombatCategory::m_combatCategoryNames = {"surf
 const std::vector<std::string> AAITargetType::m_targetTypeNames = {"surface", "air", "floater", "submerged"};
 const std::vector<std::string> AAIMapType::m_mapTypeNames = {"land map", "mixed land water map", "water map"};
 
+constexpr std::array<ETargetType, 4> AAITargetType::m_mobileTargetTypes;
+
 AAIBuildTree AAI::s_buildTree;
 
 int AAI::s_aaiInstances = 0;
@@ -124,9 +126,9 @@ AAI::~AAI()
 	for(GamePhase gamePhaseIterator(0); gamePhaseIterator <= gamePhase; gamePhaseIterator.Next())
 	{
 		Log("Game phase %s:", gamePhaseIterator.GetName().c_str());
-		for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
+		for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 		{
-			Log("  %s: %f", targetType.GetName().c_str(), attackedByRates.GetAttackedByRate(gamePhaseIterator, targetType));
+			Log("  %s: %f", AAITargetType(targetType).GetName().c_str(), attackedByRates.GetAttackedByRate(gamePhaseIterator, targetType));
 		}
 		Log("\n");
 	}

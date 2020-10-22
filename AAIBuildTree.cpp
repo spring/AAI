@@ -162,7 +162,7 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 			AAICombatPower combatPower;
 			combatPower.SetCombatPower(ETargetType::STATIC, AAIConstants::noValidTargetInitialCombarPower + power);
 			
-			for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
+			for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 			{
 				int numberOfTargetableUnits(0);
 				int totalNumberOfUnits(0);

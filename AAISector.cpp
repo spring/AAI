@@ -559,7 +559,7 @@ float AAISector::GetLocalAttacksBy(const AAITargetType& targetType, float previo
 float AAISector::GetEnemyDefencePower(const MobileTargetTypeValues& targetTypeOfUnits) const
 {
 	float defencePower(0.0f);
-	for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
+	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
 		const float totalDefPower = m_enemyStaticCombatPower.GetValueOfTargetType(targetType) + m_enemyMobileCombatPower.GetValueOfTargetType(targetType);
 		defencePower += targetTypeOfUnits.GetValueOfTargetType(targetType) * totalDefPower;

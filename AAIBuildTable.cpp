@@ -738,7 +738,7 @@ bool AAIBuildTable::LoadModLearnData()
 		{
 			for(GamePhase gamePhase(0); gamePhase.End() == false; gamePhase.Next())
 			{
-				for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
+				for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 				{
 					float atackedByRate;
 					fscanf(inputFile, "%f ", &atackedByRate);
@@ -773,7 +773,7 @@ void AAIBuildTable::SaveModLearnData(const GamePhase& gamePhase, const AttackedB
 	{
 		for(GamePhase gamePhaseIterator(0); gamePhaseIterator.End() == false; gamePhaseIterator.Next())
 		{
-			for(AAITargetType targetType(AAITargetType::first); targetType.MobileTargetTypeEnd() == false; targetType.Next())
+			for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 			{
 				fprintf(saveFile, "%f ", s_attackedByRates.GetAttackedByRate(mapTypeIterator, gamePhaseIterator, targetType));
 			}
