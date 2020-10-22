@@ -121,7 +121,7 @@ private:
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
 	//! @brief Selects combat unit according to given criteria and tries to order its construction
-	void BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const AAICombatPower& combatPowerCriteria, bool urgent);
+	void BuildCombatUnitOfCategory(const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, bool urgent);
 
 	//! @brief Determines criteria for combat unit selection based on current game phase (@todo: Take other criteria into account)
 	void DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const;

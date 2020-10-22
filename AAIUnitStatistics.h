@@ -227,13 +227,13 @@ public:
 
 	const StatisticalData& GetUnitSecondaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitSecondaryAbilityStatistics[category.GetArrayIndex()]; }
 	
-	const StatisticalData& GetCombatCostStatistics(const AAICombatCategory& category) const { return m_combatCostStatistics[category.GetArrayIndex()]; }
+	const StatisticalData& GetCombatCostStatistics(const AAITargetType& targetType)      const { return m_combatCostStatistics[targetType.GetArrayIndex()]; }
 
-	const StatisticalData& GetCombatBuildtimeStatistics(const AAICombatCategory& category) const { return m_combatBuildtimeStatistics[category.GetArrayIndex()]; }
+	const StatisticalData& GetCombatBuildtimeStatistics(const AAITargetType& targetType) const { return m_combatBuildtimeStatistics[targetType.GetArrayIndex()]; }
 
-	const StatisticalData& GetCombatRangeStatistics(const AAICombatCategory& category) const { return m_combatRangeStatistics[category.GetArrayIndex()]; }
+	const StatisticalData& GetCombatRangeStatistics(const AAITargetType& targetType)     const { return m_combatRangeStatistics[targetType.GetArrayIndex()]; }
 
-	const StatisticalData& GetCombatSpeedStatistics(const AAICombatCategory& category) const { return m_combatSpeedStatistics[category.GetArrayIndex()]; }
+	const StatisticalData& GetCombatSpeedStatistics(const AAITargetType& targetType)     const { return m_combatSpeedStatistics[targetType.GetArrayIndex()]; }
 
 	const SensorStatistics& GetSensorStatistics() const { return m_sensorStatistics; }
 private:

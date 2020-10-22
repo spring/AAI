@@ -141,8 +141,8 @@ public:
 	// return repair pad
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
 
-	//! @brief Selects a combat unit of specified category according to given criteria
-	UnitDefId SelectCombatUnit(int side, const AAICombatCategory& category, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild);
+	//! @brief Selects a combat unit of specified targetType according to given criteria
+	UnitDefId SelectCombatUnit(int side, const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild);
 
 	//! @brief Selects a static artillery according to given criteria
 	UnitDefId SelectStaticArtillery(int side, float cost, float range, bool water) const;

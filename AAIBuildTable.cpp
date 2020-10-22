@@ -654,18 +654,16 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList,
 	combatEfficiencyStat.Finalize();
 }
 
-UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAICombatCategory& category, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild)
+UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild)
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// get data needed for selection
 	//-----------------------------------------------------------------------------------------------------------------
-	AAITargetType targetType(category);
-
 	const std::list<int> unitList = ai->s_buildTree.GetCombatUnitsOfTargetType(targetType, side);
 
-	const StatisticalData& costStatistics  = ai->s_buildTree.GetUnitStatistics(side).GetCombatCostStatistics(category);
-	const StatisticalData& rangeStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatRangeStatistics(category);
-	const StatisticalData& speedStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatSpeedStatistics(category);
+	const StatisticalData& costStatistics  = ai->s_buildTree.GetUnitStatistics(side).GetCombatCostStatistics(targetType);
+	const StatisticalData& rangeStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatRangeStatistics(targetType);
+	const StatisticalData& speedStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatSpeedStatistics(targetType);
 
 	StatisticalData combatPowerStat;		               // absolute combat power
 	StatisticalData combatEfficiencyStat;	               // combat power related to unit cost

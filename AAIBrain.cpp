@@ -476,42 +476,41 @@ void AAIBrain::BuildUnits()
 		// choose unit category dependend on map type
 		if(mapType.IsLandMap())
 		{
-			AAICombatCategory unitCategory(EMobileTargetType::SURFACE);
+			AAITargetType targetType(ETargetType::SURFACE);
 		
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-				unitCategory.setCategory(EMobileTargetType::AIR);
+				targetType.SetType(ETargetType::AIR);
 
-			BuildCombatUnitOfCategory(unitCategory, threatByTargetType, urgent);
+			BuildCombatUnitOfCategory(targetType, threatByTargetType, urgent);
 		}
 		else if(mapType.IsLandWaterMap())
 		{
 			//! @todo Add selection of Submarines
 			int groundRatio = static_cast<int>(100.0f * ai->Getmap()->land_ratio);
-			AAICombatCategory unitCategory(EMobileTargetType::SURFACE);
+			AAITargetType targetType(ETargetType::SURFACE);
 
 			if(rand()%100 < groundRatio)
-				unitCategory.setCategory(EMobileTargetType::FLOATER);
+				targetType.SetType(ETargetType::FLOATER);
 
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-				unitCategory.setCategory(EMobileTargetType::AIR);
+				targetType.SetType(ETargetType::AIR);
 			
-
-			BuildCombatUnitOfCategory(unitCategory, threatByTargetType, urgent);
+			BuildCombatUnitOfCategory(targetType, threatByTargetType, urgent);
 		}
 		else if(mapType.IsWaterMap())
 		{
 			//! @todo Add selection of Submarines
-			AAICombatCategory unitCategory(EMobileTargetType::FLOATER);
+			AAITargetType targetType(ETargetType::FLOATER);
 
 			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-				unitCategory.setCategory(EMobileTargetType::AIR);
+				targetType.SetType(ETargetType::AIR);
 
-			BuildCombatUnitOfCategory(unitCategory, threatByTargetType, urgent);
+			BuildCombatUnitOfCategory(targetType, threatByTargetType, urgent);
 		}
 	}
 }
 
-void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, const AAICombatPower& combatPowerCriteria, bool urgent)
+void AAIBrain::BuildCombatUnitOfCategory(const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, bool urgent)
 {
 	UnitSelectionCriteria unitSelectionCriteria;
 	DetermineCombatUnitSelectionCriteria(unitSelectionCriteria);
@@ -519,14 +518,14 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAICombatCategory& unitCategory, 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Select unit according to determined criteria
 	//-----------------------------------------------------------------------------------------------------------------
-	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatPowerCriteria, unitSelectionCriteria, 6, false);
+	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), targetType, combatPowerCriteria, unitSelectionCriteria, 6, false);
 
 	if( unitDefId.IsValid() && (ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0) )
 	{
 		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
 			ai->Getbt()->BuildFactoryFor(unitDefId.id);
 
-		unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), unitCategory, combatPowerCriteria, unitSelectionCriteria, 6, true);
+		unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), targetType, combatPowerCriteria, unitSelectionCriteria, 6, true);
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------

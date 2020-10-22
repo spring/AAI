@@ -41,7 +41,6 @@ using namespace springLegacyAI;
 // C++ < C++17 does not support initialization of static cont within class declaration
 const std::vector<int> GamePhase::m_startFrameOfGamePhase  = {0, 10800, 27000, 72000};
 const std::vector<std::string> GamePhase::m_gamePhaseNames = {"starting phase", "early phase", "mid phase", "late game"};
-const std::vector<std::string> AAICombatCategory::m_combatCategoryNames = {"surface", "air", "floater", "submerged"};
 const std::vector<std::string> AAITargetType::m_targetTypeNames = {"surface", "air", "floater", "submerged"};
 const std::vector<std::string> AAIMapType::m_mapTypeNames = {"land map", "mixed land water map", "water map"};
 
