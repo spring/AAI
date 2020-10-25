@@ -169,12 +169,12 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 
 				for(int side = 1; side <= m_numberOfSides; ++side)
 				{
-					const std::list<int> unitList = GetCombatUnitsOfTargetType(targetType, side);
+					const auto unitList = GetCombatUnitsOfTargetType(targetType, side);
 					totalNumberOfUnits += unitList.size();
 
-					for(auto unitId = unitList.begin(); unitId != unitList.end(); ++unitId)
+					for(const auto& unitDefId : unitList)
 					{
-						if( (allowedTargetCategories & unitDefs[*unitId]->category) != 0u)
+						if( (allowedTargetCategories & unitDefs[unitDefId.id]->category) != 0u)
 							++numberOfTargetableUnits;
 					}
 				}
@@ -341,27 +341,29 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 	for(int id = 1; id <= numberOfUnitTypes; ++id)
 	{
 		// set unit category and add to corresponding unit list (if unit is not neutral)
-		AAIUnitCategory unitCategory( DetermineUnitCategory(unitDefs[id]) );
+		const AAIUnitCategory unitCategory( DetermineUnitCategory(unitDefs[id]) );
 		m_unitTypeProperties[id].m_unitCategory = unitCategory;
+
+		const UnitDefId unitDefId(id);
 
 		if(m_sideOfUnitType[id] > 0)
 		{
-			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.GetArrayIndex() ].push_back(UnitDefId(id));
+			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.GetArrayIndex() ].push_back(unitDefId);
 
 			UpdateUnitTypes(id ,unitDefs[id]);
 		}
 
 		// add combat units to combat category lists
 		if(unitCategory.IsGroundCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::surfaceIndex].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::surfaceIndex].push_back(unitDefId);
 		else if(unitCategory.IsAirCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::airIndex].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::airIndex].push_back(unitDefId);
 		else if(unitCategory.IsHoverCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::surfaceIndex].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::surfaceIndex].push_back(unitDefId);
 		else if(unitCategory.IsSeaCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(unitDefId);
 		else if(unitCategory.IsSubmarineCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::submergedIndex].push_back(id);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::submergedIndex].push_back(unitDefId);
 
 		// set primary and secondary abilities
 		m_unitTypeProperties[id].m_primaryAbility = DeterminePrimaryAbility(unitDefs[id], unitCategory, cb);

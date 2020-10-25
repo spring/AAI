@@ -632,14 +632,14 @@ UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uin
 	return selectedScout;
 }
 
-void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
+void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
 {
 	int i = 0;
-	for(std::list<int>::const_iterator id = unitList.begin(); id != unitList.end(); ++id)
+	for(const auto& unitDefId : unitList)
 	{
-		const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(UnitDefId(*id));
+		const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(unitDefId);
 
-		const float combatPower = combatPowerWeights.CalculateWeightedSum(ai->s_buildTree.GetCombatPower(UnitDefId(*id))); 
+		const float combatPower = combatPowerWeights.CalculateWeightedSum(ai->s_buildTree.GetCombatPower(unitDefId)); 
 
 		const float combatEff   = combatPower / unitData.m_totalCost;
 
@@ -659,7 +659,7 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetT
 	//-----------------------------------------------------------------------------------------------------------------
 	// get data needed for selection
 	//-----------------------------------------------------------------------------------------------------------------
-	const std::list<int> unitList = ai->s_buildTree.GetCombatUnitsOfTargetType(targetType, side);
+	const auto unitList = ai->s_buildTree.GetCombatUnitsOfTargetType(targetType, side);
 
 	const StatisticalData& costStatistics  = ai->s_buildTree.GetUnitStatistics(side).GetCombatCostStatistics(targetType);
 	const StatisticalData& rangeStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatRangeStatistics(targetType);
@@ -678,12 +678,12 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetT
 	float bestRating(0.0f);
 
 	int i(0);
-	for(std::list<int>::const_iterator id = unitList.begin(); id != unitList.end(); ++id)
+	for(const auto& unitDefId : unitList)
 	{
 		if(    (canBuild == false)
-			|| ((canBuild == true) && (units_dynamic[*id].constructorsAvailable > 0)) )
+			|| ((canBuild == true) && (units_dynamic[unitDefId.id].constructorsAvailable > 0)) )
 		{
-			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(UnitDefId(*id));
+			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(unitDefId);
 
 			float combatEff = combatPowerValues[i] / unitData.m_totalCost;
 
@@ -697,7 +697,7 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetT
 			if(myRating > bestRating)
 			{
 				bestRating          = myRating;
-				selectedUnitType.id = *id;
+				selectedUnitType.id = unitDefId.id;
 			}
 		}
 

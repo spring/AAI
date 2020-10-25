@@ -35,7 +35,7 @@ AAIUnitStatistics::~AAIUnitStatistics()
 	m_combatSpeedStatistics.clear();
 };
 
-void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& unitDefs, const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<UnitDefId> >& unitsInCategory, const std::vector< std::list<int> >& unitsInCombatCategory)
+void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& unitDefs, const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<UnitDefId> >& unitsInCategory, const std::vector< std::list<UnitDefId> >& unitsInCombatCategory)
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// calculate unit category statistics
@@ -66,10 +66,10 @@ void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& 
 
 		for(auto unitDefId : unitsInCombatCategory[i])
 		{
-			m_combatCostStatistics[i].AddValue( unitProperties[unitDefId].m_totalCost );
-			m_combatBuildtimeStatistics[i].AddValue( unitProperties[unitDefId].m_buildtime );
-			m_combatRangeStatistics[i].AddValue( unitProperties[unitDefId].m_primaryAbility );
-			m_combatSpeedStatistics[i].AddValue( unitProperties[unitDefId].m_maxSpeed );
+			m_combatCostStatistics[i].AddValue( unitProperties[unitDefId.id].m_totalCost );
+			m_combatBuildtimeStatistics[i].AddValue( unitProperties[unitDefId.id].m_buildtime );
+			m_combatRangeStatistics[i].AddValue( unitProperties[unitDefId.id].m_primaryAbility );
+			m_combatSpeedStatistics[i].AddValue( unitProperties[unitDefId.id].m_maxSpeed );
 		}
 
 		m_combatCostStatistics[i].Finalize();

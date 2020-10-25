@@ -226,7 +226,7 @@ private:
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;
 
 	//! @brief Calculates the combat statistics needed for unit selection
-	void CalculateCombatPowerForUnits(const std::list<int>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
+	void CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
 
 	//! A list containing the next factories that shall be built
 	std::list<UnitDefId> m_factoryBuildqueue;

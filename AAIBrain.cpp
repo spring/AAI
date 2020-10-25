@@ -424,8 +424,6 @@ float AAIBrain::Affordable()
 
 void AAIBrain::BuildUnits()
 {
-	bool urgent = false;
-
 	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -470,6 +468,7 @@ void AAIBrain::BuildUnits()
 	//-----------------------------------------------------------------------------------------------------------------
 
 	const AAIMapType& mapType = ai->Getmap()->GetMapType();
+	const bool urgent = false;
 
 	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
 	{

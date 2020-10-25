@@ -217,7 +217,7 @@ public:
 	~AAIUnitStatistics();
 
 	//! Calculates values for given input data
-	void Init(const std::vector<const springLegacyAI::UnitDef*>& unitDefs, const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<UnitDefId> >& unitsInCategory, const std::vector< std::list<int> >& unitsInCombatCategory);
+	void Init(const std::vector<const springLegacyAI::UnitDef*>& unitDefs, const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<UnitDefId> >& unitsInCategory, const std::vector< std::list<UnitDefId> >& unitsInCombatCategory);
 
 	const StatisticalData& GetUnitCostStatistics(const AAIUnitCategory& category) const { return m_unitCostStatistics[category.GetArrayIndex()]; }
 
