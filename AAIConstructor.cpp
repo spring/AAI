@@ -26,7 +26,7 @@
 using namespace springLegacyAI;
 
 
-AAIConstructor::AAIConstructor(AAI *ai, UnitId unitId, UnitDefId defId, bool factory, bool builder, bool assistant, std::list<int>* buildque) :
+AAIConstructor::AAIConstructor(AAI *ai, UnitId unitId, UnitDefId defId, bool factory, bool builder, bool assistant, std::list<UnitDefId>* buildqueue) :
 	m_myUnitId(unitId),
 	m_myDefId(defId),
 	m_constructedUnitId(),
@@ -37,7 +37,7 @@ AAIConstructor::AAIConstructor(AAI *ai, UnitId unitId, UnitDefId defId, bool fac
  	m_buildPos(ZeroVector),
 	m_assistUnitId(),
 	m_activity(EConstructorActivity::IDLE),
-	m_buildqueue(buildque)
+	m_buildqueue(buildqueue)
 {
 	this->ai = ai;
 	build_task = 0;

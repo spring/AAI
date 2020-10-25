@@ -60,6 +60,12 @@ public:
 	//! @brief Returns the number of sides
 	int GetNumberOfSides() const { return m_numberOfSides; }
 
+	//! @brief Returns the number of factories
+	int GetNumberOfFactories() const { return static_cast<int>( m_factoryIdsTable.size() ); }
+
+	//! @brief Returns the table linking factory ids with UnitDefId
+	const std::vector<UnitDefId>& GetFactoryDefIdLookupTable() const { return m_factoryIdsTable; }
+
 	//! @brief Returns whether a given unit type is a starting unit for one side
 	bool IsStartingUnit(UnitDefId unitDefId) const;
 
@@ -141,6 +147,9 @@ private:
 	//! @brief Returns Unit Category for given unit definition
 	EUnitCategory DetermineUnitCategory(const springLegacyAI::UnitDef* unitDef) const;
 
+	//! @brief Determines th e factory ids of all factories (must be called after unit types have been determined)
+	void InitFactoryDefIdLookUpTable(int numberOfFactories);
+
 	//! @brief Determines and sets the unit types for the given unit.
 	void UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef);
 
@@ -202,6 +211,9 @@ private:
 
 	//! The combat power of every unit
 	std::vector<AAICombatPower>                   m_combatPowerOfUnits;
+
+	//! This vetcor stores the UnitDefIds corresponding to any valid factory id
+	std::vector<UnitDefId>                        m_factoryIdsTable;
 };
 
 #endif

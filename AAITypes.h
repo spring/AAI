@@ -176,10 +176,10 @@ struct UnitTypeProperties
 	AAIMovementType m_movementType;
 
 	//! Maximum movement speed
-	float m_maxSpeed;
+	float           m_maxSpeed;
 
 	//! Size of the unit (in map tiles) 
-	UnitFootprint m_footprint;
+	UnitFootprint   m_footprint;
 
 	//! The category of the unit
 	AAIUnitCategory m_unitCategory;
@@ -189,6 +189,9 @@ struct UnitTypeProperties
 
 	//! The target type - ground&hover=surface, air=air, ... 
 	AAITargetType   m_targetType;
+
+	//! The factory id (invalid for units that are not factories)
+	FactoryId       m_factoryId;
 };
 
 //! Enum for the different types of maps

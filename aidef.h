@@ -107,15 +107,30 @@ public:
 class UnitDefId
 {
 public:
-	UnitDefId() : id(0) { }
+	UnitDefId(int unitDefId) : id(unitDefId) {}
 
-	UnitDefId(int unitDefId) : id(unitDefId) { }
-
+	UnitDefId() : UnitDefId(0) {}
+	
 	bool operator==(const UnitDefId& rhs) const { return (id == rhs.id); }
 
 	bool IsValid() const { return (id > 0) ? true : false; }
 
 	void Invalidate() { id = 0; }
+
+	int id;
+};
+
+//! @brief An id identifying the corresponding buildqueues etc. for factories
+class FactoryId
+{
+public:
+	FactoryId(int factoryId) : id(factoryId) {}
+
+	FactoryId() : FactoryId(-1) { }
+
+	bool IsValid() const { return (id >= 0) ? true : false; }
+
+	void Set(int factoryId) { id = factoryId; }
 
 	int id;
 };

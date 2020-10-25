@@ -114,7 +114,7 @@ public:
 	bool AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength = false);
 
 	//! @brief Returns buildque for a certain constructor
-	std::list<int>* GetBuildqueueOfFactory(UnitDefId constructorDefId);
+	std::list<UnitDefId>* GetBuildqueueOfFactory(UnitDefId constructorDefId);
 
 	//! @brief Determines buildsite for a unit (not building) that shall be constructed by the given construction unit
 	float3 DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitDefId) const;
@@ -153,12 +153,6 @@ private:
 
 	float static learned;
 	float static current;
-
-	// buildques for the factories
-	std::vector<std::list<int> > buildques;
-
-	//! Number of factories (both mobile and sationary)
-	int numOfFactories;
 
 	//! @brief Calls construction fucntion for given category and resets urgency to 0.0f if construction order has been given
 	void TryConstruction(const AAIUnitCategory& category);
@@ -207,6 +201,9 @@ private:
 	float averageMetalUsage;
 	float averageEnergyUsage;
 
+	//! Buildqueues for the factories
+	std::vector< std::list<UnitDefId> > m_buildqueues;
+
 	//! Urgency of construction of building of the different categories
 	std::vector<float> m_constructionUrgency;
 
@@ -222,9 +219,6 @@ private:
 	int issued_orders;
 
 	AAI *ai;
-
-	// stores which buildque belongs to what kind of factory
-	std::vector<int> factory_table;
 
 	//! Number of times a building was created but no suitable builder could be identfied.
 	unsigned int m_linkingBuildTaskToBuilderFailed;

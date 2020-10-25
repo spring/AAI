@@ -60,8 +60,6 @@ AAIExecute::AAIExecute(AAI *ai) :
 
 AAIExecute::~AAIExecute(void)
 {
-//	if(factory_table)
-//		spring::SafeDeleteArray(factory_table);
 }
 
 void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
@@ -347,27 +345,26 @@ float3 AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitD
 	return selectedBuildsite;
 }
 
-std::list<int>* AAIExecute::GetBuildqueueOfFactory(UnitDefId constructorDefId)
+std::list<UnitDefId>* AAIExecute::GetBuildqueueOfFactory(UnitDefId constructorDefId)
 {
-	for(int i = 0; i < numOfFactories; ++i)
-	{
-		if(factory_table[i] == constructorDefId.id)
-			return &buildques[i];
-	}
+	const FactoryId& factoryId = ai->s_buildTree.GetUnitTypeProperties(constructorDefId).m_factoryId;
 
-	return nullptr;
+	if( factoryId.IsValid() )
+		return &m_buildqueues[factoryId.id];
+	else
+		return nullptr;
 }
 
 bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength)
 {
-	std::list<int>* selectedBuildqueue(nullptr);
+	std::list<UnitDefId>* selectedBuildqueue(nullptr);
 	float highestRating(0.0f);
 
 	for(std::list<UnitDefId>::const_iterator fac = ai->s_buildTree.GetConstructedByList(unitDefId).begin(); fac != ai->s_buildTree.GetConstructedByList(unitDefId).end(); ++fac)
 	{
 		if(ai->Getbt()->units_dynamic[(*fac).id].active > 0)
 		{
-			std::list<int>* buildqueue = GetBuildqueueOfFactory(*fac);
+			std::list<UnitDefId>* buildqueue = GetBuildqueueOfFactory(*fac);
 
 			if(buildqueue)
 			{
@@ -399,7 +396,7 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueue
 			else if(queuePosition == BuildQueuePosition::END)
 				insertPosition = selectedBuildqueue->end();
 	
-			selectedBuildqueue->insert(insertPosition, number, unitDefId.id);
+			selectedBuildqueue->insert(insertPosition, number, unitDefId);
 			ai->Getbt()->units_dynamic[unitDefId.id].requested += number;
 			ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), 2);
 			return true;
@@ -411,64 +408,7 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueue
 
 void AAIExecute::InitBuildques()
 {
-	// determine number of factories first
-	numOfFactories = 0;
-
-	int side = ai->GetSide();
-
-	// stationary factories
-	for(auto cons = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); cons != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++cons)
-	{
-		if(ai->s_buildTree.GetUnitType(*cons).IsFactory())
-			++numOfFactories;
-	}
-	// and look for all mobile factories
-	for(auto cons = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).begin(); cons != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).end(); ++cons)
-	{
-		if(ai->s_buildTree.GetUnitType(*cons).IsFactory())
-			++numOfFactories;
-	}
-	// and add com
-	for(auto cons = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).begin(); cons != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).end(); ++cons)
-	{
-		if(ai->s_buildTree.GetUnitType(*cons).IsFactory())
-			++numOfFactories;
-	}
-
-	buildques.resize(numOfFactories);
-
-	// set up factory buildque identification
-//	factory_table = new int[numOfFactories];
-	factory_table.resize(numOfFactories);
-
-	int i = 0;
-
-	for(auto cons = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).begin(); cons != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, side).end(); ++cons)
-	{
-		if(ai->s_buildTree.GetUnitType(*cons).IsFactory())
-		{
-			factory_table[i] = cons->id;
-			++i;
-		}
-	}
-
-	for(auto cons = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).begin(); cons != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, side).end(); ++cons)
-	{
-		if(ai->s_buildTree.GetUnitType(*cons).IsFactory())
-		{
-			factory_table[i] = cons->id;
-			++i;
-		}
-	}
-
-	for(auto cons = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).begin(); cons != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::COMMANDER, side).end(); ++cons)
-	{
-		if(ai->s_buildTree.GetUnitType(*cons).IsFactory())
-		{
-			factory_table[i] = cons->id;
-			++i;
-		}
-	}
+	m_buildqueues.resize( ai->s_buildTree.GetNumberOfFactories() );
 }
 
 // ****************************************************************************************************
@@ -1679,36 +1619,39 @@ void AAIExecute::CheckStationaryArty()
 	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(staticArtillery) >= cfg->MAX_STAT_ARTY)
 		return;
 
-	float temp = 0.05f;
+	const float temp = 0.05f;
 
 	SetConstructionUrgencyIfHigher(EUnitCategory::STATIC_ARTILLERY, temp);
 }
 
 void AAIExecute::CheckBuildqueues()
 {
-	int req_units = 0;
-	int active_factory_types = 0;
+	int totalQueuedUnits(0);
+	int numberOfActiveFactoryTypes(0);
 
-	for(int i = 0; i < numOfFactories; ++i)
+	const auto& factoryTable = ai->s_buildTree.GetFactoryDefIdLookupTable();
+
+	for(int factoryId = 0; factoryId < factoryTable.size(); ++factoryId)
 	{
-		// sum up builque lengths of active factory types
-		if(ai->Getbt()->units_dynamic[factory_table[i]].active > 0)
+		if(ai->Getbt()->units_dynamic[ factoryTable[factoryId].id ].active > 0)
 		{
-			req_units += (int) buildques[i].size();
-			++active_factory_types;
+			totalQueuedUnits += static_cast<int>(m_buildqueues[factoryId].size());
+			++numberOfActiveFactoryTypes;
 		}
 	}
 
-	if(active_factory_types > 0)
+	if(numberOfActiveFactoryTypes > 0)
 	{
-		if( (float)req_units / (float)active_factory_types < (float)cfg->MAX_BUILDQUE_SIZE / 2.5f )
+		const float queuedUnitsPerFactoryType = static_cast<float>(totalQueuedUnits) / static_cast<float>(numberOfActiveFactoryTypes);
+
+		if(queuedUnitsPerFactoryType < 0.3f * static_cast<float>(cfg->MAX_BUILDQUE_SIZE) )
 		{
 			if(unitProductionRate < 70)
 				++unitProductionRate;
 
 			//ai->Log("Increasing unit production rate to %i\n", unitProductionRate);
 		}
-		else if( (float)req_units / (float)active_factory_types > (float)cfg->MAX_BUILDQUE_SIZE / 1.5f )
+		else if( queuedUnitsPerFactoryType >  0.75f * static_cast<float>(cfg->MAX_BUILDQUE_SIZE) )
 		{
 			if(unitProductionRate > 1)
 			{

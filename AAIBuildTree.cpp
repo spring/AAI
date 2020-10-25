@@ -338,6 +338,8 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 	}
 
 	// second loop because movement type information for all units is needed to determine unit type
+	int numberOfFactories(0);
+
 	for(int id = 1; id <= numberOfUnitTypes; ++id)
 	{
 		// set unit category and add to corresponding unit list (if unit is not neutral)
@@ -351,6 +353,9 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.GetArrayIndex() ].push_back(unitDefId);
 
 			UpdateUnitTypes(id ,unitDefs[id]);
+
+			if(GetUnitType(unitDefId).IsFactory())
+				++numberOfFactories;
 		}
 
 		// add combat units to combat category lists
@@ -368,7 +373,9 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		// set primary and secondary abilities
 		m_unitTypeProperties[id].m_primaryAbility = DeterminePrimaryAbility(unitDefs[id], unitCategory, cb);
 		m_unitTypeProperties[id].m_maxSpeed       = DetermineSecondaryAbility(unitDefs[id], unitCategory);
-    }
+	}
+
+	InitFactoryDefIdLookUpTable(numberOfFactories);
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// calculate unit category statistics
@@ -412,8 +419,8 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 
 	if(file != nullptr)
 	{
-		fprintf(file, "Number of different unit types: %i\n", unitDefs.size()-1);
-
+		fprintf(file, "Number of different unit types: %i\n", static_cast<int>(unitDefs.size())-1);
+		fprintf(file, "Number of factories: %i\n", static_cast<int>(m_factoryIdsTable.size()));
 		fprintf(file, "Detected start units (aka commanders):\n");
 		for(int side = 1; side <= m_numberOfSides; ++side)
 		{
@@ -653,6 +660,40 @@ ETargetType AAIBuildTree::DetermineTargetType(const AAIMovementType& moveType) c
 		return ETargetType::SUBMERGED;
 	else
 		return ETargetType::STATIC;
+}
+
+void AAIBuildTree::InitFactoryDefIdLookUpTable(int numberOfFactories)
+{
+	m_factoryIdsTable.resize(numberOfFactories);
+
+	int nextFactoryId(0);
+
+	for(int id = 1; id < m_unitTypeProperties.size(); ++id)
+	{
+		if( (m_sideOfUnitType[id] > 0) && m_unitTypeProperties[id].m_unitType.IsFactory() )
+		{
+			m_unitTypeProperties[id].m_factoryId.Set(nextFactoryId);
+			m_factoryIdsTable[nextFactoryId] = UnitDefId(id);
+			++nextFactoryId;
+		}
+	}
+
+	/*int currentId(0);
+	const std::array<AAIUnitCategory, 3> constructorCategories = {	AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR),
+																	AAIUnitCategory(EUnitCategory::MOBILE_CONSTRUCTOR),
+																	AAIUnitCategory(EUnitCategory::COMMANDER) };
+
+	for(const auto& category : constructorCategories)
+	{
+		for(const auto& unitDefId : GetUnitsInCategory(category, side))
+		{
+			if(GetUnitType(unitDefId).IsFactory())
+			{
+				m_unitTypeProperties[unitDefId.id].m_factoryId.Set(currentId);
+				++currentId;
+			}
+		}
+	}*/
 }
 
 void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef)
