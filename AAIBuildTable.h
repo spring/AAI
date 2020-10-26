@@ -45,6 +45,7 @@ struct UnitSelectionCriteria
 	float cost;       //!< Unit cost
 	float speed;	  //!< Speed of unit
 	float range;	  //!< max range for combat units/artillery, los for scouts
+	float factoryUtilization; //!< the current utilization of the factories that can construct the unit
 };
 
 //! Criteria used for selection of static defences
@@ -142,7 +143,7 @@ public:
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
 
 	//! @brief Selects a combat unit of specified targetType according to given criteria
-	UnitDefId SelectCombatUnit(int side, const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild);
+	UnitDefId SelectCombatUnit(int side, const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness);
 
 	//! @brief Selects a static artillery according to given criteria
 	UnitDefId SelectStaticArtillery(int side, float cost, float range, bool water) const;
@@ -185,6 +186,9 @@ public:
 
 	//! @brief Returns the unit category for a given index (0 to 5) of an combat unit type (ground, air, hover, sea, submarine, static)
 	AAIUnitCategory GetUnitCategoryOfCombatUnitIndex(int index) const;
+
+	//! @brief Returns the dynamic unit type data for the given unitDefId
+	const UnitTypeDynamic& GetDynamicUnitTypeData(UnitDefId unitDefId) const { return units_dynamic[unitDefId.id]; }
 
 	// number of sides
 	int numOfSides;

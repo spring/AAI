@@ -116,6 +116,9 @@ public:
 	//! @brief Returns buildque for a certain constructor
 	std::list<UnitDefId>* GetBuildqueueOfFactory(UnitDefId constructorDefId);
 
+	//! @brief Determines the utilization (i.e. how long is the buildqueue) of the different factories
+	void DetermineFactoryUtilization(std::vector<float>& factoryUtilization, bool considerOnlyActiveFactoryTypes) const;
+
 	//! @brief Determines buildsite for a unit (not building) that shall be constructed by the given construction unit
 	float3 DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitDefId) const;
 

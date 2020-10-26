@@ -345,16 +345,6 @@ float3 AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitD
 	return selectedBuildsite;
 }
 
-std::list<UnitDefId>* AAIExecute::GetBuildqueueOfFactory(UnitDefId constructorDefId)
-{
-	const FactoryId& factoryId = ai->s_buildTree.GetUnitTypeProperties(constructorDefId).m_factoryId;
-
-	if( factoryId.IsValid() )
-		return &m_buildqueues[factoryId.id];
-	else
-		return nullptr;
-}
-
 bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength)
 {
 	std::list<UnitDefId>* selectedBuildqueue(nullptr);
@@ -404,6 +394,33 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueue
 	}
 
 	return false;
+}
+
+std::list<UnitDefId>* AAIExecute::GetBuildqueueOfFactory(UnitDefId constructorDefId)
+{
+	const FactoryId& factoryId = ai->s_buildTree.GetUnitTypeProperties(constructorDefId).m_factoryId;
+
+	if( factoryId.IsValid() )
+		return &m_buildqueues[factoryId.id];
+	else
+		return nullptr;
+}
+
+void AAIExecute::DetermineFactoryUtilization(std::vector<float>& factoryUtilization, bool considerOnlyActiveFactoryTypes) const
+{
+	const std::vector<UnitDefId>& factoryTable = ai->s_buildTree.GetFactoryDefIdLookupTable();
+
+	for(int factoryId = 0; factoryId < ai->s_buildTree.GetNumberOfFactories(); ++factoryId)
+	{
+		const UnitTypeDynamic& unitTypeData = ai->Getbt()->GetDynamicUnitTypeData(factoryTable[factoryId]);
+
+		if(    (considerOnlyActiveFactoryTypes == false)
+			|| (unitTypeData.active > 0) )
+		{
+			const float queueLength = static_cast<float>(m_buildqueues[factoryId].size());
+			factoryUtilization[factoryId] = 1.0f - ( queueLength / static_cast<float>(cfg->MAX_BUILDQUE_SIZE+1) );
+		}
+	}
 }
 
 void AAIExecute::InitBuildques()

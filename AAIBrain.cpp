@@ -467,86 +467,74 @@ void AAIBrain::BuildUnits()
 	// Order building of units according to determined threat/own defence capabilities
 	//-----------------------------------------------------------------------------------------------------------------
 
-	const AAIMapType& mapType = ai->Getmap()->GetMapType();
-	const bool urgent = false;
-
-	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
-	{
-		// choose unit category dependend on map type
-		if(mapType.IsLandMap())
-		{
-			AAITargetType targetType(ETargetType::SURFACE);
-		
-			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-				targetType.SetType(ETargetType::AIR);
-
-			BuildCombatUnitOfCategory(targetType, threatByTargetType, urgent);
-		}
-		else if(mapType.IsLandWaterMap())
-		{
-			//! @todo Add selection of Submarines
-			int groundRatio = static_cast<int>(100.0f * ai->Getmap()->land_ratio);
-			AAITargetType targetType(ETargetType::SURFACE);
-
-			if(rand()%100 < groundRatio)
-				targetType.SetType(ETargetType::FLOATER);
-
-			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-				targetType.SetType(ETargetType::AIR);
-			
-			BuildCombatUnitOfCategory(targetType, threatByTargetType, urgent);
-		}
-		else if(mapType.IsWaterMap())
-		{
-			//! @todo Add selection of Submarines
-			AAITargetType targetType(ETargetType::FLOATER);
-
-			if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-				targetType.SetType(ETargetType::AIR);
-
-			BuildCombatUnitOfCategory(targetType, threatByTargetType, urgent);
-		}
-	}
-}
-
-void AAIBrain::BuildCombatUnitOfCategory(const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, bool urgent)
-{
 	UnitSelectionCriteria unitSelectionCriteria;
 	DetermineCombatUnitSelectionCriteria(unitSelectionCriteria);
 
-	//-----------------------------------------------------------------------------------------------------------------
-	// Select unit according to determined criteria
-	//-----------------------------------------------------------------------------------------------------------------
-	UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), targetType, combatPowerCriteria, unitSelectionCriteria, 6, false);
+	std::vector<float> factoryUtilization(ai->s_buildTree.GetNumberOfFactories(), 0.0f);
+	ai->Getexecute()->DetermineFactoryUtilization(factoryUtilization, true);
 
-	if( unitDefId.IsValid() && (ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0) )
+	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
 	{
-		if(ai->Getbt()->units_dynamic[unitDefId.id].constructorsRequested <= 0)
-			ai->Getbt()->BuildFactoryFor(unitDefId.id);
+		const AAITargetType targetType = DetermineTargetTypeForCombatUnitConstruction(gamePhase);
+		const bool urgent(false);
+	
+		BuildCombatUnitOfCategory(targetType, threatByTargetType, unitSelectionCriteria, factoryUtilization, urgent);
+	}
+}
 
-		unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), targetType, combatPowerCriteria, unitSelectionCriteria, 6, true);
+AAITargetType AAIBrain::DetermineTargetTypeForCombatUnitConstruction(const GamePhase& gamePhase) const
+{
+	AAITargetType targetType(ETargetType::SURFACE);
+
+	const AAIMapType& mapType = ai->Getmap()->GetMapType();
+
+	// choose unit category dependend on map type
+	if(mapType.IsLandMap())
+	{
+		if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
+			targetType.SetType(ETargetType::AIR);
+	}
+	else if(mapType.IsLandWaterMap())
+	{
+		//! @todo Add selection of Submarines
+		int groundRatio = static_cast<int>(100.0f * ai->Getmap()->land_ratio);
+		
+		if(rand()%100 < groundRatio)
+			targetType.SetType(ETargetType::FLOATER);
+		else if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
+			targetType.SetType(ETargetType::AIR);
+	}
+	else if(mapType.IsWaterMap())
+	{
+		//! @todo Add selection of Submarines
+		if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
+			targetType.SetType(ETargetType::AIR);
+		else
+			targetType.SetType(ETargetType::FLOATER);
 	}
 
-	//-----------------------------------------------------------------------------------------------------------------
+	return targetType;
+}
+
+void AAIBrain::BuildCombatUnitOfCategory(const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent)
+{
+	// Select unit according to determined criteria
+	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), targetType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6);
+
 	// Order construction of selected unit
-	//-----------------------------------------------------------------------------------------------------------------
 	if(unitDefId.IsValid())
 	{
 		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
 		const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
 
+		int numberOfUnits(1);
+
 		if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
-		{
-			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 3, BuildQueuePosition::END);
-		}
+			numberOfUnits = 3;
 		else if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
-		{
-			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 2, BuildQueuePosition::END);
-		}
-		else
-		{
-			ai->Getexecute()->AddUnitToBuildqueue(unitDefId, 1, BuildQueuePosition::END);
-		}
+			numberOfUnits = 2;
+		
+		ai->Getexecute()->AddUnitToBuildqueue(unitDefId, numberOfUnits, BuildQueuePosition::END);
 	}
 }
 
@@ -557,6 +545,7 @@ void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitS
 	unitSelectionCriteria.cost       = 0.5f;
 	unitSelectionCriteria.power      = 1.0f;
 	unitSelectionCriteria.efficiency = 1.0f;
+	unitSelectionCriteria.factoryUtilization = 2.0f;
 
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 

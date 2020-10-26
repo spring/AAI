@@ -654,12 +654,12 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<UnitDefId>& uni
 	combatEfficiencyStat.Finalize();
 }
 
-UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, int randomness, bool canBuild)
+UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness)
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// get data needed for selection
 	//-----------------------------------------------------------------------------------------------------------------
-	const auto unitList = ai->s_buildTree.GetCombatUnitsOfTargetType(targetType, side);
+	const auto& unitList = ai->s_buildTree.GetCombatUnitsOfTargetType(targetType, side);
 
 	const StatisticalData& costStatistics  = ai->s_buildTree.GetUnitStatistics(side).GetCombatCostStatistics(targetType);
 	const StatisticalData& rangeStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatRangeStatistics(targetType);
@@ -675,28 +675,40 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetT
 	// begin with selection
 	//-----------------------------------------------------------------------------------------------------------------
 	UnitDefId selectedUnitType;
-	float bestRating(0.0f);
+	float highestRating(0.0f);
 
 	int i(0);
 	for(const auto& unitDefId : unitList)
 	{
-		if(    (canBuild == false)
-			|| ((canBuild == true) && (units_dynamic[unitDefId.id].constructorsAvailable > 0)) )
+		float minFactoryUtilization(0.0f);
+
+		for(const auto& factory : ai->s_buildTree.GetConstructedByList(unitDefId))
+		{
+			const float utilization = factoryUtilization[ai->s_buildTree.GetUnitTypeProperties(factory).m_factoryId.id];
+
+			if(utilization > minFactoryUtilization)
+				minFactoryUtilization = utilization;
+		}
+
+		//if(    (canBuild == false)
+		//	|| ((canBuild == true) && (units_dynamic[unitDefId.id].constructorsAvailable > 0)) )
+		if(minFactoryUtilization > 0.0f)
 		{
 			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(unitDefId);
 
-			float combatEff = combatPowerValues[i] / unitData.m_totalCost;
+			const float combatEff = combatPowerValues[i] / unitData.m_totalCost;
 
-			float myRating =  unitCriteria.cost  * costStatistics.GetNormalizedSquaredDeviationFromMax( unitData.m_totalCost )
+			const float myRating =  unitCriteria.cost  * costStatistics.GetNormalizedSquaredDeviationFromMax( unitData.m_totalCost )
 							+ unitCriteria.range * rangeStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_primaryAbility )
 							+ unitCriteria.speed * speedStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_maxSpeed )
 							+ unitCriteria.power * combatPowerStat.GetNormalizedSquaredDeviationFromMin( combatPowerValues[i] )
 							+ unitCriteria.efficiency * combatEfficiencyStat.GetNormalizedSquaredDeviationFromMin( combatEff )
+							+ unitCriteria.factoryUtilization * minFactoryUtilization
 							+ 0.05f * ((float)(rand()%randomness));
 
-			if(myRating > bestRating)
+			if(myRating > highestRating)
 			{
-				bestRating          = myRating;
+				highestRating       = myRating;
 				selectedUnitType.id = unitDefId.id;
 			}
 		}
