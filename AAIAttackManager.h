@@ -11,62 +11,54 @@
 #define AAI_ATTACKMANAGER_H
 
 #include "aidef.h"
+#include "AAITypes.h"
 #include <set>
 #include <list>
 #include <vector>
 
-using namespace std;
-
 class AAI;
-class AAIBrain;
-class AAIBuildTable;
-class AAIMap;
 class AAIAttack;
 class AAISector;
-
 
 class AAIAttackManager
 {
 public:
-	AAIAttackManager(AAI *ai, int continents);
+	AAIAttackManager(AAI *ai);
 	~AAIAttackManager(void);
 
-	void CheckAttack(AAIAttack *attack);
-
-	// true if units have sufficient combat power to face mobile units in dest
-	bool SufficientCombatPowerAt(AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness);
-
-	// true if combat groups have suffiecient attack power to face stationary defences
-	bool SufficientAttackPowerVS(AAISector *dest, set<AAIGroup*> *combat_groups, float aggressiveness);
-
-	// true if defences have sufficient combat power to push back mobile units in dest
-	bool SufficientDefencePowerAt(AAISector *dest, float aggressiveness);
-
-	void GetNextDest(AAIAttack *attack);
-
+	//! @brief Checks all active attacks whether they should be aborted or continue with a different destination
 	void Update();
+
+	//! @brief Stops the given attack if it is no longer reasonable (because of lacking combat power or attacking units)
+	//!        Returns whether attack has been aborted.
+	bool AbortAttackIfFailed(AAIAttack *attack);
+
+	//! @brief Checks if attack can be continued with new target or aborts attack otherwise
+	void AttackNextSectorOrAbort(AAIAttack *attack);
+
 private:
+	//! @brief Adds the unit groups in the given list to the given attack
+	void AddGroupsToAttack(AAIAttack* attack, const std::list<AAIGroup*>& groupList) const;
 
-	void LaunchAttack();
-	void StopAttack(AAIAttack *attack);
+	//! @brief Selects given number of groups from the two given lists (list1 has priority)
+	void SelectNumberOfGroups(std::list<AAIGroup*> selectedGroupList, int maxNumberOfGroups, std::list<AAIGroup*> groupList1, std::list<AAIGroup*> groupList2);
 
-	// sends all groups to a rallypoint
-	void RallyGroups(AAIAttack *attack);
+	//! @brief Determines which groups would be available for an attack globally/on each continent and returns the total number of available assault groups
+	int DetermineCombatUnitGroupsAvailableForattack(std::list<AAIGroup*>& availableAssaultGroupsGlobal, std::list<AAIGroup*>& availableAAGroupsGlobal,
+													std::vector< std::list<AAIGroup*> >& availableAssaultGroupsOnContinent, std::vector< std::list<AAIGroup*> >& availableAAGroupsOnContinent) const;
 
-	list<AAIAttack*> attacks;
+	//! @brief Determines the combat power against the different target types for the given list of groups
+	void DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& groups, std::vector<float>& combatPower, MobileTargetTypeValues& numberOfGroupsOfTargetType) const;
 
-	// array stores number of combat groups per category (for SufficientAttackPowerVS(..) )
-	vector<int> available_combat_cat;
+	//! @brief Checks which combat unit groups are available for to attack a target (for each continent), 
+	//!        selects a possible target and launches attack if it seems reasonable (i.e. sufficient combat power available)
+	void TryToLaunchAttack(int availableAttackId);
 
-	vector< list<AAIGroup*> > available_combat_groups_continent;
-	vector< list<AAIGroup*> > available_aa_groups_continent;
+	//! @brief Stops the attack and removes it from the list of active attacks
+	void AbortAttack(AAIAttack* attack);
 
-	list<AAIGroup*> available_combat_groups_global;
-	list<AAIGroup*> available_aa_groups_global;
-
-	// stores total attack power for different unit types on each continent
-	vector< vector<float> > attack_power_continent;
-	vector<float> attack_power_global;
+	//! The currently active attacks (nullptr if no active attack)
+	std::vector<AAIAttack*> m_activeAttacks;
 
 	AAI *ai;
 };

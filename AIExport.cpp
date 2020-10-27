@@ -66,7 +66,7 @@ EXPORT(int) init(int skirmishAIId, const struct SSkirmishAICallback* callback) {
 	skirmishAIId_callback[skirmishAIId] = callback;
 
 	// CAIAI is the Legacy C++ wrapper
-	myAIs[skirmishAIId] = new CAIAI(new AAI());
+	myAIs[skirmishAIId] = new CAIAI(new AAI(skirmishAIId, callback));
 
 	// signal: everything went ok
 	return 0;

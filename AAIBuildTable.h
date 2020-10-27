@@ -19,39 +19,61 @@ using namespace springLegacyAI;
 
 
 #include "aidef.h"
+#include "AAIBuildTree.h"
+#include "AAIUnitTypes.h"
 #include <assert.h>
 #include <list>
 #include <vector>
 #include <string>
 
-using namespace std;
+//using namespace std;
 
 struct UnitTypeDynamic
 {
-	int under_construction;	// how many units of that type are under construction
-	int requested;			// how many units of that type have been requested
-	int active;				// how many units of that type are currently alive
-	int constructorsAvailable;	// how many factories/builders available being able to build that unit
-	int constructorsRequested;	// how many factories/builders requested being able to build that unit
+	int under_construction;	    //!< how many units of that type are under construction
+	int requested;			    //!< how many units of that type have been requested
+	int active;				    //!< how many units of that type are currently alive
+	int constructorsAvailable;	//!< how many factories/builders available being able to build that unit
+	int constructorsRequested;	//!< how many factories/builders requested being able to build that unit
 };
 
-struct UnitTypeStatic
+//! Criteria used for selection of units
+struct UnitSelectionCriteria
 {
-	int def_id;
-	int side;				// 0 if side has not been set
-	list<int> canBuildList;
-	list<int> builtByList;
-	vector<float> efficiency;		// 0 -> ground assault, 1 -> air assault, 2 -> hover assault
-									// 3 -> sea assault, 4 -> submarine , 5 -> stat. defences
-	float range;              // max weapon range (0 for unarmed units)
-	float cost;
-	float builder_cost;
-	UnitCategory category;
-
-	unsigned int unit_type;
-	unsigned int movement_type;
+	float power;      //!< Combat power for combat units; Buildpower for construction units
+	float efficiency; //!< Power relative to cost
+	float cost;       //!< Unit cost
+	float speed;	  //!< Speed of unit
+	float range;	  //!< max range for combat units/artillery, los for scouts
+	float factoryUtilization; //!< the current utilization of the factories that can construct the unit
 };
 
+//! Criteria used for selection of static defences
+struct StaticDefenceSelectionCriteria
+{
+	StaticDefenceSelectionCriteria(const AAITargetType& targetType, float combatPower, float range, float cost, float buildtime, float terrain, int randomness) : 
+		targetType(targetType), combatPower(combatPower), range(range), cost(cost), buildtime(buildtime), terrain(terrain), randomness(randomness) {}
+
+	AAITargetType targetType; //!< The target type the static defence shall counter
+	float combatPower;        //!< Combat power
+	float range;	          //!< Maximum range (i.e. range of highest ranged weapon) 
+	float cost;               //!< Total cost of static defence
+	float buildtime;          //!< Buildtime of static defence
+	float terrain;            //!< How important placement on elevated ground (e.g. for long ranged weapons)
+	int   randomness;         //!< Randomness applied (starting from 0, random addition to rating of up to randomness * 0.05)
+};
+
+//! Data used to calculate rating of factories
+class FactoryRatingInputData
+{
+public:
+	FactoryRatingInputData() : factoryDefId(), combatPowerRating(0.0f), canConstructBuilder(false), canConstructScout(false) { }
+
+	UnitDefId   factoryDefId;
+	float       combatPowerRating;
+	bool        canConstructBuilder;
+	bool        canConstructScout;
+};
 
 class AAIBuildTable
 {
@@ -63,109 +85,88 @@ public:
 	// loads everything from a cache file or creates a new one
 	void Init();
 
-	void SaveBuildTable(int game_period, MapType map_type);
-	// cache for combat eff (needs side, thus initialized later)
-	void InitCombatEffCache(int side);
+	void SaveModLearnData(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const AAIMapType& mapType) const;
 
-	// returns true, if a builder can build a certain unit (use UnitDef.id)
-	bool CanBuildUnit(int id_builder, int id_unit);
+	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
+	void ConstructorRequested(UnitDefId constructor);
 
-	// returns side of a certian unittype (use UnitDef->id)
-	int GetSideByID(int unit_id);
+	//! @brief Updates counters for available/requested constructors for units that can be built by given construction unit
+	void ConstructorFinished(UnitDefId constructor);
 
-	// return unit type (for groups)
-	UnitType GetUnitType(int def_id);
+	//! @brief Updates counters for available constructors for units that can be built by given construction unit
+	void ConstructorKilled(UnitDefId constructor);
+
+	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
+	void UnfinishedConstructorKilled(UnitDefId constructor);
+
+	//! @brief Determines the weight factor for every combat unit category based on map type and how often AI had been attacked by 
+	//!        this category in the first phase of the game in the past
+	void DetermineCombatPowerWeights(MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;
+
+	//! @brief Updates counters/buildqueue if a buildorder for a certain factory has been given
+	void ConstructionOrderForFactoryGiven(const UnitDefId& factoryDefId)
+	{
+		units_dynamic[factoryDefId.id].requested -= 1;
+		m_factoryBuildqueue.remove(factoryDefId);
+	}
+	
+	//! @brief Returns the list containing which factories shall be built next
+	const std::list<UnitDefId>& GetFactoryBuildqueue() const { return m_factoryBuildqueue; }
+
+	//! @brief Returns the attackedByRates read from the mod learning file upon initialization
+	const AttackedByRatesPerGamePhase& GetAttackedByRates(const AAIMapType& mapType) const { return s_attackedByRates.GetAttackedByRates(mapType); }
 
 	// ******************************************************************************************************
 	// the following functions are used to determine units that suit a certain purpose
 	// if water == true, only water based units/buildings will be returned
 	// randomness == 1 means no randomness at all; never set randomnes to zero -> crash
 	// ******************************************************************************************************
-	// returns power plant
-	int GetPowerPlant(int side, float cost, float urgency, float max_power, float current_energy, bool water, bool geo, bool canBuild);
+	//! @brief Selects a power plant according to given criteria; a builder is requested if none available and a different power plant is chosen.
+	UnitDefId SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water);
 
-	// returns a extractor from the list based on certain factors
-	int GetMex(int side, float cost, float effiency, bool armed, bool water, bool canBuild);
+	//! @brief Selects a metal extractor according to given criteria; a builder is requested if none available and a different extractor is chosen.
+	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water);
 
-	// returns mex with the biggest yardmap
-	int GetBiggestMex();
+	//! @brief Selects a radar according to given criteria; a builder is requested if none available and a different radar is chosen.
+	UnitDefId SelectRadar(int side, float cost, float range, bool water);
 
-	// return defence buildings to counter a certain category
-	int GetDefenceBuilding(int side, double efficiency, double combat_power, double cost, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, double urgency, double range, int randomness, bool water, bool canBuild);
+	//! @brief Selects a static defence according to given criteria; a builder is requested if none available and a different static defence is chosen.
+	UnitDefId SelectStaticDefence(int side, const StaticDefenceSelectionCriteria& selectionCriteria, bool water);
 
-	// returns a cheap defence building (= avg_cost taken
-	int GetCheapDefenceBuilding(int side, double efficiency, double combat_power, double cost, double urgency, double ground_eff, double air_eff, double hover_eff, double sea_eff, double submarine_eff, bool water);
+	//! @brief Selects a metal maker - currently not implemented (returns no valid unit def id)
+	UnitDefId GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild) const;
 
-	// returns a metal maker
-	int GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild);
-
-	// returns a storage
-	int GetStorage(int side, float cost, float metal, float energy, float urgency, bool water, bool canBuild);
+	//! @brief Selects a storage according to given criteria; a builder is requested if none available and a different storage is chosen.
+	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water);
 
 	// return repair pad
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
 
-	// returns a ground unit according to the following criteria
-	int GetGroundAssault(int side, float power, float gr_eff, float air_eff, float hover_eff, float sea_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
+	//! @brief Selects a combat unit of specified targetType according to given criteria
+	UnitDefId SelectCombatUnit(int side, const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness);
 
-	int GetHoverAssault(int side, float power, float gr_eff, float air_eff, float hover_eff, float sea_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
+	//! @brief Selects a static artillery according to given criteria
+	UnitDefId SelectStaticArtillery(int side, float cost, float range, bool water) const;
 
-	// returns an air unit according to the following criteria
-	int GetAirAssault(int side, float power, float gr_eff, float air_eff, float hover_eff, float sea_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
-
-	int GetSeaAssault(int side, float power, float gr_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
-
-	int GetSubmarineAssault(int side, float power, float sea_eff, float submarine_eff, float stat_eff, float efficiency, float speed, float range, float cost, int randomness, bool canBuild);
-
-	// returns a random unit from the list
-	int GetRandomUnit(list<int> unit_list);
-
-	// compares two units with respect to their combat power
-	int DetermineBetterUnit(int unit1, int unit2, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float speed, float range, float cost);
-
-	int GetRandomDefence(int side, UnitCategory category);
-
-	int GetStationaryArty(int side, float cost, float range, float efficiency, bool water, bool canBuild);
-
-	// returns a scout
-	int GetScout(int side, float los, float cost, unsigned int allowed_movement_types, int randomness, bool cloakable, bool canBuild);
-
-	int GetRadar(int side, float cost, float range, bool water, bool canBuild);
+	//! @brief Determines a scout unit with given properties
+	UnitDefId selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable);
 
 	int GetJammer(int side, float cost, float range, bool water, bool canBuild);
 
 	// checks which factory is needed for a specific unit and orders it to be built
 	void BuildFactoryFor(int unit_def_id);
 
-	// tries to build another builder for a certain building
-	void BuildBuilderFor(int building_def_id);
+	//! @brief Looks for most suitable construction unit for given building and places buildorder if such a unit is not already under construction/requested
+	void RequestBuilderFor(UnitDefId building);
 
-	// tries to build an assistant for the specified kind of unit
-	void AddAssistant(unsigned int allowed_movement_types, bool canBuild);
+	// @brief Tries to build an assistant for the specified kind of unit
+	//void AddAssistant(uint32_t allowedMovementTypes, bool mustBeConstructable);
 
-	// returns the allowed movement types for an assisters to assist constrcution of a specified building
-	unsigned int GetAllowedMovementTypesForAssister(int building);
-
-	float GetFactoryRating(int def_id);
-	float GetBuilderRating(int def_id);
-
-	// updates unit table
-	void UpdateTable(const UnitDef* def_killer, int killer, const UnitDef *def_killed, int killed);
-
-	// updates max and average eff. values of the different categories
-	void UpdateMinMaxAvgEfficiency();
-
-	// returns max range of all weapons
-	float GetMaxRange(int unit_id);
-
-	// returns max damage of all weapons
-	float GetMaxDamage(int unit_id);
+	//! @brief Returns metal extractor with the largest yardmap
+	UnitDefId GetLargestExtractor() const;
 
 	// returns true, if unit is arty
 	bool IsArty(int id);
-
-	// returns true, if unit is a scout
-	bool IsScout(int id);
 
 	// returns true if the unit is marked as attacker (so that it won't be classed as something else even if it can build etc.)
 	bool IsAttacker(int id);
@@ -183,143 +184,61 @@ public:
 	// returns true, if unit is a transporter
 	bool IsTransporter(int id);
 
-	// return a units eff. against a certain category
-	float GetEfficiencyAgainst(int unit_def_id, UnitCategory category);
+	//! @brief Returns the unit category for a given index (0 to 5) of an combat unit type (ground, air, hover, sea, submarine, static)
+	AAIUnitCategory GetUnitCategoryOfCombatUnitIndex(int index) const;
 
-	// returns true if unit is starting unit
-	bool IsStartingUnit(int def_id);
-
-	bool IsCommander(int def_id);
-
-	bool IsBuilder(int def_id);
-	bool IsFactory(int def_id);
-
-	bool IsGround(int def_id);
-	bool IsAir(int def_id);
-	bool IsHover(int def_id);
-	bool IsSea(int def_id);
-	bool IsStatic(int def_id);
-
-	bool CanMoveLand(int def_id);
-	bool CanMoveWater(int def_id);
-
-	bool CanPlacedLand(int def_id);
-	bool CanPlacedWater(int def_id);
-
-	// returns id of assault category
-	int GetIDOfAssaultCategory(UnitCategory category);
-	UnitCategory GetAssaultCategoryOfID(int id);
-
-
-	//
-	// these data are shared by several instances of aai
-	//
-
-	// number of assault categories
-	static const int ass_categories = 5;
-
-	// number of assault cat + arty & stat defences
-	static const int combat_categories = 6;
-
-	// path/name of the file in which AAI stores the build table
-	static char buildtable_filename[500];
-
-	// cached values of average costs and buildtime
-	static vector<vector<float>> avg_cost;
-	static vector<vector<float>> avg_buildtime;
-	static vector<vector<float>> avg_value;	// used for different things, range of weapons, radar range, mex efficiency
-	static vector<vector<float>> max_cost;
-	static vector<vector<float>> max_buildtime;
-	static vector<vector<float>> max_value;
-	static vector<vector<float>> min_cost;
-	static vector<vector<float>> min_buildtime;
-	static vector<vector<float>> min_value;
-
-	static vector<vector<float>> avg_speed;
-	static vector<vector<float>> min_speed;
-	static vector<vector<float>> max_speed;
-	static vector<vector<float>> group_speed;
-
-	// combat categories that attacked AI in certain game period attacked_by_category_learned[map_type][period][cat]
-	static vector< vector< vector<float> > > attacked_by_category_learned;
-
-	// combat categories that attacked AI in certain game period attacked_by_category_current[period][cat]
-	static vector< vector<float> > attacked_by_category_current;
-
-	// units of the different categories
-	static vector<vector<list<int>>> units_of_category;
-
-	// AAI unit defs (static things like id, side, etc.)
-	static vector<UnitTypeStatic> units_static;
-
-	// storage for def. building selection
-	static vector<vector<double> > def_power;
-	static vector<double> max_pplant_eff;
-
-	// cached combat efficiencies
-	static vector< vector< vector<float> > > avg_eff;
-	static vector< vector< vector<float> > > max_eff;
-	static vector< vector< vector<float> > > min_eff;
-	static vector< vector< vector<float> > > total_eff;
-
-	// stores the combat eff. of units at the beginning of the game. due to learning these values will change during the game
-	// however for some purposes its necessary to have constant values (e.g. adding and subtracting stationary defences to/from the defense map)
-	static vector< vector<float> > fixed_eff;
-
-	//
-	//	non static variales
-	//
+	//! @brief Returns the dynamic unit type data for the given unitDefId
+	const UnitTypeDynamic& GetDynamicUnitTypeData(UnitDefId unitDefId) const { return units_dynamic[unitDefId.id]; }
 
 	// number of sides
 	int numOfSides;
 
 	// side names
-	vector<string> sideNames;
-
-	// start units of each side (e.g. commander)
-	vector<int> startUnits;
-
-
-	vector<float> combat_eff;
-
-	// true if initialized correctly
-	bool initialized;
-
+	std::vector<std::string> sideNames;
 
 	// AAI unit defs with aai-instance specific information (number of requested, active units, etc.)
-	vector<UnitTypeDynamic> units_dynamic;
+	std::vector<UnitTypeDynamic> units_dynamic;
 
-	// for internal use
-	const char* GetCategoryString(int def_id);
-	const char* GetCategoryString2(UnitCategory category);
-
-	// all assault unit categories
-	list<UnitCategory> assault_categories;
-
-	const UnitDef& GetUnitDef(int i) { assert(IsValidUnitDefID(i));	return *unitList[i];}
+	const UnitDef& GetUnitDef(int i) const { assert(IsValidUnitDefID(i));	return *unitList[i]; };
 	bool IsValidUnitDefID(int i) { return (i>=0) && (i<=unitList.size()); }
+
 private:
-	std::string GetBuildCacheFileName();
-	// precaches speed/cost/buildtime/range stats
-	void PrecacheStats();
+	std::string GetBuildCacheFileName() const;
 
-	// only precaches costs (called after possible cost multipliers have been assigned)
-	void PrecacheCosts();
+	//! @brief Loads mod learn data from file
+	bool LoadModLearnData();
 
-	// returns side of a unit
-	int GetSide(int unit);
+	//! @brief Helper function used for building selection
+	bool IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const;
 
-	// returns true, if unitid is in the list
-	bool MemberOf(int unit_id, list<int> unit_list);
-	// for internal use
-	void CalcBuildTree(int unit);
-	bool LoadBuildTable();
-	float GetUnitRating(int unit, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff);
-	void DebugPrint();
+	//! @brief Returns a power plant based on the given criteria
+	UnitDefId SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water, bool mustBeConstructable) const;
 
-	AAI * ai;
+	//! @brief Returns an extractor based on the given criteria
+	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool canBuild) const;
 
-//	FILE *file;
+	//! @brief Returns a radar according to given criteria
+	UnitDefId SelectRadar(int side, float cost, float range, bool water, bool canBuild) const;
+
+	//! @brief Selects a defence building according to given criteria
+	UnitDefId SelectStaticDefence(int side, const StaticDefenceSelectionCriteria& selectionCriteria, bool water, bool constructable) const;
+
+	//! @brief Selects a storage according to given criteria
+	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;
+
+	//! @brief Calculates the rating of the given factory for the given map type
+	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;
+
+	//! @brief Calculates the combat statistics needed for unit selection
+	void CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
+
+	//! A list containing the next factories that shall be built
+	std::list<UnitDefId> m_factoryBuildqueue;
+
+	//! Rates of attacks by different combat categories per map and game phase
+	static AttackedByRatesPerGamePhaseAndMapType s_attackedByRates;
+
+	AAI *ai;
 
 	// all the unit defs, FIXME: this can't be made static as spring seems to free the memory returned by GetUnitDefList()
 	std::vector<const UnitDef*> unitList;

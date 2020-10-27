@@ -11,7 +11,7 @@
 #define AAI_ATTACK_H
 
 #include <set>
-using namespace std;
+#include "AAITypes.h"
 
 class AAI;
 class AAISector;
@@ -23,34 +23,52 @@ public:
 	AAIAttack(AAI *ai);
 	~AAIAttack(void);
 
-	void AddGroup(AAIGroup *group);
+	//! @brief Adds group to the attack, returns whether it has been successful
+	bool AddGroup(AAIGroup *group);
 
+	//! @brief Removes group from the attack (e.g. if group is deleted)
 	void RemoveGroup(AAIGroup *group);
 
-	// returns true if attack has failed
-	bool Failed();
+	//! @brief Returns true if attack is considered to have failed
+	bool CheckIfFailed();
 
-	// orders units to attack specidied sector
-	void AttackSector(AAISector *sector);
+	//! @brief Returns true if attack has cleared the current target
+	bool HasTargetBeenCleared();
 
-	// orders all units involved to retreat
+	//! @brief Returns a sector to proceed with attack (nullptr if none found)
+	const AAISector* DetermineSectorToContinueAttack();
+
+	//! @brief Orders units to attack specidied sector
+	void AttackSector(const AAISector *sector);
+
+	//! @brief Orders all units involved to retreat
 	void StopAttack();
 
-	// target sector
-	AAISector *dest;
+	//! tick when last attack order has been given (to prevent overflow when unit gets stuck and sends "unit idel" all the time)
+	int m_lastAttackOrderInFrame;
 
-	// tick when last attack order has been given (to prevent overflow when unit gets stuck and sends "unit idel" all the time)
-	int lastAttack;
+	//! combat unit groups that are part of this attack
+	std::set<AAIGroup*> m_combatUnitGroups;
 
-	// specifies what kind of sector the involved unit groups may attack
-	bool land;
-	bool water;
-
-	// groups participating
-	set<AAIGroup*> combat_groups;
 private:
-	set<AAIGroup*> aa_groups;
-	set<AAIGroup*> arty_groups;
+	//! @brief Checks if units have sufficient combat power against mobile enemy units assumed to be at destination
+	bool SufficientCombatPowerAt(const AAISector *sector, float aggressiveness) const;
+
+	//! @brief Checks if units in given combat unit groups have sufficient attack power against enemy stationary defences
+	bool SufficientCombatPowerToAttackSector(const AAISector *sector, float aggressiveness) const;
+
+	//! @brief Returns the movement types of the units participating in this attack
+	AAIMovementType GetMovementTypeOfAssignedUnits() const;
+
+	//! @brief Determines how many units of which target type participate in attack
+	void DetermineTargetTypeOfInvolvedUnits(MobileTargetTypeValues& targetTypesOfUnits) const;
+
+	//! anti air unit groups that are part of this attack
+	std::set<AAIGroup*> m_antiAirUnitGroups;
+
+	//! The target sector
+	const AAISector* m_attackDestination;
+	
 	AAI *ai;
 };
 

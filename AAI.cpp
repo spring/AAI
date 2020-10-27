@@ -25,6 +25,7 @@
 #include "AAIMap.h"
 #include "AAIGroup.h"
 #include "AAISector.h"
+#include "AAIUnitTypes.h"
 
 
 #include "System/SafeUtil.h"
@@ -34,56 +35,74 @@
 using namespace springLegacyAI;
 
 
-
 #include "CUtils/SimpleProfiler.h"
 #define AAI_SCOPED_TIMER(part) SCOPED_TIMER(part, profiler);
 
-int AAI::aai_instance = 0;
+// C++ < C++17 does not support initialization of static cont within class declaration
+const std::vector<int> GamePhase::m_startFrameOfGamePhase  = {0, 10800, 27000, 72000};
+const std::vector<std::string> GamePhase::m_gamePhaseNames = {"starting phase", "early phase", "mid phase", "late game"};
+const std::vector<std::string> AAITargetType::m_targetTypeNames = {"surface", "air", "floater", "submerged"};
+const std::vector<std::string> AAIMapType::m_mapTypeNames = {"land map", "mixed land water map", "water map"};
 
-AAI::AAI() :
-	cb(NULL),
-	aicb(NULL),
-	side(0),
-	brain(NULL),
-	execute(NULL),
-	ut(NULL),
-	bt(NULL),
-	map(NULL),
-	af(NULL),
-	am(NULL),
-	profiler(NULL),
-	file(NULL),
-	initialized(false)
+constexpr std::array<ETargetType, 4> AAITargetType::m_mobileTargetTypes;
+
+AAIBuildTree AAI::s_buildTree;
+
+int AAI::s_aaiInstances = 0;
+
+AAI::AAI(int skirmishAIId, const struct SSkirmishAICallback* callback) :
+	m_aiCallback(nullptr),
+	m_skirmishAIId(skirmishAIId),
+	m_skirmishAICallbacks(callback),
+	brain(nullptr),
+	execute(nullptr),
+	ut(nullptr),
+	bt(nullptr),
+	map(nullptr),
+	af(nullptr),
+	am(nullptr),
+	profiler(nullptr),
+	m_side(0),
+	m_logFile(nullptr),
+	m_initialized(false),
+	m_configLoaded(false),
+	m_aaiInstance(0),
+	m_gamePhase(0)
 {
 	// initialize random numbers generator
-	srand (time(NULL));
+	srand (time(nullptr));
 }
 
 AAI::~AAI()
 {
-	aai_instance--;
-	if (!initialized)
+	--s_aaiInstances;
+	if (m_initialized == false)
 		return;
 
 	// save several AI data
 	Log("\nShutting down....\n\n");
 
-	Log("\nProfiling summary:\n");
-	Log("%s\n", profiler->ToString().c_str());
+	Log("Linking buildtask to builder failed counter: %u\n", execute->GetLinkingBuildTaskToBuilderFailedCounter());
 
 	Log("Unit category active / under construction / requested\n");
-	for(int i = 0; i <= MOBILE_CONSTRUCTOR; ++i)
+	for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.End() == false; category.Next())
 	{
-		Log("%-20s: %i / %i / %i\n", bt->GetCategoryString2((UnitCategory)i), ut->activeUnits[i], ut->futureUnits[i], ut->requestedUnits[i]);
+		Log("%s: %i / %i / %i\n", s_buildTree.GetCategoryName(category).c_str(), 
+								ut->GetNumberOfActiveUnitsOfCategory(category), 
+								ut->GetNumberOfUnitsUnderConstructionOfCategory(category), 
+								ut->GetNumberOfRequestedUnitsOfCategory(category));
 	}
 
-	Log("\nGround Groups:    " _STPF_ "\n", group_list[GROUND_ASSAULT].size());
-	Log("\nAir Groups:       " _STPF_ "\n", group_list[AIR_ASSAULT].size());
-	Log("\nHover Groups:     " _STPF_ "\n", group_list[HOVER_ASSAULT].size());
-	Log("\nSea Groups:       " _STPF_ "\n", group_list[SEA_ASSAULT].size());
-	Log("\nSubmarine Groups: " _STPF_ "\n\n", group_list[SUBMARINE_ASSAULT].size());
+	Log("\nGround Groups:    " _STPF_ "\n", GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).size());
+	Log("Air Groups:       " _STPF_ "\n",   GetUnitGroupsList(EUnitCategory::AIR_COMBAT).size());
+	Log("Hover Groups:     " _STPF_ "\n",   GetUnitGroupsList(EUnitCategory::HOVER_COMBAT).size());
+	Log("Sea Groups:       " _STPF_ "\n",   GetUnitGroupsList(EUnitCategory::SEA_COMBAT).size());
+	Log("Submarine Groups: " _STPF_ "\n\n", GetUnitGroupsList(EUnitCategory::SUBMARINE_COMBAT).size());
 
-	Log("Future metal/energy request: %i / %i\n", (int)execute->futureRequestedMetal, (int)execute->futureRequestedEnergy);
+	Log("\nGround group details - unit type, current number, continent id:\n");
+	for(auto group = GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).begin(); group != GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).end(); ++group)
+		Log("%s %i %i\n", s_buildTree.GetUnitTypeProperties( (*group)->GetUnitDefIdOfGroup() ).m_name.c_str(), (*group)->GetCurrentSize(), (*group)->GetContinentId());
+
 	Log("Future metal/energy supply:  %i / %i\n\n", (int)execute->futureAvailableMetal, (int)execute->futureAvailableEnergy);
 
 	Log("Future/active builders:      %i / %i\n", ut->futureBuilders, ut->activeBuilders);
@@ -92,46 +111,49 @@ AAI::~AAI()
 	Log("Unit production rate: %i\n\n", execute->unitProductionRate);
 
 	Log("Requested constructors:\n");
-	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac) {
-		assert((*fac)   < bt->units_dynamic.size());
-		Log("%-24s: %i\n", bt->GetUnitDef(*fac).humanName.c_str(), bt->units_dynamic[*fac].requested);
+	for(auto fac = s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side).begin(); fac != s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side).end(); ++fac)
+	{
+		Log("%-24s: %i\n", s_buildTree.GetUnitTypeProperties(*fac).m_name.c_str(), bt->units_dynamic[fac->id].requested);
 	}
-	for(list<int>::iterator fac = bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].end(); ++fac)
-		Log("%-24s: %i\n", bt->GetUnitDef(*fac).humanName.c_str(), bt->units_dynamic[*fac].requested);
+	for(auto builder = s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side).begin(); builder != s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side).end(); ++builder)
+		Log("%-24s: %i\n", s_buildTree.GetUnitTypeProperties(*builder).m_name.c_str(), bt->units_dynamic[builder->id].requested);
 
-	Log("Factory ratings:\n");
-	for(list<int>::iterator fac = bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].begin(); fac != bt->units_of_category[STATIONARY_CONSTRUCTOR][side-1].end(); ++fac)
-		Log("%-24s: %f\n", bt->GetUnitDef(*fac).humanName.c_str(), bt->GetFactoryRating(*fac));
+	GamePhase gamePhase(m_aiCallback->GetCurrentFrame());
+	const AttackedByRatesPerGamePhase& attackedByRates = brain->GetAttackedByRates();
 
-	Log("Mobile constructor ratings:\n");
-	for(list<int>::iterator cons = bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].begin(); cons != bt->units_of_category[MOBILE_CONSTRUCTOR][side-1].end(); ++cons)
-		Log("%-24s: %f\n", bt->GetUnitDef(*cons).humanName.c_str(), bt->GetBuilderRating(*cons));
-
+	Log("\nAttack frequencies (combat unit category / frequency) \n");
+	for(GamePhase gamePhaseIterator(0); gamePhaseIterator <= gamePhase; gamePhaseIterator.Next())
+	{
+		Log("Game phase %s:", gamePhaseIterator.GetName().c_str());
+		for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
+		{
+			Log("  %s: %f", AAITargetType(targetType).GetName().c_str(), attackedByRates.GetAttackedByRate(gamePhaseIterator, targetType));
+		}
+		Log("\n");
+	}
 
 	// delete buildtasks
-	for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
+	for(std::list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
 	{
 		delete (*task);
 	}
 	build_tasks.clear();
 
 	// save game learning data
-	bt->SaveBuildTable(brain->GetGamePeriod(), map->map_type);
+	if(GetAAIInstance() == 1)
+		bt->SaveModLearnData(gamePhase, brain->GetAttackedByRates(), map->GetMapType());
 
 	spring::SafeDelete(am);
 	spring::SafeDelete(af);
 
 	// delete unit groups
-	for(int i = 0; i <= MOBILE_CONSTRUCTOR; i++)
+	for(auto groupList = m_unitGroupsOfCategoryLists.begin(); groupList != m_unitGroupsOfCategoryLists.end(); ++groupList)
 	{
-		for(list<AAIGroup*>::iterator group = group_list[i].begin(); group != group_list[i].end(); ++group)
-		{
-			(*group)->attack = 0;
+		for(std::list<AAIGroup*>::iterator group = groupList->begin(); group != groupList->end(); ++group)
 			delete (*group);
-		}
-		group_list[i].clear();
+		
+		groupList->clear();
 	}
-
 
 	spring::SafeDelete(brain);
 	spring::SafeDelete(execute);
@@ -140,41 +162,46 @@ AAI::~AAI()
 	spring::SafeDelete(bt);
 	spring::SafeDelete(profiler);
 
-	initialized = false;
-	fclose(file);
-	file = NULL;
+	m_initialized = false;
+	fclose(m_logFile);
+	m_logFile = nullptr;
 }
-
 
 //void AAI::EnemyDamaged(int damaged,int attacker,float damage,float3 dir) {}
 
-
 void AAI::InitAI(IGlobalAICallback* callback, int team)
 {
-	aai_instance++;
 	char profilerName[16];
 	SNPRINTF(profilerName, sizeof(profilerName), "%s:%i", "AAI", team);
 	profiler = new Profiler(profilerName);
 
 	AAI_SCOPED_TIMER("InitAI")
-	aicb = callback;
-	cb = callback->GetAICallback();
+	m_aiCallback = callback->GetAICallback();
+
+	m_myTeamId = m_aiCallback->GetMyTeam();
 
 	// open log file
 	// this size equals the one used in "AIAICallback::GetValue(AIVAL_LOCATE_FILE_..."
 	char filename[2048];
 	SNPRINTF(filename, 2048, "%sAAI_log_team_%d.txt", AILOG_PATH, team);
 
-	cb->GetValue(AIVAL_LOCATE_FILE_W, filename);
+	m_aiCallback->GetValue(AIVAL_LOCATE_FILE_W, filename);
 
-	file = fopen(filename,"w");
+	m_logFile = fopen(filename,"w");
 
-	Log("AAI %s running game %s\n \n", AAI_VERSION, cb->GetModHumanName());
+	Log("AAI %s running game %s\n \n", AAI_VERSION, m_aiCallback->GetModHumanName());
+
+	++s_aaiInstances;
+	m_aaiInstance = s_aaiInstances; //! @todo This might not be 100% thread safe (if multiple instances off AAI are initialized by several threads at the same time)
+	Log("AAI instance: %i\n", m_aaiInstance); 
 
 	// load config file first
-	cfg->LoadConfig(this);
+	bool gameConfigLoaded    = cfg->loadGameConfig(this);
+	bool generalConfigLoaded = cfg->loadGeneralConfig(*this);
 
-	if (!cfg->initialized)
+	m_configLoaded = gameConfigLoaded && generalConfigLoaded;
+
+	if (m_configLoaded == false)
 	{
 		std::string errorMsg =
 				std::string("Error: Could not load game and/or general config file."
@@ -183,6 +210,9 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 		LogConsole("%s", errorMsg.c_str());
 		return;
 	}
+
+	// generate buildtree (if not already done by other instance)
+	s_buildTree.Generate(m_aiCallback);
 
 	// create buildtable
 	bt = new AAIBuildTable(this);
@@ -196,19 +226,29 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	map->Init();
 
 	// init brain
-	brain = new AAIBrain(this);
+	brain = new AAIBrain(this, map->GetMaxSectorDistanceToBase());
+
+	if(GetAAIInstance() == 1)
+	{
+		std::string filename = cfg->GetFileName(m_aiCallback, cfg->getUniqueName(m_aiCallback, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
+		s_buildTree.PrintSummaryToFile(filename, m_aiCallback);
+
+		brain->InitAttackedByRates( bt->GetAttackedByRates(map->GetMapType()) );
+	}
 
 	// init executer
 	execute = new AAIExecute(this);
 
 	// create unit groups
-	group_list.resize(MOBILE_CONSTRUCTOR+1);
+	m_unitGroupsOfCategoryLists.resize(AAIUnitCategory::numberOfUnitCategories);
 
 	// init airforce manager
 	af = new AAIAirForceManager(this);
 
 	// init attack manager
-	am = new AAIAttackManager(this, map->continents.size());
+	am = new AAIAttackManager(this);
+
+	Log("Tidal/Wind strength: %f / %f\n", m_aiCallback->GetTidalStrength(), (m_aiCallback->GetMaxWind() + m_aiCallback->GetMinWind()) * 0.5f);
 
 	LogConsole("AAI loaded");
 }
@@ -216,163 +256,144 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*/)
 {
 	AAI_SCOPED_TIMER("UnitDamaged")
-	const UnitDef* def;
-	const UnitDef* att_def;
-	UnitCategory att_cat, cat;
 
-	// filter out commander
-	if (ut->cmdr != -1)
+	const springLegacyAI::UnitDef* attackedDef = m_aiCallback->GetUnitDef(damaged);
+	if(attackedDef == nullptr)
+		return;
+		
+	const UnitDefId unitDefId(attackedDef->id);
+	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
+
+	if(category.IsCommander())
+		brain->DefendCommander(attacker);
+
+	const springLegacyAI::UnitDef* attackerDef = m_aiCallback->GetUnitDef(attacker);
+
+	if(attackerDef == nullptr)
 	{
-		if (damaged == ut->cmdr)
-			brain->DefendCommander(attacker);
-	}
-
-	def = cb->GetUnitDef(damaged);
-
-	if (def)
-		cat =  bt->units_static[def->id].category;
-	else
-		cat = UNKNOWN;
-
-	// assault grups may be ordered to retreat
-	// (range check prevents a NaN)
-	if (cat >= GROUND_ASSAULT && cat <= SUBMARINE_ASSAULT && bt->units_static[def->id].range > 0.0f)
-			execute->CheckFallBack(damaged, def->id);
-
-	// known attacker
-	if (attacker >= 0)
-	{
-		// filter out friendly fire
-		if (cb->GetUnitTeam(attacker) == cb->GetMyTeam())
-			return;
-
-		att_def = cb->GetUnitDef(attacker);
-
-		if (att_def)
-		{
-			unsigned int att_movement_type = bt->units_static[att_def->id].movement_type;
-			att_cat = bt->units_static[att_def->id].category;
-
-			// retreat builders
-			if (ut->IsBuilder(damaged))
-				ut->units[damaged].cons->Retreat(att_cat);
-			else
-			{
-				//if (att_cat >= GROUND_ASSAULT && att_cat <= SUBMARINE_ASSAULT)
-
-				float3 pos = cb->GetUnitPos(attacker);
-				AAISector *sector = map->GetSectorOfPos(&pos);
-
-				if (sector && !am->SufficientDefencePowerAt(sector, 1.2f))
-				{
-					// building has been attacked
-					if (cat <= METAL_MAKER)
-						execute->DefendUnitVS(damaged, att_movement_type, &pos, 115);
-					// builder
-					else if (ut->IsBuilder(damaged))
-						execute->DefendUnitVS(damaged, att_movement_type, &pos, 110);
-					// normal units
-					else
-						execute->DefendUnitVS(damaged, att_movement_type, &pos, 105);
-				}
-			}
-		}
-	}
-	// unknown attacker
-	else
-	{
-		// set default attacker
-		float3 pos = cb->GetUnitPos(damaged);
-
-		if (pos.y > 0)
-			att_cat = GROUND_ASSAULT;
-		else
-			att_cat = SEA_ASSAULT;
+		// ------------------------------------------------------------------------------------------------------------
+		// unknown attacker
+		// ------------------------------------------------------------------------------------------------------------
 
 		// retreat builders
-		if (ut->IsBuilder(damaged))
-			ut->units[damaged].cons->Retreat(att_cat);
+		if (category.IsMobileConstructor() && ut->units[damaged].cons)
+			ut->units[damaged].cons->CheckRetreatFromAttackBy(EUnitCategory::UNKNOWN);	
+	}
+	else 
+	{
+		// ------------------------------------------------------------------------------------------------------------
+		// known attacker
+		// ------------------------------------------------------------------------------------------------------------
 
+		// filter out friendly fire
+		if (m_aiCallback->GetUnitAllyTeam(attacker) == m_aiCallback->GetMyAllyTeam())
+			return;
+
+		const UnitId    unit(damaged);
+		const UnitDefId enemyDefId(attackerDef->id);
+
+		if (category.IsCombatUnit())
+			execute->CheckKeepDistanceToEnemy(unit, unitDefId, enemyDefId);
+
+		const AAITargetType&  enemyTargetType = s_buildTree.GetTargetType(enemyDefId);
+		const float3          pos = m_aiCallback->GetUnitPos(attacker);
+		
 		// building has been attacked
-		//if (cat <= METAL_MAKER)
-		//	execute->DefendUnitVS(damaged, def, att_cat, NULL, 115);
-		//else if (ut->IsBuilder(damaged))
-		//	execute->DefendUnitVS(damaged, def, att_cat, NULL, 110);
+		if (category.IsBuilding() )
+			execute->DefendUnitVS(unit, enemyTargetType, pos, 115);
+		// builder
+		else if ( category.IsMobileConstructor() )
+		{
+			const AAIUnitCategory&  enemyCategory = s_buildTree.GetUnitCategory(enemyDefId);
+
+			execute->DefendUnitVS(unit, enemyTargetType, pos, 110);
+
+			if(ut->units[damaged].cons)
+				ut->units[damaged].cons->CheckRetreatFromAttackBy(enemyCategory);
+		}
+		// normal units
+		else
+		{
+			if(enemyTargetType.IsAir() && (s_buildTree.GetUnitType(unitDefId).CanFightTargetType(enemyTargetType) == false) ) 
+				execute->DefendUnitVS(unit, enemyTargetType, pos, 105);
+		}	
+		
 	}
 }
 
 void AAI::UnitCreated(int unit, int /*builder*/)
 {
 	AAI_SCOPED_TIMER("UnitCreated")
-	if (!cfg->initialized)
+	if (m_configLoaded == false)
 		return;
 
 	// get unit's id
-	const UnitDef* def = cb->GetUnitDef(unit);
-	UnitCategory category = bt->units_static[def->id].category;
+	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
+	UnitDefId unitDefId(def->id);
+	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
+
+	ut->UnitCreated(category);
 
 	bt->units_dynamic[def->id].requested -= 1;
 	bt->units_dynamic[def->id].under_construction += 1;
 
-	ut->UnitCreated(category);
-
 	// add to unittable
-	ut->AddUnit(unit, def->id);
+	ut->AddUnit(unit, unitDefId.id);
 
 	// get commander a startup
-	if (!initialized && ut->IsDefCommander(def->id))
+	if(m_initialized == false)
 	{
-		// UnitFinished() will decrease it later -> prevents AAI from having -1 future commanders
-		ut->requestedUnits[COMMANDER] += 1;
+		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
+		ut->UnitRequested(AAIUnitCategory(EUnitCategory::COMMANDER));
 		ut->futureBuilders += 1;
-		bt->units_dynamic[def->id].under_construction += 1;
 
 		// set side
-		side = bt->GetSideByID(def->id);
+		m_side = s_buildTree.GetSideOfUnitType( unitDefId) ;
 
-		execute->InitAI(unit, def);
+		execute->InitAI(UnitId(unit), unitDefId);
 
-		initialized = true;
+		Log("Entering %s...\n", m_gamePhase.GetName().c_str());
+		m_initialized = true;
 		return;
 	}
 
 	// resurrected units will be handled differently
-	if ( !cb->UnitBeingBuilt(unit))
+	if ( !m_aiCallback->UnitBeingBuilt(unit))
 	{
 		LogConsole("ressurected", 0);
+		Log("Ressurected %s\n", s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
 
-		UnitCategory category = bt->units_static[def->id].category;
+		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
+		ut->UnitRequested(category);
+		ut->UnitFinished(category);
+		bt->units_dynamic[def->id].active += 1;
 
-		// UnitFinished() will decrease it later
-		ut->requestedUnits[category] += 1;
-		bt->units_dynamic[def->id].requested += 1;
-
-		if (bt->IsFactory(def->id))
+		if (s_buildTree.GetUnitType(unitDefId).IsFactory())
 			ut->futureFactories += 1;
 
-		if (category <= METAL_MAKER && category > UNKNOWN)
+		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
-			float3 pos = cb->GetUnitPos(unit);
-			execute->InitBuildingAt(def, &pos, pos.y < 0);
+			float3 pos = m_aiCallback->GetUnitPos(unit);
+			map->InitBuilding(def, pos);
 		}
 	}
 	else
 	{
 		// construction of building started
-		if (category <= METAL_MAKER && category > UNKNOWN)
+		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
-			float3 pos = cb->GetUnitPos(unit);
+			float3 pos = m_aiCallback->GetUnitPos(unit);
 
 			// create new buildtask
-			execute->CreateBuildTask(unit, def, &pos);
+			execute->createBuildTask(UnitId(unit), unitDefId, &pos);
 
 			// add extractor to the sector
-			if (category == EXTRACTOR)
+			if (category.IsMetalExtractor() == true)
 			{
-				const int x = pos.x / map->xSectorSize;
-				const int y = pos.z / map->ySectorSize;
+				AAISector* sector = map->GetSectorOfPos(pos);
 
-				map->sector[x][y].AddExtractor(unit, def->id, &pos);
+				if(sector)
+					sector->AddExtractor(UnitId(unit), unitDefId, pos);
 			}
 		}
 	}
@@ -381,13 +402,17 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 void AAI::UnitFinished(int unit)
 {
 	AAI_SCOPED_TIMER("UnitFinished")
-	if (!initialized)
-		return;
+	if (m_initialized == false)
+    {
+        Log("Error: AAI not initialized when unit %i was finished\n", unit);
+        return;
+    }
 
 	// get unit's id
-	const UnitDef* def = cb->GetUnitDef(unit);
+	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
+	UnitDefId unitDefId(def->id);
 
-	UnitCategory category = bt->units_static[def->id].category;
+	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 
 	ut->UnitFinished(category);
 
@@ -395,10 +420,10 @@ void AAI::UnitFinished(int unit)
 	bt->units_dynamic[def->id].active += 1;
 
 	// building was completed
-	if (!def->movedata && !def->canfly)
+	if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 	{
 		// delete buildtask
-		for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
+		for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
 		{
 			if ((*task)->unit_id == unit)
 			{
@@ -414,41 +439,36 @@ void AAI::UnitFinished(int unit)
 		}
 
 		// check if building belongs to one of this groups
-		if (category == EXTRACTOR)
+		if (category.IsMetalExtractor() == true)
 		{
 			ut->AddExtractor(unit);
 
 			// order defence if necessary
-			execute->DefendMex(unit, def->id);
+			execute->BuildStaticDefenceForExtractor(UnitId(unit), unitDefId);
 		}
-		else if (category == POWER_PLANT)
+		else if (category.IsPowerPlant() == true)
 		{
-			ut->AddPowerPlant(unit, def->id);
+			ut->AddPowerPlant(UnitId(unit), unitDefId);
 		}
-		else if (category == STORAGE)
-		{
-			execute->futureStoredEnergy -= bt->GetUnitDef(def->id).energyStorage;
-			execute->futureStoredMetal -= bt->GetUnitDef(def->id).metalStorage;
-		}
-		else if (category == METAL_MAKER)
+		else if (category.IsMetalMaker() == true)
 		{
 			ut->AddMetalMaker(unit, def->id);
 		}
-		else if (category == STATIONARY_RECON)
+		else if (category.IsStaticSensor() == true)
 		{
 			ut->AddRecon(unit, def->id);
 		}
-		else if (category == STATIONARY_JAMMER)
+		else if (category.IsStaticSupport() == true)
 		{
 			ut->AddJammer(unit, def->id);
 		}
-		else if (category == STATIONARY_ARTY)
+		else if (category.IsStaticArtillery() == true)
 		{
 			ut->AddStationaryArty(unit, def->id);
 		}
-		else if (category == STATIONARY_CONSTRUCTOR)
+		else if (category.IsStaticConstructor() == true)
 		{
-			ut->AddConstructor(unit, def->id);
+			ut->AddConstructor(UnitId(unit), unitDefId);
 
 			ut->units[unit].cons->Update();
 		}
@@ -457,32 +477,33 @@ void AAI::UnitFinished(int unit)
 	else	// unit was completed
 	{
 		// unit
-		if (category >= GROUND_ASSAULT && category <= SUBMARINE_ASSAULT)
+		if(category.IsCombatUnit())
 		{
-			execute->AddUnitToGroup(unit, def->id, category);
+			execute->AddUnitToGroup(unit, unitDefId);
 
-			brain->AddDefenceCapabilities(def->id, category);
+			brain->AddDefenceCapabilities(unitDefId);
 
 			ut->SetUnitStatus(unit, HEADING_TO_RALLYPOINT);
 		}
 		// scout
-		else if (category == SCOUT)
+		else if(category.IsScout())
 		{
 			ut->AddScout(unit);
 
 			// cloak scout if cloakable
 			if (def->canCloak)
 			{
-				Command c(CMD_CLOAK);
-				c.PushParam(1);
+				Command c(37382, 0u, 1);
+				//Command c(CMD_CLOAK);
+				//c.PushParam(1);
 
-				cb->GiveOrder(unit, &c);
+				m_aiCallback->GiveOrder(unit, &c);
 			}
 		}
 		// builder
-		else if (bt->IsBuilder(def->id))
+		else if(category.IsMobileConstructor() )
 		{
-			ut->AddConstructor(unit, def->id);
+			ut->AddConstructor(UnitId(unit), unitDefId);
 
 			ut->units[unit].cons->Update();
 		}
@@ -493,41 +514,34 @@ void AAI::UnitDestroyed(int unit, int attacker)
 {
 	AAI_SCOPED_TIMER("UnitDestroyed")
 	// get unit's id
-	const UnitDef* def = cb->GetUnitDef(unit);
+	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
+	UnitDefId unitDefId(def->id);
 
-	// get unit's category and position
-	UnitCategory category = bt->units_static[def->id].category;
-	float3 pos = cb->GetUnitPos(unit);
+	float3 pos = m_aiCallback->GetUnitPos(unit);
 
-	int x = pos.x/map->xSectorSize;
-	int y = pos.z/map->ySectorSize;
-
-	// check if unit pos is within a valid sector (e.g. aircraft flying outside of the map)
-	bool validSector = true;
-
-	if (x >= map->xSectors || x < 0 || y < 0 || y >= map->ySectors)
-		validSector = false;
+	AAISector* sector = map->GetSectorOfPos(pos);
 
 	// update threat map
-	if (attacker && validSector)
+	if (attacker && sector)
 	{
-		const UnitDef* att_def = cb->GetUnitDef(attacker);
+		const springLegacyAI::UnitDef* att_def = m_aiCallback->GetUnitDef(attacker);
 
 		if (att_def)
-			map->sector[x][y].UpdateThreatValues((UnitCategory)category, bt->units_static[att_def->id].category);
+			sector->UpdateThreatValues(unitDefId, UnitDefId(att_def->id));
 	}
 
 	// unfinished unit has been killed
-	if (cb->UnitBeingBuilt(unit))
+	if (m_aiCallback->UnitBeingBuilt(unit))
 	{
-		ut->FutureUnitKilled(category);
+		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
+		ut->UnitUnderConstructionKilled(category);
 		bt->units_dynamic[def->id].under_construction -= 1;
 
 		// unfinished building
-		if (!def->canfly && !def->movedata)
+		if( category.IsBuilding() )
 		{
 			// delete buildtask
-			for(list<AAIBuildTask*>::iterator task = build_tasks.begin(); task != build_tasks.end(); ++task)
+			for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
 			{
 				if ((*task)->unit_id == unit)
 				{
@@ -542,153 +556,136 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		// unfinished unit
 		else
 		{
-			if (bt->IsBuilder(def->id))
+			if (s_buildTree.GetUnitType(unitDefId).IsBuilder())
 			{
 				--ut->futureBuilders;
 
-				for(list<int>::iterator unit = bt->units_static[def->id].canBuildList.begin();  unit != bt->units_static[def->id].canBuildList.end(); ++unit)
-					--bt->units_dynamic[*unit].constructorsRequested;
+				bt->UnfinishedConstructorKilled(unitDefId);
 			}
-			else if (bt->IsFactory(def->id))
+			
+			if (s_buildTree.GetUnitType(unitDefId).IsFactory())
 			{
-				if (category == STATIONARY_CONSTRUCTOR)
+				if (category.IsStaticConstructor() == true)
 					--ut->futureFactories;
 
-				for(list<int>::iterator unit = bt->units_static[def->id].canBuildList.begin();  unit != bt->units_static[def->id].canBuildList.end(); ++unit)
-					--bt->units_dynamic[*unit].constructorsRequested;
+				bt->UnfinishedConstructorKilled(unitDefId);
 			}
 		}
 	}
 	else	// finished unit/building has been killed
 	{
+		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 		ut->ActiveUnitKilled(category);
 
 		bt->units_dynamic[def->id].active -= 1;
 		assert(bt->units_dynamic[def->id].active >= 0);
 
 		// update buildtable
-		if (attacker)
+		if(UnitId(attacker).IsValid() )
 		{
-			const UnitDef* def_att = cb->GetUnitDef(attacker);
+			const springLegacyAI::UnitDef* defAttacker = m_aiCallback->GetUnitDef(attacker);
 
-			if (def_att)
+			if(defAttacker)
 			{
-				int killer = bt->GetIDOfAssaultCategory(bt->units_static[def_att->id].category);
-				int killed = bt->GetIDOfAssaultCategory((UnitCategory)category);
+				UnitDefId attackerDefId(defAttacker->id);
 
-				// check if valid id
-				if (killer != -1)
-				{
-					brain->AttackedBy(killer);
+				if(defAttacker)
+					s_buildTree.UpdateCombatPowerStatistics(attackerDefId, unitDefId);
 
-					if (killed != -1)
-						bt->UpdateTable(def_att, killer, def, killed);
-				}
+				const AAIUnitCategory& categoryAttacker = s_buildTree.GetUnitCategory(attackerDefId);
+				if(categoryAttacker.IsCombatUnit())
+						brain->AttackedBy( s_buildTree.GetTargetType(attackerDefId) );
 			}
 		}
 
 		// finished building has been killed
-		if (!def->canfly && !def->movedata)
+		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
 			// decrease number of units of that category in the target sector
-			if (validSector)
-				map->sector[x][y].RemoveBuildingType(def->id);
+			if(sector)
+				sector->RemoveBuilding(category);
 
 			// check if building belongs to one of this groups
-			if (category == STATIONARY_DEF)
+			if (category.IsStaticDefence())
 			{
 				// remove defence from map
-				map->RemoveDefence(&pos, def->id);
+				map->AddOrRemoveStaticDefence(pos, unitDefId, false);
 			}
-			else if (category == EXTRACTOR)
+			else if (category.IsMetalExtractor())
 			{
 				ut->RemoveExtractor(unit);
 
 				// mark spots of destroyed mexes as unoccupied
-				map->sector[x][y].FreeMetalSpot(cb->GetUnitPos(unit), def);
+				if(sector)
+					sector->FreeMetalSpot(m_aiCallback->GetUnitPos(unit), def);
 			}
-			else if (category == POWER_PLANT)
+			else if (category.IsPowerPlant())
 			{
 				ut->RemovePowerPlant(unit);
 			}
-			else if (category == STATIONARY_ARTY)
+			else if (category.IsStaticArtillery())
 			{
 				ut->RemoveStationaryArty(unit);
 			}
-			else if (category == STATIONARY_RECON)
+			else if (category.IsStaticSensor())
 			{
 				ut->RemoveRecon(unit);
 			}
-			else if (category == STATIONARY_JAMMER)
+			else if (category.IsStaticSupport())
 			{
 				ut->RemoveJammer(unit);
 			}
-			else if (category == METAL_MAKER)
+			else if (category.IsMetalMaker())
 			{
 				ut->RemoveMetalMaker(unit);
 			}
 
 			// clean up buildmap & some other stuff
-			if (category == STATIONARY_CONSTRUCTOR)
+			if (category.IsStaticConstructor())
 			{
 				ut->RemoveConstructor(unit, def->id);
-
-				map->UpdateBuildMap(pos, def, false, bt->CanPlacedWater(def->id), true);
-
-				// speed up reconstruction
-				execute->urgency[STATIONARY_CONSTRUCTOR] += 1.5;
 			}
 			// hq
-			else if (category == COMMANDER)
+			else if (category.IsCommander())
 			{
 				ut->RemoveCommander(unit, def->id);
-
-				map->UpdateBuildMap(pos, def, false, bt->CanPlacedWater(def->id), true);
 			}
-			// other building
-			else
-				map->UpdateBuildMap(pos, def, false, bt->CanPlacedWater(def->id), false);
+			
+			// unblock cells in buildmap
+			map->UpdateBuildMap(pos, def, false);
 
 			// if no buildings left in that sector, remove from base sectors
-			if (map->sector[x][y].own_structures == 0 && brain->sectors[0].size() > 2)
+			/*if (map->sector[x][y].own_structures == 0 && brain->sectors[0].size() > 2)
 			{
-				brain->RemoveSector(&map->sector[x][y]);
-
-				brain->UpdateNeighbouringSectors();
-				brain->UpdateBaseCenter();
-
-				brain->expandable = true;
+				brain->AssignSectorToBase(&map->sector[x][y], false);
 
 				Log("\nRemoving sector %i,%i from base; base size: " _STPF_ " \n", x, y, brain->sectors[0].size());
-			}
+			}*/
 		}
 		else // finished unit has been killed
 		{
 			// scout
-			if (category == SCOUT)
+			if (category.IsScout())
 			{
+				map->UpdateEnemyUnitsInLOS();
+
 				ut->RemoveScout(unit);
-
-				// add enemy building to sector
-				if (validSector && map->sector[x][y].distance_to_base > 0)
-					map->sector[x][y].enemy_structures += 5.0f;
-
 			}
 			// assault units
-			else if (category >= GROUND_ASSAULT && category <= SUBMARINE_ASSAULT)
+			else if (category.IsCombatUnit())
 			{
 				// look for a safer rallypoint if units get killed on their way
 				if (ut->units[unit].status == HEADING_TO_RALLYPOINT)
 					ut->units[unit].group->GetNewRallyPoint();
 
-				ut->units[unit].group->RemoveUnit(unit, attacker);
+				ut->units[unit].group->RemoveUnit(UnitId(unit), UnitId(attacker) );
 			}
 			// builder
-			else if (bt->IsBuilder(def->id))
+			else if (s_buildTree.GetUnitType(unitDefId).IsBuilder())
 			{
 				ut->RemoveConstructor(unit, def->id);
 			}
-			else if (category == COMMANDER)
+			else if (category.IsCommander())
 			{
 				ut->RemoveCommander(unit, def->id);
 			}
@@ -704,7 +701,7 @@ void AAI::UnitIdle(int unit)
 	// if factory is idle, start construction of further units
 	if (ut->units[unit].cons)
 	{
-		if (ut->units[unit].cons->assistance < 0 && ut->units[unit].cons->construction_unit_id < 0 )
+		if (ut->units[unit].cons->isBusy() == false)
 		{
 			ut->SetUnitStatus(unit, UNIT_IDLE);
 
@@ -720,7 +717,7 @@ void AAI::UnitIdle(int unit)
 		//ut->SetUnitStatus(unit, UNIT_IDLE);
 		ut->units[unit].group->UnitIdle(unit);
 	}
-	else if (bt->units_static[ut->units[unit].def_id].category == SCOUT)
+	else if(s_buildTree.GetUnitCategory(UnitDefId(ut->units[unit].def_id)).IsScout())
 	{
 		execute->SendScoutToNewDest(unit);
 	}
@@ -733,11 +730,10 @@ void AAI::UnitMoveFailed(int unit)
 	AAI_SCOPED_TIMER("UnitMoveFailed")
 	if (ut->units[unit].cons)
 	{
-		if (ut->units[unit].cons->task == BUILDING && ut->units[unit].cons->construction_unit_id == -1)
-			ut->units[unit].cons->ConstructionFailed();
+		ut->units[unit].cons->CheckIfConstructionFailed();
 	}
 
-	float3 pos = cb->GetUnitPos(unit);
+	float3 pos = m_aiCallback->GetUnitPos(unit);
 
 	pos.x = pos.x - 64 + 32 * (rand()%5);
 	pos.z = pos.z - 64 + 32 * (rand()%5);
@@ -749,7 +745,7 @@ void AAI::UnitMoveFailed(int unit)
 		pos.z = 0;
 
 	// workaround: prevent flooding the interface with move orders if a unit gets stuck
-	if (cb->GetCurrentFrame() - ut->units[unit].last_order < 5)
+	if (m_aiCallback->GetCurrentFrame() - ut->units[unit].last_order < 5)
 		return;
 	else
 		execute->MoveUnitTo(unit, &pos);
@@ -764,39 +760,38 @@ void AAI::EnemyDestroyed(int enemy, int attacker)
 {
 	AAI_SCOPED_TIMER("EnemyDestroyed")
 	// remove enemy from unittable
-	ut->EnemyKilled(enemy);
+	if(UnitId(enemy).IsValid())
+		ut->EnemyKilled(enemy);
 
-	if (attacker)
+	if(UnitId(attacker).IsValid())
 	{
 		// get unit's id
-		const UnitDef* def = cb->GetUnitDef(enemy);
-		const UnitDef* def_att = cb->GetUnitDef(attacker);
+		const UnitDef* defKilled   = m_aiCallback->GetUnitDef(enemy);
+		const UnitDef* defAttacker = m_aiCallback->GetUnitDef(attacker);
 
-		if (def_att)
-		{
-			// unit was destroyed
-			if (def)
-			{
-				const int killer = bt->GetIDOfAssaultCategory(bt->units_static[def_att->id].category);
-				const int killed = bt->GetIDOfAssaultCategory(bt->units_static[def->id].category);
-
-				if (killer != -1 && killed != -1)
-					bt->UpdateTable(def_att, killer, def, killed);
-			}
-		}
+		if (defAttacker && defKilled)
+			s_buildTree.UpdateCombatPowerStatistics(UnitDefId(defAttacker->id), UnitDefId(defKilled->id));
 	}
 }
 
 void AAI::Update()
 {
-	const int tick = cb->GetCurrentFrame();
+	const int tick = m_aiCallback->GetCurrentFrame();
 
 	if (tick < 0)
 	{
 		return;
 	}
 
-	if (!initialized)
+	GamePhase gamePhase(tick);
+
+	if(gamePhase > m_gamePhase)
+	{
+		m_gamePhase = gamePhase;
+		Log("Entering %s...\n", m_gamePhase.GetName().c_str());
+	}
+
+	if (m_initialized == false)
 	{
 		if (!(tick % 450))
 		{
@@ -810,7 +805,8 @@ void AAI::Update()
 	if (!(tick % cfg->SCOUT_UPDATE_FREQUENCY))
 	{
 		AAI_SCOPED_TIMER("Scouting_1")
-		map->UpdateRecon();
+		map->UpdateEnemyUnitsInLOS();
+		map->UpdateFriendlyUnitsInLos();
 	}
 
 	if (!((tick + 5) % cfg->SCOUT_UPDATE_FREQUENCY))
@@ -823,9 +819,9 @@ void AAI::Update()
 	if (!(tick % 169))
 	{
 		AAI_SCOPED_TIMER("Groups")
-		for(list<UnitCategory>::const_iterator category = bt->assault_categories.begin(); category != bt->assault_categories.end(); ++category)
+		for (auto category = s_buildTree.GetCombatUnitCatgegories().begin();  category != s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
-			for(list<AAIGroup*>::iterator group = group_list[*category].begin(); group != group_list[*category].end(); ++group)
+			for (auto group = GetUnitGroupsList(*category).begin(); group != GetUnitGroupsList(*category).end(); ++group)
 			{
 				(*group)->Update();
 			}
@@ -843,7 +839,7 @@ void AAI::Update()
 		execute->BuildScouts();
 	}
 
-	if (!(tick % 911))
+	if (!(tick % 611))
 	{
 		AAI_SCOPED_TIMER("Check-Attack")
 		// check attack
@@ -860,7 +856,7 @@ void AAI::Update()
 	}
 
 	// update sectors
-	if (!(tick % 423))
+	if (!(tick % 163))
 	{
 		AAI_SCOPED_TIMER("Update-Sectors")
 		brain->UpdateAttackedByValues();
@@ -885,7 +881,7 @@ void AAI::Update()
 	if (!(tick % 45))
 	{
 		AAI_SCOPED_TIMER("Update-Income")
-		execute->UpdateRessources();
+		brain->UpdateRessources(m_aiCallback);
 	}
 
 	// building management
@@ -921,45 +917,53 @@ void AAI::Update()
 	if (!(tick % 1177))
 	{
 		execute->CheckRecon();
-		execute->CheckJammer();
+		//execute->CheckJammer();
 		execute->CheckStationaryArty();
-		execute->CheckAirBase();
+		//execute->CheckAirBase();
 	}
 
 	// upgrade mexes
 	if (!(tick % 1573))
 	{
 		AAI_SCOPED_TIMER("Upgrade-Mexes")
-		if (brain->enemy_pressure_estimation < 0.05f)
-		{
-			execute->CheckMexUpgrade();
-			execute->CheckRadarUpgrade();
-			execute->CheckJammerUpgrade();
-		}
+		execute->CheckMexUpgrade();
+		execute->CheckRadarUpgrade();
+		//execute->CheckJammerUpgrade();
 	}
 
 	// recheck rally points
 	if (!(tick % 1877))
 	{
 		AAI_SCOPED_TIMER("Recheck-Rally-Points")
-		for (list<UnitCategory>::const_iterator category = bt->assault_categories.begin(); category != bt->assault_categories.end(); ++category)
+		for (auto category = s_buildTree.GetCombatUnitCatgegories().begin();  category != s_buildTree.GetCombatUnitCatgegories().end(); ++category)
 		{
-			for (list<AAIGroup*>::iterator group = group_list[*category].begin(); group != group_list[*category].end(); ++group)
+			for (auto group = GetUnitGroupsList(*category).begin(); group != GetUnitGroupsList(*category).end(); ++group)
 			{
 				(*group)->UpdateRallyPoint();
 			}
 		}
 	}
+}
 
-	// recalculate efficiency stats
-	if (!(tick % 2927))
-	{
-		AAI_SCOPED_TIMER("Recalculate-Efficiency-Stats")
-		if (aai_instance == 1)
-		{
-			bt->UpdateMinMaxAvgEfficiency();
-		}
+const int* AAI::GetLosMap()
+{
+	if (m_losMap.empty()) {
+		m_losMap.resize(m_skirmishAICallbacks->Map_getLosMap(m_skirmishAIId, nullptr, 0));
 	}
+
+	m_skirmishAICallbacks->Map_getLosMap(m_skirmishAIId, &m_losMap[0], m_losMap.size());
+
+	return &m_losMap[0];
+}
+
+UnitDefId AAI::GetUnitDefId(UnitId unitId) const
+{
+	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unitId.id);
+
+	if(def)
+		return UnitDefId(def->id);
+	else
+		return UnitDefId();
 }
 
 int AAI::HandleEvent(int msg, const void* data)
@@ -972,9 +976,9 @@ int AAI::HandleEvent(int msg, const void* data)
 			{
 				const IGlobalAI::ChangeTeamEvent* cte = (const IGlobalAI::ChangeTeamEvent*) data;
 
-				const int myAllyTeamId = cb->GetMyAllyTeam();
-				const bool oldEnemy = !cb->IsAllied(myAllyTeamId, cb->GetTeamAllyTeam(cte->oldteam));
-				const bool newEnemy = !cb->IsAllied(myAllyTeamId, cb->GetTeamAllyTeam(cte->newteam));
+				const int myAllyTeamId = m_aiCallback->GetMyAllyTeam();
+				const bool oldEnemy = !m_aiCallback->IsAllied(myAllyTeamId, m_aiCallback->GetTeamAllyTeam(cte->oldteam));
+				const bool newEnemy = !m_aiCallback->IsAllied(myAllyTeamId, m_aiCallback->GetTeamAllyTeam(cte->newteam));
 
 				if (oldEnemy && !newEnemy) {
 					// unit changed from an enemy to an allied team
@@ -984,18 +988,18 @@ int AAI::HandleEvent(int msg, const void* data)
 					// unit changed from an ally to an enemy team
 					// we lost a friend! :(
 					EnemyCreated(cte->unit);
-					if (!cb->UnitBeingBuilt(cte->unit)) {
+					if (!m_aiCallback->UnitBeingBuilt(cte->unit)) {
 						EnemyFinished(cte->unit);
 					}
 				}
 
-				if (cte->oldteam == cb->GetMyTeam()) {
+				if (cte->oldteam == m_aiCallback->GetMyTeam()) {
 					// we lost a unit
 					UnitDestroyed(cte->unit, -1);
-				} else if (cte->newteam == cb->GetMyTeam()) {
+				} else if (cte->newteam == m_aiCallback->GetMyTeam()) {
 					// we have a new unit
 					UnitCreated(cte->unit, -1);
-					if (!cb->UnitBeingBuilt(cte->unit)) {
+					if (!m_aiCallback->UnitBeingBuilt(cte->unit)) {
 						UnitFinished(cte->unit);
 						UnitIdle(cte->unit);
 					}
@@ -1008,13 +1012,16 @@ int AAI::HandleEvent(int msg, const void* data)
 
 void AAI::Log(const char* format, ...)
 {
-	va_list args;
-	va_start(args, format);
-	const int bytes = vfprintf(file, format, args);
-	if (bytes<0) { //write to stderr if write to file failed
-		vfprintf(stderr, format, args);
+	if(m_logFile != NULL)
+	{
+		va_list args;
+		va_start(args, format);
+		const int bytes = vfprintf(m_logFile, format, args);
+		if (bytes<0) { //write to stderr if write to file failed
+			vfprintf(stderr, format, args);
+		}
+		va_end(args);
 	}
-	va_end(args);
 }
 
 void AAI::LogConsole(const char* format, ...)
@@ -1026,7 +1033,7 @@ void AAI::LogConsole(const char* format, ...)
 	vsnprintf(buf, 1024, format, args);
 	va_end(args);
 
-	cb->SendTextMsg(buf, 0);
+	m_aiCallback->SendTextMsg(buf, 0);
 	Log("%s\n", &buf);
 }
 

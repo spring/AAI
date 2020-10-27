@@ -11,57 +11,63 @@
 #define AAI_BRAIN_H
 
 class AAI;
-class AAIBuildTable;
 class AAIExecute;
 class AIIMap;
 class AAISector;
 
 #include "aidef.h"
+#include "AAIMapRelatedTypes.h"
+#include "AAIUnitStatistics.h"
+#include "AAIBuildTable.h"
 
 enum SectorType {UNKNOWN_SECTOR, LAND_SECTOR, LAND_WATER_SECTOR, WATER_SECTOR};
-
 
 class AAIBrain
 {
 public:
-	AAIBrain(AAI *ai);
+	AAIBrain(AAI *ai, int maxSectorDistanceToBase);
 	~AAIBrain(void);
 
-	// adds/removes sector to the base
-	void AddSector(AAISector *sector);
-	void RemoveSector(AAISector *sector);
+	void InitAttackedByRates(const AttackedByRatesPerGamePhase& attackedByRates);
 
-	// returns dest attack sector
-	AAISector* GetAttackDest(bool land, bool water);
+	float GetAverageMetalSurplus() const { return m_metalSurplus.GetAverageValue(); }
 
-	// returns a sector to proceed with attack
-	AAISector* GetNextAttackDest(AAISector *current_sector, bool land, bool water);
+	float GetAveragEnergySurplus() const { return m_energySurplus.GetAverageValue(); }
 
-	// checks for new neighbours (and removes old ones if necessary)
-	void UpdateNeighbouringSectors();
+	float GetBaseFlatLandRatio() const { return m_baseFlatLandRatio; }
 
-	// recalculates the center of the base
-	void UpdateBaseCenter();
+	float GetBaseWaterRatio() const { return m_baseWaterRatio; }
 
-	// updates max units spotted
-	void UpdateMaxCombatUnitsSpotted(vector<unsigned short>& units_spotted);
+	//! @brief Returns the center of the base in map coordinates
+	const MapPos& GetCenterOfBase() const { return m_centerOfBase; }
+
+	//! @brief Adds/removes the given sector to the base
+	void AssignSectorToBase(AAISector *sector, bool addToBase);
+
+	//! @brief Updates the (smoothened) energy/metal income
+	void UpdateRessources(springLegacyAI::IAICallback* cb);
+
+	//! @brief Updates the maximum number of spotted combat units for each category (old max values decrease over time)
+	void UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spottedCombatUnits);
 
 	void UpdateAttackedByValues();
 
-	void AttackedBy(int combat_category_id);
+	//! @brief Update counters after AAI has been attacked by a certain unit
+	void AttackedBy(const AAITargetType& attackerTargetType);
+
+	//! @brief Returns the frequencies of attacks by different combat unit categories in different phases of the game
+	const AttackedByRatesPerGamePhase& GetAttackedByRates() const { return s_attackedByRates; }
 
 	// recalculates def capabilities of all units
 	void UpdateDefenceCapabilities();
 
-	// adds/subtracts def. cap. for a single unit
-	void AddDefenceCapabilities(int def_id, UnitCategory category);
-//	void SubtractDefenceCapabilities(int def_id, UnitCategory category);
+	//! @brief Adds the combat power of the given unit type to the global defence capabilities 
+	void AddDefenceCapabilities(UnitDefId unitDefId);
 
-	// returns pos where scout schould be sent to
-	void GetNewScoutDest(float3 *dest, int scout);
+	//! @brief Determines rally point for given movement type on given continent - returns whether search has been successfull
+	bool DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId);
 
-
-	// adds new sectors to base
+	//! @brief Tries to add a new sectors to base, returns true if successful (may fail because base already reached maximum size or no suitable sectors found)
 	bool ExpandBase(SectorType sectorType);
 
 	// returns how much ressources can be spent for unit construction atm
@@ -70,67 +76,88 @@ public:
 	// returns true if commander is allowed for construction at the specified position in the sector
 	bool CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos);
 
-	// returns true if AAI may build a mex in this sector (e.g. safe sector)
-	bool MexConstructionAllowedInSector(AAISector *sector);
-
 	void DefendCommander(int attacker);
 
 	void BuildUnits();
 
-	// returns game period
-	int GetGamePeriod();
-
 	void UpdatePressureByEnemy();
 
-	// returns the probability that units of specified combat category will be used to attack (determine value with respect to game period, current and learning data)
-	float GetAttacksBy(int combat_category, int game_period);
+	//! @brief Returns the frequency of attacks by units of specified combat category
+	//!        The value is determined according to to current game phase, data from this game and learned data.
+	float GetAttacksBy(const AAITargetType& targetType, const GamePhase& gamePhase) const;
 
-	//  0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
-	vector<list<AAISector*> > sectors;
+	//! @brief Returns the recent attacks by the given target type
+	float GetRecentAttacksBy(const AAITargetType& targetType) const { return m_recentlyAttackedByRates.GetValueOfTargetType(targetType); }
 
-	// ratio of  flat land/water cells in all base sectors
-	float baseLandRatio;
-	float baseWaterRatio;
+	//! @brief Returns urgency to build power plant
+	float GetEnergyUrgency() const;
 
-	int max_distance;
+	//! @brief Returns urgency to build metal extractor
+	float GetMetalUrgency() const;
 
-	// center of base (mean value of centers of all base sectors)
-	float3 base_center;
+	//! @brief Returns urgency to build energy storage
+	float GetEnergyStorageUrgency() const;
 
-	// are there any free metal spots within the base
-	bool freeBaseSpots;
-	bool expandable;
+	//! @brief Returns urgency to build metal storage
+	float GetMetalStorageUrgency() const;
 
-	// holding max number of units of a category spotted at the same time
-	vector<float> max_combat_units_spotted;
+	//! @brief Returns whether construction of unit of given type shall be assisted (taking current resources into account)
+	bool SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const;
+
+	//! A list of sectors with ceratain distance (in number of sectors) to base; 0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
+	std::vector< std::list<AAISector*> > m_sectorsInDistToBase;
+
+	//! Holding max number of units of a category spotted at the same time (float as maximum values will slowly decay over time)
+	MobileTargetTypeValues m_maxSpottedCombatUnitsOfTargetType;
 
 	// current estimations of game situation , values ranging from 0 (min) to 1 max
-
 	float enemy_pressure_estimation;	// how much pressure done to the ai by enemy units
 
-	// pos where com spawned
-	float3 start_pos;
-
 private:
+	//! @brief Recalculates the center of the base (needs to be called after sectors have been added or removed)
+	void UpdateCenterOfBase();
+
 	// returns true if sufficient ressources to build unit are availbale
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
-	// returns true if enough metal for constr.
-	bool MetalForConstr(int unit, int workertime = 175);
+	//! @brief Returns the target type of the next combat unit that shall be ordered
+	AAITargetType DetermineTargetTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;
 
-	// returns true if enough energy for constr.
-	bool EnergyForConstr(int unit, int wokertime = 175);
+	//! @brief Selects combat unit according to given criteria and tries to order its construction
+	void BuildCombatUnitOfCategory(const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent);
 
-	// returns true if sector is considered to be safe
-	bool IsSafeSector(AAISector *sector);
+	//! @brief Determines criteria for combat unit selection based on current game phase (@todo: Take other criteria into account)
+	void DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const;
 
-	void BuildUnitOfMovementType(unsigned int allowed_move_type, float cost, float ground_eff, float air_eff, float hover_eff, float sea_eff, float submarine_eff, float stat_eff, bool urgent);
-	// returns ratio of cells in the current base sectors that match movement_type (e.g. 0.3 if 30% of base is covered with water and building is naval)
-	float GetBaseBuildspaceRatio(unsigned int building_move_type);
-	bool SectorInList(list<AAISector*> mylist, AAISector *sector);
-	list<AAISector*> GetSectors();
-	vector<float> defence_power_vs;
-	vector<float> attacked_by;
+	//! The combat power of all mobile units against the different target types
+	MobileTargetTypeValues m_totalMobileCombatPower;
+
+	//! Ratio of cells with flat land of all base sectors (ranging from 0 (none) to 1(all))
+	float m_baseFlatLandRatio;
+
+	//! Ratio of cells with water of all base sectors (ranging from 0 (none) to 1(all))
+	float m_baseWaterRatio;
+
+	//! Center of base (mean value of centers of all base sectors) in build map coordinates
+	MapPos m_centerOfBase;
+
+	//! Average metal surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_metalSurplus;
+
+	//! Average energy surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_energySurplus;
+
+	//! Average metal income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_metalIncome;
+
+	//! Average energy income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_energyIncome;
+
+	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
+	MobileTargetTypeValues m_recentlyAttackedByRates;
+
+	//! Frequency of attacks by different combat categories throughout the gane
+	static AttackedByRatesPerGamePhase s_attackedByRates;
 
 	AAI *ai;
 };

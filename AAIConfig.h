@@ -27,11 +27,6 @@ namespace springLegacyAI {
 
 using namespace springLegacyAI;
 
-struct CostMultiplier
-{
-	int id;
-	float multiplier;
-};
 
 /// Converts a string to one that can be used in a file name (eg. "Abc.123 $%^*" -> "Abc.123_____")
 std::string MakeFileSystemCompatible(const std::string& str);
@@ -41,14 +36,15 @@ class AAIConfig
 public:
 	AAIConfig(void);
 
-	void LoadConfig(AAI *ai);
+	// @brief Load configuration for specific game/mod from config file
+	bool loadGameConfig(AAI *ai);
 
-	bool initialized;
+	// @brief Load general AAI config
+	bool loadGeneralConfig(AAI& ai);
 
 	// constants (will be loaded in aaiconfig)
 
 	// mod specific
-	float SECTOR_SIZE;
 	int MIN_ENERGY;  // min energy make value to be considered beeing a power plant
 	int MAX_UNITS;
 	int MAX_SCOUTS;
@@ -62,7 +58,6 @@ public:
 	int MAX_NAVAL_GROUP_SIZE;
 	int MAX_ANTI_AIR_GROUP_SIZE;
 	int MAX_ARTY_GROUP_SIZE;
-	float MIN_EFFICIENCY;
 
 	int MAX_BUILDERS_PER_TYPE; // max builders of same unit type
 	int MAX_FACTORIES_PER_TYPE;
@@ -108,18 +103,12 @@ public:
 	int MIN_FACTORIES_FOR_DEFENCES;
 	int MIN_FACTORIES_FOR_STORAGE;
 	float MIN_AIR_SUPPORT_EFFICIENCY;
-	int UNIT_SPEED_SUBGROUPS;
 	float MAX_COST_LIGHT_ASSAULT;
 	float MAX_COST_MEDIUM_ASSAULT;
 	float MAX_COST_HEAVY_ASSAULT;
 	int MAX_ATTACKS;
 
-	vector<CostMultiplier> cost_multipliers;
-
 	// combat behaviour
-	float FALLBACK_DIST_RATIO;	// units will try to fall back if enemy is closer than ratio of weapons range of the unit
-	float MIN_FALLBACK_RANGE;	// units with lower weapons' range will not fall back
-	float MAX_FALLBACK_RANGE;	// maximum distance units will try to keep to their enemies
 	float MIN_FALLBACK_TURNRATE; // units with lower turnrate will not try to fall back
 
 	// internal
@@ -127,19 +116,19 @@ public:
 	int MAX_SECTOR_IMPORTANCE;
 
 	// game specific
-	int SCOUT_UPDATE_FREQUENCY;
+	int   SCOUT_UPDATE_FREQUENCY;
 	float SCOUTING_MEMORY_FACTOR;
-	float LEARN_SPEED;
-	int LEARN_RATE;
-	int GAME_PERIODS;
+	int   LEARN_RATE;
+
+	const static int  INCOME_SAMPLE_POINTS = 8; //!< Number of data poiunts used to calculate smoothed energy/metal income/surplus 
 
 	/**
 	 * open a file in springs data directory
 	 * @param filename relative path of the file in the spring data dir
 	 * @param mode mode file to open, see manpage of fopen
 	 */
-	std::string GetFileName(AAI* ai, const std::string& filename, const std::string& prefix = "", const std::string& suffix = "", bool write = false) const;
-	std::string getUniqueName(AAI* ai, bool game, bool gamehash, bool map, bool maphash) const;
+	std::string GetFileName(springLegacyAI::IAICallback* cb, const std::string& filename, const std::string& prefix = "", const std::string& suffix = "", bool write = false) const;
+	std::string getUniqueName(springLegacyAI::IAICallback* cb, bool game, bool gamehash, bool map, bool maphash) const;
 
 private:
 	~AAIConfig(void);

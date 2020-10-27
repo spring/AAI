@@ -88,22 +88,20 @@ float AAIConfig::GetFloat(AAI* ai, FILE* file)
 AAIConfig::AAIConfig(void)
 {
 	SIDES = 2;
-	SECTOR_SIZE = 100.0;
 	MIN_ENERGY = 18;  // min energy make value to be considered beeing a power plant
-	MAX_UNITS = 30000;
+	MAX_UNITS = 5000;
 	MAX_SCOUTS = 4;
 	MAX_SECTOR_IMPORTANCE = 6;
-	MAX_XROW = 8;
-	MAX_YROW = 8;
-	X_SPACE = 16;
-	Y_SPACE = 16;
+	MAX_XROW = 16;
+	MAX_YROW = 16;
+	X_SPACE = 8;
+	Y_SPACE = 8;
 	MAX_GROUP_SIZE = 12;
 	MAX_AIR_GROUP_SIZE = 4;
 	MAX_ANTI_AIR_GROUP_SIZE = 4;
 	MAX_SUBMARINE_GROUP_SIZE = 4;
 	MAX_NAVAL_GROUP_SIZE = 4;
 	MAX_ARTY_GROUP_SIZE = 4;
-	MIN_EFFICIENCY = 0.001f;
 	MAX_BUILDERS = 50;
 	MAX_BUILDERS_PER_TYPE = 5;
 	MAX_FACTORIES_PER_TYPE = 3;
@@ -111,7 +109,7 @@ AAIConfig::AAIConfig(void)
 	MAX_ASSISTANTS = 4;
 	MIN_ASSISTANCE_BUILDTIME = 15;
 	MIN_ASSISTANCE_BUILDSPEED = 20;
-	MAX_BASE_SIZE = 10;
+	MAX_BASE_SIZE = 12;
 	SCOUT_SPEED = 95.0;
 	GROUND_ARTY_RANGE = 1000.0;
 	SEA_ARTY_RANGE = 1300.0;
@@ -124,8 +122,8 @@ AAIConfig::AAIConfig(void)
 	MIN_AIR_ATTACK_COST = 150;
 	MAX_AIR_TARGETS = 20;
 	AIRCRAFT_RATE = 6;
-	HIGH_RANGE_UNITS_RATE = 4;
-	FAST_UNITS_RATE = 5;
+	HIGH_RANGE_UNITS_RATE = 3;
+	FAST_UNITS_RATE = 3;
 	METAL_ENERGY_RATIO = 25;
 	MAX_DEFENCES = 12;
 	MIN_SECTOR_THREAT = 6;
@@ -141,9 +139,8 @@ AAIConfig::AAIConfig(void)
 	MIN_FACTORIES_FOR_STORAGE = 2;
 	MIN_FACTORIES_FOR_RADAR_JAMMER = 2;
 	MIN_AIR_SUPPORT_EFFICIENCY = 2.5f;
-	UNIT_SPEED_SUBGROUPS = 3;
 	MIN_SUBMARINE_WATERLINE = 15;
-	MAX_ATTACKS = 4;
+	MAX_ATTACKS = 3;
 
 	NON_AMPHIB_MAX_WATERDEPTH = 15.0f;
 
@@ -156,12 +153,8 @@ AAIConfig::AAIConfig(void)
 	HEAVY_ASSAULT_RATIO = 25.0f;
 	SUPER_HEAVY_ASSAULT_RATIO = 5.0f;
 
-	FALLBACK_DIST_RATIO = 0.9f;
-	MIN_FALLBACK_RANGE = 450.0f;
-	MAX_FALLBACK_RANGE = 800.0f;
 	MIN_FALLBACK_TURNRATE = 250.0f;
 
-	LEARN_SPEED = 0.2f;
 	LEARN_RATE = 5;
 	CONSTRUCTION_TIMEOUT = 1500;
 	CLIFF_SLOPE = 0.085f;
@@ -169,9 +162,6 @@ AAIConfig::AAIConfig(void)
 	SCOUTING_MEMORY_FACTOR = 1.0f;
 	WATER_MAP_RATIO = 0.8f;
 	LAND_WATER_MAP_RATIO = 0.3f;
-
-	GAME_PERIODS = 4;
-	initialized = false;
 }
 
 AAIConfig::~AAIConfig(void)
@@ -181,7 +171,7 @@ AAIConfig::~AAIConfig(void)
 }
 
 
-std::string AAIConfig::GetFileName(AAI* ai, const std::string& filename, const std::string& prefix, const std::string& suffix, bool write) const
+std::string AAIConfig::GetFileName(springLegacyAI::IAICallback* cb, const std::string& filename, const std::string& prefix, const std::string& suffix, bool write) const
 {
 	std::string name = prefix + MakeFileSystemCompatible(filename) + suffix;
 
@@ -189,48 +179,41 @@ std::string AAIConfig::GetFileName(AAI* ai, const std::string& filename, const s
 	char buffer[2048];
 	STRCPY_T(buffer, sizeof(buffer), name.c_str());
 	if (write) {
-		ai->Getcb()->GetValue(AIVAL_LOCATE_FILE_W, buffer);
+		cb->GetValue(AIVAL_LOCATE_FILE_W, buffer);
 	} else {
-		ai->Getcb()->GetValue(AIVAL_LOCATE_FILE_R, buffer);
+		cb->GetValue(AIVAL_LOCATE_FILE_R, buffer);
 	}
 	name.assign(buffer, sizeof(buffer));
 	return name;
 }
 
-void AAIConfig::LoadConfig(AAI *ai)
+bool AAIConfig::loadGameConfig(AAI *ai)
 {
-	MAX_UNITS = ai->Getcb()->GetMaxUnits();
+	MAX_UNITS = ai->GetAICallback()->GetMaxUnits();
 
-
-	std::list<string> paths;
-	paths.push_back(GetFileName(ai, ai->Getcb()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	paths.push_back(GetFileName(ai, ai->Getcb()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	paths.push_back(GetFileName(ai, ai->Getcb()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	std::list<string> possible_config_filenames;
+	possible_config_filenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possible_config_filenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
 	FILE* file = NULL;
 	std::string configfile;
-	for(const std::string& path: paths) {
-		file = fopen(path.c_str(), "r");
-		if (file == NULL) {
-			ai->Log("Couldn't open config file %s\n", path.c_str());
-		} else {
-			configfile = path;
+	for(const std::string& filename: possible_config_filenames) {
+		file = fopen(filename.c_str(), "r");
+		if (file != NULL) 
+		{
+			configfile = filename;
 			break;
 		}
 	}
 
 	if (file == NULL) {
-		ai->Log("Give up trying to find mod config file (required).\n");
-		initialized = false;
-		return;
-	}
+		ai->Log("Unable to find mod config file (required).\n");
+		return false;
+   	}
 
 	char keyword[50];
 
-	bool error = false;
-//	bool loaded = false;
-
-	if(file == NULL)
-		return;
+	bool errorOccurred = false;
 
 	while(EOF != fscanf(file, "%s", keyword))
 	{
@@ -242,7 +225,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 			for(int i = 0; i < SIDES; i++) {
 				START_UNITS[i] = GetString(ai, file);
 				if(!GetUnitDef(ai, START_UNITS[i].c_str())) {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -259,7 +242,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef)) {
 					SCOUTS.push_back(GetUnitDef(ai, unitdef)->id);
 				} else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -272,7 +255,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef))
 					ATTACKERS.push_back(GetUnitDef(ai, unitdef)->id);
 				else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -285,7 +268,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef))
 					TRANSPORTERS.push_back(GetUnitDef(ai, unitdef)->id);
 				else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -297,7 +280,7 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef))
 					METAL_MAKERS.push_back(GetUnitDef(ai, unitdef)->id);
 				else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
@@ -309,33 +292,12 @@ void AAIConfig::LoadConfig(AAI *ai)
 				if(GetUnitDef(ai, unitdef))
 					DONT_BUILD.push_back(GetUnitDef(ai, unitdef)->id);
 				else {
-					error = true;
+					errorOccurred = true;
 					break;
 				}
 			}
-		} else if(!strcmp(keyword, "COST_MULTIPLIER")) {
-			// get the unit def
-			const std::string unitdef = GetString(ai, file);
-			const UnitDef* def = GetUnitDef(ai, unitdef);
-
-			if(def)
-			{
-				CostMultiplier temp;
-				temp.id = def->id;
-				temp.multiplier = GetFloat(ai, file);
-
-				cost_multipliers.push_back(temp);
-			} else {
-				error = true;
-				break;
-			}
-		} else if(!strcmp(keyword,"SECTOR_SIZE")) {
-			SECTOR_SIZE = GetFloat(ai, file);
-			ai->Log("SECTOR_SIZE set to %f", SECTOR_SIZE);
 		} else if(!strcmp(keyword,"MIN_ENERGY")) {
 			MIN_ENERGY = GetInt(ai, file);
-		} else if(!strcmp(keyword, "MAX_UNITS")) {
-			MAX_UNITS = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_SCOUTS")) {
 			MAX_SCOUTS = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_SECTOR_IMPORTANCE")) {
@@ -360,18 +322,8 @@ void AAIConfig::LoadConfig(AAI *ai)
 			MAX_ANTI_AIR_GROUP_SIZE = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_ARTY_GROUP_SIZE")) {
 			MAX_ARTY_GROUP_SIZE = GetInt(ai, file);
-		} else if(!strcmp(keyword, "UNIT_SPEED_SUBGROUPS")) {
-			UNIT_SPEED_SUBGROUPS = GetInt(ai, file);
-		} else if(!strcmp(keyword, "FALLBACK_DIST_RATIO")) {
-			FALLBACK_DIST_RATIO = GetInt(ai, file);
-		} else if(!strcmp(keyword, "MIN_FALLBACK_RANGE")) {
-			MIN_FALLBACK_RANGE = GetInt(ai, file);
-		} else if(!strcmp(keyword, "MAX_FALLBACK_RANGE")) {
-			MAX_FALLBACK_RANGE = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MIN_FALLBACK_TURNRATE")) {
 			MIN_FALLBACK_TURNRATE = GetFloat(ai, file);
-		} else if(!strcmp(keyword, "MIN_EFFICIENCY")) {
-			MIN_EFFICIENCY = GetFloat(ai, file);
 		} else if(!strcmp(keyword, "MIN_AIR_SUPPORT_EFFICIENCY")) {
 			MIN_AIR_SUPPORT_EFFICIENCY = GetFloat(ai, file);
 		} else if(!strcmp(keyword, "MAX_BUILDERS")) {
@@ -449,91 +401,97 @@ void AAIConfig::LoadConfig(AAI *ai)
 		} else if(!strcmp(keyword, "MAX_ATTACKS")) {
 			MAX_ATTACKS = GetInt(ai, file);
 		} else {
-			error = true;
+			errorOccurred = true;
 			break;
 		}
 	}
 
-	if(error) {
+	if(errorOccurred) {
 		ai->Log("Mod config file %s contains erroneous keyword: %s\n", configfile.c_str(), keyword);
-		initialized = false;
-		return;
+		return false;
 	}
 
 	fclose(file);
 	ai->Log("Mod config file %s loaded\n", configfile.c_str());
+	return true;
+}
 
+bool AAIConfig::loadGeneralConfig(AAI& ai)
+{
 	// load general settings
-	const std::string generalcfg = GetFileName(ai, GENERAL_CFG_FILE, CFG_PATH);
-	file = fopen(generalcfg.c_str(), "r");
+	const std::string filename = GetFileName(ai.GetAICallback(), GENERAL_CFG_FILE, CFG_PATH);
+
+	FILE* file = fopen(filename.c_str(), "r");
+
 	if(file == NULL) {
-		ai->Log("Couldn't load general config file %s\n", generalcfg.c_str());
-		return;
+		ai.Log("Couldn't load general config file %s\n", filename.c_str());
+		return false;
 	}
+
+	char keyword[50];
+	bool errorOccurred = false;
 
 	while(EOF != fscanf(file, "%s", keyword))
 	{
 		if(!strcmp(keyword, "LEARN_RATE")) {
-			LEARN_RATE = GetInt(ai, file);
-		} else if(!strcmp(keyword, "LEARN_SPEED")) {
-			LEARN_SPEED = GetFloat(ai, file);
+			LEARN_RATE = GetInt(&ai, file);
 		} else if(!strcmp(keyword, "WATER_MAP_RATIO")) {
-			WATER_MAP_RATIO = GetFloat(ai, file);
+			WATER_MAP_RATIO = GetFloat(&ai, file);
 		} else if(!strcmp(keyword, "LAND_WATER_MAP_RATIO")) {
-			LAND_WATER_MAP_RATIO = GetFloat(ai, file);
+			LAND_WATER_MAP_RATIO = GetFloat(&ai, file);
 		} else if(!strcmp(keyword, "SCOUT_UPDATE_FREQUENCY")) {
-			SCOUT_UPDATE_FREQUENCY = GetInt(ai, file);;
+			SCOUT_UPDATE_FREQUENCY = GetInt(&ai, file);;
 		} else if(!strcmp(keyword, "SCOUTING_MEMORY_FACTOR")) {
-			SCOUTING_MEMORY_FACTOR = GetFloat(ai, file);
+			SCOUTING_MEMORY_FACTOR = GetFloat(&ai, file);
 		} else {
-			error = true;
+			errorOccurred = true;
 			break;
 		}
 	}
 
 	fclose(file);
 
-	if(error) {
-		ai->Log("General config file contains erroneous keyword %s\n", keyword);
-		return;
+	if(errorOccurred) {
+		ai.Log("General config file contains erroneous keyword %s\n", keyword);
+		return false;
 	}
-	ai->Log("General config file loaded\n");
-	initialized = true;
+	ai.Log("General config file loaded\n");
+	return true;
 }
 
 const UnitDef* AAIConfig::GetUnitDef(AAI* ai, const std::string& name)
 {
-	const UnitDef* res = ai->Getcb()->GetUnitDef(name.c_str());
+	const UnitDef* res = ai->GetAICallback()->GetUnitDef(name.c_str());
 	if (res == NULL) {
 		ai->Log("ERROR: loading unit - could not find unit %s\n", name.c_str());
 	}
 	return res;
 }
 
-std::string AAIConfig::getUniqueName(AAI* ai, bool game, bool gamehash, bool map, bool maphash) const
+std::string AAIConfig::getUniqueName(springLegacyAI::IAICallback* cb, bool game, bool gamehash, bool map, bool maphash) const
 {
 	std::string res;
 	if (map) {
 		if (!res.empty())
 			res += "-";
-		std::string mapName = MakeFileSystemCompatible(ai->Getcb()->GetMapName());
+		std::string mapName = MakeFileSystemCompatible(cb->GetMapName());
 		mapName.resize(mapName.size() - 4); // cut off extension
 		res += mapName;
 	}
 	if (maphash) {
 		if (!res.empty())
 			res += "-";
-		res += IntToString(ai->Getcb()->GetMapHash(), "%x");
+		res += IntToString(cb->GetMapHash(), "%x");
 	}
 	if (game) {
 		if (!res.empty())
 			res += "_";
-		res += MakeFileSystemCompatible(ai->Getcb()->GetModHumanName());
+		res += MakeFileSystemCompatible(cb->GetModHumanName());
 	}
 	if (gamehash) {
 		if (!res.empty())
 			res += "-";
-		res += IntToString(ai->Getcb()->GetModHash(), "%x");
+		res += IntToString(cb->GetModHash(), "%x");
 	}
 	return res;
 }
