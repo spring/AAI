@@ -47,9 +47,9 @@ std::list<AAIMetalSpot>  AAIMap::metal_spots;
 int AAIMap::land_metal_spots;
 int AAIMap::water_metal_spots;
 
-float AAIMap::land_ratio;
+float AAIMap::s_landTilesRatio;
 float AAIMap::flat_land_ratio;
-float AAIMap::water_ratio;
+float AAIMap::s_waterTilesRatio;
 
 AAIDefenceMaps                AAIMap::s_defenceMaps;
 AAIMapType                    AAIMap::s_mapType;
@@ -194,7 +194,7 @@ void AAIMap::Init()
 	// for log file
 	ai->Log("Map: %s\n",ai->GetAICallback()->GetMapName());
 	ai->Log("Maptype: %s\n", s_mapType.GetName().c_str());
-	ai->Log("Land / water ratio: : %f / %f\n", land_ratio, water_ratio);
+	ai->Log("Land / water ratio: : %f / %f\n", s_landTilesRatio, s_waterTilesRatio);
 	ai->Log("Mapsize is %i x %i\n", ai->GetAICallback()->GetMapWidth(),ai->GetAICallback()->GetMapHeight());
 	ai->Log("%i sectors in x direction\n", xSectors);
 	ai->Log("%i sectors in y direction\n", ySectors);
@@ -270,7 +270,7 @@ void AAIMap::ReadMapCacheFile()
 			ai->LogConsole("%s loaded", s_mapType.GetName().c_str());
 
 			// load water ratio
-			fscanf(file, "%f ", &water_ratio);
+			fscanf(file, "%f ", &s_waterTilesRatio);
 
 			// load buildmap
 			for(int y = 0; y < yMapSize; ++y)
@@ -328,12 +328,10 @@ void AAIMap::ReadMapCacheFile()
 
 	if(!loaded)  // create new map data
 	{
-		CalculateWaterRatio();
-
 		// detect cliffs/water and create plateau map
 		AnalyseMap();
 
-		DetectMapType();
+		DetermineMapType();
 
 		// search for metal spots after analysis of map for cliffs/water to avoid overriding of blocked underwater metal spots (5) with water (4)
 		DetectMetalSpots();
@@ -355,7 +353,7 @@ void AAIMap::ReadMapCacheFile()
 		fprintf(file, "%s\n", temp_buffer);
 
 		// save water ratio
-		fprintf(file, "%f\n", water_ratio);
+		fprintf(file, "%f\n", s_waterTilesRatio);
 
 		// save buildmap
 		for(int y = 0; y < yMapSize; ++y)
@@ -558,20 +556,20 @@ void AAIMap::ReadMapLearnFile()
 	// determine land/water ratio of total map
 	//-----------------------------------------------------------------------------------------------------------------
 	flat_land_ratio = 0.0f;
-	water_ratio     = 0.0f;
+	s_waterTilesRatio     = 0.0f;
 
 	for(int j = 0; j < ySectors; ++j)
 	{
 		for(int i = 0; i < xSectors; ++i)
 		{
 			flat_land_ratio += m_sector[i][j].GetFlatTilesRatio();
-			water_ratio += m_sector[i][j].GetWaterTilesRatio();
+			s_waterTilesRatio += m_sector[i][j].GetWaterTilesRatio();
 		}
 	}
 
 	flat_land_ratio /= (float)(xSectors * ySectors);
-	water_ratio     /= (float)(xSectors * ySectors);
-	land_ratio = 1.0f - water_ratio;
+	s_waterTilesRatio     /= (float)(xSectors * ySectors);
+	s_landTilesRatio = 1.0f - s_waterTilesRatio;
 
 	if(load_file)
 		fclose(load_file);
@@ -919,7 +917,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 			{
 				// criterion 1: how well is tile already covered by existing static defences
 				const MapPos mapPos(xPos, yPos);
-				const float defenceValue = 2.0f * AAIConstants::maxCombatPower / (1.0f + 0.2f * s_defenceMaps.GetValue(mapPos, targetType) );
+				const float defenceValue = 2.0f * AAIConstants::maxCombatPower / (1.0f + 0.1f * s_defenceMaps.GetValue(mapPos, targetType) );
 
 				// criterion 2: distance to center of base (prefer static defences closer to base)
 				const float distanceValue = AAIConstants::maxCombatPower * distanceStatistics.GetNormalizedDeviationFromMax(distancesToBaseCenter[index]);
@@ -1265,20 +1263,26 @@ void AAIMap::AnalyseMap()
 {
 	const float *height_map = ai->GetAICallback()->GetHeightMap();
 
-	// get water/cliffs
-	for(int x = 0; x < xMapSize; ++x)
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine tile type
+	//-----------------------------------------------------------------------------------------------------------------
+	int waterCells(0);
+	for(int y = 0; y < yMapSize; ++y)
 	{
-		for(int y = 0; y < yMapSize; ++y)
+		for(int x = 0; x < xMapSize; ++x)
 		{
 			s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FREE);
 
-			// check for water
+			// determine tile type (land or water)
 			if(height_map[x + y * xMapSize] < 0.0f)
+			{
 				s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::WATER);
+				++waterCells;
+			}
 			else
-				s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::LAND);	
-			
-			// check slope
+				s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::LAND);
+
+			// determine slope to detect cliffs
 			if( (x < xMapSize - 4) && (y < yMapSize - 4) )
 			{
 				const float xSlope = (height_map[y * xMapSize + x] - height_map[y * xMapSize + x + 4])/64.0f;
@@ -1297,34 +1301,37 @@ void AAIMap::AnalyseMap()
 				}
 			}
 			else
-				s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FLAT);	
+				s_buildmap[x+y*xMapSize].SetTileType(EBuildMapTileType::FLAT);
 		}
 	}
 
+	s_waterTilesRatio = static_cast<float>(waterCells) / static_cast<float>(xMapSize*yMapSize);
+
+	//-----------------------------------------------------------------------------------------------------------------
 	// calculate plateau map
-	int TERRAIN_DETECTION_RANGE = 6;
-	float my_height, diff;
+	//-----------------------------------------------------------------------------------------------------------------
+	constexpr int TERRAIN_DETECTION_RANGE(6);
 
 	for(int y = TERRAIN_DETECTION_RANGE; y < yContMapSize - TERRAIN_DETECTION_RANGE; ++y)
 	{
 		for(int x = TERRAIN_DETECTION_RANGE; x < xContMapSize - TERRAIN_DETECTION_RANGE; ++x)
 		{
-			my_height = height_map[4 * (x + y * xMapSize)];
+			const float height = height_map[4 * (x + y * xMapSize)];
 
 			for(int j = y - TERRAIN_DETECTION_RANGE; j < y + TERRAIN_DETECTION_RANGE; ++j)
 			{
-					for(int i = x - TERRAIN_DETECTION_RANGE; i < x + TERRAIN_DETECTION_RANGE; ++i)
+				for(int i = x - TERRAIN_DETECTION_RANGE; i < x + TERRAIN_DETECTION_RANGE; ++i)
 				{
-					 diff = (height_map[4 * (i + j * xMapSize)] - my_height);
+					const float diff = (height_map[4 * (i + j * xMapSize)] - height);
 
-					 if(diff > 0)
-					 {
-						 //! @todo Investigate the reason for this check
-						 if(s_buildmap[4 * (i + j * xMapSize)].IsTileTypeNotSet(EBuildMapTileType::CLIFF) )
-							 plateau_map[i + j * xContMapSize] += diff;
-					 }
-					 else
-						 plateau_map[i + j * xContMapSize] += diff;
+					if(diff > 0.0f)
+					{
+						//! @todo Investigate the reason for this check
+						if(s_buildmap[4 * (i + j * xMapSize)].IsTileTypeNotSet(EBuildMapTileType::CLIFF) )
+							plateau_map[i + j * xContMapSize] += diff;
+					}
+					else
+						plateau_map[i + j * xContMapSize] += diff;
 				}
 			}
 		}
@@ -1342,32 +1349,14 @@ void AAIMap::AnalyseMap()
 	}
 }
 
-void AAIMap::DetectMapType()
+void AAIMap::DetermineMapType()
 {
-	ai->Log("Water ratio: %f\n", water_ratio);
-
-	if( (static_cast<float>(max_land_continent_size) < 0.5f * static_cast<float>(max_water_continent_size) ) || (water_ratio > 0.8f) )
+	if( (static_cast<float>(max_land_continent_size) < 0.5f * static_cast<float>(max_water_continent_size) ) || (s_waterTilesRatio > 0.8f) )
 		s_mapType.SetMapType(EMapType::WATER_MAP);
-	else if(water_ratio > 0.25f)
+	else if(s_waterTilesRatio > 0.25f)
 		s_mapType.SetMapType(EMapType::LAND_WATER_MAP);
 	else
 		s_mapType.SetMapType(EMapType::LAND_MAP);
-}
-
-void AAIMap::CalculateWaterRatio()
-{
-	int waterCells(0);
-
-	for(int y = 0; y < yMapSize; ++y)
-	{
-		for(int x = 0; x < xMapSize; ++x)
-		{
-			if(s_buildmap[x + y*xMapSize].IsTileTypeSet(EBuildMapTileType::WATER))
-				++waterCells;
-		}
-	}
-
-	water_ratio = static_cast<float>(waterCells) / static_cast<float>(xMapSize*yMapSize);
 }
 
 void AAIMap::CalculateContinentMaps()

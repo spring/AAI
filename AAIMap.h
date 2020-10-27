@@ -167,10 +167,10 @@ public:
 	static int xSectorSizeMap, ySectorSizeMap;
 
 	//! Ration of land tiles
-	static float land_ratio;
+	static float s_landTilesRatio;
 
 	//! Ratio of water tiles
-	static float water_ratio;
+	static float s_waterTilesRatio;
 
 	//! Number of metal spots in sea
 	static int water_metal_spots;
@@ -208,22 +208,20 @@ private:
 	// krogothe's metal spot finder
 	void DetectMetalSpots();
 
-	// determines type of map (land, land/water or water map)
-	void DetectMapType();
-
 	//! @brief Returns descriptor for map type (used to save map type)
 	const char* GetMapTypeString(const AAIMapType& mapType) const;
 
 	//! @brief Returns which movement types are suitable for the given map type
 	uint32_t GetSuitableMovementTypes(const AAIMapType& mapType) const;
 
-	void CalculateWaterRatio();
+	//! @brief Determine the type of every map tile (e.g. water, flat. cliff) and calculates the plateue map
+	void AnalyseMap();
+
+	//! @brief Determines the type of map
+	void DetermineMapType();
 
 	// calculates which parts of the are connected
 	void CalculateContinentMaps();
-
-	// determines water, high slopes, defence map
-	void AnalyseMap();
 
 	// calculates learning effect
 	void Learn();

@@ -497,7 +497,7 @@ AAITargetType AAIBrain::DetermineTargetTypeForCombatUnitConstruction(const GameP
 	else if(mapType.IsLandWaterMap())
 	{
 		//! @todo Add selection of Submarines
-		int groundRatio = static_cast<int>(100.0f * ai->Getmap()->land_ratio);
+		int groundRatio = static_cast<int>(100.0f * AAIMap::s_landTilesRatio);
 		
 		if(rand()%100 < groundRatio)
 			targetType.SetType(ETargetType::FLOATER);
