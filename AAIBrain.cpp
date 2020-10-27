@@ -424,7 +424,7 @@ float AAIBrain::Affordable()
 
 void AAIBrain::BuildUnits()
 {
-	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
+	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate threat by and defence vs. the different combat categories

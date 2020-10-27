@@ -1086,39 +1086,18 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	//-----------------------------------------------------------------------------------------------------------------
 	// dont start construction of further defences if expensive defences are already under construction in this sector
 	//-----------------------------------------------------------------------------------------------------------------
-	for(auto task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
+	for(const auto& task : ai->GetBuildTasks())
 	{
-		if(ai->s_buildTree.GetUnitCategory(UnitDefId((*task)->def_id)).IsStaticDefence() == true)
+		if(ai->s_buildTree.GetUnitCategory(UnitDefId(task->def_id)).IsStaticDefence())
 		{
-			if(dest->PosInSector((*task)->build_pos))
+			if(dest->PosInSector(task->build_pos))
 			{
 				const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(EUnitCategory::STATIC_DEFENCE);
 
-				if( ai->s_buildTree.GetTotalCost(UnitDefId((*task)->def_id)) > 0.7f * costStatistics.GetAvgValue() )
+				if( ai->s_buildTree.GetTotalCost(UnitDefId(task->def_id)) > 0.7f * costStatistics.GetAvgValue() )
 					return BuildOrderStatus::SUCCESSFUL;
 			}
 		}
-	}
-
-	//-----------------------------------------------------------------------------------------------------------------
-	// check if defence can be placed on land, water, or both
-	//-----------------------------------------------------------------------------------------------------------------
-	bool checkWater, checkGround;
-
-	if(dest->GetWaterTilesRatio() < 0.15f)
-	{
-		checkWater = false;
-		checkGround = true;
-	}
-	else if(dest->GetWaterTilesRatio() < 0.85f)
-	{
-		checkWater = true;
-		checkGround = true;
-	}
-	else
-	{
-		checkWater = true;
-		checkGround = false;
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -1177,10 +1156,10 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	//-----------------------------------------------------------------------------------------------------------------
 	BuildOrderStatus status(BuildOrderStatus::BUILDING_INVALID);
 
-	if(checkGround)
+	if(dest->GetWaterTilesRatio() < 0.85f)
 		status = BuildStaticDefence(dest, selectionCriteria, false);
 
-	if(checkWater && (status != BuildOrderStatus::SUCCESSFUL))
+	if( (dest->GetWaterTilesRatio() > 0.15f) && (status != BuildOrderStatus::SUCCESSFUL))
 		status = BuildStaticDefence(dest, selectionCriteria, true);
 
 	return status;
@@ -1687,7 +1666,7 @@ void AAIExecute::CheckDefences()
 
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
-	const int maxSectorDistToBase(2);
+	constexpr int maxSectorDistToBase(3);
 	float highestImportance(0.0f);
 
 	AAISector *first(nullptr), *second(nullptr);
@@ -1695,18 +1674,18 @@ void AAIExecute::CheckDefences()
 
 	for(int dist = 1; dist <= maxSectorDistToBase; ++dist)
 	{
-		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[dist].end(); ++sector)
+		for(const auto sector : ai->Getbrain()->m_sectorsInDistToBase[dist])
 		{
 			// stop building further defences if maximum has been reached / sector contains allied buildings / is occupied by another aai instance
 			AAITargetType targetType;		
-			const float importance = (*sector)->GetImportanceForStaticDefenceVs(targetType, gamePhase, learned, current);
+			const float importance = sector->GetImportanceForStaticDefenceVs(targetType, gamePhase, learned, current);
 
 			if(importance > highestImportance)
 			{
 				second = first;
 				targetType2 = targetType1;
 
-				first = *sector;
+				first = sector;
 				targetType1 = targetType;
 
 				highestImportance = importance;

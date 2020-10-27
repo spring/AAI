@@ -275,26 +275,28 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 	{
 		if(m_failedAttemptsToConstructStaticDefence < 2) // do not try to build defences if last two attempts failed
 		{
+			const float baseProximity = (distance_to_base <= 1) ? 1.0f : 0.0f;
+
 			std::vector<float> importanceVsTargetType(AAITargetType::numberOfMobileTargetTypes, 0.0f);
 
-			importanceVsTargetType[AAITargetType::airIndex] =  
+			importanceVsTargetType[AAITargetType::airIndex] = baseProximity +
 						  (0.1f + GetLocalAttacksBy(ETargetType::AIR, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::AIR, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::AIR));
 
 			if(m_waterTilesRatio < 0.7f)
 			{
-				importanceVsTargetType[AAITargetType::surfaceIndex] =  
+				importanceVsTargetType[AAITargetType::surfaceIndex] = baseProximity +
 						  (0.1f + GetLocalAttacksBy(ETargetType::SURFACE, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::SURFACE, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::SURFACE));
 			}
 
 			if(m_waterTilesRatio > 0.3f)
 			{
-				importanceVsTargetType[AAITargetType::floaterIndex] =  
+				importanceVsTargetType[AAITargetType::floaterIndex] = baseProximity +
 						  (0.1f + GetLocalAttacksBy(ETargetType::FLOATER, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::FLOATER, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::FLOATER));
 
-				importanceVsTargetType[AAITargetType::submergedIndex] =  
+				importanceVsTargetType[AAITargetType::submergedIndex] = baseProximity +
 						  (0.1f + GetLocalAttacksBy(ETargetType::SUBMERGED, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::SUBMERGED, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::SUBMERGED));
 			}
@@ -327,7 +329,7 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 				if(distEnemyBase < distOwnToEnemyBase)
 					highestImportance *= 2.0f;
 
-				highestImportance *= static_cast<float>(2 + this->GetEdgeDistance());
+				highestImportance *= static_cast<float>(2 + this->GetEdgeDistance()) * (2.0f /  static_cast<float>(distance_to_base+1));
 			}
 
 			return highestImportance;

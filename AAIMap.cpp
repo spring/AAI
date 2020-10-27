@@ -917,7 +917,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 			{
 				// criterion 1: how well is tile already covered by existing static defences
 				const MapPos mapPos(xPos, yPos);
-				const float defenceValue = 2.0f * AAIConstants::maxCombatPower / (1.0f + 0.1f * s_defenceMaps.GetValue(mapPos, targetType) );
+				const float defenceValue = 2.5f * AAIConstants::maxCombatPower / (1.0f + 0.25f * s_defenceMaps.GetValue(mapPos, targetType) );
 
 				// criterion 2: distance to center of base (prefer static defences closer to base)
 				const float distanceValue = AAIConstants::maxCombatPower * distanceStatistics.GetNormalizedDeviationFromMax(distancesToBaseCenter[index]);
