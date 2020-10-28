@@ -149,7 +149,7 @@ public:
 	UnitDefId SelectStaticArtillery(int side, float cost, float range, bool water) const;
 
 	//! @brief Determines a scout unit with given properties
-	UnitDefId selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable);
+	UnitDefId SelectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable);
 
 	int GetJammer(int side, float cost, float range, bool water, bool canBuild);
 

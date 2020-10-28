@@ -88,34 +88,34 @@ void AAIBuildTable::Init()
 
 void AAIBuildTable::ConstructorRequested(UnitDefId constructor)
 {
-	for(std::list<UnitDefId>::const_iterator id = ai->s_buildTree.GetCanConstructList(constructor).begin();  id != ai->s_buildTree.GetCanConstructList(constructor).end(); ++id)
+	for(const auto unitDefId : ai->s_buildTree.GetCanConstructList(constructor))
 	{
-		++units_dynamic[(*id).id].constructorsRequested;
+		++units_dynamic[unitDefId.id].constructorsRequested;
 	}
 }
 
 void AAIBuildTable::ConstructorFinished(UnitDefId constructor)
 {
-	for(std::list<UnitDefId>::const_iterator id = ai->s_buildTree.GetCanConstructList(constructor).begin();  id != ai->s_buildTree.GetCanConstructList(constructor).end(); ++id)
+	for(const auto unitDefId : ai->s_buildTree.GetCanConstructList(constructor))
 	{
-		++units_dynamic[(*id).id].constructorsAvailable;
-		--units_dynamic[(*id).id].constructorsRequested;
+		++units_dynamic[unitDefId.id].constructorsAvailable;
+		--units_dynamic[unitDefId.id].constructorsRequested;
 	}
 }
 
 void AAIBuildTable::ConstructorKilled(UnitDefId constructor)
 {
-	for(std::list<UnitDefId>::const_iterator id = ai->s_buildTree.GetCanConstructList(constructor).begin();  id != ai->s_buildTree.GetCanConstructList(constructor).end(); ++id)
+	for(const auto unitDefId : ai->s_buildTree.GetCanConstructList(constructor))
 	{
-		--units_dynamic[(*id).id].constructorsAvailable;
+		--units_dynamic[unitDefId.id].constructorsAvailable;
 	}
 }
 
 void AAIBuildTable::UnfinishedConstructorKilled(UnitDefId constructor)
 {
-	for(std::list<UnitDefId>::const_iterator id = ai->s_buildTree.GetCanConstructList(constructor).begin();  id != ai->s_buildTree.GetCanConstructList(constructor).end(); ++id)
+	for(const auto unitDefId : ai->s_buildTree.GetCanConstructList(constructor))
 	{
-		--units_dynamic[(*id).id].constructorsRequested;
+		--units_dynamic[unitDefId.id].constructorsRequested;
 	}
 }
 
@@ -598,7 +598,7 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 	return best_jammer;
 }
 
-UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable)
+UnitDefId AAIBuildTable::SelectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable)
 {
 	float highestRating(0.0f);
 	UnitDefId selectedScout;
@@ -606,25 +606,24 @@ UnitDefId AAIBuildTable::selectScout(int side, float sightRange, float cost, uin
 	const StatisticalData& costs       = ai->s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::SCOUT);
 	const StatisticalData& sightRanges = ai->s_buildTree.GetUnitStatistics(side).GetUnitPrimaryAbilityStatistics(EUnitCategory::SCOUT);
 
-	for(auto scout = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side).begin(); scout != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side).end(); ++scout)
+	for(auto scoutUnitDefId : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side))
 	{
-		const bool movementTypeAllowed     = ai->s_buildTree.GetMovementType(scout->id).IsIncludedIn(movementType);
-		const bool factoryPrerequisitesMet = !factoryAvailable || (units_dynamic[scout->id].constructorsAvailable > 0);
+		const bool movementTypeAllowed     = ai->s_buildTree.GetMovementType(scoutUnitDefId.id).IsIncludedIn(movementType);
+		const bool factoryPrerequisitesMet = !factoryAvailable || (units_dynamic[scoutUnitDefId.id].constructorsAvailable > 0);
 
 		if( movementTypeAllowed && factoryPrerequisitesMet )
 		{
-			float myRating =     sightRange * sightRanges.GetNormalizedDeviationFromMin(ai->s_buildTree.GetMaxRange(*scout))
-							   +       cost * costs.GetNormalizedDeviationFromMax( ai->s_buildTree.GetTotalCost(*scout) );
+			float rating =     sightRange * sightRanges.GetNormalizedDeviationFromMin(ai->s_buildTree.GetMaxRange(scoutUnitDefId))
+							+  cost * costs.GetNormalizedDeviationFromMax( ai->s_buildTree.GetTotalCost(scoutUnitDefId) )
+							+ (0.1f * ((float)(rand()%randomness)));
 
-			if(cloakable && GetUnitDef(scout->id).canCloak)
-				myRating += 2.0f;
+			if(cloakable && GetUnitDef(scoutUnitDefId.id).canCloak)
+				rating += 2.0f;
 
-			myRating += (0.1f * ((float)(rand()%randomness)));
-
-			if(myRating > highestRating)
+			if(rating > highestRating)
 			{
-				highestRating = myRating;
-				selectedScout = *scout;
+				highestRating = rating;
+				selectedScout = scoutUnitDefId;
 			}
 		}
 	}
@@ -690,8 +689,6 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetT
 				minFactoryUtilization = utilization;
 		}
 
-		//if(    (canBuild == false)
-		//	|| ((canBuild == true) && (units_dynamic[unitDefId.id].constructorsAvailable > 0)) )
 		if(minFactoryUtilization > 0.0f)
 		{
 			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(unitDefId);
@@ -923,11 +920,11 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 
 	if(units_dynamic[building.id].constructorsAvailable == 0)
 	{
-		buildtime                 = 2.0f;
+		buildtime = 2.0f;
 	}
 	else if(units_dynamic[building.id].constructorsAvailable < 2)
 	{
-		buildtime                 = 1.0f;
+		buildtime  = 1.0f;
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -937,11 +934,11 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 	StatisticalData buildtimeStatistics;
 	StatisticalData buildpowerStatistics;
 
-	for(auto builder = ai->s_buildTree.GetConstructedByList(building).begin();  builder != ai->s_buildTree.GetConstructedByList(building).end(); ++builder)
+	for(auto builder : ai->s_buildTree.GetConstructedByList(building))
 	{
-		costStatistics.AddValue( ai->s_buildTree.GetTotalCost(*builder) );
-		buildtimeStatistics.AddValue( ai->s_buildTree.GetBuildtime(*builder) );
-		buildpowerStatistics.AddValue( ai->s_buildTree.GetBuildspeed(*builder) );
+		costStatistics.AddValue( ai->s_buildTree.GetTotalCost(builder) );
+		buildtimeStatistics.AddValue( ai->s_buildTree.GetBuildtime(builder) );
+		buildpowerStatistics.AddValue( ai->s_buildTree.GetBuildspeed(builder) );
 	}
 
 	costStatistics.Finalize();
@@ -954,22 +951,30 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 	float highestRating(0.0f);
 	UnitDefId selectedBuilder;
 
-	for(auto builder = ai->s_buildTree.GetConstructedByList(building).begin();  builder != ai->s_buildTree.GetConstructedByList(building).end(); ++builder)
+	for(auto builder : ai->s_buildTree.GetConstructedByList(building))
 	{
 		// prevent ai from ordering too many builders of the same type/commanders/builders that cant be built atm
-		if(units_dynamic[(*builder).id].active + units_dynamic[(*builder).id].under_construction + units_dynamic[(*builder).id].requested < cfg->MAX_BUILDERS_PER_TYPE)
+		if(units_dynamic[builder.id].active + units_dynamic[builder.id].under_construction + units_dynamic[builder.id].requested < cfg->MAX_BUILDERS_PER_TYPE)
 		{
-			float myRating = cost       * costStatistics.GetNormalizedDeviationFromMax( ai->s_buildTree.GetTotalCost(*builder) )
-			               + buildtime  * buildtimeStatistics.GetNormalizedDeviationFromMax( ai->s_buildTree.GetBuildtime(*builder) )
-				           + buildpower * buildpowerStatistics.GetNormalizedDeviationFromMin( ai->s_buildTree.GetBuildspeed(*builder) );
+			float rating =   cost       * costStatistics.GetNormalizedDeviationFromMax( ai->s_buildTree.GetTotalCost(builder) )
+			               + buildtime  * buildtimeStatistics.GetNormalizedDeviationFromMax( ai->s_buildTree.GetBuildtime(builder) )
+				           + buildpower * buildpowerStatistics.GetNormalizedDeviationFromMin( ai->s_buildTree.GetBuildspeed(builder) );
 
-			if(units_dynamic[(*builder).id].constructorsAvailable > 0)
-				myRating += constructableBuilderBonus;
+			if(units_dynamic[builder.id].constructorsAvailable > 0)
+				rating += constructableBuilderBonus;
 
-			if(myRating > highestRating)
+			// take movement type into consideration (dont build ground based construction units on water maps and water bound construction units on land maps)
+			const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(builder);
+
+			if(moveType.IsSeaUnit())
+				rating *= (0.2f + 0.8f * AAIMap::s_waterTilesRatio);
+			else if(moveType.IsGround())
+				rating *= (0.2f + 0.8f * AAIMap::s_landTilesRatio);
+
+			if(rating > highestRating)
 			{
-				highestRating   = myRating;
-				selectedBuilder = *builder;
+				highestRating   = rating;
+				selectedBuilder = builder;
 			}
 		}
 	}

@@ -268,7 +268,7 @@ void AAIExecute::BuildScouts()
 		// request cloakable scouts from time to time
 		const bool cloaked = (rand()%5 == 1) ? true : false;
 		
-		const UnitDefId scoutId = ai->Getbt()->selectScout(ai->GetSide(), sightRange, cost, suitableMovementTypes, 10, cloaked, availableFactoryNeeded);
+		const UnitDefId scoutId = ai->Getbt()->SelectScout(ai->GetSide(), sightRange, cost, suitableMovementTypes, 10, cloaked, availableFactoryNeeded);
 
 		if(scoutId.IsValid())
 		{
@@ -2244,10 +2244,6 @@ void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attacke
 
 			if(support)
 				support->Defend(unitId, attackerPosition, importance);
-		}
-		else
-		{
-			ai->Log("No further combat units needed for defence; friendly/enemy local combat power: %f / %f\n", sector->GetFriendlyCombatPower(attackerTargetType), sector->GetEnemyCombatPower(attackerTargetType));
 		}
 	}
 }
