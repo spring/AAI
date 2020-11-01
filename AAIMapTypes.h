@@ -74,7 +74,7 @@ public:
 	void ModifyTiles(const float3& position, float maxWeaponRange, const UnitFootprint& footprint, const AAICombatPower& combatPower, bool addValues)
 	{
 		// decide which function shall be used to modify tile values
-		void (AAIDefenceMaps::*modifyDefenceMapTile) (int , const AAICombatPower& ) = addValues ? &AddDefence : &RemoveDefence;
+		void (AAIDefenceMaps::*modifyDefenceMapTile) (int , const AAICombatPower& ) = addValues ? &AAIDefenceMaps::AddDefence : &AAIDefenceMaps::RemoveDefence;
 
 		const int range = static_cast<int>(maxWeaponRange) / (SQUARE_SIZE * defenceMapResolution);
 		const int xPos  = static_cast<int>(position.x) / (SQUARE_SIZE * defenceMapResolution) + footprint.xSize/defenceMapResolution;
