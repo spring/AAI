@@ -48,14 +48,14 @@ AAIExecute::AAIExecute(AAI *ai) :
 	averageEnergyUsage = 0;
 	disabledMMakers = 0;
 
-	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_DEFENCE).GetArrayIndex()]     = &BuildDefences;
-	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_ARTILLERY).GetArrayIndex()]   = &BuildArty;
-	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STORAGE).GetArrayIndex()]            = &BuildStorage;
-	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR).GetArrayIndex()] = &BuildFactory;
-	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_SENSOR).GetArrayIndex()]      = &BuildRadar;
-	m_constructionFunctions[AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()]        = &BuildPowerPlant;
-	m_constructionFunctions[AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR).GetArrayIndex()]    = &BuildExtractor;
-	m_constructionFunctions[AAIUnitCategory(EUnitCategory::METAL_MAKER).GetArrayIndex()]        = &BuildMetalMaker;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_DEFENCE).GetArrayIndex()]     = &AAIExecute::BuildDefences;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_ARTILLERY).GetArrayIndex()]   = &AAIExecute::BuildArty;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STORAGE).GetArrayIndex()]            = &AAIExecute::BuildStorage;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR).GetArrayIndex()] = &AAIExecute::BuildFactory;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_SENSOR).GetArrayIndex()]      = &AAIExecute::BuildRadar;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()]        = &AAIExecute::BuildPowerPlant;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR).GetArrayIndex()]    = &AAIExecute::BuildExtractor;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::METAL_MAKER).GetArrayIndex()]        = &AAIExecute::BuildMetalMaker;
 }
 
 AAIExecute::~AAIExecute(void)
