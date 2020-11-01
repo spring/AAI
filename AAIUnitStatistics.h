@@ -140,6 +140,15 @@ public:
 			return 0.0f;
 	}
 
+	//! @brief Returns the deviation from max value normalized by [max value:0] -> [0:1]
+	float GetDeviationFromMax(float value) const
+	{
+		if(m_maxValue != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
+			return (m_maxValue - value) / m_maxValue;
+		else
+			return 0.0f;
+	}
+
 	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
 	float GetNormalizedSquaredDeviationFromMax(float value) const
 	{
@@ -152,7 +161,7 @@ public:
 			return 0.0f;
 	}
 
-	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
+	//! @brief Returns the normalized (interval [0:1]) deviation from min value (value must be between min and max)
 	float GetNormalizedDeviationFromMin(float value) const
 	{
 		if(m_valueRange != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
@@ -161,7 +170,16 @@ public:
 			return 0.0f;
 	}
 
-	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
+	//! @brief Returns the deviation from 0 normalized by [0:max value] -> [0:1]
+	float GetDeviationFromZero(float value) const
+	{
+		if(m_maxValue != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
+			return value / m_maxValue;
+		else
+			return 0.0f;
+	}
+
+	//! @brief Returns the normalized (interval [0:1]) deviation from min value (value must be between min and max)
 	float GetNormalizedSquaredDeviationFromMin(float value) const
 	{
 		if(m_valueRange != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small

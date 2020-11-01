@@ -116,6 +116,15 @@ public:
 	//! @brief Returns the attackedByRates read from the mod learning file upon initialization
 	const AttackedByRatesPerGamePhase& GetAttackedByRates(const AAIMapType& mapType) const { return s_attackedByRates.GetAttackedByRates(mapType); }
 
+	//! @brief Returns the future number (under construction and requested) of units of the given type
+	int GetNumberOfFutureUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].under_construction + units_dynamic[unitDefId.id].requested); }
+
+	//! @brief Returns the total number (active, under construction, and requested) of units of the given type
+	int GetTotalNumberOfUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].active + units_dynamic[unitDefId.id].under_construction + units_dynamic[unitDefId.id].requested); }
+
+	//! @brief Returns the total number (available and requested) of constructors for the given units of the given type
+	int GetTotalNumberOfConstructorsForUnit(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].constructorsAvailable + units_dynamic[unitDefId.id].constructorsRequested); }
+
 	// ******************************************************************************************************
 	// the following functions are used to determine units that suit a certain purpose
 	// if water == true, only water based units/buildings will be returned
@@ -153,8 +162,8 @@ public:
 
 	int GetJammer(int side, float cost, float range, bool water, bool canBuild);
 
-	// checks which factory is needed for a specific unit and orders it to be built
-	void BuildFactoryFor(int unit_def_id);
+	//! @brief Determines most suitable factory to construct given unit and requests its construnction
+	void RequestFactoryFor(UnitDefId unitDefId);
 
 	//! @brief Looks for most suitable construction unit for given building and places buildorder if such a unit is not already under construction/requested
 	void RequestBuilderFor(UnitDefId building);
@@ -225,6 +234,12 @@ private:
 
 	//! @brief Selects a storage according to given criteria
 	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;
+
+	//! @brief Determines the most suitable constructor for the given unit (mobile unit or building)
+	UnitDefId SelectConstructorFor(UnitDefId unitDefId) const;
+
+	//! @brief Order construction of the given construction unit (factory or builder); returns whether construction unit has been added to buildqueue of a factory
+	bool RequestConstructionOfConstructor(UnitDefId constructor);
 
 	//! @brief Calculates the rating of the given factory for the given map type
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;

@@ -793,152 +793,35 @@ void AAIBuildTable::SaveModLearnData(const GamePhase& gamePhase, const AttackedB
 	fclose(saveFile);
 }
 
-void AAIBuildTable::BuildFactoryFor(int unit_def_id)
+UnitDefId AAIBuildTable::SelectConstructorFor(UnitDefId unitDefId) const
 {
-	int constructor = 0;
-	float best_rating = -100000.0f, my_rating;
-
-	float cost = 1.0f;
-	float buildspeed = 1.0f;
-
-	// determine max values
-	float max_buildtime = 0;
-	float max_buildspeed = 0;
-	float max_cost = 0;
-
-	for(std::list<UnitDefId>::const_iterator factory = ai->s_buildTree.GetConstructedByList(UnitDefId(unit_def_id)).begin();  factory != ai->s_buildTree.GetConstructedByList(UnitDefId(unit_def_id)).end(); ++factory)
-	{
-		if(ai->s_buildTree.GetTotalCost(*factory) > max_cost)
-			max_cost = ai->s_buildTree.GetTotalCost(*factory);
-
-		if(GetUnitDef((*factory).id).buildTime > max_buildtime)
-			max_buildtime = GetUnitDef((*factory).id).buildTime;
-
-		if(GetUnitDef((*factory).id).buildSpeed > max_buildspeed)
-			max_buildspeed = GetUnitDef((*factory).id).buildSpeed;
-	}
-
-	// look for best builder to do the job
-	for(std::list<UnitDefId>::const_iterator factory = ai->s_buildTree.GetConstructedByList(UnitDefId(unit_def_id)).begin();  factory != ai->s_buildTree.GetConstructedByList(UnitDefId(unit_def_id)).end(); ++factory)
-	{
-		if(units_dynamic[(*factory).id].active + units_dynamic[(*factory).id].requested + units_dynamic[(*factory).id].under_construction < cfg->MAX_FACTORIES_PER_TYPE)
-		{
-			my_rating = buildspeed * (GetUnitDef((*factory).id).buildSpeed / max_buildspeed)
-				- (GetUnitDef((*factory).id).buildTime / max_buildtime)
-				- cost * (ai->s_buildTree.GetTotalCost(*factory) / max_cost);
-
-			// prefer builders that can be built atm
-			if(units_dynamic[(*factory).id].constructorsAvailable > 0)
-				my_rating += 2.0f;
-
-			// prevent AAI from requesting factories that cannot be built within the current base
-			if(ai->s_buildTree.GetMovementType(*factory).IsStaticLand() == true)
-			{
-				if(ai->Getbrain()->GetBaseFlatLandRatio() > 0.1f)
-					my_rating *= ai->Getbrain()->GetBaseFlatLandRatio();
-				else
-					my_rating = -100000.0f;
-			}
-			else if(ai->s_buildTree.GetMovementType(*factory).IsStaticSea() == true)
-			{
-				if(ai->Getbrain()->GetBaseWaterRatio() > 0.1f)
-					my_rating *= ai->Getbrain()->GetBaseWaterRatio();
-				else
-					my_rating = -100000.0f;
-			}
-
-			if(my_rating > best_rating)
-			{
-				best_rating = my_rating;
-				constructor = (*factory).id;
-			}
-		}
-	}
-
-	if(constructor && units_dynamic[constructor].requested + units_dynamic[constructor].under_construction <= 0)
-	{
-		ConstructorRequested(UnitDefId(constructor));
-
-		m_factoryBuildqueue.push_back(UnitDefId(constructor));
-
-		// factory requested
-		if( ai->s_buildTree.GetUnitCategory(UnitDefId(constructor)).IsStaticConstructor() )
-		{
-			units_dynamic[constructor].requested += 1;
-
-			if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
-			{
-				ai->Log("BuildFactoryFor(%s) is requesting builder for %s\n", ai->s_buildTree.GetUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
-				RequestBuilderFor(UnitDefId(constructor));
-			}
-
-			// debug
-			ai->Log("BuildFactoryFor(%s) requested %s\n", ai->s_buildTree.GetUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
-		}
-		// mobile constructor requested
-		else
-		{
-			// only mark as urgent (unit gets added to front of buildqueue) if no constructor of that type already exists
-			const BuildQueuePosition queuePosition = (units_dynamic[constructor].active > 0) ? BuildQueuePosition::SECOND : BuildQueuePosition::FRONT;
-
-			if(ai->Getexecute()->AddUnitToBuildqueue(UnitDefId(constructor), 1, queuePosition, true))
-			{
-				// increase counter if mobile factory is a builder as well
-				if(ai->s_buildTree.GetUnitType(UnitDefId(constructor)).IsBuilder())
-					ai->Getut()->futureBuilders += 1;
-
-				if(units_dynamic[constructor].constructorsAvailable + units_dynamic[constructor].constructorsRequested <= 0)
-				{
-					ai->Log("BuildFactoryFor(%s) is requesting factory for %s\n", ai->s_buildTree.GetUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
-					BuildFactoryFor(constructor);
-				}
-
-				// debug
-				ai->Log("BuildFactoryFor(%s) requested %s\n", ai->s_buildTree.GetUnitTypeProperties(UnitDefId(unit_def_id)).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(UnitDefId(constructor)).m_name.c_str());
-			}
-			else
-			{
-				//something went wrong -> decrease values
-				units_dynamic[constructor].requested -= 1;
-
-				// decrease "contructor requested" counters of buildoptions 
-				UnfinishedConstructorKilled(UnitDefId(constructor));
-			}
-		}
-	}
-}
-
-void AAIBuildTable::RequestBuilderFor(UnitDefId building)
-{
-	//-----------------------------------------------------------------------------------------------------------------
-	// determine criteria for selection of construction unit
-	//-----------------------------------------------------------------------------------------------------------------
 	float cost = 1.0f;
 	float buildtime = 0.5f;
 	float buildpower = 1.0f;
-	float constructableBuilderBonus = 2.0f;
+	float constructorAvailableBonus = 2.0f;
 
-	if(units_dynamic[building.id].constructorsAvailable == 0)
+	if(units_dynamic[unitDefId.id].constructorsAvailable == 0)
 	{
 		buildtime = 2.0f;
+		cost = 1.5f;
 	}
-	else if(units_dynamic[building.id].constructorsAvailable < 2)
+	else if(units_dynamic[unitDefId.id].constructorsAvailable < 2)
 	{
 		buildtime  = 1.0f;
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
-	// determine statistical data needed for selection of contruction unit for given building
+	// determine statistical data needed for selection
 	//-----------------------------------------------------------------------------------------------------------------
 	StatisticalData costStatistics;
 	StatisticalData buildtimeStatistics;
 	StatisticalData buildpowerStatistics;
 
-	for(auto builder : ai->s_buildTree.GetConstructedByList(building))
+	for(auto constructor : ai->s_buildTree.GetConstructedByList(unitDefId))
 	{
-		costStatistics.AddValue( ai->s_buildTree.GetTotalCost(builder) );
-		buildtimeStatistics.AddValue( ai->s_buildTree.GetBuildtime(builder) );
-		buildpowerStatistics.AddValue( ai->s_buildTree.GetBuildspeed(builder) );
+		costStatistics.AddValue( ai->s_buildTree.GetTotalCost(constructor) );
+		buildtimeStatistics.AddValue( ai->s_buildTree.GetBuildtime(constructor) );
+		buildpowerStatistics.AddValue( ai->s_buildTree.GetBuildspeed(constructor) );
 	}
 
 	costStatistics.Finalize();
@@ -946,64 +829,116 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 	buildpowerStatistics.Finalize();
 
 	//-----------------------------------------------------------------------------------------------------------------
-	// select builder according to determined criteria
+	// select constructor according to determined criteria
 	//-----------------------------------------------------------------------------------------------------------------
+
+	UnitDefId selectedConstructor;
 	float highestRating(0.0f);
-	UnitDefId selectedBuilder;
 
-	for(auto builder : ai->s_buildTree.GetConstructedByList(building))
+	for(const auto constructor : ai->s_buildTree.GetConstructedByList(unitDefId))
 	{
-		// prevent ai from ordering too many builders of the same type/commanders/builders that cant be built atm
-		if(units_dynamic[builder.id].active + units_dynamic[builder.id].under_construction + units_dynamic[builder.id].requested < cfg->MAX_BUILDERS_PER_TYPE)
-		{
-			float rating =   cost       * costStatistics.GetNormalizedDeviationFromMax( ai->s_buildTree.GetTotalCost(builder) )
-			               + buildtime  * buildtimeStatistics.GetNormalizedDeviationFromMax( ai->s_buildTree.GetBuildtime(builder) )
-				           + buildpower * buildpowerStatistics.GetNormalizedDeviationFromMin( ai->s_buildTree.GetBuildspeed(builder) );
+		const int maxNumberOfConstructors = ai->s_buildTree.GetMovementType(constructor).IsStatic() ? cfg->MAX_FACTORIES_PER_TYPE : cfg->MAX_BUILDERS_PER_TYPE;
 
-			if(units_dynamic[builder.id].constructorsAvailable > 0)
-				rating += constructableBuilderBonus;
+		if(GetTotalNumberOfUnits(constructor) < maxNumberOfConstructors)
+		{
+			float rating =   cost       * costStatistics.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(constructor) )
+			               + buildtime  * buildtimeStatistics.GetDeviationFromMax( ai->s_buildTree.GetBuildtime(constructor) )
+				           + buildpower * buildpowerStatistics.GetDeviationFromZero( ai->s_buildTree.GetBuildspeed(constructor) )
+						   + 0.1f;
+
+			if(units_dynamic[constructor.id].constructorsAvailable > 0)
+				rating += constructorAvailableBonus;
 
 			// take movement type into consideration (dont build ground based construction units on water maps and water bound construction units on land maps)
-			const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(builder);
+			const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(constructor);
 
-			if(moveType.IsSeaUnit())
+			if(moveType.IsSea())
 				rating *= (0.2f + 0.8f * AAIMap::s_waterTilesRatio);
-			else if(moveType.IsGround())
+			else if(moveType.IsGround() || moveType.IsStaticLand())
 				rating *= (0.2f + 0.8f * AAIMap::s_landTilesRatio);
 
 			if(rating > highestRating)
 			{
-				highestRating   = rating;
-				selectedBuilder = builder;
+				highestRating       = rating;
+				selectedConstructor = constructor;
 			}
 		}
 	}
 
-	//-----------------------------------------------------------------------------------------------------------------
-	// order construction if valid builder found and check if factory needs to ordered
-	//-----------------------------------------------------------------------------------------------------------------
-	if( selectedBuilder.IsValid() && (units_dynamic[selectedBuilder.id].under_construction + units_dynamic[selectedBuilder.id].requested <= 0) )
+	return selectedConstructor;
+}
+
+bool AAIBuildTable::RequestConstructionOfConstructor(UnitDefId constructor)
+{
+	if(GetTotalNumberOfConstructorsForUnit(constructor) <= 0)
 	{
-		// build factory if necessary
-		if(units_dynamic[selectedBuilder.id].constructorsAvailable + units_dynamic[selectedBuilder.id].constructorsRequested <= 0)
+		//ai->Log("BuildFactoryFor(%s) is requesting factory for %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(constructor).m_name.c_str());
+		RequestFactoryFor(constructor);
+	}
+	else
+	{	
+		// only mark as urgent (unit gets added to front of buildqueue) if no constructor of that type already exists
+		const BuildQueuePosition queuePosition = (units_dynamic[constructor.id].active > 1) ? BuildQueuePosition::SECOND : BuildQueuePosition::FRONT;
+
+		if(ai->Getexecute()->AddUnitToBuildqueue(constructor, 1, queuePosition, true))
 		{
-			ai->Log("RequestBuilderFor(%s) is requesting factory for %s\n", ai->s_buildTree.GetUnitTypeProperties(building).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedBuilder).m_name.c_str());
-			BuildFactoryFor(selectedBuilder.id);
+			ConstructorRequested(constructor);
+			return true;
 		}
+	}
+	
+	return false;
+}
 
-		// mark as urgent (unit gets added to front of buildqueue) if no/only one constructor of that type already exists
-		const BuildQueuePosition queuePosition = (units_dynamic[selectedBuilder.id].active > 1) ? BuildQueuePosition::SECOND : BuildQueuePosition::FRONT;
+void AAIBuildTable::RequestFactoryFor(UnitDefId unitDefId)
+{
+	const UnitDefId selectedConstructor = SelectConstructorFor(unitDefId);
+	
+	//-----------------------------------------------------------------------------------------------------------------
+	// order construction if valid factory/constructor selected and check if constuctor for selected factory is available
+	//-----------------------------------------------------------------------------------------------------------------
+	if(selectedConstructor.IsValid() && (GetNumberOfFutureUnits(selectedConstructor) <= 0) )
+	{
+		ConstructorRequested(selectedConstructor);
 
-		if(ai->Getexecute()->AddUnitToBuildqueue(selectedBuilder, 1, queuePosition, true))
+		// factory requested
+		if( ai->s_buildTree.GetUnitCategory(selectedConstructor).IsStaticConstructor() )
+		{			
+			m_factoryBuildqueue.push_back(selectedConstructor);
+			units_dynamic[selectedConstructor.id].requested += 1;
+
+			if(GetTotalNumberOfConstructorsForUnit(selectedConstructor) <= 0)
+			{
+				//ai->Log("RequestFactoryFor(%s) is requesting builder for %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedConstructor).m_name.c_str());
+				RequestBuilderFor(selectedConstructor);
+			}
+
+			// debug
+			ai->Log("RequestFactoryFor(%s) requested %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedConstructor).m_name.c_str());
+		}
+		// mobile constructor requested
+		else
 		{
-			ai->Getut()->futureBuilders += 1;
-			ConstructorRequested(selectedBuilder);
+			const bool successful = RequestConstructionOfConstructor(selectedConstructor);
 
-			ai->Log("RequestBuilderFor(%s) requested %s\n", ai->s_buildTree.GetUnitTypeProperties(building).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedBuilder).m_name.c_str());
+			if(successful)
+				ai->Log("RequestFactoryFor(%s) requested %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedConstructor).m_name.c_str());
 		}
 	}
 }
 
+void AAIBuildTable::RequestBuilderFor(UnitDefId building)
+{
+	const UnitDefId selectedBuilder = SelectConstructorFor(building);
+
+	if( selectedBuilder.IsValid() && (GetNumberOfFutureUnits(selectedBuilder) <= 0) )
+	{
+		const bool successful = RequestConstructionOfConstructor(selectedBuilder);
+
+		if(successful)
+			ai->Log("RequestBuilderFor(%s) requested %s\n", ai->s_buildTree.GetUnitTypeProperties(building).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedBuilder).m_name.c_str());
+	}
+}
 
 /*void AAIBuildTable::AddAssistant(uint32_t allowedMovementTypes, bool canBuild)
 {
@@ -1048,7 +983,6 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 		if(ai->Getexecute()->AddUnitToBuildqueue(UnitDefId(builder), 1, true))
 		{
 			units_dynamic[builder].requested += 1;
-			ai->Getut()->futureBuilders += 1;
 			ai->Getut()->UnitRequested(AAIUnitCategory(EUnitCategory::MOBILE_CONSTRUCTOR));
 
 			// increase number of requested builders of all buildoptions

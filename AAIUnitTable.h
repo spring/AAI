@@ -117,7 +117,6 @@ public:
 	std::set<int> recon;
 
 	// number of active/under construction units of all different types
-	int activeBuilders, futureBuilders;
 	int activeFactories, futureFactories;
 
 private:

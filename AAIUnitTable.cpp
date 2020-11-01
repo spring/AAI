@@ -42,8 +42,7 @@ AAIUnitTable::AAIUnitTable(AAI *ai)
 	m_activeUnitsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
 	m_underConstructionUnitsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
 	m_requestedUnitsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
-
-	activeBuilders = futureBuilders = 0;
+	
 	activeFactories = futureFactories = 0;
 }
 
@@ -119,12 +118,6 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 	// increase/decrease number of available/requested builders for all buildoptions of the builder
 	ai->Getbt()->ConstructorFinished(unitDefId);
 
-	if(IsBuilder(unitDefId) == true)
-	{
-		--futureBuilders;
-		++activeBuilders;
-	}
-
 	if( (IsFactory(unitDefId) == true) && (ai->s_buildTree.GetMovementType(unitDefId).IsStatic() == true) )
 	{
 		--futureFactories;
@@ -134,9 +127,6 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 
 void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 {
-	if(IsBuilder(UnitDefId(def_id)) == true)
-		activeBuilders -= 1;
-
 	if( (IsFactory(UnitDefId(def_id)) == true) && (ai->s_buildTree.GetMovementType(UnitDefId(def_id)).IsStatic() == true) )
 		activeFactories -= 1;
 

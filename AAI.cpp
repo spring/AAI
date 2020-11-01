@@ -105,18 +105,17 @@ AAI::~AAI()
 
 	Log("Future metal/energy supply:  %i / %i\n\n", (int)execute->futureAvailableMetal, (int)execute->futureAvailableEnergy);
 
-	Log("Future/active builders:      %i / %i\n", ut->futureBuilders, ut->activeBuilders);
 	Log("Future/active factories:     %i / %i\n\n", ut->futureFactories, ut->activeFactories);
 
 	Log("Unit production rate: %i\n\n", execute->unitProductionRate);
 
-	Log("Requested constructors:\n");
-	for(auto fac = s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side).begin(); fac != s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side).end(); ++fac)
+	Log("Active/under construction/requested constructors:\n");
+	for(const auto factory : s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side))
 	{
-		Log("%-24s: %i\n", s_buildTree.GetUnitTypeProperties(*fac).m_name.c_str(), bt->units_dynamic[fac->id].requested);
+		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(factory).m_name.c_str(), bt->units_dynamic[factory.id].active, bt->units_dynamic[factory.id].under_construction, bt->units_dynamic[factory.id].requested);
 	}
-	for(auto builder = s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side).begin(); builder != s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side).end(); ++builder)
-		Log("%-24s: %i\n", s_buildTree.GetUnitTypeProperties(*builder).m_name.c_str(), bt->units_dynamic[builder->id].requested);
+	for(const auto builder : s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side))
+		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(builder).m_name.c_str(), bt->units_dynamic[builder.id].active, bt->units_dynamic[builder.id].under_construction, bt->units_dynamic[builder.id].requested);
 
 	GamePhase gamePhase(m_aiCallback->GetCurrentFrame());
 	const AttackedByRatesPerGamePhase& attackedByRates = brain->GetAttackedByRates();
@@ -345,7 +344,6 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	{
 		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
 		ut->UnitRequested(AAIUnitCategory(EUnitCategory::COMMANDER));
-		ut->futureBuilders += 1;
 
 		// set side
 		m_side = s_buildTree.GetSideOfUnitType( unitDefId) ;
@@ -558,8 +556,6 @@ void AAI::UnitDestroyed(int unit, int attacker)
 		{
 			if (s_buildTree.GetUnitType(unitDefId).IsBuilder())
 			{
-				--ut->futureBuilders;
-
 				bt->UnfinishedConstructorKilled(unitDefId);
 			}
 			

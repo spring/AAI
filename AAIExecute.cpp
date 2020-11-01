@@ -388,7 +388,7 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueue
 	
 			selectedBuildqueue->insert(insertPosition, number, unitDefId);
 			ai->Getbt()->units_dynamic[unitDefId.id].requested += number;
-			ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), 2);
+			ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), number);
 			return true;
 		}
 	}
