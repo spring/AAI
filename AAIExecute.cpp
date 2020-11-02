@@ -2033,7 +2033,7 @@ void AAIExecute::CheckRecon()
 
 struct CompareConstructionUrgency
 {
-    bool operator()(const std::pair<int, float>& lhs, const std::pair<int, float>& rhs)
+    bool operator()(const std::pair<int, float>& lhs, const std::pair<int, float>& rhs) const
     {
 		return lhs.second > rhs.second;
     }
