@@ -598,7 +598,7 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 	return best_jammer;
 }
 
-UnitDefId AAIBuildTable::SelectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable)
+UnitDefId AAIBuildTable::SelectScout(int side, float sightRange, float cost, float cloakable, uint32_t movementType, int randomness, bool factoryAvailable)
 {
 	float highestRating(0.0f);
 	UnitDefId selectedScout;
@@ -608,17 +608,22 @@ UnitDefId AAIBuildTable::SelectScout(int side, float sightRange, float cost, uin
 
 	for(auto scoutUnitDefId : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side))
 	{
-		const bool movementTypeAllowed     = ai->s_buildTree.GetMovementType(scoutUnitDefId.id).IsIncludedIn(movementType);
+		const AAIMovementType& moveType    = ai->s_buildTree.GetMovementType(scoutUnitDefId);
 		const bool factoryPrerequisitesMet = !factoryAvailable || (units_dynamic[scoutUnitDefId.id].constructorsAvailable > 0);
 
-		if( movementTypeAllowed && factoryPrerequisitesMet )
+		if( moveType.IsIncludedIn(movementType) && factoryPrerequisitesMet )
 		{
-			float rating =     sightRange * sightRanges.GetNormalizedDeviationFromMin(ai->s_buildTree.GetMaxRange(scoutUnitDefId))
-							+  cost * costs.GetNormalizedDeviationFromMax( ai->s_buildTree.GetTotalCost(scoutUnitDefId) )
+			float rating =     sightRange * sightRanges.GetDeviationFromZero(ai->s_buildTree.GetMaxRange(scoutUnitDefId))
+							+  cost       * costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(scoutUnitDefId) )
 							+ (0.1f * ((float)(rand()%randomness)));
 
-			if(cloakable && GetUnitDef(scoutUnitDefId.id).canCloak)
-				rating += 2.0f;
+			if(GetUnitDef(scoutUnitDefId.id).canCloak)
+				rating += cloakable;
+
+			if(moveType.IsSeaUnit())
+				rating *= (0.2f + 0.8f * AAIMap::s_waterTilesRatio);
+			else if(moveType.IsGround())
+				rating *= (0.2f + 0.8f * AAIMap::s_landTilesRatio);
 
 			if(rating > highestRating)
 			{

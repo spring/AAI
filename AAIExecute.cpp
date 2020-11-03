@@ -266,9 +266,9 @@ void AAIExecute::BuildScouts()
 		const uint32_t suitableMovementTypes = ai->Getmap()->GetSuitableMovementTypesForMap();
 
 		// request cloakable scouts from time to time
-		const bool cloaked = (rand()%5 == 1) ? true : false;
+		const float cloaked = (rand()%5 == 1) ? 1.0f : 0.25f;
 		
-		const UnitDefId scoutId = ai->Getbt()->SelectScout(ai->GetSide(), sightRange, cost, suitableMovementTypes, 10, cloaked, availableFactoryNeeded);
+		const UnitDefId scoutId = ai->Getbt()->SelectScout(ai->GetSide(), sightRange, cost, cloaked, suitableMovementTypes, 10, availableFactoryNeeded);
 
 		if(scoutId.IsValid())
 		{
