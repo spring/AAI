@@ -325,7 +325,7 @@ float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId) const
 
 		const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(unit);
 	
-		if(moveType.IsSeaUnit())
+		if(moveType.IsMobileSea())
 			rating += AAIMap::s_waterTilesRatio;
 		else if(moveType.IsGround())
 			rating += AAIMap::s_landTilesRatio;
@@ -383,7 +383,7 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 				++combatUnits;
 				break;
 			case EUnitCategory::MOBILE_CONSTRUCTOR:
-				if( ai->s_buildTree.GetMovementType(*unit).IsSeaUnit() )
+				if( ai->s_buildTree.GetMovementType(*unit).IsMobileSea() )
 				{
 					if(considerWater)
 						ratingData.canConstructBuilder = true;
@@ -399,7 +399,7 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 				}
 				break;
 			case EUnitCategory::SCOUT:
-				if( ai->s_buildTree.GetMovementType(*unit).IsSeaUnit() )
+				if( ai->s_buildTree.GetMovementType(*unit).IsMobileSea() )
 				{
 					if(considerWater)
 						ratingData.canConstructScout = true;
@@ -642,7 +642,7 @@ UnitDefId AAIBuildTable::SelectScout(int side, float sightRange, float cost, flo
 			if(GetUnitDef(scoutUnitDefId.id).canCloak)
 				rating += cloakable;
 
-			if(moveType.IsSeaUnit())
+			if(moveType.IsMobileSea())
 				rating *= (0.2f + 0.8f * AAIMap::s_waterTilesRatio);
 			else if(moveType.IsGround())
 				rating *= (0.2f + 0.8f * AAIMap::s_landTilesRatio);

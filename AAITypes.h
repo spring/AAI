@@ -104,20 +104,8 @@ public:
 		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & staticSeaBitmask ); 
 	}
 
-	bool IsGround() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_GROUND); }
-
-	bool IsHover() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_HOVER); }
-
-	bool IsAir() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AIR); }
-
-	bool IsAmphibious() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AMPHIBIOUS); }
-
-	bool IsShip() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_SEA_FLOATER); }
-
-	bool IsSubmarine() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED); }
-
 	//! @brief Returns whether unit type can only move on sea (i.e. a floating or submerged unit)
-	bool IsSeaUnit() const
+	bool IsMobileSea() const
 	{
 		const uint32_t seaUnitBitmask =   static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER)
 										+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
@@ -132,6 +120,18 @@ public:
 									+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_STATIC_SEA_SUBMERGED);
 		return static_cast<bool>( static_cast<uint32_t>(m_movementType) & seaBitmask ); 
 	}
+
+	bool IsGround() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_GROUND); }
+
+	bool IsHover() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_HOVER); }
+
+	bool IsAir() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AIR); }
+
+	bool IsAmphibious() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_AMPHIBIOUS); }
+
+	bool IsShip() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_SEA_FLOATER); }
+
+	bool IsSubmarine() const { return (m_movementType == EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED); }
 
 	//! @brief Returns whether this movement type is included in the given movement type bitmask.
 	bool IsIncludedIn(uint32_t moveTypesBitmask) const { return static_cast<bool>( static_cast<uint32_t>(m_movementType) & moveTypesBitmask); }

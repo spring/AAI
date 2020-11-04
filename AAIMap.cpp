@@ -2119,7 +2119,7 @@ const AAISector* AAIMap::DetermineSectorToContinueAttack(const AAISector *curren
 	const AAISector* selectedSector(nullptr);
 
 	const bool landSectorSelectable  = moveTypeOfUnits.IsAir() || moveTypeOfUnits.IsHover() || moveTypeOfUnits.IsAmphibious() || moveTypeOfUnits.IsGround();
-	const bool waterSectorSelectable = moveTypeOfUnits.IsAir() || moveTypeOfUnits.IsHover() || moveTypeOfUnits.IsSeaUnit();
+	const bool waterSectorSelectable = moveTypeOfUnits.IsAir() || moveTypeOfUnits.IsHover() || moveTypeOfUnits.IsMobileSea();
 
 	for(int x = 0; x < xSectors; x++)
 	{

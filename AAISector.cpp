@@ -672,7 +672,7 @@ float3 AAISector::DetermineUnitMovePos(AAIMovementType moveType, int continentId
 	BuildMapTileType forbiddenMapTileTypes(EBuildMapTileType::OCCUPIED);
 	forbiddenMapTileTypes.SetTileType(EBuildMapTileType::BLOCKED_SPACE); 
 
-	if(moveType.IsSeaUnit())
+	if(moveType.IsMobileSea())
 		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::LAND);
 	else if(moveType.IsAmphibious() || moveType.IsHover())
 		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::CLIFF);
