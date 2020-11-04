@@ -51,7 +51,7 @@ AAIExecute::AAIExecute(AAI *ai) :
 	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_DEFENCE).GetArrayIndex()]     = &AAIExecute::BuildDefences;
 	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_ARTILLERY).GetArrayIndex()]   = &AAIExecute::BuildArty;
 	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STORAGE).GetArrayIndex()]            = &AAIExecute::BuildStorage;
-	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR).GetArrayIndex()] = &AAIExecute::BuildFactory;
+	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR).GetArrayIndex()] = &AAIExecute::BuildStaticConstructor;
 	m_constructionFunctions[AAIUnitCategory(EUnitCategory::STATIC_SENSOR).GetArrayIndex()]      = &AAIExecute::BuildRadar;
 	m_constructionFunctions[AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()]        = &AAIExecute::BuildPowerPlant;
 	m_constructionFunctions[AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR).GetArrayIndex()]    = &AAIExecute::BuildExtractor;
@@ -315,6 +315,20 @@ float3 AAIExecute::DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) c
 	}
 
 	return ZeroVector;
+}
+
+float3 AAIExecute::DetermineBuildsiteInSector(UnitDefId building, const AAISector* sector) const
+{
+	// try random buildpos first
+	const float3 buildsite = sector->GetRandomBuildsite(building, 20);
+
+	if(buildsite.x > 0.0f)
+		return buildsite;
+	else
+	{
+		// search systematically for buildpos (i.e. search returns a buildpos if one is available in the sector)
+		return ai->Getmap()->DetermineBuildsiteInSector(building, sector);
+	}
 }
 
 float3 AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitDefId) const
@@ -1278,25 +1292,51 @@ bool AAIExecute::BuildArty()
 	return true;
 }
 
-bool AAIExecute::BuildFactory()
+struct CompareFactoryUrgency
 {
-	const AAIUnitCategory staticConstructor(EUnitCategory::STATIC_CONSTRUCTOR);
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(staticConstructor) > 0)
+	bool operator()(const std::pair<UnitDefId, float>& lhs, const std::pair<UnitDefId, float>& rhs) const
+	{
+		return lhs.second > rhs.second;
+	}
+};
+
+bool AAIExecute::BuildStaticConstructor()
+{
+	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_CONSTRUCTOR) > 0)
 		return true;
 
-	auto factory = ai->Getbt()->GetFactoryBuildqueue().begin();
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine which factories have the highest priority
+	//-----------------------------------------------------------------------------------------------------------------
 
-	while( factory != ai->Getbt()->GetFactoryBuildqueue().end() )
+	std::set< std::pair<UnitDefId, float>, CompareFactoryUrgency> requestedFactories;
+
+	//ai->Log("Building next factory:\n");
+
+	for(auto factory : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()) )
+	{
+		if(ai->Getbt()->GetDynamicUnitTypeData(factory).requested > 0)
+		{
+			const float urgency = ai->Getbrain()->DetermineConstructionUrgencyOfFactory(factory);
+			requestedFactories.insert( std::pair<UnitDefId, float>(factory, urgency) );
+			//ai->Log("Added %s - %f\n", ai->s_buildTree.GetUnitTypeProperties(factory).m_name.c_str(), urgency);
+		}
+	}
+	
+	//-----------------------------------------------------------------------------------------------------------------
+	// try to build factories according to their priority
+	//-----------------------------------------------------------------------------------------------------------------
+
+	for(auto requestedFactory : requestedFactories)
 	{
 		// find suitable builder
-		AAIConstructor* builder = ai->Getut()->FindBuilder(factory->id, true);
+		AAIConstructor* builder = ai->Getut()->FindBuilder(requestedFactory.first.id, true);
 	
 		if(builder == nullptr)
 		{
 			// try construction of next factory in queue if there is no active builder (i.e. potential builders not just currently busy)
-			if( ai->Getbt()->units_dynamic[factory->id].constructorsAvailable <= 0) 
+			if( ai->Getbt()->GetDynamicUnitTypeData(requestedFactory.first).constructorsAvailable <= 0) 
 			{
-				++factory;
 				continue;
 			}
 			else
@@ -1306,80 +1346,59 @@ bool AAIExecute::BuildFactory()
 			}
 		}
 
-		const bool isSeaFactory( ai->s_buildTree.GetMovementType(*factory).IsStaticSea() );
-	
+		//-----------------------------------------------------------------------------------------------------------------
+		// builder is available -> look for suitable buildsite
+		//-----------------------------------------------------------------------------------------------------------------
+		const bool isSeaFactory( ai->s_buildTree.GetMovementType(requestedFactory.first).IsStaticSea() );
+
+		ai->Getbrain()->m_sectorsInDistToBase[0].sort(isSeaFactory ? suitable_for_sea_factory : suitable_for_ground_factory);
+
+		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
+		{
+			const float3 buildsite = DetermineBuildsiteInSector(requestedFactory.first, sector);
+
+			if(buildsite.x > 0.0f)
+			{
+				float min_dist;
+				builder = ai->Getut()->FindClosestBuilder(requestedFactory.first, &buildsite, true, &min_dist);
+
+				if(builder != nullptr)
+				{
+					builder->GiveConstructionOrder(requestedFactory.first, buildsite);
+
+					ai->Getbt()->ConstructionOrderForFactoryGiven(requestedFactory.first);
+					return true;
+				}
+				else 
+				{
+					if(ai->Getbt()->GetTotalNumberOfConstructorsForUnit(requestedFactory.first) <= 0)
+						ai->Getbt()->RequestBuilderFor(requestedFactory.first);
+
+					return false;
+				}
+			}
+		}
+
+		// no buildpos found in whole base -> expand base
+		bool expanded = false;
+
+		// no suitable buildsite found
 		if(isSeaFactory)
-			ai->Getbrain()->m_sectorsInDistToBase[0].sort(suitable_for_sea_factory);
-		else
-			ai->Getbrain()->m_sectorsInDistToBase[0].sort(suitable_for_ground_factory);
-
-		// find buildpos
-		const std::list<AAISector*>& baseSectorsList = ai->Getbrain()->m_sectorsInDistToBase[0];
-		float3 buildpos;
-
-		for(auto sector = baseSectorsList.begin(); sector != baseSectorsList.end(); ++sector)
 		{
-			// try random buildpos first
-			buildpos = (*sector)->GetRandomBuildsite(factory->id, 20, isSeaFactory);
-
-			if(buildpos.x > 0.0f)
-				break;
-			else
-			{
-				// search systematically for buildpos (i.e. search returns a buildpos if one is available in the sector)
-				buildpos = ai->Getmap()->DetermineBuildsiteInSector(*factory, *sector);
-
-				if(buildpos.x > 0.0f)
-					break;
-			}
-		}
-
-		if(buildpos.x > 0.0f)
-		{
-			// buildpos found -> l
-			float min_dist;
-			builder = ai->Getut()->FindClosestBuilder(*factory, &buildpos, true, &min_dist);
-
-			if(builder != nullptr)
-			{
-				// give build order
-				builder->GiveConstructionOrder(*factory, buildpos);
-
-				ai->Getbt()->ConstructionOrderForFactoryGiven(*factory);
-				return true;
-			}
-			else 
-			{
-				if(ai->Getbt()->units_dynamic[factory->id].constructorsRequested + ai->Getbt()->units_dynamic[factory->id].constructorsAvailable <= 0)
-					ai->Getbt()->RequestBuilderFor(*factory);
-
-				return false;
-			}
+			ai->Getbrain()->ExpandBase(WATER_SECTOR);
+			ai->Log("Base expanded by BuildFactory() (water sector)\n");
 		}
 		else
 		{
-			// no buildpos found in whole base -> expand base
-			bool expanded = false;
-
-			// no suitable buildsite found
-			if(isSeaFactory)
-			{
-				ai->Getbrain()->ExpandBase(WATER_SECTOR);
-				ai->Log("Base expanded by BuildFactory() (water sector)\n");
-			}
-			else
-			{
-				expanded = ai->Getbrain()->ExpandBase(LAND_SECTOR);
-				ai->Log("Base expanded by BuildFactory()\n");
-			}
-
-			return false;
+			expanded = ai->Getbrain()->ExpandBase(LAND_SECTOR);
+			ai->Log("Base expanded by BuildFactory()\n");
 		}
+
+		return false;	
 	}
 
 	return true;
 }
-
 
 bool AAIExecute::BuildRadar()
 {
@@ -1985,9 +2004,9 @@ void AAIExecute::CheckFactories()
 	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR)) > 0)
 		return;
 
-	for(auto fac = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()).begin(); fac != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()).end(); ++fac)
+	for(auto factory : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()) )
 	{
-		if(ai->Getbt()->units_dynamic[fac->id].requested > 0)
+		if(ai->Getbt()->units_dynamic[factory.id].requested > 0)
 		{
 			// at least one requested factory has not been built yet
 			const float urgency = (ai->Getut()->activeFactories > 0) ? 0.4f : 3.5f;
@@ -2012,10 +2031,10 @@ void AAIExecute::CheckRecon()
 
 struct CompareConstructionUrgency
 {
-    bool operator()(const std::pair<int, float>& lhs, const std::pair<int, float>& rhs) const
-    {
+	bool operator()(const std::pair<int, float>& lhs, const std::pair<int, float>& rhs) const
+	{
 		return lhs.second > rhs.second;
-    }
+	}
 };
 
 void AAIExecute::CheckConstruction()

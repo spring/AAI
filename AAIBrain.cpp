@@ -675,3 +675,22 @@ bool AAIBrain::SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const
 
 	return false;
 }
+
+float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) const
+{
+	const StatisticalData& costs  = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
+	
+	
+	float rating =    ai->Getbt()->DetermineFactoryRating(factoryDefId)
+					+ costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(factoryDefId) );
+					+ static_cast<float>(ai->Getbt()->GetDynamicUnitTypeData(factoryDefId).active + 1);
+
+	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(factoryDefId);
+
+	if(moveType.IsSea())
+		rating *= (0.3f + 0.35f * (AAIMap::s_waterTilesRatio + m_baseWaterRatio) );
+	else if(moveType.IsGround() || moveType.IsStaticLand())
+		rating *= (0.3f + 0.35f * (AAIMap::s_landTilesRatio  + m_baseFlatLandRatio) );
+
+	return rating;
+}

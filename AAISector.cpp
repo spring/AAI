@@ -467,19 +467,15 @@ bool AAISector::ShallBeConsideredForExtractorConstruction() const
 			&& (IsOccupiedByEnemies() == false);	
 }
 
-float3 AAISector::GetRandomBuildsite(int building, int tries, bool water)
+float3 AAISector::GetRandomBuildsite(UnitDefId buildingDefId, int tries) const
 {
-	if(building < 1)
-	{
-		ai->Log("ERROR: Invalid building def id %i passed to AAISector::GetRadarBuildsite()\n", building);
-		return ZeroVector;
-	}
-
 	int xStart, xEnd, yStart, yEnd;
-
 	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
-	return ai->Getmap()->GetRandomBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, tries, water);
+	const bool                     water   = ai->s_buildTree.GetMovementType(buildingDefId).IsSea();
+	const springLegacyAI::UnitDef* unitDef  = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+
+	return ai->Getmap()->GetRandomBuildsite(unitDef, xStart, xEnd, yStart, yEnd, tries, water);
 }
 
 float3 AAISector::GetRadarArtyBuildsite(int building, float range, bool water)

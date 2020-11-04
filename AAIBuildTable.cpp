@@ -314,6 +314,28 @@ void AAIBuildTable::DetermineCombatPowerWeights(MobileTargetTypeValues& combatPo
 	}
 }
 
+float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId) const
+{
+	float rating(0.0f);
+	int numberOfUnits(0);
+
+	for(auto unit : ai->s_buildTree.GetCanConstructList(factoryDefId))
+	{
+		++numberOfUnits;
+
+		const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(unit);
+	
+		if(moveType.IsSeaUnit())
+			rating += AAIMap::s_waterTilesRatio;
+		else if(moveType.IsGround())
+			rating += AAIMap::s_landTilesRatio;
+		else
+			rating += 1.0f;
+	}
+
+	return (numberOfUnits > 0) ? rating / static_cast<float>(numberOfUnits) : 0.0f;
+}
+
 void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const
 {
 	ratingData.canConstructBuilder = false;

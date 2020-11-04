@@ -117,7 +117,8 @@ public:
 	//! @brief Returns true if sector shall be considered for selection of construction of further metal extractor
 	bool ShallBeConsideredForExtractorConstruction() const;
 
-	float3 GetRandomBuildsite(int building, int tries, bool water = false);
+	//! @brief Returns a buildsite that has been chosen randomly (the given number of trials) - ZeroVector if none found
+	float3 GetRandomBuildsite(UnitDefId buildingDefId, int trials) const;
 
 	float3 GetRadarArtyBuildsite(int building, float range, bool water);
 

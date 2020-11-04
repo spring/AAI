@@ -769,9 +769,9 @@ float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISect
 	int xStart, xEnd, yStart, yEnd;
 	sector->DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
-	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(buildingDefId);
-	const bool          water     = ai->s_buildTree.GetMovementType(buildingDefId).IsSea();
-	const UnitDef*      def       = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+	const UnitFootprint            footprint = DetermineRequiredFreeBuildspace(buildingDefId);
+	const bool                     water     = ai->s_buildTree.GetMovementType(buildingDefId).IsSea();
+	const springLegacyAI::UnitDef* def       = &ai->Getbt()->GetUnitDef(buildingDefId.id);
 
 	// check rect
 	for(int yPos = yStart; yPos < yEnd; yPos += 2)
