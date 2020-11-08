@@ -96,6 +96,8 @@ public:
 
 	bool operator==(const UnitId& rhs) const { return (id == rhs.id); }
 
+	bool operator<(const UnitId& rhs) const { return (id < rhs.id); }
+
 	bool IsValid() const { return (id >= 0) ? true : false; };
 
 	void Invalidate() { id = -1; };

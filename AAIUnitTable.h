@@ -43,6 +43,9 @@ public:
 	                                                                                              + m_underConstructionUnitsOfCategory[category.GetArrayIndex()]
 	                                                                                              + m_activeUnitsOfCategory[category.GetArrayIndex()]); };
 
+	//! @brief Returns the UnitDefId of the given (own) unit
+	UnitDefId GetUnitDefId(UnitId unitId) const { return UnitDefId(units[unitId.id].def_id); }
+
 	bool AddUnit(int unit_id, int def_id, AAIGroup *group = 0, AAIConstructor *cons = 0);
 	void RemoveUnit(int unit_id);
 
@@ -67,8 +70,9 @@ public:
 	void AddJammer(int unit_id, int def_id);
 	void RemoveJammer(int unit_id);
 
-	void AddRecon(int unit_id, int def_id);
-	void RemoveRecon(int unit_id);
+	void AddStaticSensor(UnitId unitId);
+	void RemoveStaticSensor(UnitId unitId);
+	const std::set<UnitId>& GetStaticSensors() const { return m_staticSensors; }
 
 	void AddStationaryArty(int unit_id, int def_id);
 	void RemoveStationaryArty(int unit_id);
@@ -114,19 +118,11 @@ public:
 	std::set<int> constructors;
 	std::set<int> metal_makers;
 	std::set<int> jammers;
-	std::set<int> recon;
 
 	// number of active/under construction units of all different types
 	int activeFactories, futureFactories;
 
 private:
-	//! @todo These functions are duplicated in buildtable -> remove duplication after unit category handling is reworked
-	bool IsFactory(UnitDefId unitDefId)  const { return ai->s_buildTree.GetUnitType(unitDefId).IsFactory(); };
-
-	bool IsBuilder(UnitDefId unitDefId)  const { return ai->s_buildTree.GetUnitType(unitDefId).IsBuilder(); };
-
-	bool IsAssister(UnitDefId unitDefId) const { return ai->s_buildTree.GetUnitType(unitDefId).IsConstructionAssist(); };
-
 	//! Number of active (i.e. not under construction anymore) units of each unit category
 	std::vector<int> m_activeUnitsOfCategory;
 
@@ -140,8 +136,11 @@ private:
 	std::set<int> extractors;
 	std::set<int> power_plants;
 	std::set<int> stationary_arty;
-	AAI *ai;
 
+	//! A list of all static sensors (radar, seismic, jammer)
+	std::set<UnitId> m_staticSensors;
+
+	AAI *ai;
 };
 
 #endif

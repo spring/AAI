@@ -1899,40 +1899,27 @@ void AAIExecute::CheckRadarUpgrade()
 	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_SENSOR))  > 0)
 		return;
 
-	float cost = ai->Getbrain()->Affordable();
-	float range = 10.0f / (cost + 1.0f);
+	const float cost = ai->Getbrain()->Affordable();
+	const float range = 10.0f / (cost + 1.0f);
 
-	UnitDefId landRadar(  ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, false) );
-	UnitDefId waterRadar( ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, true) );
-
-	// check radar upgrades
-	for(set<int>::iterator sensor = ai->Getut()->recon.begin(); sensor != ai->Getut()->recon.end(); ++sensor)
+	// check all existing sensors for upgrades
+	for(auto sensor : ai->Getut()->GetStaticSensors())
 	{
-		bool upgradeRadar(false);
-		
-		if(ai->s_buildTree.GetMovementType(UnitDefId(*sensor)).IsStaticLand() == true )	// land recon
-		{
-			if( (landRadar.IsValid() == true) &&  (ai->s_buildTree.GetMaxRange(UnitDefId(*sensor)) < ai->s_buildTree.GetMaxRange(landRadar)) )
-			{
-				upgradeRadar = true;
-			}
-		}
-		else	// water radar
-		{
-			if( (waterRadar.IsValid() == true) && (ai->s_buildTree.GetMaxRange(UnitDefId(*sensor)) < ai->s_buildTree.GetMaxRange(waterRadar)) )
-			{
-				upgradeRadar = true;
-			}
-		}
+		const UnitDefId sensorDefId = ai->Getut()->GetUnitDefId(sensor);
+		const bool water = ai->s_buildTree.GetMovementType(sensorDefId).IsStaticSea();
 
-		if(upgradeRadar == true)
+		const UnitDefId upgradedSensor = ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, water);
+		
+		const bool upgrade = upgradedSensor.IsValid() && (ai->s_buildTree.GetMaxRange(sensorDefId) < ai->s_buildTree.GetMaxRange(upgradedSensor));
+
+		if(upgrade)
 		{
 			// better radar found, clear buildpos
-			AAIConstructor *builder = ai->Getut()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(*sensor), 10, true);
+			AAIConstructor *builder = ai->Getut()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(sensor.id), 10, true);
 
 			if(builder)
 			{
-				builder->GiveReclaimOrder( UnitId(*sensor) );
+				builder->GiveReclaimOrder(sensor);
 				return;
 			}
 		}

@@ -110,7 +110,9 @@ void AAIUnitTable::RemoveUnit(int unit_id)
 
 void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 {
-	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, IsFactory(unitDefId), IsBuilder(unitDefId), IsAssister(unitDefId), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId));
+	const AAIUnitType& unitType = ai->s_buildTree.GetUnitType(unitDefId);
+
+	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, unitType.IsFactory(), unitType.IsBuilder(), unitType.IsConstructionAssist(), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId));
 
 	constructors.insert(unitId.id);
 	units[unitId.id].cons = cons;
@@ -118,7 +120,7 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 	// increase/decrease number of available/requested builders for all buildoptions of the builder
 	ai->Getbt()->ConstructorFinished(unitDefId);
 
-	if( (IsFactory(unitDefId) == true) && (ai->s_buildTree.GetMovementType(unitDefId).IsStatic() == true) )
+	if( unitType.IsFactory() && ai->s_buildTree.GetMovementType(unitDefId).IsStatic() )
 	{
 		--futureFactories;
 		++activeFactories;
@@ -127,11 +129,13 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 
 void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 {
-	if( (IsFactory(UnitDefId(def_id)) == true) && (ai->s_buildTree.GetMovementType(UnitDefId(def_id)).IsStatic() == true) )
+	const UnitDefId unitDefId(def_id);
+
+	if( ai->s_buildTree.GetUnitType(unitDefId).IsFactory() && ai->s_buildTree.GetMovementType(unitDefId).IsStatic() )
 		activeFactories -= 1;
 
 	// decrease number of available builders for all buildoptions of the builder
-	ai->Getbt()->ConstructorKilled(UnitDefId(def_id));
+	ai->Getbt()->ConstructorKilled(unitDefId);
 
 	// erase from builders list
 	constructors.erase(unit_id);
@@ -144,7 +148,9 @@ void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 
 void AAIUnitTable::AddCommander(UnitId unitId, UnitDefId unitDefId)
 {
-	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, IsFactory(unitDefId), IsBuilder(unitDefId), IsAssister(unitDefId), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId));
+	const AAIUnitType& unitType = ai->s_buildTree.GetUnitType(unitDefId);
+
+	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, unitType.IsFactory(), unitType.IsBuilder(), unitType.IsConstructionAssist(), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId));
 	units[unitId.id].cons = cons;
 
 	constructors.insert(unitId.id);
@@ -212,14 +218,14 @@ void AAIUnitTable::RemoveMetalMaker(int unit_id)
 	metal_makers.erase(unit_id);
 }
 
-void AAIUnitTable::AddRecon(int unit_id, int def_id)
+void AAIUnitTable::AddStaticSensor(UnitId unitId)
 {
-	recon.insert(unit_id);
+	m_staticSensors.insert(unitId);
 }
 
-void AAIUnitTable::RemoveRecon(int unit_id)
+void AAIUnitTable::RemoveStaticSensor(UnitId unitId)
 {
-	recon.erase(unit_id);
+	m_staticSensors.erase(unitId);
 }
 
 void AAIUnitTable::AddJammer(int unit_id, int def_id)
@@ -250,7 +256,7 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
 	{
 		// check all builders
-		if( IsBuilder(units[*i].cons->m_myDefId) == true )
+		if( ai->s_buildTree.GetUnitType(units[*i].cons->m_myDefId).IsBuilder() )
 		{
 			builder = units[*i].cons;
 
@@ -280,7 +286,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float
 	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
 	{
 		// check all builders
-		if(IsBuilder(units[*i].cons->m_myDefId))
+		if(ai->s_buildTree.GetUnitType(units[*i].cons->m_myDefId).IsBuilder())
 		{
 			AAIConstructor* builder = units[*i].cons;
 
@@ -327,7 +333,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(const float3& pos, int /*impo
 	for(auto i = constructors.begin(); i != constructors.end(); ++i)
 	{
 		// check all assisters
-		if(IsAssister(units[*i].cons->m_myDefId))
+		if( ai->s_buildTree.GetUnitType(units[*i].cons->m_myDefId).IsConstructionAssist() )
 		{
 			AAIConstructor* assistant = units[*i].cons;
 
@@ -408,7 +414,7 @@ bool AAIUnitTable::IsBuilder(UnitId unitId)
 {
 	if(units[unitId.id].cons != nullptr)
 	{
-		return IsBuilder(units[unitId.id].cons->m_myDefId);
+		return ai->s_buildTree.GetUnitType(units[unitId.id].cons->m_myDefId).IsBuilder();
 	}
 	return false;
 }

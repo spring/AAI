@@ -454,7 +454,7 @@ void AAI::UnitFinished(int unit)
 		}
 		else if (category.IsStaticSensor() == true)
 		{
-			ut->AddRecon(unit, def->id);
+			ut->AddStaticSensor(UnitId(unit));
 		}
 		else if (category.IsStaticSupport() == true)
 		{
@@ -625,7 +625,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			}
 			else if (category.IsStaticSensor())
 			{
-				ut->RemoveRecon(unit);
+				ut->RemoveStaticSensor(UnitId(unit));
 			}
 			else if (category.IsStaticSupport())
 			{
