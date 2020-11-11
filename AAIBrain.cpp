@@ -31,13 +31,12 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_metalIncome(AAIConfig::INCOME_SAMPLE_POINTS),
-	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS)
+	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_estimatedPressureByEnemies(0.0f)
 {
 	this->ai = ai;
 
 	m_sectorsInDistToBase.resize(maxSectorDistanceToBase);
-
-	enemy_pressure_estimation = 0;
 }
 
 AAIBrain::~AAIBrain(void)
@@ -540,18 +539,29 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAITargetType& targetType, const 
 
 void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const
 {
-	unitSelectionCriteria.speed      = 0.25f;
 	unitSelectionCriteria.range      = 0.25f;
 	unitSelectionCriteria.cost       = 0.5f;
 	unitSelectionCriteria.power      = 1.0f;
 	unitSelectionCriteria.efficiency = 1.0f;
 	unitSelectionCriteria.factoryUtilization = 2.0f;
 
+	// prefer faster units from time to time if enemy pressure
+	if( (m_estimatedPressureByEnemies < 0.25f) && (rand()%cfg->FAST_UNITS_RATE == 1) )
+	{
+		if(rand()%100 < 70)
+			unitSelectionCriteria.speed = 1.0f;
+		else
+			unitSelectionCriteria.speed = 2.0f;
+	}
+	else
+		unitSelectionCriteria.speed      = 0.1f + (1.0f - m_estimatedPressureByEnemies) * 0.3f;
+
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	// prefer cheaper but effective units in the first few minutes
 	if(gamePhase.IsStartingPhase())
 	{
+		unitSelectionCriteria.speed      = 0.25f;
 		unitSelectionCriteria.cost       = 2.0f;
 		unitSelectionCriteria.efficiency = 2.0f;
 	}
@@ -559,26 +569,10 @@ void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitS
 	{
 		unitSelectionCriteria.cost       = 1.0f;
 		unitSelectionCriteria.efficiency = 1.5f;
-
-		if(rand()%cfg->FAST_UNITS_RATE == 1)
-		{
-			if(rand()%100 < 70)
-				unitSelectionCriteria.speed = 1.0f;
-			else
-				unitSelectionCriteria.speed = 2.0f;
-		}
 	}
 	else
 	{
 		// determine speed, range & eff
-		if(rand()%cfg->FAST_UNITS_RATE == 1)
-		{
-			if(rand()%100 < 70)
-				unitSelectionCriteria.speed = 1.0f;
-			else
-				unitSelectionCriteria.speed = 2.0f;
-		}
-
 		if(rand()%cfg->HIGH_RANGE_UNITS_RATE == 1)
 		{
 			const int t = rand()%1000;
@@ -594,7 +588,9 @@ void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitS
 		if(rand()%3 == 1)
 			unitSelectionCriteria.power = 2.5f;
 		else
-			unitSelectionCriteria.power = 1.5f;	
+			unitSelectionCriteria.power = 1.0f + (1.0f - m_estimatedPressureByEnemies) * 0.5f;
+
+		unitSelectionCriteria.cost = 0.5f + m_estimatedPressureByEnemies * 1.0f;
 	}
 }
 
@@ -606,17 +602,34 @@ float AAIBrain::GetAttacksBy(const AAITargetType& targetType, const GamePhase& g
 
 void AAIBrain::UpdatePressureByEnemy()
 {
-	enemy_pressure_estimation = 0;
+	int sectorsOccupiedByEnemies(0);
+	int sectorsNearBaseOccupiedByEnemies(0);
 
-	// check base and neighbouring sectors for enemies
-	for(std::list<AAISector*>::iterator s = m_sectorsInDistToBase[0].begin(); s != m_sectorsInDistToBase[0].end(); ++s)
-		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
+	const auto sectors = ai->Getmap()->m_sector;
 
-	for(std::list<AAISector*>::iterator s = m_sectorsInDistToBase[1].begin(); s != m_sectorsInDistToBase[1].end(); ++s)
-		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
+	for(int x = 0; x < AAIMap::xSectors; ++x)
+	{
+		for(int y = 0; y < AAIMap::ySectors; ++y)
+		{
+			if(sectors[x][y].IsOccupiedByEnemies())
+			{
+				++sectorsOccupiedByEnemies;
 
-	if(enemy_pressure_estimation > 1.0f)
-		enemy_pressure_estimation = 1.0f;
+				if(sectors[x][y].distance_to_base < 2)
+					++sectorsNearBaseOccupiedByEnemies;
+			}
+		}
+	}
+
+	const float sectorsWithEnemiesRatio         = static_cast<float>(sectorsOccupiedByEnemies)         / static_cast<float>(AAIMap::xSectors * AAIMap::ySectors);
+	const float sectorsNearBaseWithEnemiesRatio = static_cast<float>(sectorsNearBaseOccupiedByEnemies) / static_cast<float>( m_sectorsInDistToBase[0].size() + m_sectorsInDistToBase[1].size() );
+
+	m_estimatedPressureByEnemies = sectorsWithEnemiesRatio + 2.0f * sectorsNearBaseWithEnemiesRatio;
+
+	if(m_estimatedPressureByEnemies > 1.0f)
+		m_estimatedPressureByEnemies = 1.0f;
+
+	ai->Log("Current enemy pressure: %f  - map: %f    near base: %f \n", m_estimatedPressureByEnemies, sectorsWithEnemiesRatio, sectorsNearBaseWithEnemiesRatio);
 }
 
 float AAIBrain::GetEnergyUrgency() const

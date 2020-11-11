@@ -30,6 +30,9 @@ public:
 
 	void InitAttackedByRates(const AttackedByRatesPerGamePhase& attackedByRates);
 
+	//! @brief Returns the current estimation how much the AAI instance is under pressure by the enemies, values ranging from 0 (min) to 1 (max).
+	float GetPressureByEnemy() const { return m_estimatedPressureByEnemies; }	
+
 	float GetAverageMetalSurplus() const { return m_metalSurplus.GetAverageValue(); }
 
 	float GetAveragEnergySurplus() const { return m_energySurplus.GetAverageValue(); }
@@ -113,9 +116,6 @@ public:
 	//! Holding max number of units of a category spotted at the same time (float as maximum values will slowly decay over time)
 	MobileTargetTypeValues m_maxSpottedCombatUnitsOfTargetType;
 
-	// current estimations of game situation , values ranging from 0 (min) to 1 max
-	float enemy_pressure_estimation;	// how much pressure done to the ai by enemy units
-
 private:
 	//! @brief Recalculates the center of the base (needs to be called after sectors have been added or removed)
 	void UpdateCenterOfBase();
@@ -161,6 +161,9 @@ private:
 
 	//! Frequency of attacks by different combat categories throughout the gane
 	static AttackedByRatesPerGamePhase s_attackedByRates;
+
+	//! Estimation how much the AAI instance is under pressure in the current game situation, values ranging from 0 (min) to 1 (max).
+	float m_estimatedPressureByEnemies;	
 
 	AAI *ai;
 };
