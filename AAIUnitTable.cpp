@@ -49,9 +49,9 @@ AAIUnitTable::AAIUnitTable(AAI *ai)
 AAIUnitTable::~AAIUnitTable(void)
 {
 	// delete constructors
-	for(set<int>::iterator cons = constructors.begin(); cons != constructors.end(); ++cons)
+	for(auto constructor : m_constructors)
 	{
-		delete units[*cons].cons;
+		delete units[constructor.id].cons;
 	}
 
 	m_activeUnitsOfCategory.clear();
@@ -114,23 +114,28 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 
 	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, unitType.IsFactory(), unitType.IsBuilder(), unitType.IsConstructionAssist(), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId));
 
-	constructors.insert(unitId.id);
+	m_constructors.insert(unitId);
 	units[unitId.id].cons = cons;
 
-	// increase/decrease number of available/requested builders for all buildoptions of the builder
+	// commander has not been requested before -> increase "requested constructors" counter as it is decreased by ConstructorFinished(...)
+	const bool commander = ai->s_buildTree.GetUnitCategory(unitDefId).IsCommander();
+
+	if(commander)
+		ai->Getbt()->ConstructorRequested(unitDefId);
+
 	ai->Getbt()->ConstructorFinished(unitDefId);
 
 	if( unitType.IsFactory() && ai->s_buildTree.GetMovementType(unitDefId).IsStatic() )
 	{
-		--futureFactories;
+		if(commander == false)
+			--futureFactories;
+
 		++activeFactories;
 	}
 }
 
-void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
+void AAIUnitTable::RemoveConstructor(UnitId unitId, UnitDefId unitDefId)
 {
-	const UnitDefId unitDefId(def_id);
-
 	if( ai->s_buildTree.GetUnitType(unitDefId).IsFactory() && ai->s_buildTree.GetMovementType(unitDefId).IsStatic() )
 		activeFactories -= 1;
 
@@ -138,40 +143,12 @@ void AAIUnitTable::RemoveConstructor(int unit_id, int def_id)
 	ai->Getbt()->ConstructorKilled(unitDefId);
 
 	// erase from builders list
-	constructors.erase(unit_id);
+	m_constructors.erase(unitId);
 
 	// clean up memory
-	units[unit_id].cons->Killed();
-	delete units[unit_id].cons;
-	units[unit_id].cons = nullptr;
-}
-
-void AAIUnitTable::AddCommander(UnitId unitId, UnitDefId unitDefId)
-{
-	const AAIUnitType& unitType = ai->s_buildTree.GetUnitType(unitDefId);
-
-	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, unitType.IsFactory(), unitType.IsBuilder(), unitType.IsConstructionAssist(), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId));
-	units[unitId.id].cons = cons;
-
-	constructors.insert(unitId.id);
-
-	// increase number of builders for all buildoptions of the commander
-	ai->Getbt()->ConstructorRequested(unitDefId); // commander has not been requested -> increase "requested constructors" counter as it is decreased by ConstructorFinished(...)
-	ai->Getbt()->ConstructorFinished(unitDefId);
-}
-
-void AAIUnitTable::RemoveCommander(int unit_id, int def_id)
-{
-	// decrease number of builders for all buildoptions of the commander
-	ai->Getbt()->ConstructorKilled(UnitDefId(def_id));
-
-	// erase from builders list
-	constructors.erase(unit_id);
-
-	// clean up memory
-	units[unit_id].cons->Killed();
-	delete units[unit_id].cons;
-	units[unit_id].cons = nullptr;
+	units[unitId.id].cons->Killed();
+	delete units[unitId.id].cons;
+	units[unitId.id].cons = nullptr;
 }
 
 void AAIUnitTable::AddExtractor(int unit_id)
@@ -253,12 +230,12 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 	AAIConstructor *builder;
 
 	// look for idle builder
-	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
+	for(auto constructor : m_constructors)
 	{
 		// check all builders
-		if( ai->s_buildTree.GetUnitType(units[*i].cons->m_myDefId).IsBuilder() )
+		if( ai->s_buildTree.GetUnitType(units[constructor.id].cons->m_myDefId).IsBuilder() )
 		{
-			builder = units[*i].cons;
+			builder = units[constructor.id].cons;
 
 			// find unit that can directly build that building
 			if(    (builder->IsAvailableForConstruction() == true) 
@@ -283,12 +260,12 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float
 	AAIConstructor *selectedBuilder(nullptr);
 
 	// look for idle builder
-	for(set<int>::iterator i = constructors.begin(); i != constructors.end(); ++i)
+	for(auto constructor : m_constructors)
 	{
 		// check all builders
-		if(ai->s_buildTree.GetUnitType(units[*i].cons->m_myDefId).IsBuilder())
+		if(ai->s_buildTree.GetUnitType(units[constructor.id].cons->m_myDefId).IsBuilder())
 		{
-			AAIConstructor* builder = units[*i].cons;
+			AAIConstructor* builder = units[constructor.id].cons;
 
 			// find idle or assisting builder, who can build this building
 			if(    builder->IsAvailableForConstruction()
@@ -330,12 +307,12 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(const float3& pos, int /*impo
 	float maxDist(0.0f);
 
 	// find idle builder
-	for(auto i = constructors.begin(); i != constructors.end(); ++i)
+	for(auto constructor : m_constructors)
 	{
 		// check all assisters
-		if( ai->s_buildTree.GetUnitType(units[*i].cons->m_myDefId).IsConstructionAssist() )
+		if( ai->s_buildTree.GetUnitType(units[constructor.id].cons->m_myDefId).IsConstructionAssist() )
 		{
-			AAIConstructor* assistant = units[*i].cons;
+			AAIConstructor* assistant = units[constructor.id].cons;
 
 			// find idle assister
 			if(assistant->IsIdle())
@@ -410,15 +387,6 @@ void AAIUnitTable::SetUnitStatus(int unit, UnitTask status)
 	units[unit].status = status;
 }
 
-bool AAIUnitTable::IsBuilder(UnitId unitId)
-{
-	if(units[unitId.id].cons != nullptr)
-	{
-		return ai->s_buildTree.GetUnitType(units[unitId.id].cons->m_myDefId).IsBuilder();
-	}
-	return false;
-}
-
 void AAIUnitTable::UnitRequested(const AAIUnitCategory& category, int number)
 {
 	m_requestedUnitsOfCategory[category.GetArrayIndex()] += number;
@@ -449,4 +417,12 @@ void AAIUnitTable::UnitFinished(const AAIUnitCategory& category)
 void AAIUnitTable::ActiveUnitKilled(const AAIUnitCategory& category)
 {
 	--m_activeUnitsOfCategory[category.GetArrayIndex()];
+}
+
+void AAIUnitTable::UpdateConstructors()
+{
+	for(auto constructor : m_constructors)
+	{
+		units[constructor.id].cons->Update();
+	}
 }

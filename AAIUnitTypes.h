@@ -253,7 +253,7 @@ enum class EUnitType : int
 	SEISMIC              = 0x0200, //! Seismic detector
 	RADAR_JAMMER         = 0x0400, //! Radar jammer
 	SONAR_JAMMER         = 0x0800, //! Sonar jammer
-	BUILDER              = 0x100, //! Can construct buildings
+	BUILDER              = 0x1000, //! Can construct buildings
 	FACTORY              = 0x2000, //! Can construct units
 	CONSTRUCTION_ASSIST  = 0x4000, //! Can assists with construction of units/buildings
 };

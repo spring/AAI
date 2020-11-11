@@ -111,7 +111,7 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 	// now that we know the side, init buildques
 	InitBuildques();
 
-	ai->Getut()->AddCommander(commanderUnitId, commanderDefId);
+	ai->Getut()->AddConstructor(commanderUnitId, commanderDefId);
 
 	// get economy working
 	CheckRessources();
@@ -127,11 +127,11 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 
 	bool builderFound = false;
 
-	for(set<int>::iterator i = ai->Getut()->constructors.begin(); i != ai->Getut()->constructors.end(); ++i)
+	for(auto constructor : ai->Getut()->GetConstructors())
 	{
-		if(ai->Getut()->units[*i].cons->IsHeadingToBuildsite() == true)
+		if(ai->Getut()->units[constructor.id].cons->IsHeadingToBuildsite() == true)
 		{
-			const float3& buildPos = ai->Getut()->units[*i].cons->GetBuildPos();
+			const float3& buildPos = ai->Getut()->units[constructor.id].cons->GetBuildPos();
 
 			/*if(ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_unitCategory.isStaticDefence() == true)
 			{
@@ -142,8 +142,8 @@ void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos
 			if((fabs(buildPos.x - pos->x) < 16.0f) && (fabs(buildPos.z - pos->z) < 16.0f))
 			{
 				builderFound = true;
-				task->builder_id = ai->Getut()->units[*i].cons->m_myUnitId.id;
-				ai->Getut()->units[*i].cons->ConstructionStarted(unitId, task);
+				task->builder_id = ai->Getut()->units[constructor.id].cons->m_myUnitId.id;
+				ai->Getut()->units[constructor.id].cons->ConstructionStarted(unitId, task);
 				break;
 			}
 		}

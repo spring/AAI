@@ -352,7 +352,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		{
 			m_unitsInCategory[ m_sideOfUnitType[id]-1 ][ unitCategory.GetArrayIndex() ].push_back(unitDefId);
 
-			UpdateUnitTypes(id ,unitDefs[id]);
+			UpdateUnitTypes(id, unitDefs[id]);
 
 			if(GetUnitType(unitDefId).IsFactory())
 				++numberOfFactories;
@@ -698,24 +698,13 @@ void AAIBuildTree::InitFactoryDefIdLookUpTable(int numberOfFactories)
 
 void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef)
 {
-	if(m_unitTypeProperties[unitDefId.id].m_unitCategory.IsAirCombat())
-	{
-		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-	}
-	else if(   m_unitTypeProperties[unitDefId.id].m_unitCategory.IsGroundCombat()
-	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.IsHoverCombat())
-	{
-		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-	}
-	else if(    m_unitTypeProperties[unitDefId.id].m_unitCategory.IsSeaCombat()
-	         || m_unitTypeProperties[unitDefId.id].m_unitCategory.IsSubmarineCombat())
-	{
-		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-	}
-	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.IsStaticSensor())
-	{
+	if( GetMovementType(unitDefId).IsStatic() )
 		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);
+	else
+		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
 
+	if(m_unitTypeProperties[unitDefId.id].m_unitCategory.IsStaticSensor())
+	{
 		if(unitDef->radarRadius > 0)
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::RADAR);
 
@@ -727,8 +716,6 @@ void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::Un
 	}
 	else if(m_unitTypeProperties[unitDefId.id].m_unitCategory.IsStaticSupport())
 	{
-		m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);
-
 		if(unitDef->jammerRadius > 0)
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::RADAR_JAMMER);
 
@@ -742,18 +729,13 @@ void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::Un
 	        || m_unitTypeProperties[unitDefId.id].m_unitCategory.IsStaticConstructor()
 			|| m_unitTypeProperties[unitDefId.id].m_unitCategory.IsCommander() )
 	{
-		if( GetMovementType(unitDefId).IsStatic() )
-			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::BUILDING);
-		else
-			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::MOBILE_UNIT);
-
 		if(unitDef->canAssist)
 			m_unitTypeProperties[unitDefId.id].m_unitType.AddUnitType(EUnitType::CONSTRUCTION_ASSIST);
 
 		bool builder(false), factory(false);
-		for(auto unit = GetCanConstructList(unitDefId).begin(); unit != GetCanConstructList(unitDefId).end(); ++unit)
+		for(auto constructedUnitDefId : GetCanConstructList(unitDefId))
 		{
-			if(GetMovementType(*unit).IsStatic())
+			if(GetMovementType(constructedUnitDefId).IsStatic())
 				builder = true;
 			else
 				factory = true;

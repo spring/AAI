@@ -53,10 +53,8 @@ public:
 	void RemoveScout(int unit_id);
 
 	void AddConstructor(UnitId unitId, UnitDefId unitDefId);
-	void RemoveConstructor(int unit_id, int def_id);
-
-	void AddCommander(UnitId unitId, UnitDefId unitDefId);
-	void RemoveCommander(int unit_id, int def_id);
+	void RemoveConstructor(UnitId unitId, UnitDefId unitDefId);
+	const std::set<UnitId>& GetConstructors() const { return m_constructors; }
 
 	void AddExtractor(int unit_id);
 	void RemoveExtractor(int unit_id);
@@ -91,9 +89,6 @@ public:
 
 	void AssignGroupToEnemy(int unit, AAIGroup *group);
 
-	// determine whether unit with specified def/unit id is commander/constrcutor
-	bool IsBuilder(UnitId unitId);
-
 	//! @brief Shall be called when unit have been requested (i.e. added to buildqueue)
 	void UnitRequested(const AAIUnitCategory& category, int number = 1);
 
@@ -112,10 +107,12 @@ public:
 	//! @brief Shall be called when an active (i.e. construction finished) unit has been killed to update internal counters
 	void ActiveUnitKilled(const AAIUnitCategory& category);
 
+	//! @brief Calls the update() fucntion for every active constructor (e.g. looks for assistants for constructions, checks if factories are idle, ...)
+	void UpdateConstructors();
+
 	// units[i].unitId = -1 -> not used , -2 -> enemy unit
 	std::vector<AAIUnit> units;
 
-	std::set<int> constructors;
 	std::set<int> metal_makers;
 	std::set<int> jammers;
 
@@ -136,6 +133,9 @@ private:
 	std::set<int> extractors;
 	std::set<int> power_plants;
 	std::set<int> stationary_arty;
+
+	//! A list of all constructors (mobile and static)
+	std::set<UnitId> m_constructors;
 
 	//! A list of all static sensors (radar, seismic, jammer)
 	std::set<UnitId> m_staticSensors;

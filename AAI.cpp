@@ -637,14 +637,9 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			}
 
 			// clean up buildmap & some other stuff
-			if (category.IsStaticConstructor())
+			if(s_buildTree.GetUnitType(unitDefId).IsFactory() || s_buildTree.GetUnitType(unitDefId).IsBuilder() )
 			{
-				ut->RemoveConstructor(unit, def->id);
-			}
-			// hq
-			else if (category.IsCommander())
-			{
-				ut->RemoveCommander(unit, def->id);
+				ut->RemoveConstructor(UnitId(unit), unitDefId);
 			}
 			
 			// unblock cells in buildmap
@@ -676,14 +671,10 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 				ut->units[unit].group->RemoveUnit(UnitId(unit), UnitId(attacker) );
 			}
-			// builder
+			// builder (incl. commander)
 			else if (s_buildTree.GetUnitType(unitDefId).IsBuilder())
 			{
-				ut->RemoveConstructor(unit, def->id);
-			}
-			else if (category.IsCommander())
-			{
-				ut->RemoveCommander(unit, def->id);
+				ut->RemoveConstructor(UnitId(unit), unitDefId);
 			}
 		}
 	}
@@ -703,7 +694,7 @@ void AAI::UnitIdle(int unit)
 
 			ut->units[unit].cons->Idle();
 
-			if (ut->constructors.size() < 4)
+			if (ut->GetConstructors().size() < 4)
 				execute->CheckConstruction();
 		}
 	}
@@ -857,13 +848,7 @@ void AAI::Update()
 		AAI_SCOPED_TIMER("Update-Sectors")
 		brain->UpdateAttackedByValues();
 		map->UpdateSectors();
-
 		brain->UpdatePressureByEnemy();
-
-		/*if (brain->enemy_pressure_estimation > 0.01f)
-		{
-			LogConsole("%f", brain->enemy_pressure_estimation);
-		}*/
 	}
 
 	// builder management
@@ -891,10 +876,7 @@ void AAI::Update()
 	if (!(tick % 677))
 	{
 		AAI_SCOPED_TIMER("BuilderAndFactory-Management")
-		for (set<int>::iterator builder = ut->constructors.begin(); builder != ut->constructors.end(); ++builder)
-		{
-			ut->units[(*builder)].cons->Update();
-		}
+		ut->UpdateConstructors();
 	}
 
 	if (!(tick % 337))
