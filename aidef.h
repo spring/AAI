@@ -82,6 +82,9 @@ public:
 
 	//! If the local defence power against the target type of the attacker is below this threshold combat units shall be orderd to support.
 	static constexpr float localDefencePowerToRequestSupportThreshold = 2.0f;
+
+	//! The minimum number of frames between two updates of the units in current LOS (to avoid too heavy CPU load)
+	static constexpr int   minFramesBetweenLOSUpdates = 10;
 };
 
 enum UnitTask {UNIT_IDLE, UNIT_ATTACKING, DEFENDING, GUARDING, MOVING, BUILDING, SCOUTING, ASSISTING, RECLAIMING, HEADING_TO_RALLYPOINT, UNIT_KILLED, ENEMY_UNIT, BOMB_TARGET};

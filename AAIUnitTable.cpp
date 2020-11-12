@@ -381,7 +381,6 @@ void AAIUnitTable::AssignGroupToEnemy(int unit, AAIGroup *group)
 	units[unit].status = ENEMY_UNIT;
 }
 
-
 void AAIUnitTable::SetUnitStatus(int unit, UnitTask status)
 {
 	units[unit].status = status;

@@ -107,13 +107,8 @@ public:
 	// returns number of cells with big slope
 	int GetCliffyCells(int xPos, int yPos, int xSize, int ySize) const;
 
-	// updates spotted ennemy/ally buildings/units on the map
-	void UpdateEnemyUnitsInLOS();
-
-	void UpdateFriendlyUnitsInLos();
-
-	//! @brief Updates enemy buildings/enemy combat power in sectors based on scout map entris updated by UpdateEnemyUnitsInLOS()
-	void UpdateEnemyScoutingData();
+	//! @brief Triggers an update of the current units in LOS if there are enough frames since the last update or it is enforced
+	void CheckUnitsInLOSUpdate(bool forceUpdate = false);
 
 	//! @brief Returns whether given position lies within current LOS
 	bool IsPositionInLOS(const float3& position) const;
@@ -193,14 +188,14 @@ public:
 	static constexpr int ignoreContinentID = -1;
 
 private:
-	//! The defence maps (storing combat power by static defences vs the different mobile target types)
-	static AAIDefenceMaps s_defenceMaps;
+	//! @brief Updates spotted enemy buildings/units on the map (incl. data per sector)
+	void UpdateEnemyUnitsInLOS();
 
-	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
-	AAIScoutedUnitsMap m_scoutedEnemyUnitsMap;
+	//! @brief Updates own/allied buildings/units on the map (in each sector)
+	void UpdateFriendlyUnitsInLos();
 
-	//! Approximate center of enemy base in build map coordinates (not reliable if enemy buldings are spread over map)
-	MapPos m_centerOfEnemyBase;
+	//! @brief Updates enemy buildings/enemy combat power in sectors based on scout map entris updated by UpdateEnemyUnitsInLOS()
+	void UpdateEnemyScoutingData();
 
 	//! @brief Converts the given position (in map coordinates) to a position in buildmap coordinates
 	void Pos2BuildMapPos(float3* position, const UnitDef* def) const;
@@ -264,14 +259,24 @@ private:
 
 	AAI *ai;
 
+	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
+	AAIScoutedUnitsMap m_scoutedEnemyUnitsMap;
+
+	//! Approximate center of enemy base in build map coordinates (not reliable if enemy buldings are spread over map)
+	MapPos m_centerOfEnemyBase;
+
+	//! The frame in which the last update of the units in LOS has been performed
+	int m_lastLOSUpdateInFrame;
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// static (shared with other ai players)
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	//! The defence maps (storing combat power by static defences vs the different mobile target types)
+	static AAIDefenceMaps s_defenceMaps;
+
 	//! The map type
 	static AAIMapType s_mapType;
-
-	static int aai_instances;	// how many AAI instances have been initialized
 
 	static int losMapRes;				// resolution of the LOS map
 	static int xLOSMapSize, yLOSMapSize;		// x and y size of the LOS map

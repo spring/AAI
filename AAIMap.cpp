@@ -69,7 +69,8 @@ int AAIMap::max_water_continent_size;
 int AAIMap::min_land_continent_size;
 int AAIMap::min_water_continent_size;
 
-AAIMap::AAIMap(AAI *ai)
+AAIMap::AAIMap(AAI *ai) :
+	m_lastLOSUpdateInFrame(0)
 {
 	this->ai = ai;
 }
@@ -188,8 +189,6 @@ void AAIMap::Init()
 
 	m_centerOfEnemyBase.x = xMapSize/2;
 	m_centerOfEnemyBase.y = yMapSize/2;
-
-	
 
 	// for log file
 	ai->Log("Map: %s\n",ai->GetAICallback()->GetMapName());
@@ -1809,6 +1808,20 @@ void AAIMap::DetectMetalSpots()
 	spring::SafeDeleteArray(TempAverage);
 }
 
+void AAIMap::CheckUnitsInLOSUpdate(bool forceUpdate)
+{
+	const int minFrames    = forceUpdate ? 1 : AAIConstants::minFramesBetweenLOSUpdates;
+	const int currentFrame = ai->GetAICallback()->GetCurrentFrame();
+
+	if( (currentFrame - m_lastLOSUpdateInFrame) >= minFrames)
+	{
+		UpdateEnemyUnitsInLOS();
+		UpdateFriendlyUnitsInLos();
+		UpdateEnemyScoutingData();
+		m_lastLOSUpdateInFrame = currentFrame;
+	}
+}
+
 void AAIMap::UpdateEnemyUnitsInLOS()
 {
 	//
@@ -1857,10 +1870,11 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 				const UnitDefId defId(def->id);
 				const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(defId);
 
-				// add buildings/combat units to scout map
+				// add (finished) buildings/combat units to scout map
 				if( category.IsBuilding() || category.IsCombatUnit() )
 				{
-					m_scoutedEnemyUnitsMap.AddEnemyUnit(defId, tile);
+					if(ai->GetAICallback()->UnitBeingBuilt(unitsInLOS[i]) == false)
+						m_scoutedEnemyUnitsMap.AddEnemyUnit(defId, tile);
 				}
 
 				if(category.IsCombatUnit())

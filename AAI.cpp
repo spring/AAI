@@ -658,7 +658,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			// scout
 			if (category.IsScout())
 			{
-				map->UpdateEnemyUnitsInLOS();
+				map->CheckUnitsInLOSUpdate(true);
 
 				ut->RemoveScout(unit);
 			}
@@ -789,17 +789,10 @@ void AAI::Update()
 	}
 
 	// scouting
-	if (!(tick % cfg->SCOUT_UPDATE_FREQUENCY))
+	if (!((tick + 2 * GetAAIInstance()) % cfg->SCOUT_UPDATE_FREQUENCY))
 	{
 		AAI_SCOPED_TIMER("Scouting_1")
-		map->UpdateEnemyUnitsInLOS();
-		map->UpdateFriendlyUnitsInLos();
-	}
-
-	if (!((tick + 5) % cfg->SCOUT_UPDATE_FREQUENCY))
-	{
-		AAI_SCOPED_TIMER("Scouting_2")
-		map->UpdateEnemyScoutingData();
+		map->CheckUnitsInLOSUpdate();
 	}
 
 	// update groups
@@ -901,7 +894,7 @@ void AAI::Update()
 	}
 
 	// upgrade mexes
-	if (!(tick % 1573))
+	if (!(tick % 1273))
 	{
 		AAI_SCOPED_TIMER("Upgrade-Mexes")
 		execute->CheckMexUpgrade();

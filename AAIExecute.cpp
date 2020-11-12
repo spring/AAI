@@ -2244,6 +2244,8 @@ void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attacke
 
 	if(sector)
 	{
+		ai->Getmap()->CheckUnitsInLOSUpdate();
+
 		if(sector->IsSupportNeededToDefenceVs(attackerTargetType))
 		{
 			AAIGroup *support = GetClosestGroupForDefence(attackerTargetType, attackerPosition, importance);
