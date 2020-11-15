@@ -11,6 +11,64 @@
 #include "AAIConfig.h"
 #include "AAIMap.h"
 
+void AAIDefenceMaps::Init(int xMapSize, int yMapSize)
+{ 
+	m_xDefenceMapSize = xMapSize/defenceMapResolution;
+	m_yDefenceMapSize = yMapSize/defenceMapResolution;
+	m_defenceMaps.resize(AAITargetType::numberOfMobileTargetTypes, std::vector<float>(m_xDefenceMapSize*m_yDefenceMapSize, 0.0f) );
+}
+
+void AAIDefenceMaps::ModifyTiles(const float3& position, float maxWeaponRange, const UnitFootprint& footprint, const AAICombatPower& combatPower, bool addValues)
+{
+	// decide which function shall be used to modify tile values
+	void (AAIDefenceMaps::*modifyDefenceMapTile) (int , const AAICombatPower& ) = addValues ? &AAIDefenceMaps::AddDefence : &AAIDefenceMaps::RemoveDefence;
+
+	const int range = static_cast<int>(maxWeaponRange) / (SQUARE_SIZE * defenceMapResolution);
+	const int xPos  = static_cast<int>(position.x) / (SQUARE_SIZE * defenceMapResolution) + footprint.xSize/defenceMapResolution;
+	const int yPos  = static_cast<int>(position.z) / (SQUARE_SIZE * defenceMapResolution) + footprint.ySize/defenceMapResolution;
+
+	// x range will change from line to line -  y range is const
+	const int yStart = std::max(yPos - range, 0);
+	const int yEnd   = std::min(yPos + range, m_yDefenceMapSize);
+
+	for(int y = yStart; y < yEnd; ++y)
+	{
+		// determine x-range
+		const int xRange = (int) floor( fastmath::apxsqrt2( (float) ( std::max(1, range * range - (y - yPos) * (y - yPos)) ) ) + 0.5f );
+
+		const int xStart = std::max(xPos - xRange, 0);
+		const int xEnd   = std::min(xPos + xRange, m_xDefenceMapSize);
+
+		for(int x = xStart; x < xEnd; ++x)
+		{
+			const int tile = x + m_xDefenceMapSize*y;
+			(this->*modifyDefenceMapTile)(tile, combatPower);
+		}
+	}
+}
+
+void AAIDefenceMaps::AddDefence(int tile, const AAICombatPower& combatPower)
+{
+	m_defenceMaps[AAITargetType::surfaceIndex][tile]   += combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
+	m_defenceMaps[AAITargetType::airIndex][tile]       += combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
+	m_defenceMaps[AAITargetType::floaterIndex][tile]   += combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER);
+	m_defenceMaps[AAITargetType::submergedIndex][tile] += combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
+}
+
+void AAIDefenceMaps::RemoveDefence(int tile, const AAICombatPower& combatPower)
+{
+	m_defenceMaps[AAITargetType::surfaceIndex][tile]   -= combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
+	m_defenceMaps[AAITargetType::airIndex][tile]       -= combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
+	m_defenceMaps[AAITargetType::floaterIndex][tile]   -= combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER);
+	m_defenceMaps[AAITargetType::submergedIndex][tile] -= combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
+
+	for(int targetTypeIndex = 0; targetTypeIndex < AAITargetType::numberOfMobileTargetTypes; ++targetTypeIndex)
+	{
+		if(m_defenceMaps[targetTypeIndex][tile] < 0.0f)
+			m_defenceMaps[targetTypeIndex][tile] = 0.0f;
+	}
+}
+
 void AAIScoutedUnitsMap::Init(int xMapSize, int yMapSize, int losMapResolution)
 {
 	m_losToScoutMapResolution = losMapResolution / scoutMapResolution;
@@ -58,7 +116,6 @@ void AAIScoutedUnitsMap::UpdateSectorWithScoutedUnits(AAISector *sector, std::ve
 			{
 				sector->AddScoutedEnemyUnit(unitDefId, m_lastUpdateInFrameMap[tileIndex]);
 
-				
 				const int continentId = AAIMap::s_continentMap.GetContinentID( MapPos((xStart+x)*scoutMapResolution, (yStart+y)*scoutMapResolution) );
 				
 				++buildingsOnContinent[continentId];
@@ -120,7 +177,7 @@ int AAIContinentMap::GetContinentID(const float3& pos) const
 	return m_continentMap[x + y * m_xContMapSize];
 }
 
-void AAIContinentMap::CheckIfTileBelongsToLandContinent(const int continentMapTileIndex, const float tileHeight, std::vector<AAIContinent>& continents, const int continentId, std::vector<int>* nextEdgeCells)
+void AAIContinentMap::CheckIfTileBelongsToLandContinent(int continentMapTileIndex, float tileHeight, std::vector<AAIContinent>& continents, int continentId, std::vector<int>* nextEdgeCells)
 {
 	if(m_continentMap[continentMapTileIndex] == -1)
 	{
@@ -143,7 +200,7 @@ void AAIContinentMap::CheckIfTileBelongsToLandContinent(const int continentMapTi
 	}
 }
 
-void AAIContinentMap::CheckIfTileBelongsToSeaContinent(const int continentMapTileIndex, const float tileHeight, std::vector<AAIContinent>& continents, const int continentId, std::vector<int>* nextEdgeCells)
+void AAIContinentMap::CheckIfTileBelongsToSeaContinent(int continentMapTileIndex, float tileHeight, std::vector<AAIContinent>& continents, int continentId, std::vector<int>* nextEdgeCells)
 {
 	if( (m_continentMap[continentMapTileIndex] < 0) && (tileHeight < 0.0f) )
 	{
@@ -165,128 +222,76 @@ void AAIContinentMap::DetectContinents(std::vector<AAIContinent>& continents, co
 
 	int continentId(0);
 
-	for(int i = 0; i < m_xContMapSize; i += 1)
+	std::array<bool, 2> detectSeaContinents = {false, true};
+
+	for(auto water : detectSeaContinents)
 	{
-		for(int j = 0; j < m_yContMapSize; j += 1)
+		// decide which function shall be used to check if a tile belongs to the current continent
+		void (AAIContinentMap::*checkMapTile) (int, float, std::vector<AAIContinent>&, int, std::vector<int>* ) = water ? 
+								&AAIContinentMap::CheckIfTileBelongsToSeaContinent : &AAIContinentMap::CheckIfTileBelongsToLandContinent;
+
+		for(int i = 0; i < m_xContMapSize; i += 1)
 		{
-			// add new continent if cell has not been visited yet
-			if( (m_continentMap[j * m_xContMapSize + i] < 0) && (heightMap[4 * (j * xMapSize + i)] >= 0.0f) )
+			for(int j = 0; j < m_yContMapSize; j += 1)
 			{
-				AAIContinent newContinent(continentId, 1, false);
-				continents.push_back(newContinent);
+				// sea continents are checked in the second iteration
+				const bool tileHeightCheckPassed = water || (heightMap[4 * (j * xMapSize + i)] >= 0.0f);
 
-				m_continentMap[j * m_xContMapSize + i] = continentId;
-
-				old_edge_cells->push_back(j * m_xContMapSize + i);
-
-				// check edges of the continent as long as new cells have been added to the continent during the last loop
-				while(old_edge_cells->size() > 0)
+				// add new continent if cell has not been visited yet
+				if( (m_continentMap[j * m_xContMapSize + i] < 0) && tileHeightCheckPassed )
 				{
-					for(auto cell : *old_edge_cells)
+					AAIContinent newContinent(continentId, 1, false);
+					continents.push_back(newContinent);
+
+					m_continentMap[j * m_xContMapSize + i] = continentId;
+
+					old_edge_cells->push_back(j * m_xContMapSize + i);
+
+					// check edges of the continent as long as new cells have been added to the continent during the last loop
+					while(old_edge_cells->size() > 0)
 					{
-						// get cell indizes
-						const int x = cell%m_xContMapSize;
-						const int y = (cell - x) / m_xContMapSize;
+						for(auto cell : *old_edge_cells)
+						{
+							// get cell indizes
+							const int x = cell%m_xContMapSize;
+							const int y = (cell - x) / m_xContMapSize;
 
-						const int continentMapTileIndex = y * m_xContMapSize + x;
-						const int heightMapTileIndex    = 4 * (y * xMapSize + x);
+							const int continentMapTileIndex = y * m_xContMapSize + x;
+							const int heightMapTileIndex    = 4 * (y * xMapSize + x);
 
-						if(x > 0)
-							CheckIfTileBelongsToLandContinent(continentMapTileIndex-1, heightMap[heightMapTileIndex-continentMapResolution], continents, continentId, new_edge_cells);
+							if(x > 0)
+								(this->*checkMapTile)(continentMapTileIndex-1, heightMap[heightMapTileIndex-continentMapResolution], continents, continentId, new_edge_cells);
 
-						if(x < m_xContMapSize-1)
-							CheckIfTileBelongsToLandContinent(continentMapTileIndex+1, heightMap[heightMapTileIndex+continentMapResolution], continents, continentId, new_edge_cells);
+							if(x < m_xContMapSize-1)
+								(this->*checkMapTile)(continentMapTileIndex+1, heightMap[heightMapTileIndex+continentMapResolution], continents, continentId, new_edge_cells);
 
-						if(y > 0)
-							CheckIfTileBelongsToLandContinent(continentMapTileIndex-m_xContMapSize, heightMap[heightMapTileIndex-continentMapResolution*xMapSize], continents, continentId, new_edge_cells);					
+							if(y > 0)
+								(this->*checkMapTile)(continentMapTileIndex-m_xContMapSize, heightMap[heightMapTileIndex-continentMapResolution*xMapSize], continents, continentId, new_edge_cells);					
 
-						if(y < m_yContMapSize-1)
-							CheckIfTileBelongsToLandContinent(continentMapTileIndex+m_xContMapSize, heightMap[heightMapTileIndex+continentMapResolution*xMapSize], continents, continentId, new_edge_cells);
+							if(y < m_yContMapSize-1)
+								(this->*checkMapTile)(continentMapTileIndex+m_xContMapSize, heightMap[heightMapTileIndex+continentMapResolution*xMapSize], continents, continentId, new_edge_cells);
+						}
+
+						old_edge_cells->clear();
+
+						// invert pointers to new/old edge cells
+						if(new_edge_cells == &edgeTiles1)
+						{
+							new_edge_cells = &edgeTiles2;
+							old_edge_cells = &edgeTiles1;
+						}
+						else
+						{
+							new_edge_cells = &edgeTiles1;
+							old_edge_cells = &edgeTiles2;
+						}
 					}
 
+					// finished adding continent
+					++continentId;
 					old_edge_cells->clear();
-
-					// invert pointers to new/old edge cells
-					if(new_edge_cells == &edgeTiles1)
-					{
-						new_edge_cells = &edgeTiles2;
-						old_edge_cells = &edgeTiles1;
-					}
-					else
-					{
-						new_edge_cells = &edgeTiles1;
-						old_edge_cells = &edgeTiles2;
-					}
+					new_edge_cells->clear();
 				}
-
-				// finished adding continent
-				++continentId;
-				old_edge_cells->clear();
-				new_edge_cells->clear();
-			}
-		}
-	}
-
-	// water continents
-	for(int i = 0; i < m_xContMapSize; i += 1)
-	{
-		for(int j = 0; j < m_yContMapSize; j += 1)
-		{
-			// add new continent if cell has not been visited yet
-			if(m_continentMap[j * m_xContMapSize + i] < 0)
-			{
-				AAIContinent newContinent(continentId, 1, true);
-				continents.push_back(newContinent);
-
-				m_continentMap[j * m_xContMapSize + i] = continentId;
-
-				old_edge_cells->push_back(j * m_xContMapSize + i);
-
-				// check edges of the continent as long as new cells have been added to the continent during the last loop
-				while(old_edge_cells->size() > 0)
-				{
-					for(auto cell : *old_edge_cells)
-					{
-						// get cell indizes
-						const int x = cell%m_xContMapSize;
-						const int y = (cell - x) / m_xContMapSize;
-
-						const int continentMapTileIndex = y * m_xContMapSize + x;
-						const int heightMapTileIndex    = 4 * (y * xMapSize + x);
-
-						// check edges
-						if(x > 0)
-							CheckIfTileBelongsToSeaContinent(continentMapTileIndex-1, heightMap[heightMapTileIndex-continentMapResolution], continents, continentId, new_edge_cells);
-
-						if(x < m_xContMapSize-1)
-							CheckIfTileBelongsToSeaContinent(continentMapTileIndex+1, heightMap[heightMapTileIndex+continentMapResolution], continents, continentId, new_edge_cells);
-
-						if(y > 0)
-							CheckIfTileBelongsToSeaContinent(continentMapTileIndex-m_xContMapSize, heightMap[heightMapTileIndex-continentMapResolution*xMapSize], continents, continentId, new_edge_cells);					
-
-						if(y < m_yContMapSize-1)
-							CheckIfTileBelongsToSeaContinent(continentMapTileIndex+m_xContMapSize, heightMap[heightMapTileIndex+continentMapResolution*xMapSize], continents, continentId, new_edge_cells);
-					}
-
-					old_edge_cells->clear();
-
-					// invert pointers to new/old edge cells
-					if(new_edge_cells == &edgeTiles1)
-					{
-						new_edge_cells = &edgeTiles2;
-						old_edge_cells = &edgeTiles1;
-					}
-					else
-					{
-						new_edge_cells = &edgeTiles1;
-						old_edge_cells = &edgeTiles2;
-					}
-				}
-
-				// finished adding continent
-				++continentId;
-				old_edge_cells->clear();
-				new_edge_cells->clear();
 			}
 		}
 	}

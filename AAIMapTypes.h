@@ -56,12 +56,7 @@ class AAIDefenceMaps
 {
 public:
 	//! @brief Initializes all sectors as unoccupied
-	void Init(int xMapSize, int yMapSize)
-	{ 
-		m_xDefenceMapSize = xMapSize/defenceMapResolution;
-		m_yDefenceMapSize = yMapSize/defenceMapResolution;
-		m_defenceMaps.resize(AAITargetType::numberOfMobileTargetTypes, std::vector<float>(m_xDefenceMapSize*m_yDefenceMapSize, 0.0f) );
-	}
+	void Init(int xMapSize, int yMapSize);
 
 	//! @brief Return the defence map value of a given map position
 	float GetValue(MapPos mapPosition, const AAITargetType& targetType) const 
@@ -72,59 +67,14 @@ public:
 
 	//! @brief Modifies tiles within range of given position by combat power values
 	//!        Used to add or remove defences
-	void ModifyTiles(const float3& position, float maxWeaponRange, const UnitFootprint& footprint, const AAICombatPower& combatPower, bool addValues)
-	{
-		// decide which function shall be used to modify tile values
-		void (AAIDefenceMaps::*modifyDefenceMapTile) (int , const AAICombatPower& ) = addValues ? &AAIDefenceMaps::AddDefence : &AAIDefenceMaps::RemoveDefence;
-
-		const int range = static_cast<int>(maxWeaponRange) / (SQUARE_SIZE * defenceMapResolution);
-		const int xPos  = static_cast<int>(position.x) / (SQUARE_SIZE * defenceMapResolution) + footprint.xSize/defenceMapResolution;
-		const int yPos  = static_cast<int>(position.z) / (SQUARE_SIZE * defenceMapResolution) + footprint.ySize/defenceMapResolution;
-
-		// x range will change from line to line -  y range is const
-		const int yStart = std::max(yPos - range, 0);
-		const int yEnd   = std::min(yPos + range, m_yDefenceMapSize);
-
-		for(int y = yStart; y < yEnd; ++y)
-		{
-			// determine x-range
-			const int xRange = (int) floor( fastmath::apxsqrt2( (float) ( std::max(1, range * range - (y - yPos) * (y - yPos)) ) ) + 0.5f );
-
-			const int xStart = std::max(xPos - xRange, 0);
-			const int xEnd   = std::min(xPos + xRange, m_xDefenceMapSize);
-
-			for(int x = xStart; x < xEnd; ++x)
-			{
-				const int tile = x + m_xDefenceMapSize*y;
-				(this->*modifyDefenceMapTile)(tile, combatPower);
-			}
-		}
-	}
+	void ModifyTiles(const float3& position, float maxWeaponRange, const UnitFootprint& footprint, const AAICombatPower& combatPower, bool addValues);
 
 private:
 	//! @brief Adds combat power values to given tile
-	void AddDefence(int tile, const AAICombatPower& combatPower)
-	{
-		m_defenceMaps[AAITargetType::surfaceIndex][tile]   += combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
-		m_defenceMaps[AAITargetType::airIndex][tile]       += combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
-		m_defenceMaps[AAITargetType::floaterIndex][tile]   += combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER);
-		m_defenceMaps[AAITargetType::submergedIndex][tile] += combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
-	}
+	void AddDefence(int tile, const AAICombatPower& combatPower);
 
 	//! @brief Removes combat power values to given tile
-	void RemoveDefence(int tile, const AAICombatPower& combatPower)
-	{
-		m_defenceMaps[AAITargetType::surfaceIndex][tile]   -= combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
-		m_defenceMaps[AAITargetType::airIndex][tile]       -= combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
-		m_defenceMaps[AAITargetType::floaterIndex][tile]   -= combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER);
-		m_defenceMaps[AAITargetType::submergedIndex][tile] -= combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
-
-		for(int targetTypeIndex = 0; targetTypeIndex < AAITargetType::numberOfMobileTargetTypes; ++targetTypeIndex)
-		{
-			if(m_defenceMaps[targetTypeIndex][tile] < 0.0f)
-				m_defenceMaps[targetTypeIndex][tile] = 0.0f;
-		}
-	}
+	void RemoveDefence(int tile, const AAICombatPower& combatPower);
 
 	//! The maps itself
 	std::vector< std::vector<float> > m_defenceMaps;
@@ -238,10 +188,10 @@ public:
 
 private:
 	//! @brief Helper function for detection of continents - checks if a given tile belongs to a continent and sets values accordingly
-	void CheckIfTileBelongsToLandContinent(const int continentMapTileIndex, const float tileHeight, std::vector<AAIContinent>& continents, const int continentId, std::vector<int>* nextEdgeCells);
+	void CheckIfTileBelongsToLandContinent(int continentMapTileIndex, float tileHeight, std::vector<AAIContinent>& continents, int continentId, std::vector<int>* nextEdgeCells);
 
 	//! @brief Helper function for detection of continents - checks if a given tile belongs to a sea continent and sets values accordingly
-	void CheckIfTileBelongsToSeaContinent(const int continentMapTileIndex, const float tileHeight, std::vector<AAIContinent>& continents, const int continentId, std::vector<int>* nextEdgeCells);
+	void CheckIfTileBelongsToSeaContinent(int continentMapTileIndex, float tileHeight, std::vector<AAIContinent>& continents, int continentId, std::vector<int>* nextEdgeCells);
 
 	//! Id of continent a map tile belongs to
 	std::vector<int> m_continentMap;
