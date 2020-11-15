@@ -11,6 +11,7 @@
 #define AAI_UNIT_CATEGORY_H
 
 #include <string>
+#include <vector>
 #include <array>
 
 typedef unsigned int   uint32_t;

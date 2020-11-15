@@ -655,8 +655,7 @@ bool AAISector::ConnectedToOcean() const
 		return false;
 
 	//! @todo: improve criterion -> look for water tiles in sector instead of just checking the center tile
-	const MapPos center(x * AAIMap::xSectorSizeMap + AAIMap::xSectorSizeMap/2, y * AAIMap::ySectorSizeMap + AAIMap::ySectorSizeMap/2);
-	const int continentId = ai->Getmap()->GetContinentID(center.x, center.y);
+	const int continentId = ai->Getmap()->GetContinentID( GetCenter() );
 
 	if(ai->Getmap()->continents[continentId].water)
 	{

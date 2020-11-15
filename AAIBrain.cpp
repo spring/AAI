@@ -629,7 +629,7 @@ void AAIBrain::UpdatePressureByEnemy()
 	if(m_estimatedPressureByEnemies > 1.0f)
 		m_estimatedPressureByEnemies = 1.0f;
 
-	ai->Log("Current enemy pressure: %f  - map: %f    near base: %f \n", m_estimatedPressureByEnemies, sectorsWithEnemiesRatio, sectorsNearBaseWithEnemiesRatio);
+	//ai->Log("Current enemy pressure: %f  - map: %f    near base: %f \n", m_estimatedPressureByEnemies, sectorsWithEnemiesRatio, sectorsNearBaseWithEnemiesRatio);
 }
 
 float AAIBrain::GetEnergyUrgency() const

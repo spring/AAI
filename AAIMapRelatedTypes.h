@@ -28,13 +28,17 @@ struct MapPos
 //! A continent is made up of  tiles of the same type (land or water) that are connected with each other
 struct AAIContinent
 {
+	AAIContinent(int myId, int mySize, bool isWater) : id(myId), size(mySize), water(isWater) {}
+
+	AAIContinent() : AAIContinent(0, 0, false) {}
+
 	//! Continent id
 	int id;
 
-	//! Size of continent (oin number of map tiles)
+	//! Size of continent (in number of map tiles)
 	int size;
 
-	//! Flag if its a water continent
+	//! Flag if it is a water continent
 	bool water;
 };
 

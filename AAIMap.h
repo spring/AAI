@@ -32,6 +32,8 @@ using namespace springLegacyAI;
 
 class AAIMap
 {
+	friend AAIScoutedUnitsMap;
+
 public:
 	AAIMap(AAI *ai);
 	~AAIMap(void);
@@ -59,12 +61,6 @@ public:
 	//! @brief Returns true if the given sector is a neighbour to the current base
 	bool IsSectorBorderToBase(int x, int y) const;
 
-	//! @brief Returns the id of continent the cell belongs to
-	int GetContinentID(int x, int y) const { return continent_map[(y/4) * xContMapSize + x / 4]; }
-
-	//! @brief Returns the id of continent the given position belongs to
-	int GetContinentID(const float3& pos) const;
-
 	//! @brief Returns continent id with respect to the unit's movement type (e.g. ground (=non amphibious) unit being in shallow water will return id of nearest land continent)
 	int DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const;
 
@@ -72,7 +68,10 @@ public:
 	bool IsSectorOnWaterContinent(const AAISector* sector) const { return continents[sector->GetContinentID()].water; }
 
 	//! @brief Returns whether the position is located on a small continent (meant to detect "ponds" or "small islands")
-	bool LocatedOnSmallContinent(const float3& pos) { return (continents[GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
+	bool LocatedOnSmallContinent(const float3& pos) const { return (continents[s_continentMap.GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
+
+	//! @brief Returns the id of continent the given position belongs to
+	int GetContinentID(const float3& pos) const { return s_continentMap.GetContinentID(pos); };
 
 	//! @brief Returns a bitmask storing which movement types are suitable for the map type
 	uint32_t GetSuitableMovementTypesForMap() const { return GetSuitableMovementTypes(s_mapType); }
@@ -215,9 +214,6 @@ private:
 	//! @brief Determines the type of map
 	void DetermineMapType();
 
-	// calculates which parts of the are connected
-	void CalculateContinentMaps();
-
 	// calculates learning effect
 	void Learn();
 
@@ -262,6 +258,9 @@ private:
 	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
 	AAIScoutedUnitsMap m_scoutedEnemyUnitsMap;
 
+	//! The number of scouted enemy units on the given continent
+	std::vector<int> m_buildingsOnContinent;
+
 	//! Approximate center of enemy base in build map coordinates (not reliable if enemy buldings are spread over map)
 	MapPos m_centerOfEnemyBase;
 
@@ -275,18 +274,19 @@ private:
 	//! The defence maps (storing combat power by static defences vs the different mobile target types)
 	static AAIDefenceMaps s_defenceMaps;
 
+	//! Stores the id of the continent every tiles belongs to and additional information about continents
+	static AAIContinentMap s_continentMap;
+
 	//! The map type
 	static AAIMapType s_mapType;
 
 	static int losMapRes;				// resolution of the LOS map
 	static int xLOSMapSize, yLOSMapSize;		// x and y size of the LOS map
 	static int xDefMapSize, yDefMapSize;		// x and y size of the defence maps (1/4 resolution of map)
-	static int xContMapSize, yContMapSize;		// x and y size of the continent maps (1/4 resolution of map)
 	static std::list<AAIMetalSpot> metal_spots;
 	static float flat_land_ratio;
 	static vector<int> blockmap;		// number of buildings which ordered a cell to blocked
 	static vector<float> plateau_map;	// positive values indicate plateaus, same resolution as continent map 1/4 of resolution of blockmap/buildmap
-	static vector<int> continent_map;	// id of continent a cell belongs to
 
 	static vector<int> ship_movement_map;	// movement maps for different categories, 1/4 of resolution of blockmap/buildmap
 	static vector<int> kbot_movement_map;

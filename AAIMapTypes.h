@@ -12,6 +12,7 @@
 
 #include "AAIUnitTypes.h"
 #include "AAISector.h"
+#include "AAIMapRelatedTypes.h"
 #include <vector>
 
 //! The map storing which sector has been taken (as base) by which AAI team. Used to avoid that multiple AAI instances expand 
@@ -157,17 +158,8 @@ private:
 class AAIScoutedUnitsMap
 {
 public:
-
 	//! @brief Initializes all tiles as empty
-	void Init(int xMapSize, int yMapSize, int losMapResolution)
-	{ 
-		m_losToScoutMapResolution = losMapResolution / scoutMapResolution;
-		m_xScoutMapSize           = xMapSize/scoutMapResolution;
-		m_yScoutMapSize           = yMapSize/scoutMapResolution;
-
-		m_scoutedUnitsMap.resize(m_xScoutMapSize*m_yScoutMapSize, 0);
-		m_lastUpdateInFrameMap.resize(m_xScoutMapSize*m_yScoutMapSize, 0);
-	}
+	void Init(int xMapSize, int yMapSize, int losMapResolution);
 
 	//! @brief Converts given build map coordinate to scout map coordinate
 	int BuildMapToScoutMapCoordinate(int buildMapCoordinate) const { return buildMapCoordinate/scoutMapResolution; }
@@ -179,29 +171,10 @@ public:
 	int GetUnitAt(int x, int y) const { return m_scoutedUnitsMap[x + y * m_xScoutMapSize]; }
 
 	//! @brief Adds unit to tile
-	void AddEnemyUnit(UnitDefId defId, ScoutMapTile tile)
-	{
-		m_scoutedUnitsMap[tile.m_tileIndex] = defId.id;
-	}
+	void AddEnemyUnit(UnitDefId defId, ScoutMapTile tile) { m_scoutedUnitsMap[tile.m_tileIndex] = defId.id; }
 
 	//! @brief Erases the given tiles
-	void ResetTiles(int xLosMap, int yLosMap, int frame)
-	{
-		int tileIndex = xLosMap*m_losToScoutMapResolution + yLosMap*m_losToScoutMapResolution * m_xScoutMapSize;
-
-		for(int y = 0; y < m_losToScoutMapResolution; ++y)
-		{
-			for(int x = 0; x < m_losToScoutMapResolution; ++x)
-			{
-				m_scoutedUnitsMap[tileIndex]      = 0;
-				m_lastUpdateInFrameMap[tileIndex] = frame;
-
-				++tileIndex;
-			}
-
-			tileIndex += (m_xScoutMapSize-m_losToScoutMapResolution);
-		}
-	}
+	void ResetTiles(int xLosMap, int yLosMap, int frame);
 
 	//! @brief Return tile index to corresponding position (int unit coordinates)
 	ScoutMapTile GetScoutMapTile(const float3& position) const
@@ -216,31 +189,7 @@ public:
 	}
 
 	//! @brief Updates the scouted units within the given sector
-	void UpdateSectorWithScoutedUnits(AAISector *sector, int xSectorSizeMap, int ySectorSizeMap )
-	{
-		const int xStart = (sector->x * xSectorSizeMap) / scoutMapResolution;
-		const int yStart = (sector->y * ySectorSizeMap) / scoutMapResolution;
-		int tileIndex = xStart + yStart * m_xScoutMapSize;
-
-		const int xCells = xSectorSizeMap/scoutMapResolution;
-		const int yCells = ySectorSizeMap/scoutMapResolution;
-
-		for(int y = 0; y < yCells; ++y)
-		{
-			for(int x = 0; x < xCells; ++x)
-			{
-				//const int tileIndex = x + y * m_xScoutMapSize;
-				const UnitDefId unitDefId(m_scoutedUnitsMap[tileIndex]);
-
-				if(unitDefId.IsValid())
-					 sector->AddScoutedEnemyUnit(unitDefId, m_lastUpdateInFrameMap[tileIndex]);
-				
-				++tileIndex;
-			}
-
-			tileIndex += (m_xScoutMapSize-xCells);
-		}
-	}
+	void UpdateSectorWithScoutedUnits(AAISector *sector, std::vector<int>& buildingsOnContinent);
 
 private:
 	//! The map containing the unit definition id of a scouted unit on occupying this tile (or 0 if none)
@@ -260,6 +209,51 @@ private:
 
 	//! Lower resolution factor with respect to map resolution
 	static constexpr int scoutMapResolution = 2;
+};
+
+//! This class stores the continent map
+class AAIContinentMap
+{
+public:
+	//! @brief Initializes all tiles as not belonging to any continent
+	void Init(int xMapSize, int yMapSize);
+
+	//! @brief Loads continent map from given file
+	void LoadFromFile(FILE* file);
+
+	//! @brief Stores continent map to given file
+	void SaveToFile(FILE* file);
+
+	//! @brief Returns the id of continent the cell belongs to
+	int GetContinentID(const MapPos& mapPosition) const { return m_continentMap[(mapPosition.y/continentMapResolution) * m_xContMapSize + mapPosition.x / continentMapResolution]; }
+
+	//! @brief Returns the id of continent the given position belongs to
+	int GetContinentID(const float3& pos) const;
+
+	//! @brief Returns the number of tiles of the continent map
+	int GetSize() const { return m_xContMapSize * m_yContMapSize; }
+
+	//! @brief Determines the continents, i.e. which parts of the map are connected
+	void DetectContinents(std::vector<AAIContinent>& continents, const float *heightMap, const int xMapSize, const int yMapSize);
+
+private:
+	//! @brief Helper function for detection of continents - checks if a given tile belongs to a continent and sets values accordingly
+	void CheckIfTileBelongsToLandContinent(const int continentMapTileIndex, const float tileHeight, std::vector<AAIContinent>& continents, const int continentId, std::vector<int>* nextEdgeCells);
+
+	//! @brief Helper function for detection of continents - checks if a given tile belongs to a sea continent and sets values accordingly
+	void CheckIfTileBelongsToSeaContinent(const int continentMapTileIndex, const float tileHeight, std::vector<AAIContinent>& continents, const int continentId, std::vector<int>* nextEdgeCells);
+
+	//! Id of continent a map tile belongs to
+	std::vector<int> m_continentMap;
+
+	//! x size of the continent map (1/4 resolution of map)
+	int m_xContMapSize;
+
+	//! y size of the continent map (1/4 resolution of map)
+	int m_yContMapSize;
+
+	//! Lower resolution factor with respect to map resolution
+	static constexpr int continentMapResolution = 4;
 };
 
 #endif
