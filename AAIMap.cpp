@@ -621,30 +621,30 @@ bool AAIMap::IsSectorBorderToBase(int x, int y) const
 int AAIMap::DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const
 {
 	// check if non sea/amphib unit in shallow water
-	if(     (ai->GetAICallback()->GetElevation(pos.x, pos.z) < 0)
+	if(     (ai->GetAICallback()->GetElevation(pos.x, pos.z) < 0.0f)
 	     && (moveType.GetMovementType() == EMovementType::MOVEMENT_TYPE_GROUND) )
 	{
 		//look for closest land cell
 		for(int k = 1; k < 10; ++k)
 		{
-			if(ai->GetAICallback()->GetElevation(pos.x + k * 16, pos.z) > 0)
+			if(ai->GetAICallback()->GetElevation(pos.x + k * 16, pos.z) >= 0.0f)
 			{
-				pos.x += k *16;
+				pos.x += static_cast<float>(k * 16);
 				break;
 			}
-			else if(ai->GetAICallback()->GetElevation(pos.x - k * 16, pos.z) > 0)
+			else if(ai->GetAICallback()->GetElevation(pos.x - k * 16, pos.z) >= 0.0f)
 			{
-				pos.x -= k *16;
+				pos.x -= static_cast<float>(k * 16);
 				break;
 			}
-			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z + k * 16) > 0)
+			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z + k * 16) >= 0.0f)
 			{
-				pos.z += k *16;
+				pos.z += static_cast<float>(k * 16);
 				break;
 			}
-			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z - k * 16) > 0)
+			else if(ai->GetAICallback()->GetElevation(pos.x, pos.z - k * 16) >= 0.0f)
 			{
-				pos.z -= k *16;
+				pos.z -= static_cast<float>(k * 16);
 				break;
 			}
 		}

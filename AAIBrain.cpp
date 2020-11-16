@@ -481,32 +481,41 @@ void AAIBrain::BuildUnits()
 	}
 }
 
+bool IsRandomNumberBelow(float threshold)
+{
+	// determine random float in [0:1]
+	const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
+	return randomValue < threshold;
+}
+
 AAITargetType AAIBrain::DetermineTargetTypeForCombatUnitConstruction(const GamePhase& gamePhase) const
 {
 	AAITargetType targetType(ETargetType::SURFACE);
 
 	const AAIMapType& mapType = ai->Getmap()->GetMapType();
 
+
+
 	// choose unit category dependend on map type
 	if(mapType.IsLandMap())
 	{
-		if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
+		if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
 			targetType.SetType(ETargetType::AIR);
 	}
 	else if(mapType.IsLandWaterMap())
 	{
 		//! @todo Add selection of Submarines
-		int groundRatio = static_cast<int>(100.0f * AAIMap::s_landTilesRatio);
+		const float waterRatio = AAIMap::s_waterTilesRatio;
 		
-		if(rand()%100 < groundRatio)
+		if(IsRandomNumberBelow(waterRatio) )
 			targetType.SetType(ETargetType::FLOATER);
-		else if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
+		else if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
 			targetType.SetType(ETargetType::AIR);
 	}
 	else if(mapType.IsWaterMap())
 	{
 		//! @todo Add selection of Submarines
-		if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
+		if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
 			targetType.SetType(ETargetType::AIR);
 		else
 			targetType.SetType(ETargetType::FLOATER);
@@ -546,7 +555,7 @@ void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitS
 	unitSelectionCriteria.factoryUtilization = 2.0f;
 
 	// prefer faster units from time to time if enemy pressure
-	if( (m_estimatedPressureByEnemies < 0.25f) && (rand()%cfg->FAST_UNITS_RATE == 1) )
+	if( (m_estimatedPressureByEnemies < 0.25f) && IsRandomNumberBelow(cfg->FAST_UNITS_RATIO) )
 	{
 		if(rand()%100 < 70)
 			unitSelectionCriteria.speed = 1.0f;
@@ -573,19 +582,19 @@ void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitS
 	else
 	{
 		// determine speed, range & eff
-		if(rand()%cfg->HIGH_RANGE_UNITS_RATE == 1)
+		if( IsRandomNumberBelow(cfg->HIGH_RANGE_UNITS_RATIO) )
 		{
 			const int t = rand()%1000;
 
 			if(t < 350)
 				unitSelectionCriteria.range = 0.75f;
-			else if(t == 700)
+			else if(t < 700)
 				unitSelectionCriteria.range = 1.2f;
 			else
 				unitSelectionCriteria.range = 1.5f;
 		}
 
-		if(rand()%3 == 1)
+		if( IsRandomNumberBelow(0.25f) )
 			unitSelectionCriteria.power = 2.5f;
 		else
 			unitSelectionCriteria.power = 1.0f + (1.0f - m_estimatedPressureByEnemies) * 0.5f;

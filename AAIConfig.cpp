@@ -121,9 +121,9 @@ AAIConfig::AAIConfig(void)
 	MAX_METAL_COST = 10000;
 	MIN_AIR_ATTACK_COST = 150;
 	MAX_AIR_TARGETS = 20;
-	AIRCRAFT_RATE = 6;
-	HIGH_RANGE_UNITS_RATE = 3;
-	FAST_UNITS_RATE = 3;
+	AIRCRAFT_RATIO = 0.2f;
+	HIGH_RANGE_UNITS_RATIO = 0.3f;
+	FAST_UNITS_RATIO = 0.2f;
 	METAL_ENERGY_RATIO = 25;
 	MAX_DEFENCES = 9;
 	MIN_SECTOR_THREAT = 6;
@@ -185,6 +185,15 @@ std::string AAIConfig::GetFileName(springLegacyAI::IAICallback* cb, const std::s
 	}
 	name.assign(buffer, sizeof(buffer));
 	return name;
+}
+
+void CheckValueRange(float& x)
+{
+	if(x < 0.0f)
+		x = 0.0f;
+	
+	if(x > 1.0f)
+		x = 1.0f;
 }
 
 bool AAIConfig::loadGameConfig(AAI *ai)
@@ -358,12 +367,12 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 			MIN_ASSISTANCE_BUILDTIME = GetInt(ai, file);
 		} else if(!strcmp(keyword, "AIR_DEFENCE")) {
 			AIR_DEFENCE = GetInt(ai, file);
-		} else if(!strcmp(keyword, "AIRCRAFT_RATE")) {
-			AIRCRAFT_RATE = GetInt(ai, file);
-		} else if(!strcmp(keyword, "HIGH_RANGE_UNITS_RATE")) {
-			HIGH_RANGE_UNITS_RATE = GetInt(ai, file);
-		} else if(!strcmp(keyword, "FAST_UNITS_RATE")) {
-			FAST_UNITS_RATE = GetInt(ai, file);
+		} else if(!strcmp(keyword, "AIRCRAFT_RATIO")) {
+			AIRCRAFT_RATIO = GetFloat(ai, file);
+		} else if(!strcmp(keyword, "HIGH_RANGE_UNITS_RATIO")) {
+			HIGH_RANGE_UNITS_RATIO = GetFloat(ai, file);
+		} else if(!strcmp(keyword, "FAST_UNITS_RATIO")) {
+			FAST_UNITS_RATIO = GetFloat(ai, file);
 		} else if(!strcmp(keyword, "MAX_METAL_COST")) {
 			MAX_METAL_COST = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_DEFENCES")) {
@@ -403,8 +412,13 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 		} else {
 			errorOccurred = true;
 			break;
-		}
+		}	
 	}
+
+	// ensure values are in range 0.0f to 1.0f
+	CheckValueRange(AIRCRAFT_RATIO);
+	CheckValueRange(HIGH_RANGE_UNITS_RATIO);
+	CheckValueRange(FAST_UNITS_RATIO);
 
 	if(errorOccurred) {
 		ai->Log("Mod config file %s contains erroneous keyword: %s\n", configfile.c_str(), keyword);
