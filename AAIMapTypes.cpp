@@ -240,7 +240,7 @@ void AAIContinentMap::DetectContinents(std::vector<AAIContinent>& continents, co
 				// add new continent if cell has not been visited yet
 				if( (m_continentMap[j * m_xContMapSize + i] < 0) && tileHeightCheckPassed )
 				{
-					AAIContinent newContinent(continentId, 1, false);
+					AAIContinent newContinent(continentId, 1, water);
 					continents.push_back(newContinent);
 
 					m_continentMap[j * m_xContMapSize + i] = continentId;
