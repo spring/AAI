@@ -1996,7 +1996,7 @@ void AAIExecute::CheckFactories()
 		if(ai->Getbt()->units_dynamic[factory.id].requested > 0)
 		{
 			// at least one requested factory has not been built yet
-			const float urgency = (ai->Getut()->activeFactories > 0) ? 0.4f : 3.5f;
+			const float urgency = (ai->Getut()->activeFactories > 0) ? 0.5f : 3.5f;
 
 			SetConstructionUrgencyIfHigher(EUnitCategory::STATIC_CONSTRUCTOR, urgency);
 

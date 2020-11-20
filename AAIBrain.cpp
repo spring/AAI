@@ -474,10 +474,11 @@ void AAIBrain::BuildUnits()
 
 	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
 	{
-		const AAITargetType targetType = DetermineTargetTypeForCombatUnitConstruction(gamePhase);
+		//const AAITargetType targetType = DetermineTargetTypeForCombatUnitConstruction(gamePhase);
+		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
 		const bool urgent(false);
 	
-		BuildCombatUnitOfCategory(targetType, threatByTargetType, unitSelectionCriteria, factoryUtilization, urgent);
+		BuildCombatUnitOfCategory(moveType, threatByTargetType, unitSelectionCriteria, factoryUtilization, urgent);
 	}
 }
 
@@ -488,46 +489,41 @@ bool IsRandomNumberBelow(float threshold)
 	return randomValue < threshold;
 }
 
-AAITargetType AAIBrain::DetermineTargetTypeForCombatUnitConstruction(const GamePhase& gamePhase) const
+AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const
 {
-	AAITargetType targetType(ETargetType::SURFACE);
+	AAIMovementType moveType;
 
 	const AAIMapType& mapType = ai->Getmap()->GetMapType();
 
-
-
-	// choose unit category dependend on map type
-	if(mapType.IsLandMap())
+	if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
 	{
-		if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
-			targetType.SetType(ETargetType::AIR);
+		moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_AIR);
 	}
-	else if(mapType.IsLandWaterMap())
+	else
 	{
-		//! @todo Add selection of Submarines
-		const float waterRatio = AAIMap::s_waterTilesRatio;
-		
+		const float waterRatio = (AAIMap::s_waterTilesRatio > 0.15f) ? AAIMap::s_waterTilesRatio : 0.0f;
+
+		moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_HOVER);
+
 		if(IsRandomNumberBelow(waterRatio) )
-			targetType.SetType(ETargetType::FLOATER);
-		else if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
-			targetType.SetType(ETargetType::AIR);
-	}
-	else if(mapType.IsWaterMap())
-	{
-		//! @todo Add selection of Submarines
-		if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
-			targetType.SetType(ETargetType::AIR);
+		{
+			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
+			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
+		}
 		else
-			targetType.SetType(ETargetType::FLOATER);
+		{
+			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_AMPHIBIOUS);
+			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_GROUND);
+		}
 	}
-
-	return targetType;
+	
+	return moveType;
 }
 
-void AAIBrain::BuildCombatUnitOfCategory(const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent)
+void AAIBrain::BuildCombatUnitOfCategory(const AAIMovementType& moveType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent)
 {
 	// Select unit according to determined criteria
-	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), targetType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6);
+	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), moveType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6);
 
 	// Order construction of selected unit
 	if(unitDefId.IsValid())

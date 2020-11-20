@@ -333,7 +333,8 @@ float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId) const
 			rating += 1.0f;
 	}
 
-	return (numberOfUnits > 0) ? rating / static_cast<float>(numberOfUnits) : 0.0f;
+	return rating;
+	//return (numberOfUnits > 0) ? rating / static_cast<float>(numberOfUnits) : 0.0f;
 }
 
 void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const
@@ -680,11 +681,20 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<UnitDefId>& uni
 	combatEfficiencyStat.Finalize();
 }
 
-UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness)
+UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allowedMoveTypes, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness)
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// get data needed for selection
 	//-----------------------------------------------------------------------------------------------------------------
+
+	AAITargetType targetType;
+	if(allowedMoveTypes.IsAir())
+		targetType.SetType(ETargetType::AIR);
+	else if(allowedMoveTypes.IsGround() || allowedMoveTypes.IsHover() || allowedMoveTypes.IsAmphibious())
+		targetType.SetType(ETargetType::SURFACE);
+	else
+		targetType.SetType(ETargetType::FLOATER);
+
 	const auto& unitList = ai->s_buildTree.GetCombatUnitsOfTargetType(targetType, side);
 
 	const StatisticalData& costStatistics  = ai->s_buildTree.GetUnitStatistics(side).GetCombatCostStatistics(targetType);
@@ -708,12 +718,15 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetT
 	{
 		float minFactoryUtilization(0.0f);
 
-		for(const auto& factory : ai->s_buildTree.GetConstructedByList(unitDefId))
+		if(ai->s_buildTree.GetMovementType(unitDefId).IsIncludedIn(allowedMoveTypes))
 		{
-			const float utilization = factoryUtilization[ai->s_buildTree.GetUnitTypeProperties(factory).m_factoryId.id];
+			for(const auto& factory : ai->s_buildTree.GetConstructedByList(unitDefId))
+			{
+				const float utilization = factoryUtilization[ai->s_buildTree.GetUnitTypeProperties(factory).m_factoryId.id];
 
-			if(utilization > minFactoryUtilization)
-				minFactoryUtilization = utilization;
+				if(utilization > minFactoryUtilization)
+					minFactoryUtilization = utilization;
+			}
 		}
 
 		if(minFactoryUtilization > 0.0f)
@@ -722,17 +735,17 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAITargetType& targetT
 
 			const float combatEff = combatPowerValues[i] / unitData.m_totalCost;
 
-			const float myRating =  unitCriteria.cost  * costStatistics.GetNormalizedSquaredDeviationFromMax( unitData.m_totalCost )
-							+ unitCriteria.range * rangeStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_primaryAbility )
-							+ unitCriteria.speed * speedStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_maxSpeed )
-							+ unitCriteria.power * combatPowerStat.GetNormalizedSquaredDeviationFromMin( combatPowerValues[i] )
-							+ unitCriteria.efficiency * combatEfficiencyStat.GetNormalizedSquaredDeviationFromMin( combatEff )
-							+ unitCriteria.factoryUtilization * minFactoryUtilization
-							+ 0.05f * ((float)(rand()%randomness));
+			const float rating =  unitCriteria.cost  * costStatistics.GetNormalizedSquaredDeviationFromMax( unitData.m_totalCost )
+								+ unitCriteria.range * rangeStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_primaryAbility )
+								+ unitCriteria.speed * speedStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_maxSpeed )
+								+ unitCriteria.power * combatPowerStat.GetNormalizedSquaredDeviationFromMin( combatPowerValues[i] )
+								+ unitCriteria.efficiency * combatEfficiencyStat.GetNormalizedSquaredDeviationFromMin( combatEff )
+								+ unitCriteria.factoryUtilization * minFactoryUtilization
+								+ 0.05f * ((float)(rand()%randomness));
 
-			if(myRating > highestRating)
+			if(rating > highestRating)
 			{
-				highestRating       = myRating;
+				highestRating       = rating;
 				selectedUnitType.id = unitDefId.id;
 			}
 		}

@@ -105,7 +105,7 @@ public:
 												&& (static_cast<int>(m_unitCategory) <= static_cast<int>(EUnitCategory::METAL_MAKER) ); };
 
 	bool IsCombatUnit()        const { return      (static_cast<int>(m_unitCategory) >= static_cast<int>(EUnitCategory::GROUND_COMBAT) )
-												&& (static_cast<int>(m_unitCategory) <= static_cast<int>(EUnitCategory::SEA_COMBAT) ); };
+												&& (static_cast<int>(m_unitCategory) <= static_cast<int>(EUnitCategory::SUBMARINE_COMBAT) ); };
 
 	static constexpr int numberOfUnitCategories = static_cast<int>(EUnitCategory::NUMBER_OF_CATEGORIES);
 

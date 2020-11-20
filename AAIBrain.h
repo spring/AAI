@@ -123,11 +123,11 @@ private:
 	// returns true if sufficient ressources to build unit are availbale
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
-	//! @brief Returns the target type of the next combat unit that shall be ordered
-	AAITargetType DetermineTargetTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;
+	//! @brief Returns the movement type of the next combat unit that shall be ordered
+	AAIMovementType DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;
 
 	//! @brief Selects combat unit according to given criteria and tries to order its construction
-	void BuildCombatUnitOfCategory(const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent);
+	void BuildCombatUnitOfCategory(const AAIMovementType& moveType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent);
 
 	//! @brief Determines criteria for combat unit selection based on current game phase (@todo: Take other criteria into account)
 	void DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const;

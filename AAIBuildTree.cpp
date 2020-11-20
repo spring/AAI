@@ -364,11 +364,14 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		else if(unitCategory.IsAirCombat())
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::airIndex].push_back(unitDefId);
 		else if(unitCategory.IsHoverCombat())
+		{
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::surfaceIndex].push_back(unitDefId);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(unitDefId);
+		}
 		else if(unitCategory.IsSeaCombat())
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(unitDefId);
 		else if(unitCategory.IsSubmarineCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::submergedIndex].push_back(unitDefId);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(unitDefId);
 
 		// set primary and secondary abilities
 		m_unitTypeProperties[id].m_primaryAbility = DeterminePrimaryAbility(unitDefs[id], unitCategory, cb);
@@ -428,10 +431,15 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 		}
 		fprintf(file, "\n");
 
-		fprintf(file, "\nUnit List (human/internal name, side, category) - combat power vs surface, air, ship, submarine, static\n");
+		fprintf(file, "\nUnit List (human/internal name, internal category, side, category, cost, primary ability, secondary ability) - \n");
+		fprintf(file, "  Primary ability:   weapon range for combat units, artillery, or static defences, los for scout, radar(jammer) range, buildtime for constructors, metal extraction for extractors, metal storage capacity for storages), generated power for power plants\n");
+		fprintf(file, "  Secondary ability: movement speed for combat units, artillery, scouts, or mobile constructors, sonar(jammer) range, energy storage capacity for storages\n");
 		for(int id = 1; id < unitDefs.size(); ++id)
 		{
-			fprintf(file, "ID: %-3i %-40s %-16s %-8u %-1i %-18s", id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), unitDefs[id]->category, GetSideOfUnitType(UnitDefId(id)), GetCategoryName(GetUnitCategory(UnitDefId(id))).c_str() );
+			fprintf(file, "ID: %-3i %-40s %-16s %-8u %-1i %-18s %-6f %-6f %-6f", 
+								id, m_unitTypeProperties[id].m_name.c_str(), unitDefs[id]->name.c_str(), unitDefs[id]->category, 
+								GetSideOfUnitType(UnitDefId(id)), GetCategoryName(GetUnitCategory(UnitDefId(id))).c_str(),
+								GetTotalCost(UnitDefId(id)), GetPrimaryAbility(UnitDefId(id)), GetSecondaryAbility(UnitDefId(id)) );
 
 			for(auto unitType = unitTypes.begin(); unitType != unitTypes.end(); ++unitType)
 			{
@@ -503,6 +511,25 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 				fprintf(file, "Min/max/avg cost: %f/%f/%f,   Min/max/avg range: %f/%f/%f\n",
 									cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
 									range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue());
+			}
+
+			fprintf(file, "Combat unit categories:\n");
+			for(auto targetType : AAITargetType::m_mobileTargetTypes )
+			{
+				fprintf(file, "\n%s:\n", AAITargetType::m_targetTypeNames[AAITargetType(targetType).GetArrayIndex()].c_str());
+			
+				for(auto unitDefId : GetCombatUnitsOfTargetType(targetType, side+1) )
+				{
+					fprintf(file, "%s ", GetUnitTypeProperties(unitDefId).m_name.c_str());
+				}
+				fprintf(file, "\n");
+				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetCombatCostStatistics(targetType);
+				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetCombatRangeStatistics(targetType);
+				const StatisticalData& speed     = m_unitCategoryStatisticsOfSide[side].GetCombatSpeedStatistics(targetType);
+				fprintf(file, "Min/max/avg cost: %f/%f/%f,   Min/max/avg range: %f/%f/%f,    Min/max/avg speed: %f/%f/%f\n",
+									cost.GetMinValue(),  cost.GetMaxValue(),  cost.GetAvgValue(), 
+									range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue(),
+									speed.GetMinValue(), speed.GetMaxValue(), speed.GetAvgValue());
 			}
 
 			/*for(auto powerPlant = m_unitsInCategory[side][AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()].begin(); powerPlant != m_unitsInCategory[side][AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()].end(); ++powerPlant)

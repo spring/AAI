@@ -76,20 +76,23 @@ public:
 	const UnitTypeProperties& GetUnitTypeProperties(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id]; }
 
 	//! @brief Returns the total cost of the given unit type
-	const float GetTotalCost(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_totalCost; }
+	float GetTotalCost(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_totalCost; }
 
 	//! @brief Returns the buildtime of the given unit type
-	const float GetBuildtime(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_buildtime; }
+	float GetBuildtime(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_buildtime; }
 
 	//! @brief Returns the hitpoints/health of the given unit type
-	const float GetHealth(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_health; }
+	float GetHealth(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_health; }
 
 	//! @brief Returns the primary ability (equal to maximum weapons range for combat units)
-	const float GetMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_primaryAbility; }
-	const float GetPrimaryAbility(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_primaryAbility; }
+	float GetMaxRange(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_primaryAbility; }
+	float GetPrimaryAbility(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_primaryAbility; }
 
 	//! @brief Returns the buildspeed for static and mobile constructors, range otherwise (buildspeed is stored in range variable)
-	const float GetBuildspeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_primaryAbility; }
+	float GetBuildspeed(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_primaryAbility; }
+
+	//! @brief Returns the secondary ability (equal to maximum speed for combat units)
+	float GetSecondaryAbility(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_maxSpeed; }
 
 	//! @brief Returns the footprint of the given unit, i.e. number of map tiles occupied in horizontal/vertical direction
 	const UnitFootprint& GetFootprint(UnitDefId unitDefId) const { return m_unitTypeProperties[unitDefId.id].m_footprint; }

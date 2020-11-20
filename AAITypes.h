@@ -42,11 +42,14 @@ public:
 	void SetMovementType(EMovementType moveType) { m_movementType = moveType; }
 
 	//! @brief Adds the given elementary movement type to the movement type bitmask
-	void AddMovementType(AAIMovementType moveType) 
-	{ 
-		const uint32_t newMoveType = static_cast<uint32_t>(m_movementType) | static_cast<uint32_t>(moveType.m_movementType);
+	void AddMovementType(EMovementType moveType)
+	{
+		const uint32_t newMoveType = static_cast<uint32_t>(m_movementType) | static_cast<uint32_t>(moveType);
 		m_movementType = static_cast<EMovementType>(newMoveType);
 	}
+
+	//! @brief Adds the given elementary movement type to the movement type bitmask
+	void AddMovementType(AAIMovementType moveType) { AddMovementType(moveType.m_movementType); }
 
 	//! @brief Getter function to access unit type.
 	EMovementType GetMovementType() const { return m_movementType; }
@@ -135,6 +138,9 @@ public:
 
 	//! @brief Returns whether this movement type is included in the given movement type bitmask.
 	bool IsIncludedIn(uint32_t moveTypesBitmask) const { return static_cast<bool>( static_cast<uint32_t>(m_movementType) & moveTypesBitmask); }
+
+	//! @brief Returns whether this movement type is included in the given movement type bitmask.
+	bool IsIncludedIn(AAIMovementType moveTypes) const { return IsIncludedIn( static_cast<uint32_t>(moveTypes.m_movementType) ); }
 
 private:
 	//! Movement type
