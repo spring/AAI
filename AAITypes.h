@@ -173,16 +173,15 @@ struct UnitTypeProperties
 	//! Hitpoints
 	float m_health;
 
-	//! Range of unit category relevant ability: 
-	//! max range of weapons (Combat units, artillery and static defences), line of sight (scouts), radar/sonar/jammer range
-	//! buildspeed for mobile/static constructors
+	//! max range of weapons (Combat units, artillery and static defences), line of sight (scouts), radar/radar jammer range
+	//! buildspeed for mobile/static constructors, metal extraction for extractors, metal storage capacity for storages, generated power for power plants
 	float m_primaryAbility;
+
+	//! Secondary ability: max speed for mobile units, sonar(jammer) range, energy storage capacity for storages)
+	float m_secondaryAbility;
 
 	//! Movement type (land, sea, air, hover, submarine, ...)
 	AAIMovementType m_movementType;
-
-	//! Maximum movement speed
-	float           m_maxSpeed;
 
 	//! Size of the unit (in map tiles) 
 	UnitFootprint   m_footprint;

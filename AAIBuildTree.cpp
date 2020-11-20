@@ -374,8 +374,8 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(unitDefId);
 
 		// set primary and secondary abilities
-		m_unitTypeProperties[id].m_primaryAbility = DeterminePrimaryAbility(unitDefs[id], unitCategory, cb);
-		m_unitTypeProperties[id].m_maxSpeed       = DetermineSecondaryAbility(unitDefs[id], unitCategory);
+		m_unitTypeProperties[id].m_primaryAbility   = DeterminePrimaryAbility(unitDefs[id], unitCategory, cb);
+		m_unitTypeProperties[id].m_secondaryAbility = DetermineSecondaryAbility(unitDefs[id], unitCategory);
 	}
 
 	InitFactoryDefIdLookUpTable(numberOfFactories);

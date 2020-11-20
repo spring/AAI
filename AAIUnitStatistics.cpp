@@ -47,7 +47,7 @@ void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& 
 			m_unitBuildtimeStatistics[cat].AddValue( unitProperties[unitDefId.id].m_buildtime );
 			m_unitCostStatistics[cat].AddValue( unitProperties[unitDefId.id].m_totalCost );
 			m_unitPrimaryAbilityStatistics[cat].AddValue( unitProperties[unitDefId.id].m_primaryAbility );
-			m_unitSecondaryAbilityStatistics[cat].AddValue( unitProperties[unitDefId.id].m_maxSpeed );
+			m_unitSecondaryAbilityStatistics[cat].AddValue( unitProperties[unitDefId.id].m_secondaryAbility );
 		}
 
 		// calculate average values after last value has been added
@@ -69,7 +69,7 @@ void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& 
 			m_combatCostStatistics[i].AddValue( unitProperties[unitDefId.id].m_totalCost );
 			m_combatBuildtimeStatistics[i].AddValue( unitProperties[unitDefId.id].m_buildtime );
 			m_combatRangeStatistics[i].AddValue( unitProperties[unitDefId.id].m_primaryAbility );
-			m_combatSpeedStatistics[i].AddValue( unitProperties[unitDefId.id].m_maxSpeed );
+			m_combatSpeedStatistics[i].AddValue( unitProperties[unitDefId.id].m_secondaryAbility );
 		}
 
 		m_combatCostStatistics[i].Finalize();

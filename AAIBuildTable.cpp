@@ -737,7 +737,7 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allow
 
 			const float rating =  unitCriteria.cost  * costStatistics.GetNormalizedSquaredDeviationFromMax( unitData.m_totalCost )
 								+ unitCriteria.range * rangeStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_primaryAbility )
-								+ unitCriteria.speed * speedStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_maxSpeed )
+								+ unitCriteria.speed * speedStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_secondaryAbility )
 								+ unitCriteria.power * combatPowerStat.GetNormalizedSquaredDeviationFromMin( combatPowerValues[i] )
 								+ unitCriteria.efficiency * combatEfficiencyStat.GetNormalizedSquaredDeviationFromMin( combatEff )
 								+ unitCriteria.factoryUtilization * minFactoryUtilization
