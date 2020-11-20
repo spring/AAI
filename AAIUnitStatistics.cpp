@@ -60,9 +60,9 @@ void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& 
 	//-----------------------------------------------------------------------------------------------------------------
 	// calculate combat category statistics
 	//-----------------------------------------------------------------------------------------------------------------
-	for(const auto& targetType : AAITargetType::m_mobileTargetTypes) 
+	for(const auto combatUnitCategory : AAICombatUnitCategory::m_combatUnitCategories) 
 	{
-		const int i = AAITargetType::GetArrayIndex(targetType);
+		const int i = AAICombatUnitCategory(combatUnitCategory).GetArrayIndex();
 
 		for(auto unitDefId : unitsInCombatCategory[i])
 		{

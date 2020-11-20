@@ -11,6 +11,7 @@
 #include "aidef.h"
 #include "AAIBuildTree.h"
 #include "AAIConfig.h"
+#include "AAIUnitTypes.h"
 
 #include "LegacyCpp/IGlobalAICallback.h"
 
@@ -110,6 +111,20 @@ bool AAIBuildTree::LoadCombatPowerOfUnits(FILE* inputFile)
 	return true;
 }
 
+const std::list<UnitDefId>& AAIBuildTree::GetUnitsOfTargetType(const AAITargetType& targetType, int side) const
+{
+	if(targetType.IsSurface())
+		return GetUnitsInCombatUnitCategory(ECombatUnitCategory::SURFACE, side);
+	else if(targetType.IsAir())
+		return GetUnitsInCategory(EUnitCategory::AIR_COMBAT, side);
+	else if(targetType.IsFloater())
+		return GetUnitsInCategory(EUnitCategory::SEA_COMBAT, side);
+	else if(targetType.IsSubmerged())
+		return GetUnitsInCategory(EUnitCategory::SUBMARINE_COMBAT, side);
+	else
+		return GetUnitsInCategory(EUnitCategory::STATIC_DEFENCE, side);
+}
+
 void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 {
 	// calculate statistics of max costs of all combat units
@@ -162,14 +177,14 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 			AAICombatPower combatPower;
 			combatPower.SetCombatPower(ETargetType::STATIC, AAIConstants::noValidTargetInitialCombarPower + power);
 			
-			for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
+			for(auto targetType : AAITargetType::m_mobileTargetTypes)
 			{
 				int numberOfTargetableUnits(0);
 				int totalNumberOfUnits(0);
 
 				for(int side = 1; side <= m_numberOfSides; ++side)
 				{
-					const auto unitList = GetCombatUnitsOfTargetType(targetType, side);
+					auto unitList = GetUnitsOfTargetType(targetType, side);
 					totalNumberOfUnits += unitList.size();
 
 					for(const auto& unitDefId : unitList)
@@ -318,7 +333,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 	for(int side = 0; side < m_numberOfSides; ++side)
 	{
 		m_unitsInCategory[side].resize( AAIUnitCategory::numberOfUnitCategories ); 
-		m_unitsInCombatCategory[side].resize( AAITargetType::numberOfMobileTargetTypes );
+		m_unitsInCombatCategory[side].resize( AAICombatUnitCategory::numberOfCombatUnitCategories );
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -360,18 +375,18 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 
 		// add combat units to combat category lists
 		if(unitCategory.IsGroundCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::surfaceIndex].push_back(unitDefId);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAICombatUnitCategory::surfaceIndex].push_back(unitDefId);
 		else if(unitCategory.IsAirCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::airIndex].push_back(unitDefId);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAICombatUnitCategory::airIndex].push_back(unitDefId);
 		else if(unitCategory.IsHoverCombat())
 		{
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::surfaceIndex].push_back(unitDefId);
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(unitDefId);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAICombatUnitCategory::surfaceIndex].push_back(unitDefId);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAICombatUnitCategory::seaIndex].push_back(unitDefId);
 		}
 		else if(unitCategory.IsSeaCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(unitDefId);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAICombatUnitCategory::seaIndex].push_back(unitDefId);
 		else if(unitCategory.IsSubmarineCombat())
-			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAITargetType::floaterIndex].push_back(unitDefId);
+			m_unitsInCombatCategory[ m_sideOfUnitType[id]-1 ][AAICombatUnitCategory::seaIndex].push_back(unitDefId);
 
 		// set primary and secondary abilities
 		m_unitTypeProperties[id].m_primaryAbility   = DeterminePrimaryAbility(unitDefs[id], unitCategory, cb);
@@ -514,18 +529,18 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 			}
 
 			fprintf(file, "Combat unit categories:\n");
-			for(auto targetType : AAITargetType::m_mobileTargetTypes )
+			for(auto combatUnitCategory : AAICombatUnitCategory::m_combatUnitCategories )
 			{
-				fprintf(file, "\n%s:\n", AAITargetType::m_targetTypeNames[AAITargetType(targetType).GetArrayIndex()].c_str());
+				fprintf(file, "\n%s:\n", AAICombatUnitCategory::m_combatCategoryNames[AAICombatUnitCategory(combatUnitCategory).GetArrayIndex()].c_str());
 			
-				for(auto unitDefId : GetCombatUnitsOfTargetType(targetType, side+1) )
+				for(auto unitDefId : GetUnitsInCombatUnitCategory(combatUnitCategory, side+1) )
 				{
 					fprintf(file, "%s ", GetUnitTypeProperties(unitDefId).m_name.c_str());
 				}
 				fprintf(file, "\n");
-				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetCombatCostStatistics(targetType);
-				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetCombatRangeStatistics(targetType);
-				const StatisticalData& speed     = m_unitCategoryStatisticsOfSide[side].GetCombatSpeedStatistics(targetType);
+				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetCombatCostStatistics(combatUnitCategory);
+				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetCombatRangeStatistics(combatUnitCategory);
+				const StatisticalData& speed     = m_unitCategoryStatisticsOfSide[side].GetCombatSpeedStatistics(combatUnitCategory);
 				fprintf(file, "Min/max/avg cost: %f/%f/%f,   Min/max/avg range: %f/%f/%f,    Min/max/avg speed: %f/%f/%f\n",
 									cost.GetMinValue(),  cost.GetMaxValue(),  cost.GetAvgValue(), 
 									range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue(),

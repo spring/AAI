@@ -96,8 +96,7 @@ bool AAIAttack::SufficientCombatPowerAt(const AAISector *sector, float aggressiv
 		//! @todo Must be reworked to work with water units.
 		const AAITargetType targetType(ETargetType::SURFACE);
 
-		const float enemyUnits =  sector->GetNumberOfEnemyCombatUnits(ECombatUnitCategory::GROUND_COMBAT) 
-		                        + sector->GetNumberOfEnemyCombatUnits(ECombatUnitCategory::HOVER_COMBAT);
+		const float enemyUnits =  sector->GetNumberOfEnemyCombatUnits(targetType);
 
 		if(enemyUnits <= 1.0f)
 			return true;	

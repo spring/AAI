@@ -25,8 +25,6 @@ AAISector::AAISector()
 
 AAISector::~AAISector(void)
 {
-	m_enemyCombatUnits.clear();
-
 	m_ownBuildingsOfCategory.clear();
 }
 
@@ -60,7 +58,7 @@ void AAISector::Init(AAI *ai, int x, int y)
 
 	importance_this_game = 1.0f + (rand()%5)/20.0f;
 
-	m_enemyCombatUnits.resize(AAICombatUnitCategory::numberOfCombatUnitCategories, 0.0f);
+	std::fill(m_enemyCombatUnits.begin(),  m_enemyCombatUnits.end(), 0.0f); 
 
 	m_ownBuildingsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
 }
@@ -189,9 +187,9 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 	{
 		// units that have been scouted long time ago matter less
 		const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(lastUpdateInFrame - ai->GetAICallback()->GetCurrentFrame())) / 3600.0f  );
-		const AAICombatUnitCategory& combatCategory( categoryOfEnemyUnit );
+		const AAITargetType& targetType = ai->s_buildTree.GetTargetType(enemyDefId);
 
-		m_enemyCombatUnits[combatCategory.GetArrayIndex()] += lastSeen;
+		m_enemyCombatUnits[targetType.GetArrayIndex()] += lastSeen;
 
 		m_enemyMobileCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(enemyDefId), lastSeen );
 	}

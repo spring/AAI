@@ -687,19 +687,19 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allow
 	// get data needed for selection
 	//-----------------------------------------------------------------------------------------------------------------
 
-	AAITargetType targetType;
+	AAICombatUnitCategory combatUnitCategory;
 	if(allowedMoveTypes.IsAir())
-		targetType.SetType(ETargetType::AIR);
-	else if(allowedMoveTypes.IsGround() || allowedMoveTypes.IsHover() || allowedMoveTypes.IsAmphibious())
-		targetType.SetType(ETargetType::SURFACE);
+		combatUnitCategory.SetCategory(ECombatUnitCategory::AIR);
+	else if(allowedMoveTypes.IsGround() || allowedMoveTypes.IsAmphibious())
+		combatUnitCategory.SetCategory(ECombatUnitCategory::SURFACE);
 	else
-		targetType.SetType(ETargetType::FLOATER);
+		combatUnitCategory.SetCategory(ECombatUnitCategory::SEA);
 
-	const auto& unitList = ai->s_buildTree.GetCombatUnitsOfTargetType(targetType, side);
+	const auto& unitList = ai->s_buildTree.GetUnitsInCombatUnitCategory(combatUnitCategory, side);
 
-	const StatisticalData& costStatistics  = ai->s_buildTree.GetUnitStatistics(side).GetCombatCostStatistics(targetType);
-	const StatisticalData& rangeStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatRangeStatistics(targetType);
-	const StatisticalData& speedStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatSpeedStatistics(targetType);
+	const StatisticalData& costStatistics  = ai->s_buildTree.GetUnitStatistics(side).GetCombatCostStatistics(combatUnitCategory);
+	const StatisticalData& rangeStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatRangeStatistics(combatUnitCategory);
+	const StatisticalData& speedStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatSpeedStatistics(combatUnitCategory);
 
 	StatisticalData combatPowerStat;		               // absolute combat power
 	StatisticalData combatEfficiencyStat;	               // combat power related to unit cost

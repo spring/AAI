@@ -105,8 +105,8 @@ public:
 	//! @brief Returns whether sector is supsected to be occupied by enemy units
 	bool IsOccupiedByEnemies() const{ return (GetTotalEnemyCombatUnits() > 0.1f) || (m_enemyBuildings > 0) || (m_enemyUnitsDetectedBySensor > 0); }
 
-	//! @brief Returns number of enemy units of given category spotted in this sector (float as number decreases over time if sector is not scouted)
-	float GetNumberOfEnemyCombatUnits(const AAICombatUnitCategory& category) const  { return m_enemyCombatUnits[category.GetArrayIndex()]; };
+	//! @brief Returns number of enemy units of given target type spotted in this sector (float as number decreases over time if sector is not scouted)
+	float GetNumberOfEnemyCombatUnits(const AAITargetType& targetType) const  { return m_enemyCombatUnits[targetType.GetArrayIndex()]; };
 
 	//! @brief Decreases number of lost units by a factor < 1 such that AAI "forgets" about lost unit over time
 	void DecreaseLostUnits();
@@ -277,7 +277,7 @@ private:
 	std::vector<int> m_ownBuildingsOfCategory;
 
 	//! Number of spotted enemy combat units (float values as number decays over time)
-	std::vector<float> m_enemyCombatUnits; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine
+	std::array<float, AAITargetType::numberOfMobileTargetTypes> m_enemyCombatUnits; // 0 surface, 1 air, 3 ship, 4 submarine
 
 	//! Number of buildings enemy players have constructed in this sector
 	int m_enemyBuildings;

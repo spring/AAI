@@ -501,9 +501,9 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 	}
 	else
 	{
-		const float waterRatio = (AAIMap::s_waterTilesRatio > 0.15f) ? AAIMap::s_waterTilesRatio : 0.0f;
-
 		moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_HOVER);
+
+		const float waterRatio = (AAIMap::s_waterTilesRatio > 0.15f) ? AAIMap::s_waterTilesRatio : 0.0f;
 
 		if(IsRandomNumberBelow(waterRatio) )
 		{
@@ -513,7 +513,9 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 		else
 		{
 			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_AMPHIBIOUS);
-			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_GROUND);
+
+			if(IsRandomNumberBelow(1.0f - waterRatio))
+				moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_GROUND);
 		}
 	}
 	

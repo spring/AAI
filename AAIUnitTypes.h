@@ -123,35 +123,40 @@ private:
 	EUnitCategory m_unitCategory;
 };
 
-//! Different categories of combat units (equal to unit categories, mainly used for array access)
+//! Different categories of combat units
 enum class ECombatUnitCategory : int
 {
-	GROUND_COMBAT        = 0,
-	AIR_COMBAT           = 1,
-	HOVER_COMBAT         = 2,
-	SEA_COMBAT           = 3,
-	SUBMARINE_COMBAT     = 4,
-	NUMBER_OF_CATEGORIES = 5,
-	UNKNOWN              = 6
+	SURFACE = 0,
+	AIR     = 1,
+	SEA     = 2, 
+	NUMBER_OF_CATEGORIES = 3,
 };
 
-//! The combat unit category contains a subset of the unit category (only combat units) and is mainly used
-//! for handling arrays storing combat unit related data.
+//! The CombatUnitCategory uis used to differentiate between units that may fight on land, air, or sea
 class AAICombatUnitCategory
 {
 public:
-	AAICombatUnitCategory() : m_combatUnitCategory(ECombatUnitCategory::UNKNOWN) {}
+	AAICombatUnitCategory() : m_combatUnitCategory(ECombatUnitCategory::SURFACE) {}
 
 	AAICombatUnitCategory(ECombatUnitCategory category) : m_combatUnitCategory(category) {}
 
-	AAICombatUnitCategory(const AAIUnitCategory& category) : m_combatUnitCategory( static_cast<ECombatUnitCategory>(category.GetArrayIndex() - static_cast<int>(EUnitCategory::GROUND_COMBAT)) ) {}
-
 	ECombatUnitCategory GetCombatUnitCategory() const { return m_combatUnitCategory; }
+
+	void SetCategory(ECombatUnitCategory combatUnitCategory) { m_combatUnitCategory = combatUnitCategory; }
 	
-	static const int numberOfCombatUnitCategories = static_cast<int>(ECombatUnitCategory::NUMBER_OF_CATEGORIES);
+	static constexpr int numberOfCombatUnitCategories = static_cast<int>(ECombatUnitCategory::NUMBER_OF_CATEGORIES);
+
+	static constexpr std::array<ECombatUnitCategory, 3> m_combatUnitCategories = {ECombatUnitCategory::SURFACE, ECombatUnitCategory::AIR, ECombatUnitCategory::SEA};
 
 	//! Returns index to access arrays storing combat unit data, i.e. ranging from 0 to numberOfCombatUnitCategories-1
 	int GetArrayIndex() const {return static_cast<int>(m_combatUnitCategory); }
+
+	static constexpr int surfaceIndex = static_cast<int>(ECombatUnitCategory::SURFACE);
+	static constexpr int airIndex     = static_cast<int>(ECombatUnitCategory::AIR);
+	static constexpr int seaIndex     = static_cast<int>(ECombatUnitCategory::SEA);
+
+	static const std::vector<std::string> m_combatCategoryNames;
+	//const static std::vector<std::string> m_combatCategoryNames = {"Surface", "Air", "Sea"};
 
 private:
 	//! The unit category
@@ -177,28 +182,6 @@ public:
 	AAITargetType(ETargetType targetType) : m_targetType(targetType) {}
 
 	AAITargetType() : AAITargetType(ETargetType::UNKNOWN) {}
-
-	AAITargetType(const AAICombatUnitCategory& combatCategory)
-	{
-		switch(combatCategory.GetCombatUnitCategory())
-		{
-			case ECombatUnitCategory::GROUND_COMBAT:
-			case ECombatUnitCategory::HOVER_COMBAT:
-				m_targetType = ETargetType::SURFACE;
-				break;
-			case ECombatUnitCategory::AIR_COMBAT:
-				m_targetType = ETargetType::AIR;
-				break;
-			case ECombatUnitCategory::SEA_COMBAT:
-				m_targetType = ETargetType::FLOATER;
-				break;
-			case ECombatUnitCategory::SUBMARINE_COMBAT:
-				m_targetType = ETargetType::SUBMERGED;
-				break;
-			default:
-				m_targetType = ETargetType::UNKNOWN;
-		}
-	}
 
 	void SetType(ETargetType targetType) { m_targetType = targetType; }
 

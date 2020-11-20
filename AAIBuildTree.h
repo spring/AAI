@@ -114,7 +114,10 @@ public:
 	const std::list<UnitDefId>& GetUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; }
 
 	//! @brief Returns the list of units of the given combat category for given side
-	const std::list<UnitDefId>& GetCombatUnitsOfTargetType(const AAITargetType& targetType, int side) const { return m_unitsInCombatCategory[side-1][targetType.GetArrayIndex()]; }
+	const std::list<UnitDefId>& GetUnitsInCombatUnitCategory(const AAICombatUnitCategory& combatUnitCategory, int side) const { return m_unitsInCombatCategory[side-1][combatUnitCategory.GetArrayIndex()]; }
+
+	//! @brief Returns the list of units of the given target type
+	const std::list<UnitDefId>& GetUnitsOfTargetType(const AAITargetType& targetType, int side) const;
 
 	//! @brief Returns the unit category statistics for given side
 	const AAIUnitStatistics& GetUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; }
