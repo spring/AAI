@@ -18,10 +18,10 @@ void AAIDefenceMaps::Init(int xMapSize, int yMapSize)
 	m_defenceMaps.resize(AAITargetType::numberOfMobileTargetTypes, std::vector<float>(m_xDefenceMapSize*m_yDefenceMapSize, 0.0f) );
 }
 
-void AAIDefenceMaps::ModifyTiles(const float3& position, float maxWeaponRange, const UnitFootprint& footprint, const AAICombatPower& combatPower, bool addValues)
+void AAIDefenceMaps::ModifyTiles(const float3& position, float maxWeaponRange, const UnitFootprint& footprint, const TargetTypeValues& combatPower, bool addValues)
 {
 	// decide which function shall be used to modify tile values
-	void (AAIDefenceMaps::*modifyDefenceMapTile) (int , const AAICombatPower& ) = addValues ? &AAIDefenceMaps::AddDefence : &AAIDefenceMaps::RemoveDefence;
+	void (AAIDefenceMaps::*modifyDefenceMapTile) (int , const TargetTypeValues& ) = addValues ? &AAIDefenceMaps::AddDefence : &AAIDefenceMaps::RemoveDefence;
 
 	const int range = static_cast<int>(maxWeaponRange) / (SQUARE_SIZE * defenceMapResolution);
 	const int xPos  = static_cast<int>(position.x) / (SQUARE_SIZE * defenceMapResolution) + footprint.xSize/defenceMapResolution;
@@ -47,20 +47,20 @@ void AAIDefenceMaps::ModifyTiles(const float3& position, float maxWeaponRange, c
 	}
 }
 
-void AAIDefenceMaps::AddDefence(int tile, const AAICombatPower& combatPower)
+void AAIDefenceMaps::AddDefence(int tile, const TargetTypeValues& combatPower)
 {
-	m_defenceMaps[AAITargetType::surfaceIndex][tile]   += combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
-	m_defenceMaps[AAITargetType::airIndex][tile]       += combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
-	m_defenceMaps[AAITargetType::floaterIndex][tile]   += combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER);
-	m_defenceMaps[AAITargetType::submergedIndex][tile] += combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
+	m_defenceMaps[AAITargetType::surfaceIndex][tile]   += combatPower.GetValue(ETargetType::SURFACE);
+	m_defenceMaps[AAITargetType::airIndex][tile]       += combatPower.GetValue(ETargetType::AIR);
+	m_defenceMaps[AAITargetType::floaterIndex][tile]   += combatPower.GetValue(ETargetType::FLOATER);
+	m_defenceMaps[AAITargetType::submergedIndex][tile] += combatPower.GetValue(ETargetType::SUBMERGED);
 }
 
-void AAIDefenceMaps::RemoveDefence(int tile, const AAICombatPower& combatPower)
+void AAIDefenceMaps::RemoveDefence(int tile, const TargetTypeValues& combatPower)
 {
-	m_defenceMaps[AAITargetType::surfaceIndex][tile]   -= combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE);
-	m_defenceMaps[AAITargetType::airIndex][tile]       -= combatPower.GetCombatPowerVsTargetType(ETargetType::AIR);
-	m_defenceMaps[AAITargetType::floaterIndex][tile]   -= combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER);
-	m_defenceMaps[AAITargetType::submergedIndex][tile] -= combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED);
+	m_defenceMaps[AAITargetType::surfaceIndex][tile]   -= combatPower.GetValue(ETargetType::SURFACE);
+	m_defenceMaps[AAITargetType::airIndex][tile]       -= combatPower.GetValue(ETargetType::AIR);
+	m_defenceMaps[AAITargetType::floaterIndex][tile]   -= combatPower.GetValue(ETargetType::FLOATER);
+	m_defenceMaps[AAITargetType::submergedIndex][tile] -= combatPower.GetValue(ETargetType::SUBMERGED);
 
 	for(int targetTypeIndex = 0; targetTypeIndex < AAITargetType::numberOfMobileTargetTypes; ++targetTypeIndex)
 	{

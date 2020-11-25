@@ -108,7 +108,8 @@ public:
 	//! @brief Returns the target type
 	const AAITargetType& GetTargetType(UnitDefId unitDefId)     const  { return m_unitTypeProperties[unitDefId.id].m_targetType; }
 
-	const AAICombatPower& GetCombatPower(UnitDefId unitDefId)   const { return m_combatPowerOfUnits[unitDefId.id]; }
+	//! @brief Returns combat power of given unit type
+	const TargetTypeValues& GetCombatPower(UnitDefId unitDefId)   const { return m_combatPowerOfUnits[unitDefId.id]; }
 
 	//! @brief Returns the list of units of the given category for given side
 	const std::list<UnitDefId>& GetUnitsInCategory(const AAIUnitCategory& category, int side) const { return m_unitsInCategory[side-1][category.GetArrayIndex()]; }
@@ -212,7 +213,7 @@ private:
 	std::vector< std::string >                    m_unitCategoryNames;
 
 	//! The combat power of every unit
-	std::vector<AAICombatPower>                   m_combatPowerOfUnits;
+	std::vector<TargetTypeValues>                   m_combatPowerOfUnits;
 
 	//! This vetcor stores the UnitDefIds corresponding to any valid factory id
 	std::vector<UnitDefId>                        m_factoryIdsTable;

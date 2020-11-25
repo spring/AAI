@@ -310,7 +310,7 @@ void AAIBrain::UpdateRessources(springLegacyAI::IAICallback* cb)
 
 void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spottedCombatUnits)
 {
-	m_maxSpottedCombatUnitsOfTargetType.DecreaseByFactor(0.996f);
+	m_maxSpottedCombatUnitsOfTargetType.MultiplyValues(0.996f);
 
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
@@ -324,7 +324,7 @@ void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spotted
 
 void AAIBrain::UpdateAttackedByValues()
 {
-	m_recentlyAttackedByRates.DecreaseByFactor(0.96f);
+	m_recentlyAttackedByRates.MultiplyValues(0.96f);
 }
 
 void AAIBrain::AttackedBy(const AAITargetType& attackerTargetType)
@@ -377,7 +377,7 @@ void AAIBrain::UpdateDefenceCapabilities()
 
 void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 {
-	const AAICombatPower& combatPower = ai->s_buildTree.GetCombatPower(unitDefId);
+	const TargetTypeValues& combatPower = ai->s_buildTree.GetCombatPower(unitDefId);
 
 	if(ai->s_buildTree.GetUnitType(unitDefId).IsAssaultUnit())
 	{
@@ -387,33 +387,33 @@ void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 		{
 			case EUnitCategory::GROUND_COMBAT:
 			{
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE, combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE, combatPower.GetValue(ETargetType::SURFACE));
 				break;
 			}
 			case EUnitCategory::HOVER_COMBAT:
 			{
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE, combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER, combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE, combatPower.GetValue(ETargetType::SURFACE));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER, combatPower.GetValue(ETargetType::FLOATER));
 				break;
 			}
 			case EUnitCategory::SEA_COMBAT:
 			{
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE,   combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER,   combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER));
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SUBMERGED, combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE,   combatPower.GetValue(ETargetType::SURFACE));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER,   combatPower.GetValue(ETargetType::FLOATER));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SUBMERGED, combatPower.GetValue(ETargetType::SUBMERGED));
 				break;
 			}
 			case EUnitCategory::SUBMARINE_COMBAT:
 			{
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER,   combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER));
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SUBMERGED, combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER,   combatPower.GetValue(ETargetType::FLOATER));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SUBMERGED, combatPower.GetValue(ETargetType::SUBMERGED));
 			}
 			default:
 				break;
 		}
 	}
 	else if(ai->s_buildTree.GetUnitType(unitDefId).IsAntiAir())
-		m_totalMobileCombatPower.AddValueForTargetType(ETargetType::AIR, combatPower.GetCombatPowerVsTargetType(ETargetType::AIR));
+		m_totalMobileCombatPower.AddValueForTargetType(ETargetType::AIR, combatPower.GetValue(ETargetType::AIR));
 }
 
 float AAIBrain::Affordable()
@@ -450,17 +450,17 @@ void AAIBrain::BuildUnits()
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate urgency to counter each of the different combat categories
 	//-----------------------------------------------------------------------------------------------------------------
-	AAICombatPower threatByTargetType;
+	TargetTypeValues threatByTargetType;
 
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
 		const float threat =  attackedByCatStatistics.GetNormalizedDeviationFromMin( attackedByCategory.GetValueOfTargetType(targetType) ) 
 	                    	+ unitsSpottedStatistics.GetNormalizedDeviationFromMin( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )
 	                    	+ 1.5f * defenceStatistics.GetNormalizedDeviationFromMax( m_totalMobileCombatPower.GetValueOfTargetType(targetType)) ;
-		threatByTargetType.SetCombatPower(targetType, threat);
+		threatByTargetType.SetValue(targetType, threat);
 	}						 
 
-	threatByTargetType.SetCombatPower(ETargetType::STATIC, threatByTargetType.GetCombatPowerVsTargetType(ETargetType::SURFACE) + threatByTargetType.GetCombatPowerVsTargetType(ETargetType::FLOATER) );
+	threatByTargetType.SetValue(ETargetType::STATIC, threatByTargetType.GetValue(ETargetType::SURFACE) + threatByTargetType.GetValue(ETargetType::FLOATER) );
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Order building of units according to determined threat/own defence capabilities
@@ -522,7 +522,7 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 	return moveType;
 }
 
-void AAIBrain::BuildCombatUnitOfCategory(const AAIMovementType& moveType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent)
+void AAIBrain::BuildCombatUnitOfCategory(const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent)
 {
 	// Select unit according to determined criteria
 	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), moveType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6);

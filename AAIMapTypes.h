@@ -67,14 +67,14 @@ public:
 
 	//! @brief Modifies tiles within range of given position by combat power values
 	//!        Used to add or remove defences
-	void ModifyTiles(const float3& position, float maxWeaponRange, const UnitFootprint& footprint, const AAICombatPower& combatPower, bool addValues);
+	void ModifyTiles(const float3& position, float maxWeaponRange, const UnitFootprint& footprint, const TargetTypeValues& combatPower, bool addValues);
 
 private:
 	//! @brief Adds combat power values to given tile
-	void AddDefence(int tile, const AAICombatPower& combatPower);
+	void AddDefence(int tile, const TargetTypeValues& combatPower);
 
 	//! @brief Removes combat power values to given tile
-	void RemoveDefence(int tile, const AAICombatPower& combatPower);
+	void RemoveDefence(int tile, const TargetTypeValues& combatPower);
 
 	//! The maps itself
 	std::vector< std::vector<float> > m_defenceMaps;

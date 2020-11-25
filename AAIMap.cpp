@@ -1954,7 +1954,7 @@ AAISector* AAIMap::GetSectorOfPos(const float3& pos)
 void AAIMap::AddOrRemoveStaticDefence(const float3& position, UnitDefId defence, bool addDefence)
 {
 	// (un-)block area close to static defence
-	const AAICombatPower blockValues(100.0f);
+	const TargetTypeValues blockValues(100.0f);
 	s_defenceMaps.ModifyTiles(position, 120.0f, ai->s_buildTree.GetFootprint(defence), blockValues, addDefence);
 
 	s_defenceMaps.ModifyTiles(position, ai->s_buildTree.GetMaxRange(defence), ai->s_buildTree.GetFootprint(defence), ai->s_buildTree.GetCombatPower(defence), addDefence);

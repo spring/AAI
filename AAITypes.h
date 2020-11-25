@@ -14,6 +14,8 @@ typedef unsigned int   uint32_t;
 
 #include <vector>
 #include <string>
+#include <numeric>
+#include <algorithm>
 #include "aidef.h"
 #include "AAIUnitTypes.h"
 
@@ -245,56 +247,83 @@ private:
 	EMapType m_mapType;
 };
 
-//! Manages the combat power of a specific unit
-class AAICombatPower
+//! Data structure storing values for target types (e.g. combat power)
+class TargetTypeValues
 {
 public:
-	AAICombatPower(float value) { m_combatPower.resize(AAITargetType::numberOfTargetTypes, value); }
+	TargetTypeValues(float value) {Fill(value); }
 
-	AAICombatPower() : AAICombatPower(0.0f) {}
+	TargetTypeValues() : TargetTypeValues(0.0f) {}
 
-	void SetCombatPower(const AAITargetType& targetType, float value) { m_combatPower[targetType.GetArrayIndex()] = value; }
+	void Fill(float value) { m_values.fill(value); }
 
-	void SetCombatPower(const AAICombatPower& combatPower)
+	void SetValue(const AAITargetType& targetType, float value) { m_values[targetType.GetArrayIndex()] = value; }
+
+	void SetValues(const TargetTypeValues& values)
 	{
 		static_assert(AAITargetType::numberOfTargetTypes == 5, "Number of target types does not fit to implementation");
-		m_combatPower[0] = combatPower.m_combatPower[0];
-		m_combatPower[1] = combatPower.m_combatPower[1];
-		m_combatPower[2] = combatPower.m_combatPower[2];
-		m_combatPower[3] = combatPower.m_combatPower[3];
-		m_combatPower[4] = combatPower.m_combatPower[4];
+		m_values[0] = values.m_values[0];
+		m_values[1] = values.m_values[1];
+		m_values[2] = values.m_values[2];
+		m_values[3] = values.m_values[3];
+		m_values[4] = values.m_values[4];
 	}
 
 	void IncreaseCombatPower(const AAITargetType& vsTargetType, float value)
 	{
-		m_combatPower[vsTargetType.GetArrayIndex()] += value;
+		m_values[vsTargetType.GetArrayIndex()] += value;
 
-		if(m_combatPower[vsTargetType.GetArrayIndex()] > AAIConstants::maxCombatPower)
-			m_combatPower[vsTargetType.GetArrayIndex()] = AAIConstants::maxCombatPower;
+		if(m_values[vsTargetType.GetArrayIndex()] > AAIConstants::maxCombatPower)
+			m_values[vsTargetType.GetArrayIndex()] = AAIConstants::maxCombatPower;
 	}
 
 	void DecreaseCombatPower(const AAITargetType& vsTargetType, float value)
 	{
-		m_combatPower[vsTargetType.GetArrayIndex()] -= value;
+		m_values[vsTargetType.GetArrayIndex()] -= value;
 
-		if(m_combatPower[vsTargetType.GetArrayIndex()] < AAIConstants::minCombatPower)
-			m_combatPower[vsTargetType.GetArrayIndex()] = AAIConstants::minCombatPower;
+		if(m_values[vsTargetType.GetArrayIndex()] < AAIConstants::minCombatPower)
+			m_values[vsTargetType.GetArrayIndex()] = AAIConstants::minCombatPower;
 	}
 
-	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const { return m_combatPower[targetType.GetArrayIndex()]; }
+	float GetValue(const AAITargetType& targetType) const { return m_values[targetType.GetArrayIndex()]; }
 
-	float CalculateWeightedSum(const AAICombatPower& combatPowerWeights) const
+	float CalculateWeightedSum(const TargetTypeValues& weights) const
 	{		
 		static_assert(AAITargetType::numberOfTargetTypes == 5, "Number of target types does not fit to implementation");
-		return 	  (m_combatPower[0] * combatPowerWeights.m_combatPower[0])
-				+ (m_combatPower[1] * combatPowerWeights.m_combatPower[1])
-				+ (m_combatPower[2] * combatPowerWeights.m_combatPower[2])
-		     	+ (m_combatPower[3] * combatPowerWeights.m_combatPower[3])
-				+ (m_combatPower[4] * combatPowerWeights.m_combatPower[4]);
+		return 	  (m_values[0] * weights.m_values[0])
+				+ (m_values[1] * weights.m_values[1])
+				+ (m_values[2] * weights.m_values[2])
+		     	+ (m_values[3] * weights.m_values[3])
+				+ (m_values[4] * weights.m_values[4]);
+	}
+
+	void MultiplyValues(float factor)
+	{
+		std::for_each(m_values.begin(), m_values.end(), [&factor](float& value){ value *= factor; });
+	}
+
+	float CalcuateSum() const
+	{
+		return std::accumulate(m_values.begin(), m_values.end(), 0.0f);
+	}
+
+	void AddValue(const AAITargetType& targetType, float value)
+	{
+		m_values[targetType.GetArrayIndex()] += value;
+	}
+
+	void AddValues(const TargetTypeValues& values, float multiplier)
+	{
+		static_assert(AAITargetType::numberOfTargetTypes == 5, "Number of target types does not fit to implementation");
+		m_values[0] += multiplier * values.m_values[0];
+		m_values[1] += multiplier * values.m_values[1];
+		m_values[2] += multiplier * values.m_values[2];
+		m_values[3] += multiplier * values.m_values[3];
+		m_values[4] += multiplier * values.m_values[4];
 	}
 
 private:
-	std::vector<float> m_combatPower;
+	std::array<float, AAITargetType::numberOfTargetTypes> m_values;
 
 	friend class MobileTargetTypeValues;
 };
@@ -303,25 +332,7 @@ private:
 class MobileTargetTypeValues
 {
 public:
-	MobileTargetTypeValues() { m_values.resize(AAITargetType::numberOfMobileTargetTypes, 0.0f); }
-
-	float GetValueOfTargetType(const AAITargetType& targetType) const { return m_values[targetType.GetArrayIndex()]; }
-
-	void SetValueForTargetType(const AAITargetType& targetType, float value) { m_values[targetType.GetArrayIndex()] = value; }
-
-	void AddValueForTargetType(const AAITargetType& targetType, float value)
-	{
-		m_values[targetType.GetArrayIndex()] += value;
-	}
-
-	void DecreaseByFactor(float factor)
-	{
-		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
-		m_values[0] *= factor;
-		m_values[1] *= factor;
-		m_values[2] *= factor;
-		m_values[3] *= factor;
-	}
+	MobileTargetTypeValues() { Reset(); }
 
 	void Reset()
 	{
@@ -332,13 +343,31 @@ public:
 		m_values[3] = 0.0f;
 	}
 
-	void AddCombatPower(const AAICombatPower& combatPower, float modifier = 1.0f)
+	float GetValueOfTargetType(const AAITargetType& targetType) const { return m_values[targetType.GetArrayIndex()]; }
+
+	void SetValueForTargetType(const AAITargetType& targetType, float value) { m_values[targetType.GetArrayIndex()] = value; }
+
+	void AddValueForTargetType(const AAITargetType& targetType, float value)
+	{
+		m_values[targetType.GetArrayIndex()] += value;
+	}
+
+	void MultiplyValues(float factor)
 	{
 		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
-		m_values[0] += (modifier * combatPower.m_combatPower[0]);
-		m_values[1] += (modifier * combatPower.m_combatPower[1]);
-		m_values[2] += (modifier * combatPower.m_combatPower[2]);
-		m_values[3] += (modifier * combatPower.m_combatPower[3]);
+		m_values[0] *= factor;
+		m_values[1] *= factor;
+		m_values[2] *= factor;
+		m_values[3] *= factor;
+	}
+
+	void AddCombatPower(const TargetTypeValues& combatPower, float modifier = 1.0f)
+	{
+		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
+		m_values[0] += (modifier * combatPower.m_values[0]);
+		m_values[1] += (modifier * combatPower.m_values[1]);
+		m_values[2] += (modifier * combatPower.m_values[2]);
+		m_values[3] += (modifier * combatPower.m_values[3]);
 	}
 
 	void AddMobileTargetValues(const MobileTargetTypeValues& mobileTargetValues, float modifier = 1.0f)
@@ -359,6 +388,14 @@ public:
 		     	+ (m_values[3] * mobileCombatPowerWeights.m_values[3]);
 	}
 
+	void Normalize()
+	{
+		const float sum = std::accumulate(m_values.begin(), m_values.end(), 0.0f);
+		
+		if(sum > 0.0f)
+			std::for_each(m_values.begin(), m_values.end(), [&sum](float& value){ value /= sum; });
+	}
+
 	void LoadFromFile(FILE* file)
 	{
 		static_assert(AAITargetType::numberOfMobileTargetTypes == 4, "Number of mobile target types does not fit to implementation");
@@ -372,7 +409,7 @@ public:
 	}
 
 private:
-	std::vector<float> m_values;
+	std::array<float, AAITargetType::numberOfMobileTargetTypes> m_values;
 };
 
 #endif

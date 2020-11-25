@@ -44,7 +44,7 @@ public:
 	void DecreaseByFactor(const GamePhase& updateUntilGamePhase, float factor)
 	{
 		for(int i = 0; i <= updateUntilGamePhase.GetArrayIndex(); ++i)
-			m_attackedByRatesPerGamePhase[i].DecreaseByFactor(factor);
+			m_attackedByRatesPerGamePhase[i].MultiplyValues(factor);
 	}
 
 	float GetAttackedByRateUntilEarlyPhase(const AAITargetType& attackerTargetType) const

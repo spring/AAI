@@ -355,32 +355,32 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 
 	for(auto unit = ai->s_buildTree.GetCanConstructList(factoryDefId).begin(); unit != ai->s_buildTree.GetCanConstructList(factoryDefId).end(); ++unit)
 	{
-		const AAICombatPower& combatPowerOfUnit = ai->s_buildTree.GetCombatPower(*unit);
+		const TargetTypeValues& combatPowerOfUnit = ai->s_buildTree.GetCombatPower(*unit);
 
 		switch(ai->s_buildTree.GetUnitCategory(*unit).GetUnitCategory())
 		{
 			case EUnitCategory::GROUND_COMBAT:
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::AIR,     combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetValue(ETargetType::SURFACE));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::AIR,     combatPowerOfUnit.GetValue(ETargetType::AIR));
 				++combatUnits;
 				break;
 			case EUnitCategory::AIR_COMBAT:     // same calculation as for hover
 			case EUnitCategory::HOVER_COMBAT:
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::AIR,     combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::FLOATER, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE, combatPowerOfUnit.GetValue(ETargetType::SURFACE));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::AIR,     combatPowerOfUnit.GetValue(ETargetType::AIR));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::FLOATER, combatPowerOfUnit.GetValue(ETargetType::FLOATER));
 				++combatUnits;
 				break;
 			case EUnitCategory::SEA_COMBAT:
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::AIR,       combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::AIR));
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SURFACE,   combatPowerOfUnit.GetValue(ETargetType::SURFACE));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::AIR,       combatPowerOfUnit.GetValue(ETargetType::AIR));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetValue(ETargetType::FLOATER));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetValue(ETargetType::SUBMERGED));
 				++combatUnits;
 				break;
 			case EUnitCategory::SUBMARINE_COMBAT:
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::FLOATER));
-				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::FLOATER,   combatPowerOfUnit.GetValue(ETargetType::FLOATER));
+				combatPowerOfConstructedUnits.AddValueForTargetType(ETargetType::SUBMERGED, combatPowerOfUnit.GetValue(ETargetType::SUBMERGED));
 				++combatUnits;
 				break;
 			case EUnitCategory::MOBILE_CONSTRUCTOR:
@@ -458,7 +458,7 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, const StaticDefenceSelect
 
 	for(auto defence = unitList.begin(); defence != unitList.end(); ++defence)
 	{
-		const float defenceCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetCombatPowerVsTargetType(selectionCriteria.targetType);
+		const float defenceCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetValue(selectionCriteria.targetType);
 		combatPowerStat.AddValue(defenceCombatPower);
 	}
 
@@ -474,7 +474,7 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, const StaticDefenceSelect
 		{
 			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(*defence);
 
-			const float myCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetCombatPowerVsTargetType(selectionCriteria.targetType);
+			const float myCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetValue(selectionCriteria.targetType);
 
 			float myRating =  selectionCriteria.cost        * costs.GetNormalizedDeviationFromMax( unitData.m_totalCost )
 							+ selectionCriteria.buildtime   * buildtimes.GetNormalizedDeviationFromMax( unitData.m_buildtime )
@@ -659,7 +659,7 @@ UnitDefId AAIBuildTable::SelectScout(int side, float sightRange, float cost, flo
 	return selectedScout;
 }
 
-void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
+void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const TargetTypeValues& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
 {
 	int i = 0;
 	for(const auto& unitDefId : unitList)
@@ -681,7 +681,7 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<UnitDefId>& uni
 	combatEfficiencyStat.Finalize();
 }
 
-UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allowedMoveTypes, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness)
+UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allowedMoveTypes, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness)
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// get data needed for selection

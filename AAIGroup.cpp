@@ -145,15 +145,15 @@ bool AAIGroup::RemoveUnit(UnitId unitId, UnitId attackerUnitId)
 				if(attackerDefId.IsValid() && !cfg->AIR_ONLY_MOD)
 				{
 					const AAIUnitCategory& category    = ai->s_buildTree.GetUnitCategory(attackerDefId);
-					const AAICombatPower&  combatPower = ai->s_buildTree.GetCombatPower(attackerDefId);
+					const TargetTypeValues&  combatPower = ai->s_buildTree.GetCombatPower(attackerDefId);
 
 					if(category.IsStaticDefence())
 						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
-					else if( category.IsGroundCombat() && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.IsGroundCombat() && (combatPower.GetValue(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
-					else if( category.IsSeaCombat()    && (combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.IsSeaCombat()    && (combatPower.GetValue(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
-					else if( category.IsHoverCombat()  && (combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+					else if( category.IsHoverCombat()  && (combatPower.GetValue(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						ai->Getaf()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
 				}
 			}
@@ -232,8 +232,15 @@ void AAIGroup::Update()
 
 float AAIGroup::GetCombatPowerVsTargetType(const AAITargetType& targetType) const
 {
-	const float combatPower = ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(targetType);
+	const float combatPower = ai->s_buildTree.GetCombatPower(m_groupDefId).GetValue(targetType);
 	return static_cast<float>(m_units.size()) * combatPower;
+}
+
+void AAIGroup::AddGroupCombatPower(TargetTypeValues& combatPower) const
+{
+	const float numberOfUnits = static_cast<float>(m_units.size());
+
+	combatPower.AddValues(ai->s_buildTree.GetCombatPower(m_groupDefId), numberOfUnits);
 }
 
 const AAITargetType& AAIGroup::GetTargetType() const
@@ -386,7 +393,7 @@ bool AAIGroup::SufficientAttackPower() const
 
 	if(m_groupType.IsAntiAir())
 	{
-		if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(ETargetType::AIR) > AAIConstants::minCombatPowerForSoloAttack)
+		if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetValue(ETargetType::AIR) > AAIConstants::minCombatPowerForSoloAttack)
 			return true;
 	}
 	else 
@@ -395,17 +402,17 @@ bool AAIGroup::SufficientAttackPower() const
 
 		if(targetType.IsSurface())
 		{
-			if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(ETargetType::SURFACE) > AAIConstants::minCombatPowerForSoloAttack)
+			if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetValue(ETargetType::SURFACE) > AAIConstants::minCombatPowerForSoloAttack)
 				return true;
 		}
 		else if(targetType.IsFloater())
 		{
-			if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(ETargetType::FLOATER) > AAIConstants::minCombatPowerForSoloAttack)
+			if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetValue(ETargetType::FLOATER) > AAIConstants::minCombatPowerForSoloAttack)
 				return true;
 		}
 		else if(targetType.IsSubmerged())
 		{
-			if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetCombatPowerVsTargetType(ETargetType::SUBMERGED) > AAIConstants::minCombatPowerForSoloAttack)
+			if(ai->s_buildTree.GetCombatPower(m_groupDefId).GetValue(ETargetType::SUBMERGED) > AAIConstants::minCombatPowerForSoloAttack)
 				return true;
 		}
 	}

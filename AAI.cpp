@@ -47,6 +47,7 @@ const std::vector<std::string> AAIMapType::m_mapTypeNames = {"land map", "mixed 
 
 constexpr std::array<ECombatUnitCategory, 3> AAICombatUnitCategory::m_combatUnitCategories;
 constexpr std::array<ETargetType, 4>         AAITargetType::m_mobileTargetTypes;
+constexpr std::array<ETargetType, 5>         AAITargetType::m_targetTypes;
 
 AAIBuildTree AAI::s_buildTree;
 

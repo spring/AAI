@@ -127,7 +127,7 @@ private:
 	AAIMovementType DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;
 
 	//! @brief Selects combat unit according to given criteria and tries to order its construction
-	void BuildCombatUnitOfCategory(const AAIMovementType& moveType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent);
+	void BuildCombatUnitOfCategory(const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent);
 
 	//! @brief Determines criteria for combat unit selection based on current game phase (@todo: Take other criteria into account)
 	void DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const;

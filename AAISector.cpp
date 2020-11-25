@@ -19,7 +19,8 @@
 using namespace springLegacyAI;
 
 
-AAISector::AAISector()
+AAISector::AAISector() : 
+	m_enemyCombatUnits(0.0f)
 {
 }
 
@@ -57,8 +58,6 @@ void AAISector::Init(AAI *ai, int x, int y)
 	m_failedAttemptsToConstructStaticDefence = 0;
 
 	importance_this_game = 1.0f + (rand()%5)/20.0f;
-
-	std::fill(m_enemyCombatUnits.begin(),  m_enemyCombatUnits.end(), 0.0f); 
 
 	m_ownBuildingsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
 }
@@ -100,7 +99,7 @@ void AAISector::UpdateLearnedData()
 		importance_this_game = 1.0f;
 
 	m_attacksByTargetTypeInCurrentGame.AddMobileTargetValues(m_attacksByTargetTypeInPreviousGames, 3.0f);
-	m_attacksByTargetTypeInCurrentGame.DecreaseByFactor(0.225f); // 0.225f = 0.9f / 4.0f ->decrease by 0.9 and account for 3.0f in line above
+	m_attacksByTargetTypeInCurrentGame.MultiplyValues(0.225f); // 0.225f = 0.9f / 4.0f ->decrease by 0.9 and account for 3.0f in line above
 }
 
 bool AAISector::AddToBase(bool addToBase)
@@ -146,7 +145,7 @@ void AAISector::ResetLocalCombatPower()
 void AAISector::ResetScoutedEnemiesData() 
 { 
 	m_enemyBuildings = 0;
-	std::fill(m_enemyCombatUnits.begin(),  m_enemyCombatUnits.end(), 0.0f); 
+	m_enemyCombatUnits.Fill(0.0f);
 	m_enemyStaticCombatPower.Reset();
 	m_enemyMobileCombatPower.Reset();
 };
@@ -180,6 +179,7 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 		if(categoryOfEnemyUnit.IsStaticDefence())
 		{
 			m_enemyStaticCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(enemyDefId) );
+			m_enemyCombatUnits.AddValue(ETargetType::STATIC, 1.0f);
 		}
 	}
 	// add unit to sector and update mobile_combat_power
@@ -189,7 +189,7 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 		const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(lastUpdateInFrame - ai->GetAICallback()->GetCurrentFrame())) / 3600.0f  );
 		const AAITargetType& targetType = ai->s_buildTree.GetTargetType(enemyDefId);
 
-		m_enemyCombatUnits[targetType.GetArrayIndex()] += lastSeen;
+		m_enemyCombatUnits.AddValue(targetType, lastSeen);
 
 		m_enemyMobileCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(enemyDefId), lastSeen );
 	}
@@ -357,7 +357,7 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 			const float enemyBuildings = static_cast<float>(GetNumberOfEnemyBuildings());
 
 			// prefer sectors with many buildings, few lost units and low defence power/short distance to current sector
-			rating = GetLostUnits() * enemyBuildings / ( (1.0f + GetEnemyDefencePower(targetTypeOfUnits)) * (1.0f + dist) );
+			rating = GetLostUnits() * enemyBuildings / ( (1.0f + GetEnemyCombatPowerVsUnits(targetTypeOfUnits)) * (1.0f + dist) );
 		}
 	}
 
@@ -552,13 +552,13 @@ float AAISector::GetLocalAttacksBy(const AAITargetType& targetType, float previo
 	return  totalAttacks / (previousGames + currentGame);
 }
 
-float AAISector::GetEnemyDefencePower(const MobileTargetTypeValues& targetTypeOfUnits) const
+float AAISector::GetEnemyCombatPowerVsUnits(const MobileTargetTypeValues& unitsOfTargetType) const
 {
 	float defencePower(0.0f);
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
 		const float totalDefPower = m_enemyStaticCombatPower.GetValueOfTargetType(targetType) + m_enemyMobileCombatPower.GetValueOfTargetType(targetType);
-		defencePower += targetTypeOfUnits.GetValueOfTargetType(targetType) * totalDefPower;
+		defencePower += unitsOfTargetType.GetValueOfTargetType(targetType) * totalDefPower;
 	}
 
 	return defencePower;

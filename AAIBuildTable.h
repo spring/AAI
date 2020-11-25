@@ -155,7 +155,7 @@ public:
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
 
 	//! @brief Selects a combat unit of specified movement type according to given criteria
-	UnitDefId SelectCombatUnit(int side, const AAIMovementType& moveType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness);
+	UnitDefId SelectCombatUnit(int side, const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness);
 
 	//! @brief Selects a static artillery according to given criteria
 	UnitDefId SelectStaticArtillery(int side, float cost, float range, bool water) const;
@@ -248,7 +248,7 @@ private:
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;
 
 	//! @brief Calculates the combat statistics needed for unit selection
-	void CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
+	void CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const TargetTypeValues& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
 
 	//! A list containing the next factories that shall be built
 	std::list<UnitDefId> m_factoryBuildqueue;

@@ -213,6 +213,8 @@ public:
 
 	static constexpr std::array<ETargetType, 4> m_mobileTargetTypes = {ETargetType::SURFACE, ETargetType::AIR, ETargetType::FLOATER, ETargetType::SUBMERGED};
 
+	static constexpr std::array<ETargetType, 5> m_targetTypes = {ETargetType::SURFACE, ETargetType::AIR, ETargetType::FLOATER, ETargetType::SUBMERGED, ETargetType::STATIC};
+
 	const std::string& GetName() const { return m_targetTypeNames[GetArrayIndex()]; }
 
 	static const std::vector<std::string> m_targetTypeNames;
