@@ -144,6 +144,9 @@ public:
 	//! @brief Returns whether this movement type is included in the given movement type bitmask.
 	bool IsIncludedIn(AAIMovementType moveTypes) const { return IsIncludedIn( static_cast<uint32_t>(moveTypes.m_movementType) ); }
 
+	//! @brief Returns whether the given movement type is set
+	bool Includes(EMovementType moveType) const { return static_cast<bool>( static_cast<uint32_t>(m_movementType) & static_cast<uint32_t>(moveType));}
+
 private:
 	//! Movement type
 	EMovementType m_movementType;

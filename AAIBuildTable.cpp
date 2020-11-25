@@ -690,7 +690,7 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allow
 	AAICombatUnitCategory combatUnitCategory;
 	if(allowedMoveTypes.IsAir())
 		combatUnitCategory.SetCategory(ECombatUnitCategory::AIR);
-	else if(allowedMoveTypes.IsGround() || allowedMoveTypes.IsAmphibious())
+	else if(allowedMoveTypes.Includes(EMovementType::MOVEMENT_TYPE_GROUND) || allowedMoveTypes.Includes(EMovementType::MOVEMENT_TYPE_AMPHIBIOUS) )
 		combatUnitCategory.SetCategory(ECombatUnitCategory::SURFACE);
 	else
 		combatUnitCategory.SetCategory(ECombatUnitCategory::SEA);

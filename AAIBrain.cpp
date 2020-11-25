@@ -463,7 +463,7 @@ void AAIBrain::BuildUnits()
 	threatByTargetType.SetValue(ETargetType::STATIC, threatByTargetType.GetValue(ETargetType::SURFACE) + threatByTargetType.GetValue(ETargetType::FLOATER) );
 
 	//-----------------------------------------------------------------------------------------------------------------
-	// Order building of units according to determined threat/own defence capabilities
+	// Order construction of units according to determined threat/own defence capabilities
 	//-----------------------------------------------------------------------------------------------------------------
 
 	UnitSelectionCriteria unitSelectionCriteria;
@@ -474,7 +474,6 @@ void AAIBrain::BuildUnits()
 
 	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
 	{
-		//const AAITargetType targetType = DetermineTargetTypeForCombatUnitConstruction(gamePhase);
 		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
 		const bool urgent(false);
 	
