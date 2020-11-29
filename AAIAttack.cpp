@@ -110,13 +110,13 @@ bool AAIAttack::SufficientCombatPowerAt(const AAISector *sector, float aggressiv
 
 		TargetTypeValues numberOfEnemyUnits = sector->GetNumberOfEnemyCombatUnits();
 		const float totalEnemyUnits = numberOfEnemyUnits.CalcuateSum();
-		
+
 		if(totalEnemyUnits > 0.0f)
 		{
 			// normalize relative number of enemy units
 			numberOfEnemyUnits.MultiplyValues(1.0f / totalEnemyUnits);
 			const float myAttackPower = myCombatPower.CalculateWeightedSum(numberOfEnemyUnits);
-	
+
 			/*ai->Log("My units: %f, %f, %f, %f\n", numberOfMyCombatUnits.GetValueOfTargetType(ETargetType::SURFACE), 
 			numberOfMyCombatUnits.GetValueOfTargetType(ETargetType::AIR), 
 			numberOfMyCombatUnits.GetValueOfTargetType(ETargetType::FLOATER), 

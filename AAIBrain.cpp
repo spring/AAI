@@ -491,9 +491,6 @@ bool IsRandomNumberBelow(float threshold)
 AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const
 {
 	AAIMovementType moveType;
-
-	const AAIMapType& mapType = ai->Getmap()->GetMapType();
-
 	if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
 	{
 		moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_AIR);
@@ -502,9 +499,26 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 	{
 		moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_HOVER);
 
-		const float waterRatio = (AAIMap::s_waterTilesRatio > 0.15f) ? AAIMap::s_waterTilesRatio : 0.0f;
+		int enemyBuildingsOnLand, enemyBuildingsOnSea;
+		ai->Getmap()->DetermineSpottedEnemyBuildingsOnContinentType(enemyBuildingsOnLand, enemyBuildingsOnSea);
 
-		if(IsRandomNumberBelow(waterRatio) )
+		if( (enemyBuildingsOnLand+enemyBuildingsOnSea) == 0)
+		{
+			enemyBuildingsOnLand = 1;
+			enemyBuildingsOnSea  = 1;
+		}
+
+		const float totalBuildings = static_cast<float>(enemyBuildingsOnLand+enemyBuildingsOnSea);
+
+		// ratio of sea units is determined: 25% water ratio on map, 75% ratio of enemy buildings on sea
+		float waterUnitRatio = 0.25f * (AAIMap::s_waterTilesRatio + 3.0f * static_cast<float>(enemyBuildingsOnSea) / totalBuildings);
+
+		if(waterUnitRatio <0.05f)
+			waterUnitRatio = 0.0f;
+		else if(waterUnitRatio > 0.95f)
+			waterUnitRatio = 1.0f;
+
+		if(IsRandomNumberBelow(waterUnitRatio) )
 		{
 			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
 			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
@@ -513,7 +527,7 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 		{
 			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_AMPHIBIOUS);
 
-			if(IsRandomNumberBelow(1.0f - waterRatio))
+			if(IsRandomNumberBelow(1.0f - waterUnitRatio))
 				moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_GROUND);
 		}
 	}

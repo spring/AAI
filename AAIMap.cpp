@@ -57,7 +57,7 @@ std::vector<BuildMapTileType> AAIMap::s_buildmap;
 std::vector<int>              AAIMap::blockmap;
 std::vector<float>            AAIMap::plateau_map;
 
-std::vector<AAIContinent> AAIMap::continents;
+std::vector<AAIContinent> AAIMap::s_continents;
 int AAIMap::land_continents;
 int AAIMap::water_continents;
 int AAIMap::avg_land_continent_size;
@@ -178,7 +178,7 @@ void AAIMap::Init()
 
 	// for scouting
 	m_scoutedEnemyUnitsMap.Init(xMapSize, yMapSize, losMapRes);
-	m_buildingsOnContinent.resize(continents.size(), 0);
+	m_buildingsOnContinent.resize(s_continents.size(), 0);
 
 	unitsInLOS.resize(cfg->MAX_UNITS, 0);
 
@@ -195,7 +195,7 @@ void AAIMap::Init()
 	ai->Log("x-sectorsize is %i (Map %i)\n", xSectorSize, xSectorSizeMap);
 	ai->Log("y-sectorsize is %i (Map %i)\n", ySectorSize, ySectorSizeMap);
 	ai->Log( _STPF_ " metal spots found (%i are on land, %i under water) \n \n", metal_spots.size(), land_metal_spots, water_metal_spots);
-	ai->Log( _STPF_ " continents found on map\n", continents.size());
+	ai->Log( _STPF_ " continents found on map\n", s_continents.size());
 	ai->Log("%i land and %i water continents\n", land_continents, water_continents);
 	ai->Log("Average land continent size is %i\n", avg_land_continent_size);
 	ai->Log("Average water continent size is %i\n", avg_water_continent_size);
@@ -422,14 +422,14 @@ void AAIMap::ReadContinentFile()
 			// load continents
 			fscanf(file, "%i ", &temp);
 
-			continents.resize(temp);
+			s_continents.resize(temp);
 
 			for(int i = 0; i < temp; ++i)
 			{
-				fscanf(file, "%i %i ", &continents[i].size, &temp2);
+				fscanf(file, "%i %i ", &s_continents[i].size, &temp2);
 
-				continents[i].water = (bool) temp2;
-				continents[i].id = i;
+				s_continents[i].water = (bool) temp2;
+				s_continents[i].id = i;
 			}
 
 			// load statistical data
@@ -447,7 +447,7 @@ void AAIMap::ReadContinentFile()
 
 	// loading has not been succesful -> create new continent maps
 	const float *heightMap = ai->GetAICallback()->GetHeightMap();
-	s_continentMap.DetectContinents(continents, heightMap, xMapSize, yMapSize);
+	s_continentMap.DetectContinents(s_continents, heightMap, xMapSize, yMapSize);
 
 	// calculate some statistical data
 	land_continents = 0;
@@ -460,29 +460,29 @@ void AAIMap::ReadContinentFile()
 	min_land_continent_size = s_continentMap.GetSize();
 	min_water_continent_size = s_continentMap.GetSize();
 
-	for(size_t i = 0; i < continents.size(); ++i)
+	for(size_t i = 0; i < s_continents.size(); ++i)
 	{
-		if(continents[i].water)
+		if(s_continents[i].water)
 		{
 			++water_continents;
-			avg_water_continent_size += continents[i].size;
+			avg_water_continent_size += s_continents[i].size;
 
-			if(continents[i].size > max_water_continent_size)
-				max_water_continent_size = continents[i].size;
+			if(s_continents[i].size > max_water_continent_size)
+				max_water_continent_size = s_continents[i].size;
 
-			if(continents[i].size < min_water_continent_size)
-				min_water_continent_size = continents[i].size;
+			if(s_continents[i].size < min_water_continent_size)
+				min_water_continent_size = s_continents[i].size;
 		}
 		else
 		{
 			++land_continents;
-			avg_land_continent_size += continents[i].size;
+			avg_land_continent_size += s_continents[i].size;
 
-			if(continents[i].size > max_land_continent_size)
-				max_land_continent_size = continents[i].size;
+			if(s_continents[i].size > max_land_continent_size)
+				max_land_continent_size = s_continents[i].size;
 
-			if(continents[i].size < min_land_continent_size)
-				min_land_continent_size = continents[i].size;
+			if(s_continents[i].size < min_land_continent_size)
+				min_land_continent_size = s_continents[i].size;
 		}
 	}
 
@@ -503,10 +503,10 @@ void AAIMap::ReadContinentFile()
 	s_continentMap.SaveToFile(file);
 
 	// save continents
-	fprintf(file, "\n" _STPF_ " \n", continents.size());
+	fprintf(file, "\n" _STPF_ " \n", s_continents.size());
 
-	for(size_t c = 0; c < continents.size(); ++c)
-		fprintf(file, "%i %i \n", continents[c].size, (int)continents[c].water);
+	for(size_t c = 0; c < s_continents.size(); ++c)
+		fprintf(file, "%i %i \n", s_continents[c].size, (int)s_continents[c].water);
 
 	// save statistical data
 	fprintf(file, "%i %i %i %i %i %i %i %i\n", land_continents, water_continents, avg_land_continent_size, avg_water_continent_size,
@@ -1938,6 +1938,20 @@ const char* AAIMap::GetMapTypeString(const AAIMapType& mapType) const
 		return "WATER_MAP";
 	else
 		return "UNKNOWN_MAP";
+}
+
+void AAIMap::DetermineSpottedEnemyBuildingsOnContinentType(int& enemyBuildingsOnLand, int& enemyBuildingsOnSea) const
+{
+	enemyBuildingsOnLand = 0;
+	enemyBuildingsOnSea  = 0;
+
+	for(int continentId = 0; continentId < s_continents.size(); ++continentId)
+	{
+		if(s_continents[continentId].water)
+			enemyBuildingsOnSea += m_buildingsOnContinent[continentId];
+		else
+			enemyBuildingsOnLand += m_buildingsOnContinent[continentId];
+	}
 }
 
 AAISector* AAIMap::GetSectorOfPos(const float3& pos)

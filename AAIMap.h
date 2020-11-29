@@ -65,13 +65,16 @@ public:
 	int DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const;
 
 	//! @brief Returns whether continent to which given sector mainly belongs is sea 
-	bool IsSectorOnWaterContinent(const AAISector* sector) const { return continents[sector->GetContinentID()].water; }
+	bool IsSectorOnWaterContinent(const AAISector* sector) const { return s_continents[sector->GetContinentID()].water; }
 
 	//! @brief Returns whether the position is located on a small continent (meant to detect "ponds" or "small islands")
-	bool LocatedOnSmallContinent(const float3& pos) const { return (continents[s_continentMap.GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
+	bool LocatedOnSmallContinent(const float3& pos) const { return (s_continents[s_continentMap.GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
 
 	//! @brief Returns the id of continent the given position belongs to
 	int GetContinentID(const float3& pos) const { return s_continentMap.GetContinentID(pos); };
+
+	//! @brief Determines the total number of spotted (= currently known) enemy buildings on land / sea
+	void DetermineSpottedEnemyBuildingsOnContinentType(int& enemyBuildingsOnLand, int& enemyBuildingsOnSea) const;
 
 	//! @brief Returns a bitmask storing which movement types are suitable for the map type
 	uint32_t GetSuitableMovementTypesForMap() const { return GetSuitableMovementTypes(s_mapType); }
@@ -181,7 +184,9 @@ public:
 	//! The buildmap stores the type/occupation status of every cell;
 	static std::vector<BuildMapTileType> s_buildmap;
 
-	static std::vector<AAIContinent> continents;
+	//! An array storing the detected continents on the map
+	static std::vector<AAIContinent> s_continents;
+
 	static int avg_water_continent_size;
 
 	static constexpr int ignoreContinentID = -1;

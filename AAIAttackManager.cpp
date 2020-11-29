@@ -66,7 +66,7 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 	// get all available combat/aa/arty groups for attack
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	
-	const int numberOfContinents( AAIMap::continents.size() );
+	const int numberOfContinents( AAIMap::s_continents.size() );
 	std::vector< std::list<AAIGroup*> > availableAssaultGroupsOnContinent(numberOfContinents);
 	std::vector< std::list<AAIGroup*> > availableAAGroupsOnContinent(numberOfContinents);
 
