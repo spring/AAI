@@ -44,7 +44,7 @@ void AAISector::Init(AAI *ai, int x, int y)
 	m_minSectorDistanceToMapEdge = std::min(xEdgeDist, yEdgeDist);
 
 	const float3 center = GetCenter();
-	m_continentId = ai->Getmap()->GetContinentID(center);
+	m_continentId = AAIMap::GetContinentID(center);
 
 	// init all kind of stuff
 	m_freeMetalSpots = false;
@@ -652,16 +652,12 @@ bool AAISector::ConnectedToOcean() const
 	if(m_waterTilesRatio < 0.2f)
 		return false;
 
-	//! @todo: improve criterion -> look for water tiles in sector instead of just checking the center tile
-	const int continentId = ai->Getmap()->GetContinentID( GetCenter() );
+	const int xStart( x   * AAIMap::xSectorSizeMap);
+	const int xEnd( (x+1) * AAIMap::xSectorSizeMap);
+	const int yStart( y   * AAIMap::ySectorSizeMap);
+	const int yEnd( (y+1) * AAIMap::ySectorSizeMap);
 
-	if(ai->Getmap()->s_continents[continentId].water)
-	{
-		if(ai->Getmap()->s_continents[continentId].size > 1200 && ai->Getmap()->s_continents[continentId].size > 0.5f * (float)ai->Getmap()->avg_water_continent_size )
-			return true;
-	}
-
-	return false;
+	return ai->Getmap()->IsConnectedToOcean(xStart, xEnd, yStart, yEnd);
 }
 
 float3 AAISector::DetermineUnitMovePos(AAIMovementType moveType, int continentId) const
@@ -723,7 +719,7 @@ bool AAISector::IsValidMovePos(const float3& pos, BuildMapTileType forbiddenMapT
 
 	if(AAIMap::s_buildmap[x + y * AAIMap::xMapSize].IsTileTypeNotSet(forbiddenMapTileTypes))
 	{
-		if( (continentId == AAIMap::ignoreContinentID) || (ai->Getmap()->GetContinentID(pos) == continentId) )
+		if( (continentId == AAIMap::ignoreContinentID) || (AAIMap::GetContinentID(pos) == continentId) )
 			return true;
 	}
 	return false;

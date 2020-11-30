@@ -195,7 +195,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	if( moveType.CannotMoveToOtherContinents() )
 	{
 		const float3 unitPos = ai->GetAICallback()->GetUnitPos(unitId.id);
-		continentId = ai->Getmap()->GetContinentID(unitPos);
+		continentId = AAIMap::GetContinentID(unitPos);
 	}
 
 	// try to add unit to an existing group
@@ -2216,7 +2216,7 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 
 AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTargetType, const float3& pos, int importance) const
 {
-	const int continentId = ai->Getmap()->GetContinentID(pos);
+	const int continentId = AAIMap::GetContinentID(pos);
 
 	AAIGroup *selectedGroup(nullptr);
 	float highestRating(0.0f);
@@ -2265,7 +2265,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 	if( moveType.CannotMoveToOtherContinents() )
 	{
 		// get continent id of the unit pos
-		const int continentId = ai->Getmap()->GetContinentID(unit_pos);
+		const int continentId = AAIMap::GetContinentID(unit_pos);
 
 		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 		{

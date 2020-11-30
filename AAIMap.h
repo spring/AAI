@@ -71,7 +71,10 @@ public:
 	bool LocatedOnSmallContinent(const float3& pos) const { return (s_continents[s_continentMap.GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
 
 	//! @brief Returns the id of continent the given position belongs to
-	int GetContinentID(const float3& pos) const { return s_continentMap.GetContinentID(pos); };
+	static int GetContinentID(const float3& pos) { return s_continentMap.GetContinentID(pos); }
+
+	//! @brief Returns the number of continents
+	static int GetNumberOfContinents() { return s_continents.size(); }
 
 	//! @brief Determines the total number of spotted (= currently known) enemy buildings on land / sea
 	void DetermineSpottedEnemyBuildingsOnContinentType(int& enemyBuildingsOnLand, int& enemyBuildingsOnSea) const;
@@ -117,6 +120,9 @@ public:
 
 	//! @brief Returns whether given position lies within map (e.g. aircraft may leave map)
 	bool IsPositionWithinMap(const float3& position) const;
+
+	//! @brief Returns whether a water tile belonging to an ocean (i.e. large water continent) lies within the given rectangle
+	bool IsConnectedToOcean(int xStart, int xEnd, int yStart, int yEnd) const;
 
 	//! @brief Returns position of first enemy building found in the part of the map (in build map coordinates)
 	float3 DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const;
@@ -183,9 +189,6 @@ public:
 
 	//! The buildmap stores the type/occupation status of every cell;
 	static std::vector<BuildMapTileType> s_buildmap;
-
-	//! An array storing the detected continents on the map
-	static std::vector<AAIContinent> s_continents;
 
 	static int avg_water_continent_size;
 
@@ -281,6 +284,9 @@ private:
 
 	//! Stores the id of the continent every tiles belongs to and additional information about continents
 	static AAIContinentMap s_continentMap;
+
+	//! An array storing the detected continents on the map
+	static std::vector<AAIContinent> s_continents;
 
 	//! The map type
 	static AAIMapType s_mapType;

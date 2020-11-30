@@ -254,7 +254,7 @@ AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
 
 AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float3 *pos, bool commander, float *timeToReachPosition)
 {
-	const int continent = ai->Getmap()->GetContinentID(*pos);
+	const int continent = AAIMap::GetContinentID(*pos);
 
 	*timeToReachPosition = 0.0f;
 	AAIConstructor *selectedBuilder(nullptr);
@@ -274,7 +274,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float
 				const float3 builderPosition = ai->GetAICallback()->GetUnitPos(builder->m_myUnitId.id);
 
 				const bool continentCheckPassed =    (ai->s_buildTree.GetMovementType(builder->m_myDefId).CannotMoveToOtherContinents() == false) 
-												  || (ai->Getmap()->GetContinentID(builderPosition) == continent);
+												  || (AAIMap::GetContinentID(builderPosition) == continent);
 				const bool commanderCheckPassed = commander
 												  || ! ai->s_buildTree.GetUnitCategory(builder->m_myDefId).IsCommander();
 
@@ -302,7 +302,7 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float
 
 AAIConstructor* AAIUnitTable::FindClosestAssistant(const float3& pos, int /*importance*/, bool commander)
 {
-	const int continent = ai->Getmap()->GetContinentID(pos);
+	const int continent = AAIMap::GetContinentID(pos);
 	AAIConstructor *selectedAssistant(nullptr);
 	float maxDist(0.0f);
 
@@ -320,7 +320,7 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(const float3& pos, int /*impo
 				const float3 assistantPosition = ai->GetAICallback()->GetUnitPos(assistant->m_myUnitId.id);
 				const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(assistant->m_myDefId.id);
 
-				const bool continentCheckPassed = (moveType.CannotMoveToOtherContinents() == false) || (ai->Getmap()->GetContinentID(assistantPosition) == continent);
+				const bool continentCheckPassed = (moveType.CannotMoveToOtherContinents() == false) || (AAIMap::GetContinentID(assistantPosition) == continent);
 				const bool commanderCheckPassed = (commander || (ai->s_buildTree.GetUnitCategory(assistant->m_myDefId).IsCommander() == false) );
 
 				// filter out commander

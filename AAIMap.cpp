@@ -1707,6 +1707,25 @@ bool AAIMap::IsPositionWithinMap(const float3& position) const
 	return ( (x >= 0) && (x < xSize) && (y >= 0) && (y < ySize) );
 }
 
+bool AAIMap::IsConnectedToOcean(int xStart, int xEnd, int yStart, int yEnd) const
+{
+	// min number of tiles to be considered as "ocean"
+	const int minSize = 3 * xSectorSizeMap*ySectorSizeMap;
+	
+	for(int y = yStart; y < yEnd; y += 2)
+	{
+		for(int x = xStart; x < xEnd; x += 2)
+		{
+			const int continentId = s_continentMap.GetContinentID(MapPos(x, y));
+
+			if(s_continents[continentId].water && (s_continents[continentId].size > minSize) )
+				return true;
+		}
+	}
+	
+	return false;
+}
+
 float3 AAIMap::DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const
 {
 	const int xScoutMapStart = m_scoutedEnemyUnitsMap.BuildMapToScoutMapCoordinate(xStart);
