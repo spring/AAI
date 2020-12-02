@@ -256,7 +256,7 @@ void AAIConstructor::CheckAssistance()
 		{
 			// commander only allowed if buildpos is inside the base
 			const AAISector* sector = ai->Getmap()->GetSectorOfPos(m_buildPos);
-			const bool commanderAllowed = (sector && (sector->distance_to_base == 0) ) ? true : false;
+			const bool commanderAllowed = (sector && (sector->GetDistanceToBase() == 0) ) ? true : false;
 
 			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(m_buildPos, 5, commanderAllowed);
 
@@ -493,7 +493,7 @@ void AAIConstructor::CheckRetreatFromAttackBy(const AAIUnitCategory& attackedByC
 		if(sector)
 		{
 			// dont flee within base
-			if(sector->distance_to_base == 0)
+			if(sector->GetDistanceToBase() == 0)
 				return;
 			else
 			{

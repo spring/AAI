@@ -73,6 +73,9 @@ public:
 	//! @brief Adds/removes the sector from base sectors; returns true if succesful
 	bool AddToBase(bool addToBase);
 
+	//! @brief Returns the distance (in sectors) to the base
+	int GetDistanceToBase() const { return m_distanceToBase; }
+
 	//! @brief Returns the number of metal spots in this sector
 	int GetNumberOfMetalSpots() const { return metalSpots.size(); }
 
@@ -169,6 +172,15 @@ public:
 				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::SUBMERGED);
 	}
 
+	//! @brief Returns number of attacks by the main combat categories (ground, hover, air)
+	float GetTotalAttacksInPreviousGames() const 
+	{
+		return    m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::SURFACE)
+				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::AIR)
+				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::FLOATER)
+				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::SUBMERGED);
+	}
+
 	//! @brief Returns center position of the sector
 	float3 GetCenter() const;
 
@@ -235,8 +247,6 @@ public:
 
 	bool m_freeMetalSpots;
 
-	int distance_to_base;	// 0 = base, 1 = neighbour to base
-
 	// importance of the sector
 	float importance_this_game;
 	float importance_learned;
@@ -259,6 +269,9 @@ private:
 
 	//! Ratio of water tiles
 	float m_waterTilesRatio;
+
+	//! Distance (in sectors) to own base,  i.e 0 = belongs to base, 1 = neighbour to base, ...
+	int m_distanceToBase;
 
 	//! Bitmask storing movement types that may maneuver in this sector
 	uint32_t m_suitableMovementTypes;	

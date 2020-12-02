@@ -295,7 +295,7 @@ float3 AAIExecute::DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) c
 	const float3 builderPosition = ai->GetAICallback()->GetUnitPos(builder.id);
 	const AAISector* sector = ai->Getmap()->GetSectorOfPos(builderPosition);
 
-	if(sector && (sector->distance_to_base == 0) )
+	if(sector && (sector->GetDistanceToBase() == 0) )
 	{
 		const float3 buildsite = ai->Getmap()->DetermineBuildsiteInSector(buildingDefId, sector);
 
@@ -1119,7 +1119,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	//-----------------------------------------------------------------------------------------------------------------
 	StaticDefenceSelectionCriteria selectionCriteria(targetType, 2.5f, 0.5f, 1.0f, 0.2f, 1.0f, 0);
 
-	if(dest->distance_to_base > 1)
+	if(dest->GetDistanceToBase() > 1)
 		selectionCriteria.terrain = 2.0f;
 
 	const int staticDefences = dest->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE);
@@ -1568,9 +1568,9 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 
 	if(sector) 
 	{
-		if(    (sector->distance_to_base > 0)
-			&& (sector->distance_to_base <= cfg->MAX_MEX_DEFENCE_DISTANCE)
-			&& (sector->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < 1) )
+		if(    (sector->GetDistanceToBase() > 0)
+			&& (sector->GetDistanceToBase() <= cfg->MAX_MEX_DEFENCE_DISTANCE)
+			&& (sector->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < 2) )
 		{
 			const bool water = ai->s_buildTree.GetMovementType(extractorDefId).IsStaticSea() ? true : false;
 			const AAITargetType targetType( water ? ETargetType::FLOATER : ETargetType::SURFACE);
@@ -1605,7 +1605,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 				{
 					const AAISector* sector = ai->Getmap()->GetSectorOfPos(finalDefenceBuildPos);
 
-					const bool commanderAllowed = sector ? (sector->distance_to_base < 3) : false;
+					const bool commanderAllowed = sector ? (sector->GetDistanceToBase() < 3) : false;
 
 					float min_dist;
 					AAIConstructor *builder = ai->Getut()->FindClosestBuilder(defence, &finalDefenceBuildPos, commanderAllowed, &min_dist);

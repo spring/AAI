@@ -141,13 +141,13 @@ void AAIBrain::UpdateCenterOfBase()
 bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 {
 	// commander is always allowed in base
-	if(sector->distance_to_base <= 0)
+	if(sector->GetDistanceToBase() <= 0)
 		return true;
 	// allow construction close to base for small bases
-	else if(m_sectorsInDistToBase[0].size() < 3 && sector->distance_to_base <= 1)
+	else if(m_sectorsInDistToBase[0].size() < 3 && sector->GetDistanceToBase() <= 1)
 		return true;
 	// allow construction on islands close to base on water maps
-	else if(ai->Getmap()->GetMapType().IsWaterMap() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->distance_to_base <= 3) )
+	else if(ai->Getmap()->GetMapType().IsWaterMap() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->GetDistanceToBase() <= 3) )
 		return true;
 	else
 		return false;
@@ -194,92 +194,104 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 	return false;
 }
 
+struct SectorForBaseExpansion
+{
+	SectorForBaseExpansion(AAISector* _sector, float _distance, float _totalAttacks) :
+		sector(_sector), distance(_distance), totalAttacks(_totalAttacks) { }
+
+	AAISector* sector;
+	float      distance;
+	float      totalAttacks;
+};
+
 bool AAIBrain::ExpandBase(SectorType sectorType)
 {
 	if(m_sectorsInDistToBase[0].size() >= cfg->MAX_BASE_SIZE)
 		return false;
 
-	// now targets should contain all neighbouring sectors that are not currently part of the base
-	// only once; select the sector with most metalspots and least danger
-	int max_search_dist = 1;
-
 	// if aai is looking for a water sector to expand into ocean, allow greater search_dist
-	if(sectorType == WATER_SECTOR &&  m_baseWaterRatio < 0.1)
-		max_search_dist = 3;
+	const bool expandLandBaseInWater = (sectorType == WATER_SECTOR) && (m_baseWaterRatio < 0.1f);
+	const int  maxSearchDistance     = expandLandBaseInWater ? 3 : 1;
 
-	std::list< std::pair<AAISector*, float> > expansionCandidateList;
+	//-----------------------------------------------------------------------------------------------------------------
+	// assemble a list of potential sectors for base expansion
+	//-----------------------------------------------------------------------------------------------------------------
+	std::list<SectorForBaseExpansion> expansionCandidateList;
 	StatisticalData sectorDistances;
+	StatisticalData sectorAttacks;
 
-	for(int search_dist = 1; search_dist <= max_search_dist; ++search_dist)
+	for(int distanceToBase = 1; distanceToBase <= maxSearchDistance; ++distanceToBase)
 	{
-		for(auto sector = m_sectorsInDistToBase[search_dist].begin(); sector != m_sectorsInDistToBase[search_dist].end(); ++sector)
+		for(auto sector : m_sectorsInDistToBase[distanceToBase])
 		{
-			if((*sector)->IsSectorSuitableForBaseExpansion() )
+			if(sector->IsSectorSuitableForBaseExpansion() )
 			{
 				float sectorDistance(0.0f);
-				for(auto baseSector = m_sectorsInDistToBase[0].begin(); baseSector != m_sectorsInDistToBase[0].end(); ++baseSector) 
+				for(auto baseSector : m_sectorsInDistToBase[0]) 
 				{
-					const int deltaX = (*sector)->x - (*baseSector)->x;
-					const int deltaY = (*sector)->y - (*baseSector)->y;
+					const int deltaX = sector->x - baseSector->x;
+					const int deltaY = sector->y - baseSector->y;
 					sectorDistance += (deltaX * deltaX + deltaY * deltaY); // try squared distances, use fastmath::apxsqrt() otherwise
 				}
-				expansionCandidateList.push_back( std::pair<AAISector*, float>(*sector, sectorDistance) );
 
 				sectorDistances.AddValue(sectorDistance);
+
+				const float totalAttacks = sector->GetTotalAttacksInThisGame() + sector->GetTotalAttacksInPreviousGames();
+				sectorAttacks.AddValue(totalAttacks);
+
+				expansionCandidateList.push_back( SectorForBaseExpansion(sector, sectorDistance, totalAttacks) );
 			}
 		}
 	}
 
 	sectorDistances.Finalize();
+	sectorAttacks.Finalize();
 
+	//-----------------------------------------------------------------------------------------------------------------
+	// select best sector from the list
+	//-----------------------------------------------------------------------------------------------------------------
 	AAISector *selectedSector(nullptr);
-	float bestRating(0.0f);
+	float highestRating(0.0f);
 
 	for(auto candidate = expansionCandidateList.begin(); candidate != expansionCandidateList.end(); ++candidate)
 	{
-		// sectors that result in more compact bases or with more metal spots are rated higher
-		float myRating = static_cast<float>( (candidate->first)->GetNumberOfMetalSpots() );
-		                + 4.0f * sectorDistances.GetNormalizedDeviationFromMax(candidate->second)
-						+ 3.0f / static_cast<float>( (candidate->first)->GetEdgeDistance() + 1 );
+		// prefer sectors that result in more compact bases, with more metal spots, that are safer (i.e. less attacks in the past)
+		float rating = static_cast<float>( candidate->sector->GetNumberOfMetalSpots() );
+						+ 4.0f * sectorDistances.GetNormalizedDeviationFromMax(candidate->distance)
+						+ 4.0f / static_cast<float>( candidate->sector->GetEdgeDistance() + 1 );
+						+ 4.0f * sectorAttacks.GetNormalizedDeviationFromMax(candidate->totalAttacks);
 
 		if(sectorType == LAND_SECTOR)
-			// prefer flat sectors without water
-			myRating += ((candidate->first)->GetFlatTilesRatio() - (candidate->first)->GetWaterTilesRatio()) * 16.0f;
+		{
+			// prefer flat sectors
+			rating += 3.0f * candidate->sector->GetFlatTilesRatio();
+		}
 		else if(sectorType == WATER_SECTOR)
 		{
-			// check for continent size (to prevent aai to expand into little ponds instead of big ocean)
-			if( ((candidate->first)->GetWaterTilesRatio() > 0.1f) && (candidate->first)->ConnectedToOcean() )
-				myRating += 16.0f * (candidate->first)->GetWaterTilesRatio();
-			else
-				myRating = 0.0f;
+			// check for continent size (to prevent AAI to expand into little ponds instead of big ocean)
+			if( candidate->sector->ConnectedToOcean() )
+				rating += 3.0f * candidate->sector->GetWaterTilesRatio();
 		}
 		else // LAND_WATER_SECTOR
-			myRating += ((candidate->first)->GetFlatTilesRatio() + (candidate->first)->GetWaterTilesRatio()) * 16.0f;
+			rating += 3.0f * (candidate->sector->GetFlatTilesRatio() + candidate->sector->GetWaterTilesRatio());
 
-		if(myRating > bestRating)
+		if(rating > highestRating)
 		{
-			bestRating    = myRating;
-			selectedSector = candidate->first;
+			highestRating  = rating;
+			selectedSector = candidate->sector;
 		}			
 	}
 
+	//-----------------------------------------------------------------------------------------------------------------
+	// assign selected sector to base
+	//-----------------------------------------------------------------------------------------------------------------
 	if(selectedSector)
 	{
-		// add this sector to base
 		AssignSectorToBase(selectedSector, true);
 	
-		// debug purposes:
-		if(sectorType == LAND_SECTOR)
-		{
-			ai->Log("\nAdding land sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
-			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
-		}
-		else
-		{
-			ai->Log("\nAdding water sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
-			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
-		}
-
+		std::string sectorTypeString = (sectorType == LAND_SECTOR) ? "land" : "water";
+		ai->Log("\nAdding %s sector %i,%i to base; base size: " _STPF_, sectorTypeString.c_str(), selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
+		ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
 		return true;
 	}
 
@@ -635,7 +647,7 @@ void AAIBrain::UpdatePressureByEnemy()
 			{
 				++sectorsOccupiedByEnemies;
 
-				if(sectors[x][y].distance_to_base < 2)
+				if(sectors[x][y].GetDistanceToBase() < 2)
 					++sectorsNearBaseOccupiedByEnemies;
 			}
 		}

@@ -613,7 +613,7 @@ void AAIMap::Learn()
 
 bool AAIMap::IsSectorBorderToBase(int x, int y) const
 {
-	return     (m_sector[x][y].distance_to_base > 0) 
+	return     (m_sector[x][y].m_distanceToBase > 0) 
 			&& (m_sector[x][y].m_alliedBuildings < 5) 
 			&& (s_teamSectorMap.IsOccupiedByTeam(x, y, ai->GetMyTeamId()) == false);
 }
@@ -1815,8 +1815,8 @@ void AAIMap::UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sec
 	{
 		for(int y = 0; y < ySectors; ++y)
 		{
-			if(m_sector[x][y].distance_to_base > 0)
-				m_sector[x][y].distance_to_base = -1;
+			if(m_sector[x][y].m_distanceToBase > 0)
+				m_sector[x][y].m_distanceToBase = -1;
 		}
 	}
 
@@ -1831,27 +1831,27 @@ void AAIMap::UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sec
 			const int y = (*sector)->y;
 
 			// check left neighbour
-			if( (x > 0) && (m_sector[x-1][y].distance_to_base == -1) )
+			if( (x > 0) && (m_sector[x-1][y].m_distanceToBase == -1) )
 			{
-				m_sector[x-1][y].distance_to_base = i;
+				m_sector[x-1][y].m_distanceToBase = i;
 				sectorsInDistToBase[i].push_back(&m_sector[x-1][y]);
 			}
 			// check right neighbour
-			if( (x < (xSectors - 1)) && (m_sector[x+1][y].distance_to_base == -1) )
+			if( (x < (xSectors - 1)) && (m_sector[x+1][y].m_distanceToBase == -1) )
 			{
-				m_sector[x+1][y].distance_to_base = i;
+				m_sector[x+1][y].m_distanceToBase = i;
 				sectorsInDistToBase[i].push_back(&m_sector[x+1][y]);
 			}
 			// check upper neighbour
-			if( (y > 0) && (m_sector[x][y-1].distance_to_base == -1) )
+			if( (y > 0) && (m_sector[x][y-1].m_distanceToBase == -1) )
 			{
-				m_sector[x][y-1].distance_to_base = i;
+				m_sector[x][y-1].m_distanceToBase = i;
 				sectorsInDistToBase[i].push_back(&m_sector[x][y-1]);
 			}
 			// check lower neighbour
-			if( (y < (ySectors - 1)) && (m_sector[x][y+1].distance_to_base == -1) )
+			if( (y < (ySectors - 1)) && (m_sector[x][y+1].m_distanceToBase == -1) )
 			{
-				m_sector[x][y+1].distance_to_base = i;
+				m_sector[x][y+1].m_distanceToBase = i;
 				sectorsInDistToBase[i].push_back(&m_sector[x][y+1]);
 			}
 		}

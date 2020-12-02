@@ -19,8 +19,10 @@
 using namespace springLegacyAI;
 
 
-AAISector::AAISector() : 
-	m_enemyCombatUnits(0.0f)
+AAISector::AAISector() :
+	m_distanceToBase(-1), 
+	m_enemyCombatUnits(0.0f),
+	m_skippedAsScoutDestination(0)
 {
 }
 
@@ -46,10 +48,7 @@ void AAISector::Init(AAI *ai, int x, int y)
 	const float3 center = GetCenter();
 	m_continentId = AAIMap::GetContinentID(center);
 
-	// init all kind of stuff
 	m_freeMetalSpots = false;
-	distance_to_base = -1;
-	m_skippedAsScoutDestination = 0;
 
 	// nothing sighted in that sector
 	m_enemyUnitsDetectedBySensor = 0;
@@ -113,9 +112,8 @@ bool AAISector::AddToBase(bool addToBase)
 			return false;
 		}
 
-		distance_to_base = 0;
+		m_distanceToBase = 0;
 
-		// increase importance
 		importance_this_game += 1;
 
 		AAIMap::s_teamSectorMap.SetSectorAsOccupiedByTeam(x, y, ai->GetMyTeamId());
@@ -127,7 +125,7 @@ bool AAISector::AddToBase(bool addToBase)
 	}
 	else	// remove from base
 	{
-		distance_to_base = 1;
+		m_distanceToBase = 1;
 
 		AAIMap::s_teamSectorMap.SetSectorAsUnoccupied(x, y);
 
@@ -273,7 +271,7 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 	{
 		if(m_failedAttemptsToConstructStaticDefence < 2) // do not try to build defences if last two attempts failed
 		{
-			const float baseProximity = (distance_to_base <= 1) ? 1.0f : 0.0f;
+			const float baseProximity = (m_distanceToBase <= 1) ? 1.0f : 0.0f;
 
 			std::vector<float> importanceVsTargetType(AAITargetType::numberOfMobileTargetTypes, 0.0f);
 
@@ -327,7 +325,7 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 				if(distEnemyBase < distOwnToEnemyBase)
 					highestImportance *= 2.0f;
 
-				highestImportance *= static_cast<float>(2 + this->GetEdgeDistance()) * (2.0f /  static_cast<float>(distance_to_base+1));
+				highestImportance *= static_cast<float>(2 + this->GetEdgeDistance()) * (2.0f /  static_cast<float>(m_distanceToBase+1));
 			}
 
 			return highestImportance;
@@ -343,7 +341,7 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 {
 	float rating(0.0f);
 
-	if( (distance_to_base > 0) && (GetNumberOfEnemyBuildings() > 0) )
+	if( (m_distanceToBase > 0) && (GetNumberOfEnemyBuildings() > 0) )
 	{
 		const bool landCheckPassed  = landSectorSelectable  && (m_waterTilesRatio < 0.35f);
 		const bool waterCheckPassed = waterSectorSelectable && (m_waterTilesRatio > 0.65f);
@@ -369,7 +367,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 {
 	float rating(0.0f);
 
-	if( (distance_to_base > 0) && (GetNumberOfEnemyBuildings() > 0))
+	if( (m_distanceToBase > 0) && (GetNumberOfEnemyBuildings() > 0))
 	{
 		const float myAttackPower     =   globalCombatPower[AAITargetType::staticIndex] + continentCombatPower[m_continentId][AAITargetType::staticIndex];
 		const float enemyDefencePower =   assaultGroupsOfType.GetValueOfTargetType(ETargetType::SURFACE)   * GetEnemyCombatPower(ETargetType::SURFACE)
@@ -381,7 +379,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 		const float enemyBuildings = static_cast<float>(GetNumberOfEnemyBuildings());
 
 		// prefer sectors with many buildings, few lost units and low defence power/short distance to own base
-		rating = lostUnitsFactor * (2.0f + enemyBuildings) * myAttackPower / ( (1.5f + enemyDefencePower) * static_cast<float>(1 + 2 * distance_to_base) );
+		rating = lostUnitsFactor * (2.0f + enemyBuildings) * myAttackPower / ( (1.5f + enemyDefencePower) * static_cast<float>(1 + 2 * m_distanceToBase) );
 	}
 
 	return rating;			
@@ -389,7 +387,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 
 float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout)
 {
-	if(   (distance_to_base == 0) 
+	if(   (m_distanceToBase == 0) 
 	   || (scoutMoveType.IsIncludedIn(m_suitableMovementTypes) == false) 
 	   || (GetNumberOfAlliedBuildings() > 0) )
 		return 0.0f;
@@ -622,7 +620,7 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 	{
 		if(attackerCategory.IsCombatUnit())
 		{
-			const float increment = (distance_to_base == 0) ? 0.5f : 1.0f;
+			const float increment = (m_distanceToBase == 0) ? 0.5f : 1.0f;
 			
 			m_attacksByTargetTypeInCurrentGame.AddValueForTargetType(ai->s_buildTree.GetTargetType(attackerDefId) , increment);
 		}

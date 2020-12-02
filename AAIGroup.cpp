@@ -560,7 +560,7 @@ void AAIGroup::UpdateRallyPoint()
 	AAISector *sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
 
 	// check if rally point lies within base (e.g. AAI has expanded its base after rally point had been set)
-	if(sector->distance_to_base <= 0)
+	if(sector->GetDistanceToBase() <= 0)
 		GetNewRallyPoint();
 
 	//! @todo check if rally point is blocked by building
