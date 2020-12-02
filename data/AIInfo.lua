@@ -31,14 +31,13 @@ local infos = {
 	{
 		key    = 'description',
 		value  = [[
-Plays a nice and slow game, using ground, air & hovercrafts.
-Though water gets used too, it happens seldomly.
-Sometimes it uses smart moves, but needs many test games
-to get better through aquiring learning data.
-Realtive CPU usage: 1.0
+Plays a nice and slow game, using all unit available unit types including hovercraft and sea units.
+It works on land, water, and mixed land&water maps.
+Combat unit selection is based on data learned during previous games. 
+Relative CPU usage: 1.0
 Scales well with growing unit numbers.
 Special: needs a (manually managed) config file per mod.
-Known to Support (if config available): BA, SA, XTA, S44]],
+Known to Support (if config available): BA, SA, XTA]],
 		desc   = 'this should help noobs to find out whether this AI is what they want',
 	},
 	{
