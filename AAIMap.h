@@ -32,6 +32,8 @@ using namespace springLegacyAI;
 
 class AAIMap
 {
+	friend AAIScoutedUnitsMap;
+
 public:
 	AAIMap(AAI *ai);
 	~AAIMap(void);
@@ -59,20 +61,23 @@ public:
 	//! @brief Returns true if the given sector is a neighbour to the current base
 	bool IsSectorBorderToBase(int x, int y) const;
 
-	//! @brief Returns the id of continent the cell belongs to
-	int GetContinentID(int x, int y) const { return continent_map[(y/4) * xContMapSize + x / 4]; }
-
-	//! @brief Returns the id of continent the given position belongs to
-	int GetContinentID(const float3& pos) const;
-
 	//! @brief Returns continent id with respect to the unit's movement type (e.g. ground (=non amphibious) unit being in shallow water will return id of nearest land continent)
 	int DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const;
 
 	//! @brief Returns whether continent to which given sector mainly belongs is sea 
-	bool IsSectorOnWaterContinent(const AAISector* sector) const { return continents[sector->GetContinentID()].water; }
+	bool IsSectorOnWaterContinent(const AAISector* sector) const { return s_continents[sector->GetContinentID()].water; }
 
 	//! @brief Returns whether the position is located on a small continent (meant to detect "ponds" or "small islands")
-	bool LocatedOnSmallContinent(const float3& pos) { return (continents[GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
+	bool LocatedOnSmallContinent(const float3& pos) const { return (s_continents[s_continentMap.GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
+
+	//! @brief Returns the id of continent the given position belongs to
+	static int GetContinentID(const float3& pos) { return s_continentMap.GetContinentID(pos); }
+
+	//! @brief Returns the number of continents
+	static int GetNumberOfContinents() { return s_continents.size(); }
+
+	//! @brief Determines the total number of spotted (= currently known) enemy buildings on land / sea
+	void DetermineSpottedEnemyBuildingsOnContinentType(int& enemyBuildingsOnLand, int& enemyBuildingsOnSea) const;
 
 	//! @brief Returns a bitmask storing which movement types are suitable for the map type
 	uint32_t GetSuitableMovementTypesForMap() const { return GetSuitableMovementTypes(s_mapType); }
@@ -107,19 +112,17 @@ public:
 	// returns number of cells with big slope
 	int GetCliffyCells(int xPos, int yPos, int xSize, int ySize) const;
 
-	// updates spotted ennemy/ally buildings/units on the map
-	void UpdateEnemyUnitsInLOS();
-
-	void UpdateFriendlyUnitsInLos();
-
-	//! @brief Updates enemy buildings/enemy combat power in sectors based on scout map entris updated by UpdateEnemyUnitsInLOS()
-	void UpdateEnemyScoutingData();
+	//! @brief Triggers an update of the current units in LOS if there are enough frames since the last update or it is enforced
+	void CheckUnitsInLOSUpdate(bool forceUpdate = false);
 
 	//! @brief Returns whether given position lies within current LOS
 	bool IsPositionInLOS(const float3& position) const;
 
 	//! @brief Returns whether given position lies within map (e.g. aircraft may leave map)
 	bool IsPositionWithinMap(const float3& position) const;
+
+	//! @brief Returns whether a water tile belonging to an ocean (i.e. large water continent) lies within the given rectangle
+	bool IsConnectedToOcean(int xStart, int xEnd, int yStart, int yEnd) const;
 
 	//! @brief Returns position of first enemy building found in the part of the map (in build map coordinates)
 	float3 DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, int yStart, int yEnd) const;
@@ -167,10 +170,10 @@ public:
 	static int xSectorSizeMap, ySectorSizeMap;
 
 	//! Ration of land tiles
-	static float land_ratio;
+	static float s_landTilesRatio;
 
 	//! Ratio of water tiles
-	static float water_ratio;
+	static float s_waterTilesRatio;
 
 	//! Number of metal spots in sea
 	static int water_metal_spots;
@@ -187,20 +190,19 @@ public:
 	//! The buildmap stores the type/occupation status of every cell;
 	static std::vector<BuildMapTileType> s_buildmap;
 
-	static std::vector<AAIContinent> continents;
 	static int avg_water_continent_size;
 
 	static constexpr int ignoreContinentID = -1;
 
 private:
-	//! The defence maps (storing combat power by static defences vs the different mobile target types)
-	static AAIDefenceMaps s_defenceMaps;
+	//! @brief Updates spotted enemy buildings/units on the map (incl. data per sector)
+	void UpdateEnemyUnitsInLOS();
 
-	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
-	AAIScoutedUnitsMap m_scoutedEnemyUnitsMap;
+	//! @brief Updates own/allied buildings/units on the map (in each sector)
+	void UpdateFriendlyUnitsInLos();
 
-	//! Approximate center of enemy base in build map coordinates (not reliable if enemy buldings are spread over map)
-	MapPos m_centerOfEnemyBase;
+	//! @brief Updates enemy buildings/enemy combat power in sectors based on scout map entris updated by UpdateEnemyUnitsInLOS()
+	void UpdateEnemyScoutingData();
 
 	//! @brief Converts the given position (in map coordinates) to a position in buildmap coordinates
 	void Pos2BuildMapPos(float3* position, const UnitDef* def) const;
@@ -208,22 +210,17 @@ private:
 	// krogothe's metal spot finder
 	void DetectMetalSpots();
 
-	// determines type of map (land, land/water or water map)
-	void DetectMapType();
-
 	//! @brief Returns descriptor for map type (used to save map type)
 	const char* GetMapTypeString(const AAIMapType& mapType) const;
 
 	//! @brief Returns which movement types are suitable for the given map type
 	uint32_t GetSuitableMovementTypes(const AAIMapType& mapType) const;
 
-	void CalculateWaterRatio();
-
-	// calculates which parts of the are connected
-	void CalculateContinentMaps();
-
-	// determines water, high slopes, defence map
+	//! @brief Determine the type of every map tile (e.g. water, flat. cliff) and calculates the plateue map
 	void AnalyseMap();
+
+	//! @brief Determines the type of map
+	void DetermineMapType();
 
 	// calculates learning effect
 	void Learn();
@@ -266,24 +263,41 @@ private:
 
 	AAI *ai;
 
+	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
+	AAIScoutedUnitsMap m_scoutedEnemyUnitsMap;
+
+	//! The number of scouted enemy units on the given continent
+	std::vector<int> m_buildingsOnContinent;
+
+	//! Approximate center of enemy base in build map coordinates (not reliable if enemy buldings are spread over map)
+	MapPos m_centerOfEnemyBase;
+
+	//! The frame in which the last update of the units in LOS has been performed
+	int m_lastLOSUpdateInFrame;
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// static (shared with other ai players)
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	//! The defence maps (storing combat power by static defences vs the different mobile target types)
+	static AAIDefenceMaps s_defenceMaps;
+
+	//! Stores the id of the continent every tiles belongs to and additional information about continents
+	static AAIContinentMap s_continentMap;
+
+	//! An array storing the detected continents on the map
+	static std::vector<AAIContinent> s_continents;
+
 	//! The map type
 	static AAIMapType s_mapType;
-
-	static int aai_instances;	// how many AAI instances have been initialized
 
 	static int losMapRes;				// resolution of the LOS map
 	static int xLOSMapSize, yLOSMapSize;		// x and y size of the LOS map
 	static int xDefMapSize, yDefMapSize;		// x and y size of the defence maps (1/4 resolution of map)
-	static int xContMapSize, yContMapSize;		// x and y size of the continent maps (1/4 resolution of map)
 	static std::list<AAIMetalSpot> metal_spots;
 	static float flat_land_ratio;
 	static vector<int> blockmap;		// number of buildings which ordered a cell to blocked
 	static vector<float> plateau_map;	// positive values indicate plateaus, same resolution as continent map 1/4 of resolution of blockmap/buildmap
-	static vector<int> continent_map;	// id of continent a cell belongs to
 
 	static vector<int> ship_movement_map;	// movement maps for different categories, 1/4 of resolution of blockmap/buildmap
 	static vector<int> kbot_movement_map;

@@ -44,7 +44,7 @@ public:
 	void DecreaseByFactor(const GamePhase& updateUntilGamePhase, float factor)
 	{
 		for(int i = 0; i <= updateUntilGamePhase.GetArrayIndex(); ++i)
-			m_attackedByRatesPerGamePhase[i].DecreaseByFactor(factor);
+			m_attackedByRatesPerGamePhase[i].MultiplyValues(factor);
 	}
 
 	float GetAttackedByRateUntilEarlyPhase(const AAITargetType& attackerTargetType) const
@@ -140,6 +140,15 @@ public:
 			return 0.0f;
 	}
 
+	//! @brief Returns the deviation from max value normalized by [max value:0] -> [0:1]
+	float GetDeviationFromMax(float value) const
+	{
+		if(m_maxValue != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
+			return (m_maxValue - value) / m_maxValue;
+		else
+			return 0.0f;
+	}
+
 	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
 	float GetNormalizedSquaredDeviationFromMax(float value) const
 	{
@@ -152,7 +161,7 @@ public:
 			return 0.0f;
 	}
 
-	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
+	//! @brief Returns the normalized (interval [0:1]) deviation from min value (value must be between min and max)
 	float GetNormalizedDeviationFromMin(float value) const
 	{
 		if(m_valueRange != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
@@ -161,7 +170,16 @@ public:
 			return 0.0f;
 	}
 
-	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
+	//! @brief Returns the deviation from 0 normalized by [0:max value] -> [0:1]
+	float GetDeviationFromZero(float value) const
+	{
+		if(m_maxValue != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
+			return value / m_maxValue;
+		else
+			return 0.0f;
+	}
+
+	//! @brief Returns the normalized (interval [0:1]) deviation from min value (value must be between min and max)
 	float GetNormalizedSquaredDeviationFromMin(float value) const
 	{
 		if(m_valueRange != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
@@ -227,13 +245,13 @@ public:
 
 	const StatisticalData& GetUnitSecondaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitSecondaryAbilityStatistics[category.GetArrayIndex()]; }
 	
-	const StatisticalData& GetCombatCostStatistics(const AAITargetType& targetType)      const { return m_combatCostStatistics[targetType.GetArrayIndex()]; }
+	const StatisticalData& GetCombatCostStatistics(const AAICombatUnitCategory& combatUnitCategory)      const { return m_combatCostStatistics[combatUnitCategory.GetArrayIndex()]; }
 
-	const StatisticalData& GetCombatBuildtimeStatistics(const AAITargetType& targetType) const { return m_combatBuildtimeStatistics[targetType.GetArrayIndex()]; }
+	const StatisticalData& GetCombatBuildtimeStatistics(const AAICombatUnitCategory& combatUnitCategory) const { return m_combatBuildtimeStatistics[combatUnitCategory.GetArrayIndex()]; }
 
-	const StatisticalData& GetCombatRangeStatistics(const AAITargetType& targetType)     const { return m_combatRangeStatistics[targetType.GetArrayIndex()]; }
+	const StatisticalData& GetCombatRangeStatistics(const AAICombatUnitCategory& combatUnitCategory)     const { return m_combatRangeStatistics[combatUnitCategory.GetArrayIndex()]; }
 
-	const StatisticalData& GetCombatSpeedStatistics(const AAITargetType& targetType)     const { return m_combatSpeedStatistics[targetType.GetArrayIndex()]; }
+	const StatisticalData& GetCombatSpeedStatistics(const AAICombatUnitCategory& combatUnitCategory)     const { return m_combatSpeedStatistics[combatUnitCategory.GetArrayIndex()]; }
 
 	const SensorStatistics& GetSensorStatistics() const { return m_sensorStatistics; }
 private:

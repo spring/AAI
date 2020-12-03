@@ -38,7 +38,7 @@ public:
 	//! @brief Returns a sector to proceed with attack (nullptr if none found)
 	const AAISector* DetermineSectorToContinueAttack();
 
-	//! @brief Orders units to attack specidied sector
+	//! @brief Orders units to attack specified sector
 	void AttackSector(const AAISector *sector);
 
 	//! @brief Orders all units involved to retreat

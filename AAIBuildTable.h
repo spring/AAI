@@ -113,8 +113,20 @@ public:
 	//! @brief Returns the list containing which factories shall be built next
 	const std::list<UnitDefId>& GetFactoryBuildqueue() const { return m_factoryBuildqueue; }
 
+	//! @brief Calculates the rating of the given factory
+	float DetermineFactoryRating(UnitDefId factoryDefId) const;
+
 	//! @brief Returns the attackedByRates read from the mod learning file upon initialization
 	const AttackedByRatesPerGamePhase& GetAttackedByRates(const AAIMapType& mapType) const { return s_attackedByRates.GetAttackedByRates(mapType); }
+
+	//! @brief Returns the future number (under construction and requested) of units of the given type
+	int GetNumberOfFutureUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].under_construction + units_dynamic[unitDefId.id].requested); }
+
+	//! @brief Returns the total number (active, under construction, and requested) of units of the given type
+	int GetTotalNumberOfUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].active + units_dynamic[unitDefId.id].under_construction + units_dynamic[unitDefId.id].requested); }
+
+	//! @brief Returns the total number (available and requested) of constructors for the given units of the given type
+	int GetTotalNumberOfConstructorsForUnit(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].constructorsAvailable + units_dynamic[unitDefId.id].constructorsRequested); }
 
 	// ******************************************************************************************************
 	// the following functions are used to determine units that suit a certain purpose
@@ -142,19 +154,19 @@ public:
 	// return repair pad
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
 
-	//! @brief Selects a combat unit of specified targetType according to given criteria
-	UnitDefId SelectCombatUnit(int side, const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness);
+	//! @brief Selects a combat unit of specified movement type according to given criteria
+	UnitDefId SelectCombatUnit(int side, const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness);
 
 	//! @brief Selects a static artillery according to given criteria
 	UnitDefId SelectStaticArtillery(int side, float cost, float range, bool water) const;
 
 	//! @brief Determines a scout unit with given properties
-	UnitDefId selectScout(int side, float sightRange, float cost, uint32_t movementType, int randomness, bool cloakable, bool factoryAvailable);
+	UnitDefId SelectScout(int side, float sightRange, float cloakable, float cost, uint32_t movementType, int randomness, bool factoryAvailable);
 
 	int GetJammer(int side, float cost, float range, bool water, bool canBuild);
 
-	// checks which factory is needed for a specific unit and orders it to be built
-	void BuildFactoryFor(int unit_def_id);
+	//! @brief Determines most suitable factory to construct given unit and requests its construnction
+	void RequestFactoryFor(UnitDefId unitDefId);
 
 	//! @brief Looks for most suitable construction unit for given building and places buildorder if such a unit is not already under construction/requested
 	void RequestBuilderFor(UnitDefId building);
@@ -226,11 +238,17 @@ private:
 	//! @brief Selects a storage according to given criteria
 	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;
 
+	//! @brief Determines the most suitable constructor for the given unit (mobile unit or building)
+	UnitDefId SelectConstructorFor(UnitDefId unitDefId) const;
+
+	//! @brief Order construction of the given construction unit (factory or builder); returns whether construction unit has been added to buildqueue of a factory
+	bool RequestConstructionOfConstructor(UnitDefId constructor);
+
 	//! @brief Calculates the rating of the given factory for the given map type
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;
 
 	//! @brief Calculates the combat statistics needed for unit selection
-	void CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const AAICombatPower& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
+	void CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const TargetTypeValues& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
 
 	//! A list containing the next factories that shall be built
 	std::list<UnitDefId> m_factoryBuildqueue;

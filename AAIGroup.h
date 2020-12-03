@@ -88,6 +88,9 @@ public:
 	//! @brief Returns combat power of the group vs given target type
 	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const;
 
+	//! @brief Adds the combat power of the units in this group to the given values
+	void AddGroupCombatPower(TargetTypeValues& combatPower) const;
+
 	//! @brief Return the id of the continent the units of this group are stationed on (-1 for non-continent bound movement types)
 	int GetContinentId() const { return m_continentId; }
 

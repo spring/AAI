@@ -42,7 +42,7 @@ void AAIBuildTask::BuilderDestroyed()
 
 	AAISector* sector = ai->Getmap()->GetSectorOfPos(build_pos);
 
-	if(sector && sector->distance_to_base == 0)
+	if(sector && sector->GetDistanceToBase() == 0)
 		commander = true;
 
 	// look for new builder

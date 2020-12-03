@@ -30,6 +30,9 @@ public:
 
 	void InitAttackedByRates(const AttackedByRatesPerGamePhase& attackedByRates);
 
+	//! @brief Returns the current estimation how much the AAI instance is under pressure by the enemies, values ranging from 0 (min) to 1 (max).
+	float GetPressureByEnemy() const { return m_estimatedPressureByEnemies; }	
+
 	float GetAverageMetalSurplus() const { return m_metalSurplus.GetAverageValue(); }
 
 	float GetAveragEnergySurplus() const { return m_energySurplus.GetAverageValue(); }
@@ -104,14 +107,14 @@ public:
 	//! @brief Returns whether construction of unit of given type shall be assisted (taking current resources into account)
 	bool SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const;
 
+	//! @brief Determines the construction priority of the given factory
+	float DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) const;
+
 	//! A list of sectors with ceratain distance (in number of sectors) to base; 0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	std::vector< std::list<AAISector*> > m_sectorsInDistToBase;
 
 	//! Holding max number of units of a category spotted at the same time (float as maximum values will slowly decay over time)
 	MobileTargetTypeValues m_maxSpottedCombatUnitsOfTargetType;
-
-	// current estimations of game situation , values ranging from 0 (min) to 1 max
-	float enemy_pressure_estimation;	// how much pressure done to the ai by enemy units
 
 private:
 	//! @brief Recalculates the center of the base (needs to be called after sectors have been added or removed)
@@ -120,11 +123,11 @@ private:
 	// returns true if sufficient ressources to build unit are availbale
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
-	//! @brief Returns the target type of the next combat unit that shall be ordered
-	AAITargetType DetermineTargetTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;
+	//! @brief Returns the movement type of the next combat unit that shall be ordered
+	AAIMovementType DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;
 
 	//! @brief Selects combat unit according to given criteria and tries to order its construction
-	void BuildCombatUnitOfCategory(const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent);
+	void BuildCombatUnitOfCategory(const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent);
 
 	//! @brief Determines criteria for combat unit selection based on current game phase (@todo: Take other criteria into account)
 	void DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const;
@@ -158,6 +161,9 @@ private:
 
 	//! Frequency of attacks by different combat categories throughout the gane
 	static AttackedByRatesPerGamePhase s_attackedByRates;
+
+	//! Estimation how much the AAI instance is under pressure in the current game situation, values ranging from 0 (min) to 1 (max).
+	float m_estimatedPressureByEnemies;	
 
 	AAI *ai;
 };

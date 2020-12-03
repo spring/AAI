@@ -31,13 +31,12 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_metalIncome(AAIConfig::INCOME_SAMPLE_POINTS),
-	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS)
+	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_estimatedPressureByEnemies(0.0f)
 {
 	this->ai = ai;
 
 	m_sectorsInDistToBase.resize(maxSectorDistanceToBase);
-
-	enemy_pressure_estimation = 0;
 }
 
 AAIBrain::~AAIBrain(void)
@@ -142,13 +141,13 @@ void AAIBrain::UpdateCenterOfBase()
 bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 {
 	// commander is always allowed in base
-	if(sector->distance_to_base <= 0)
+	if(sector->GetDistanceToBase() <= 0)
 		return true;
 	// allow construction close to base for small bases
-	else if(m_sectorsInDistToBase[0].size() < 3 && sector->distance_to_base <= 1)
+	else if(m_sectorsInDistToBase[0].size() < 3 && sector->GetDistanceToBase() <= 1)
 		return true;
 	// allow construction on islands close to base on water maps
-	else if(ai->Getmap()->GetMapType().IsWaterMap() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->distance_to_base <= 3) )
+	else if(ai->Getmap()->GetMapType().IsWaterMap() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->GetDistanceToBase() <= 3) )
 		return true;
 	else
 		return false;
@@ -195,92 +194,104 @@ bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& mo
 	return false;
 }
 
+struct SectorForBaseExpansion
+{
+	SectorForBaseExpansion(AAISector* _sector, float _distance, float _totalAttacks) :
+		sector(_sector), distance(_distance), totalAttacks(_totalAttacks) { }
+
+	AAISector* sector;
+	float      distance;
+	float      totalAttacks;
+};
+
 bool AAIBrain::ExpandBase(SectorType sectorType)
 {
 	if(m_sectorsInDistToBase[0].size() >= cfg->MAX_BASE_SIZE)
 		return false;
 
-	// now targets should contain all neighbouring sectors that are not currently part of the base
-	// only once; select the sector with most metalspots and least danger
-	int max_search_dist = 1;
-
 	// if aai is looking for a water sector to expand into ocean, allow greater search_dist
-	if(sectorType == WATER_SECTOR &&  m_baseWaterRatio < 0.1)
-		max_search_dist = 3;
+	const bool expandLandBaseInWater = (sectorType == WATER_SECTOR) && (m_baseWaterRatio < 0.1f);
+	const int  maxSearchDistance     = expandLandBaseInWater ? 3 : 1;
 
-	std::list< std::pair<AAISector*, float> > expansionCandidateList;
+	//-----------------------------------------------------------------------------------------------------------------
+	// assemble a list of potential sectors for base expansion
+	//-----------------------------------------------------------------------------------------------------------------
+	std::list<SectorForBaseExpansion> expansionCandidateList;
 	StatisticalData sectorDistances;
+	StatisticalData sectorAttacks;
 
-	for(int search_dist = 1; search_dist <= max_search_dist; ++search_dist)
+	for(int distanceToBase = 1; distanceToBase <= maxSearchDistance; ++distanceToBase)
 	{
-		for(auto sector = m_sectorsInDistToBase[search_dist].begin(); sector != m_sectorsInDistToBase[search_dist].end(); ++sector)
+		for(auto sector : m_sectorsInDistToBase[distanceToBase])
 		{
-			if((*sector)->IsSectorSuitableForBaseExpansion() )
+			if(sector->IsSectorSuitableForBaseExpansion() )
 			{
 				float sectorDistance(0.0f);
-				for(auto baseSector = m_sectorsInDistToBase[0].begin(); baseSector != m_sectorsInDistToBase[0].end(); ++baseSector) 
+				for(auto baseSector : m_sectorsInDistToBase[0]) 
 				{
-					const int deltaX = (*sector)->x - (*baseSector)->x;
-					const int deltaY = (*sector)->y - (*baseSector)->y;
+					const int deltaX = sector->x - baseSector->x;
+					const int deltaY = sector->y - baseSector->y;
 					sectorDistance += (deltaX * deltaX + deltaY * deltaY); // try squared distances, use fastmath::apxsqrt() otherwise
 				}
-				expansionCandidateList.push_back( std::pair<AAISector*, float>(*sector, sectorDistance) );
 
 				sectorDistances.AddValue(sectorDistance);
+
+				const float totalAttacks = sector->GetTotalAttacksInThisGame() + sector->GetTotalAttacksInPreviousGames();
+				sectorAttacks.AddValue(totalAttacks);
+
+				expansionCandidateList.push_back( SectorForBaseExpansion(sector, sectorDistance, totalAttacks) );
 			}
 		}
 	}
 
 	sectorDistances.Finalize();
+	sectorAttacks.Finalize();
 
+	//-----------------------------------------------------------------------------------------------------------------
+	// select best sector from the list
+	//-----------------------------------------------------------------------------------------------------------------
 	AAISector *selectedSector(nullptr);
-	float bestRating(0.0f);
+	float highestRating(0.0f);
 
 	for(auto candidate = expansionCandidateList.begin(); candidate != expansionCandidateList.end(); ++candidate)
 	{
-		// sectors that result in more compact bases or with more metal spots are rated higher
-		float myRating = static_cast<float>( (candidate->first)->GetNumberOfMetalSpots() );
-		                + 4.0f * sectorDistances.GetNormalizedDeviationFromMax(candidate->second)
-						+ 3.0f / static_cast<float>( (candidate->first)->GetEdgeDistance() + 1 );
+		// prefer sectors that result in more compact bases, with more metal spots, that are safer (i.e. less attacks in the past)
+		float rating = static_cast<float>( candidate->sector->GetNumberOfMetalSpots() );
+						+ 4.0f * sectorDistances.GetNormalizedDeviationFromMax(candidate->distance)
+						+ 4.0f / static_cast<float>( candidate->sector->GetEdgeDistance() + 1 );
+						+ 4.0f * sectorAttacks.GetNormalizedDeviationFromMax(candidate->totalAttacks);
 
 		if(sectorType == LAND_SECTOR)
-			// prefer flat sectors without water
-			myRating += ((candidate->first)->GetFlatTilesRatio() - (candidate->first)->GetWaterTilesRatio()) * 16.0f;
+		{
+			// prefer flat sectors
+			rating += 3.0f * candidate->sector->GetFlatTilesRatio();
+		}
 		else if(sectorType == WATER_SECTOR)
 		{
-			// check for continent size (to prevent aai to expand into little ponds instead of big ocean)
-			if( ((candidate->first)->GetWaterTilesRatio() > 0.1f) && (candidate->first)->ConnectedToOcean() )
-				myRating += 16.0f * (candidate->first)->GetWaterTilesRatio();
-			else
-				myRating = 0.0f;
+			// check for continent size (to prevent AAI to expand into little ponds instead of big ocean)
+			if( candidate->sector->ConnectedToOcean() )
+				rating += 3.0f * candidate->sector->GetWaterTilesRatio();
 		}
 		else // LAND_WATER_SECTOR
-			myRating += ((candidate->first)->GetFlatTilesRatio() + (candidate->first)->GetWaterTilesRatio()) * 16.0f;
+			rating += 3.0f * (candidate->sector->GetFlatTilesRatio() + candidate->sector->GetWaterTilesRatio());
 
-		if(myRating > bestRating)
+		if(rating > highestRating)
 		{
-			bestRating    = myRating;
-			selectedSector = candidate->first;
+			highestRating  = rating;
+			selectedSector = candidate->sector;
 		}			
 	}
 
+	//-----------------------------------------------------------------------------------------------------------------
+	// assign selected sector to base
+	//-----------------------------------------------------------------------------------------------------------------
 	if(selectedSector)
 	{
-		// add this sector to base
 		AssignSectorToBase(selectedSector, true);
 	
-		// debug purposes:
-		if(sectorType == LAND_SECTOR)
-		{
-			ai->Log("\nAdding land sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
-			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
-		}
-		else
-		{
-			ai->Log("\nAdding water sector %i,%i to base; base size: " _STPF_, selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
-			ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
-		}
-
+		std::string sectorTypeString = (sectorType == LAND_SECTOR) ? "land" : "water";
+		ai->Log("\nAdding %s sector %i,%i to base; base size: " _STPF_, sectorTypeString.c_str(), selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
+		ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
 		return true;
 	}
 
@@ -311,7 +322,7 @@ void AAIBrain::UpdateRessources(springLegacyAI::IAICallback* cb)
 
 void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spottedCombatUnits)
 {
-	m_maxSpottedCombatUnitsOfTargetType.DecreaseByFactor(0.996f);
+	m_maxSpottedCombatUnitsOfTargetType.MultiplyValues(0.996f);
 
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
@@ -325,7 +336,7 @@ void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spotted
 
 void AAIBrain::UpdateAttackedByValues()
 {
-	m_recentlyAttackedByRates.DecreaseByFactor(0.96f);
+	m_recentlyAttackedByRates.MultiplyValues(0.96f);
 }
 
 void AAIBrain::AttackedBy(const AAITargetType& attackerTargetType)
@@ -378,7 +389,7 @@ void AAIBrain::UpdateDefenceCapabilities()
 
 void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 {
-	const AAICombatPower& combatPower = ai->s_buildTree.GetCombatPower(unitDefId);
+	const TargetTypeValues& combatPower = ai->s_buildTree.GetCombatPower(unitDefId);
 
 	if(ai->s_buildTree.GetUnitType(unitDefId).IsAssaultUnit())
 	{
@@ -388,33 +399,33 @@ void AAIBrain::AddDefenceCapabilities(UnitDefId unitDefId)
 		{
 			case EUnitCategory::GROUND_COMBAT:
 			{
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE, combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE, combatPower.GetValue(ETargetType::SURFACE));
 				break;
 			}
 			case EUnitCategory::HOVER_COMBAT:
 			{
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE, combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER, combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE, combatPower.GetValue(ETargetType::SURFACE));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER, combatPower.GetValue(ETargetType::FLOATER));
 				break;
 			}
 			case EUnitCategory::SEA_COMBAT:
 			{
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE,   combatPower.GetCombatPowerVsTargetType(ETargetType::SURFACE));
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER,   combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER));
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SUBMERGED, combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SURFACE,   combatPower.GetValue(ETargetType::SURFACE));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER,   combatPower.GetValue(ETargetType::FLOATER));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SUBMERGED, combatPower.GetValue(ETargetType::SUBMERGED));
 				break;
 			}
 			case EUnitCategory::SUBMARINE_COMBAT:
 			{
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER,   combatPower.GetCombatPowerVsTargetType(ETargetType::FLOATER));
-				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SUBMERGED, combatPower.GetCombatPowerVsTargetType(ETargetType::SUBMERGED));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::FLOATER,   combatPower.GetValue(ETargetType::FLOATER));
+				m_totalMobileCombatPower.AddValueForTargetType(ETargetType::SUBMERGED, combatPower.GetValue(ETargetType::SUBMERGED));
 			}
 			default:
 				break;
 		}
 	}
 	else if(ai->s_buildTree.GetUnitType(unitDefId).IsAntiAir())
-		m_totalMobileCombatPower.AddValueForTargetType(ETargetType::AIR, combatPower.GetCombatPowerVsTargetType(ETargetType::AIR));
+		m_totalMobileCombatPower.AddValueForTargetType(ETargetType::AIR, combatPower.GetValue(ETargetType::AIR));
 }
 
 float AAIBrain::Affordable()
@@ -424,7 +435,7 @@ float AAIBrain::Affordable()
 
 void AAIBrain::BuildUnits()
 {
-	GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
+	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate threat by and defence vs. the different combat categories
@@ -451,20 +462,20 @@ void AAIBrain::BuildUnits()
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate urgency to counter each of the different combat categories
 	//-----------------------------------------------------------------------------------------------------------------
-	AAICombatPower threatByTargetType;
+	TargetTypeValues threatByTargetType;
 
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
 		const float threat =  attackedByCatStatistics.GetNormalizedDeviationFromMin( attackedByCategory.GetValueOfTargetType(targetType) ) 
 	                    	+ unitsSpottedStatistics.GetNormalizedDeviationFromMin( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )
 	                    	+ 1.5f * defenceStatistics.GetNormalizedDeviationFromMax( m_totalMobileCombatPower.GetValueOfTargetType(targetType)) ;
-		threatByTargetType.SetCombatPower(targetType, threat);
+		threatByTargetType.SetValue(targetType, threat);
 	}						 
 
-	threatByTargetType.SetCombatPower(ETargetType::STATIC, threatByTargetType.GetCombatPowerVsTargetType(ETargetType::SURFACE) + threatByTargetType.GetCombatPowerVsTargetType(ETargetType::FLOATER) );
+	threatByTargetType.SetValue(ETargetType::STATIC, threatByTargetType.GetValue(ETargetType::SURFACE) + threatByTargetType.GetValue(ETargetType::FLOATER) );
 
 	//-----------------------------------------------------------------------------------------------------------------
-	// Order building of units according to determined threat/own defence capabilities
+	// Order construction of units according to determined threat/own defence capabilities
 	//-----------------------------------------------------------------------------------------------------------------
 
 	UnitSelectionCriteria unitSelectionCriteria;
@@ -475,51 +486,71 @@ void AAIBrain::BuildUnits()
 
 	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
 	{
-		const AAITargetType targetType = DetermineTargetTypeForCombatUnitConstruction(gamePhase);
+		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
 		const bool urgent(false);
 	
-		BuildCombatUnitOfCategory(targetType, threatByTargetType, unitSelectionCriteria, factoryUtilization, urgent);
+		BuildCombatUnitOfCategory(moveType, threatByTargetType, unitSelectionCriteria, factoryUtilization, urgent);
 	}
 }
 
-AAITargetType AAIBrain::DetermineTargetTypeForCombatUnitConstruction(const GamePhase& gamePhase) const
+bool IsRandomNumberBelow(float threshold)
 {
-	AAITargetType targetType(ETargetType::SURFACE);
-
-	const AAIMapType& mapType = ai->Getmap()->GetMapType();
-
-	// choose unit category dependend on map type
-	if(mapType.IsLandMap())
-	{
-		if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-			targetType.SetType(ETargetType::AIR);
-	}
-	else if(mapType.IsLandWaterMap())
-	{
-		//! @todo Add selection of Submarines
-		int groundRatio = static_cast<int>(100.0f * ai->Getmap()->land_ratio);
-		
-		if(rand()%100 < groundRatio)
-			targetType.SetType(ETargetType::FLOATER);
-		else if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-			targetType.SetType(ETargetType::AIR);
-	}
-	else if(mapType.IsWaterMap())
-	{
-		//! @todo Add selection of Submarines
-		if( (rand()%(cfg->AIRCRAFT_RATE * 100) < 100) && !gamePhase.IsStartingPhase())
-			targetType.SetType(ETargetType::AIR);
-		else
-			targetType.SetType(ETargetType::FLOATER);
-	}
-
-	return targetType;
+	// determine random float in [0:1]
+	const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
+	return randomValue < threshold;
 }
 
-void AAIBrain::BuildCombatUnitOfCategory(const AAITargetType& targetType, const AAICombatPower& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent)
+AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const
+{
+	AAIMovementType moveType;
+	if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
+	{
+		moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_AIR);
+	}
+	else
+	{
+		moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_HOVER);
+
+		int enemyBuildingsOnLand, enemyBuildingsOnSea;
+		ai->Getmap()->DetermineSpottedEnemyBuildingsOnContinentType(enemyBuildingsOnLand, enemyBuildingsOnSea);
+
+		if( (enemyBuildingsOnLand+enemyBuildingsOnSea) == 0)
+		{
+			enemyBuildingsOnLand = 1;
+			enemyBuildingsOnSea  = 1;
+		}
+
+		const float totalBuildings = static_cast<float>(enemyBuildingsOnLand+enemyBuildingsOnSea);
+
+		// ratio of sea units is determined: 25% water ratio on map, 75% ratio of enemy buildings on sea
+		float waterUnitRatio = 0.25f * (AAIMap::s_waterTilesRatio + 3.0f * static_cast<float>(enemyBuildingsOnSea) / totalBuildings);
+
+		if(waterUnitRatio <0.05f)
+			waterUnitRatio = 0.0f;
+		else if(waterUnitRatio > 0.95f)
+			waterUnitRatio = 1.0f;
+
+		if(IsRandomNumberBelow(waterUnitRatio) )
+		{
+			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
+			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);
+		}
+		else
+		{
+			moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_AMPHIBIOUS);
+
+			if(IsRandomNumberBelow(1.0f - waterUnitRatio))
+				moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_GROUND);
+		}
+	}
+	
+	return moveType;
+}
+
+void AAIBrain::BuildCombatUnitOfCategory(const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent)
 {
 	// Select unit according to determined criteria
-	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), targetType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6);
+	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), moveType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6);
 
 	// Order construction of selected unit
 	if(unitDefId.IsValid())
@@ -540,18 +571,29 @@ void AAIBrain::BuildCombatUnitOfCategory(const AAITargetType& targetType, const 
 
 void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const
 {
-	unitSelectionCriteria.speed      = 0.25f;
 	unitSelectionCriteria.range      = 0.25f;
 	unitSelectionCriteria.cost       = 0.5f;
 	unitSelectionCriteria.power      = 1.0f;
 	unitSelectionCriteria.efficiency = 1.0f;
 	unitSelectionCriteria.factoryUtilization = 2.0f;
 
+	// prefer faster units from time to time if enemy pressure
+	if( (m_estimatedPressureByEnemies < 0.25f) && IsRandomNumberBelow(cfg->FAST_UNITS_RATIO) )
+	{
+		if(rand()%100 < 70)
+			unitSelectionCriteria.speed = 1.0f;
+		else
+			unitSelectionCriteria.speed = 2.0f;
+	}
+	else
+		unitSelectionCriteria.speed      = 0.1f + (1.0f - m_estimatedPressureByEnemies) * 0.3f;
+
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	// prefer cheaper but effective units in the first few minutes
 	if(gamePhase.IsStartingPhase())
 	{
+		unitSelectionCriteria.speed      = 0.25f;
 		unitSelectionCriteria.cost       = 2.0f;
 		unitSelectionCriteria.efficiency = 2.0f;
 	}
@@ -559,42 +601,28 @@ void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitS
 	{
 		unitSelectionCriteria.cost       = 1.0f;
 		unitSelectionCriteria.efficiency = 1.5f;
-
-		if(rand()%cfg->FAST_UNITS_RATE == 1)
-		{
-			if(rand()%100 < 70)
-				unitSelectionCriteria.speed = 1.0f;
-			else
-				unitSelectionCriteria.speed = 2.0f;
-		}
 	}
 	else
 	{
 		// determine speed, range & eff
-		if(rand()%cfg->FAST_UNITS_RATE == 1)
-		{
-			if(rand()%100 < 70)
-				unitSelectionCriteria.speed = 1.0f;
-			else
-				unitSelectionCriteria.speed = 2.0f;
-		}
-
-		if(rand()%cfg->HIGH_RANGE_UNITS_RATE == 1)
+		if( IsRandomNumberBelow(cfg->HIGH_RANGE_UNITS_RATIO) )
 		{
 			const int t = rand()%1000;
 
 			if(t < 350)
 				unitSelectionCriteria.range = 0.75f;
-			else if(t == 700)
+			else if(t < 700)
 				unitSelectionCriteria.range = 1.2f;
 			else
 				unitSelectionCriteria.range = 1.5f;
 		}
 
-		if(rand()%3 == 1)
+		if( IsRandomNumberBelow(0.25f) )
 			unitSelectionCriteria.power = 2.5f;
 		else
-			unitSelectionCriteria.power = 1.5f;	
+			unitSelectionCriteria.power = 1.0f + (1.0f - m_estimatedPressureByEnemies) * 0.5f;
+
+		unitSelectionCriteria.cost = 0.5f + m_estimatedPressureByEnemies * 1.0f;
 	}
 }
 
@@ -606,17 +634,34 @@ float AAIBrain::GetAttacksBy(const AAITargetType& targetType, const GamePhase& g
 
 void AAIBrain::UpdatePressureByEnemy()
 {
-	enemy_pressure_estimation = 0;
+	int sectorsOccupiedByEnemies(0);
+	int sectorsNearBaseOccupiedByEnemies(0);
 
-	// check base and neighbouring sectors for enemies
-	for(std::list<AAISector*>::iterator s = m_sectorsInDistToBase[0].begin(); s != m_sectorsInDistToBase[0].end(); ++s)
-		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
+	const auto sectors = ai->Getmap()->m_sector;
 
-	for(std::list<AAISector*>::iterator s = m_sectorsInDistToBase[1].begin(); s != m_sectorsInDistToBase[1].end(); ++s)
-		enemy_pressure_estimation += 0.1f * (*s)->GetTotalEnemyCombatUnits();
+	for(int x = 0; x < AAIMap::xSectors; ++x)
+	{
+		for(int y = 0; y < AAIMap::ySectors; ++y)
+		{
+			if(sectors[x][y].IsOccupiedByEnemies())
+			{
+				++sectorsOccupiedByEnemies;
 
-	if(enemy_pressure_estimation > 1.0f)
-		enemy_pressure_estimation = 1.0f;
+				if(sectors[x][y].GetDistanceToBase() < 2)
+					++sectorsNearBaseOccupiedByEnemies;
+			}
+		}
+	}
+
+	const float sectorsWithEnemiesRatio         = static_cast<float>(sectorsOccupiedByEnemies)         / static_cast<float>(AAIMap::xSectors * AAIMap::ySectors);
+	const float sectorsNearBaseWithEnemiesRatio = static_cast<float>(sectorsNearBaseOccupiedByEnemies) / static_cast<float>( m_sectorsInDistToBase[0].size() + m_sectorsInDistToBase[1].size() );
+
+	m_estimatedPressureByEnemies = sectorsWithEnemiesRatio + 2.0f * sectorsNearBaseWithEnemiesRatio;
+
+	if(m_estimatedPressureByEnemies > 1.0f)
+		m_estimatedPressureByEnemies = 1.0f;
+
+	//ai->Log("Current enemy pressure: %f  - map: %f    near base: %f \n", m_estimatedPressureByEnemies, sectorsWithEnemiesRatio, sectorsNearBaseWithEnemiesRatio);
 }
 
 float AAIBrain::GetEnergyUrgency() const
@@ -674,4 +719,23 @@ bool AAIBrain::SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const
 	}
 
 	return false;
+}
+
+float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) const
+{
+	const StatisticalData& costs  = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
+	
+	
+	float rating =    ai->Getbt()->DetermineFactoryRating(factoryDefId)
+					+ costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(factoryDefId) );
+					+ static_cast<float>(ai->Getbt()->GetDynamicUnitTypeData(factoryDefId).active + 1);
+
+	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(factoryDefId);
+
+	if(moveType.IsSea())
+		rating *= (0.3f + 0.35f * (AAIMap::s_waterTilesRatio + m_baseWaterRatio) );
+	else if(moveType.IsGround() || moveType.IsStaticLand())
+		rating *= (0.3f + 0.35f * (AAIMap::s_landTilesRatio  + m_baseFlatLandRatio) );
+
+	return rating;
 }

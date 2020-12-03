@@ -43,6 +43,9 @@ public:
 	                                                                                              + m_underConstructionUnitsOfCategory[category.GetArrayIndex()]
 	                                                                                              + m_activeUnitsOfCategory[category.GetArrayIndex()]); };
 
+	//! @brief Returns the UnitDefId of the given (own) unit
+	UnitDefId GetUnitDefId(UnitId unitId) const { return UnitDefId(units[unitId.id].def_id); }
+
 	bool AddUnit(int unit_id, int def_id, AAIGroup *group = 0, AAIConstructor *cons = 0);
 	void RemoveUnit(int unit_id);
 
@@ -50,10 +53,8 @@ public:
 	void RemoveScout(int unit_id);
 
 	void AddConstructor(UnitId unitId, UnitDefId unitDefId);
-	void RemoveConstructor(int unit_id, int def_id);
-
-	void AddCommander(UnitId unitId, UnitDefId unitDefId);
-	void RemoveCommander(int unit_id, int def_id);
+	void RemoveConstructor(UnitId unitId, UnitDefId unitDefId);
+	const std::set<UnitId>& GetConstructors() const { return m_constructors; }
 
 	void AddExtractor(int unit_id);
 	void RemoveExtractor(int unit_id);
@@ -67,8 +68,9 @@ public:
 	void AddJammer(int unit_id, int def_id);
 	void RemoveJammer(int unit_id);
 
-	void AddRecon(int unit_id, int def_id);
-	void RemoveRecon(int unit_id);
+	void AddStaticSensor(UnitId unitId);
+	void RemoveStaticSensor(UnitId unitId);
+	const std::set<UnitId>& GetStaticSensors() const { return m_staticSensors; }
 
 	void AddStationaryArty(int unit_id, int def_id);
 	void RemoveStationaryArty(int unit_id);
@@ -86,9 +88,6 @@ public:
 	void SetUnitStatus(int unit, UnitTask status);
 
 	void AssignGroupToEnemy(int unit, AAIGroup *group);
-
-	// determine whether unit with specified def/unit id is commander/constrcutor
-	bool IsBuilder(UnitId unitId);
 
 	//! @brief Shall be called when unit have been requested (i.e. added to buildqueue)
 	void UnitRequested(const AAIUnitCategory& category, int number = 1);
@@ -108,26 +107,19 @@ public:
 	//! @brief Shall be called when an active (i.e. construction finished) unit has been killed to update internal counters
 	void ActiveUnitKilled(const AAIUnitCategory& category);
 
+	//! @brief Calls the update() fucntion for every active constructor (e.g. looks for assistants for constructions, checks if factories are idle, ...)
+	void UpdateConstructors();
+
 	// units[i].unitId = -1 -> not used , -2 -> enemy unit
 	std::vector<AAIUnit> units;
 
-	std::set<int> constructors;
 	std::set<int> metal_makers;
 	std::set<int> jammers;
-	std::set<int> recon;
 
 	// number of active/under construction units of all different types
-	int activeBuilders, futureBuilders;
 	int activeFactories, futureFactories;
 
 private:
-	//! @todo These functions are duplicated in buildtable -> remove duplication after unit category handling is reworked
-	bool IsFactory(UnitDefId unitDefId)  const { return ai->s_buildTree.GetUnitType(unitDefId).IsFactory(); };
-
-	bool IsBuilder(UnitDefId unitDefId)  const { return ai->s_buildTree.GetUnitType(unitDefId).IsBuilder(); };
-
-	bool IsAssister(UnitDefId unitDefId) const { return ai->s_buildTree.GetUnitType(unitDefId).IsConstructionAssist(); };
-
 	//! Number of active (i.e. not under construction anymore) units of each unit category
 	std::vector<int> m_activeUnitsOfCategory;
 
@@ -141,8 +133,14 @@ private:
 	std::set<int> extractors;
 	std::set<int> power_plants;
 	std::set<int> stationary_arty;
-	AAI *ai;
 
+	//! A list of all constructors (mobile and static)
+	std::set<UnitId> m_constructors;
+
+	//! A list of all static sensors (radar, seismic, jammer)
+	std::set<UnitId> m_staticSensors;
+
+	AAI *ai;
 };
 
 #endif

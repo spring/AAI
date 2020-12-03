@@ -10,7 +10,6 @@
 #ifndef AAI_SECTOR_H
 #define AAI_SECTOR_H
 
-
 #include "System/float3.h"
 #include "aidef.h"
 #include "AAITypes.h"
@@ -19,7 +18,6 @@
 
 #include <list>
 #include <vector>
-#include <numeric>
 
 class AAI;
 class AAIUnitTable;
@@ -75,6 +73,9 @@ public:
 	//! @brief Adds/removes the sector from base sectors; returns true if succesful
 	bool AddToBase(bool addToBase);
 
+	//! @brief Returns the distance (in sectors) to the base
+	int GetDistanceToBase() const { return m_distanceToBase; }
+
 	//! @brief Returns the number of metal spots in this sector
 	int GetNumberOfMetalSpots() const { return metalSpots.size(); }
 
@@ -100,13 +101,14 @@ public:
 	void AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame);
 
 	//! @brief Return the total number of enemy combat units
-	float GetTotalEnemyCombatUnits() const { return std::accumulate(m_enemyCombatUnits.begin(), m_enemyCombatUnits.end(), 0.0f); };
+	float GetTotalEnemyCombatUnits() const { return m_enemyCombatUnits.CalcuateSum(); };
 
 	//! @brief Returns whether sector is supsected to be occupied by enemy units
 	bool IsOccupiedByEnemies() const{ return (GetTotalEnemyCombatUnits() > 0.1f) || (m_enemyBuildings > 0) || (m_enemyUnitsDetectedBySensor > 0); }
 
-	//! @brief Returns number of enemy units of given category spotted in this sector (float as number decreases over time if sector is not scouted)
-	float GetNumberOfEnemyCombatUnits(const AAICombatUnitCategory& category) const  { return m_enemyCombatUnits[category.GetArrayIndex()]; };
+	//! @brief Returns number of enemy units of given target type spotted in this sector (float as number decreases over time if sector is not scouted)
+	float GetNumberOfEnemyCombatUnits(const AAITargetType& targetType) const  { return m_enemyCombatUnits.GetValue(targetType); };
+	const TargetTypeValues& GetNumberOfEnemyCombatUnits() const  { return m_enemyCombatUnits; };
 
 	//! @brief Decreases number of lost units by a factor < 1 such that AAI "forgets" about lost unit over time
 	void DecreaseLostUnits();
@@ -117,7 +119,8 @@ public:
 	//! @brief Returns true if sector shall be considered for selection of construction of further metal extractor
 	bool ShallBeConsideredForExtractorConstruction() const;
 
-	float3 GetRandomBuildsite(int building, int tries, bool water = false);
+	//! @brief Returns a buildsite that has been chosen randomly (the given number of trials) - ZeroVector if none found
+	float3 GetRandomBuildsite(UnitDefId buildingDefId, int trials) const;
 
 	float3 GetRadarArtyBuildsite(int building, float range, bool water);
 
@@ -137,7 +140,7 @@ public:
 	float GetLocalAttacksBy(const AAITargetType& targetType, float previousGames, float currentGame) const;
 
 	//! @brief Get total (mobile + static) defence power of enemy vs given target type (according to spotted units)
-	float GetEnemyDefencePower(const MobileTargetTypeValues& targetTypeOfUnits) const;
+	float GetEnemyCombatPowerVsUnits(const MobileTargetTypeValues& unitsOfTargetType) const;
 
 	//! @brief Get total (mobile + static) defence power vs given target type
 	float GetEnemyCombatPower(const AAITargetType& targetType) const { return m_enemyStaticCombatPower.GetValueOfTargetType(targetType) + m_enemyMobileCombatPower.GetValueOfTargetType(targetType); }
@@ -148,7 +151,7 @@ public:
 	//! @brief Returns cmbat power of own/allied static defences against given target type
 	float GetFriendlyCombatPower(const AAITargetType& targetType) const { return m_friendlyStaticCombatPower.GetValueOfTargetType(targetType) + m_friendlyMobileCombatPower.GetValueOfTargetType(targetType); }
 
-	// returns combat power of units in that and neighbouring sectors vs combat cat
+	//! @brief Returns combat power of units in that and neighbouring sectors vs combat cat
 	float GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const;
 
 	//! @brief Updates threat map storing where own buildings/units got killed
@@ -167,6 +170,15 @@ public:
 				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::AIR)
 				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::FLOATER)
 				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::SUBMERGED);
+	}
+
+	//! @brief Returns number of attacks by the main combat categories (ground, hover, air)
+	float GetTotalAttacksInPreviousGames() const 
+	{
+		return    m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::SURFACE)
+				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::AIR)
+				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::FLOATER)
+				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::SUBMERGED);
 	}
 
 	//! @brief Returns center position of the sector
@@ -235,8 +247,6 @@ public:
 
 	bool m_freeMetalSpots;
 
-	int distance_to_base;	// 0 = base, 1 = neighbour to base
-
 	// importance of the sector
 	float importance_this_game;
 	float importance_learned;
@@ -260,6 +270,9 @@ private:
 	//! Ratio of water tiles
 	float m_waterTilesRatio;
 
+	//! Distance (in sectors) to own base,  i.e 0 = belongs to base, 1 = neighbour to base, ...
+	int m_distanceToBase;
+
 	//! Bitmask storing movement types that may maneuver in this sector
 	uint32_t m_suitableMovementTypes;	
 
@@ -276,7 +289,7 @@ private:
 	std::vector<int> m_ownBuildingsOfCategory;
 
 	//! Number of spotted enemy combat units (float values as number decays over time)
-	std::vector<float> m_enemyCombatUnits; // 0 ground, 1 air, 2 hover, 3 sea, 4 submarine
+	TargetTypeValues m_enemyCombatUnits; // 0 surface, 1 air, 3 ship, 4 submarine, 5 static defences
 
 	//! Number of buildings enemy players have constructed in this sector
 	int m_enemyBuildings;

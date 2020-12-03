@@ -178,6 +178,9 @@ private:
 	
 	//! @brief Determines buildsite for a building that shall be constructed by the given construction unit
 	float3 DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) const;
+
+	//! @brief Determines buildiste for the given building in the given sector, returns ZeroVector if none found
+	float3 DetermineBuildsiteInSector(UnitDefId building, const AAISector* sector) const;
 	
 	void InitBuildques();
 
@@ -190,7 +193,7 @@ private:
 
 	BuildOrderStatus TryConstructionOf(UnitDefId landBuilding, UnitDefId seaBuilding, const AAISector* sector);
 
-	bool BuildFactory();
+	bool BuildStaticConstructor();
 	bool BuildDefences();
 	bool BuildRadar();
 	bool BuildJammer();

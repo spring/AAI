@@ -93,24 +93,43 @@ bool AAIAttack::SufficientCombatPowerAt(const AAISector *sector, float aggressiv
 {
 	if(sector && !m_combatUnitGroups.empty())
 	{
-		//! @todo Must be reworked to work with water units.
-		const AAITargetType targetType(ETargetType::SURFACE);
+		// determine target types of own units and combat efficiency against different types of enemy units
+		MobileTargetTypeValues numberOfMyCombatUnits;
+		TargetTypeValues       myCombatPower;
 
-		const float enemyUnits =  sector->GetNumberOfEnemyCombatUnits(ECombatUnitCategory::GROUND_COMBAT) 
-		                        + sector->GetNumberOfEnemyCombatUnits(ECombatUnitCategory::HOVER_COMBAT);
+		for(auto group : m_combatUnitGroups)
+		{
+			numberOfMyCombatUnits.AddValueForTargetType(group->GetTargetType(), static_cast<float>(group->GetCurrentSize()) );
+			group->AddGroupCombatPower(myCombatPower);
+		}
 
-		if(enemyUnits <= 1.0f)
-			return true;	
+		numberOfMyCombatUnits.Normalize();
 
-		// get total enemy combat power
-		const float enemyCombatPower = sector->GetEnemyAreaCombatPowerVs(targetType, 0.25f) / enemyUnits;		
+		// determine enemy combat power (weighted by own units)
+		const float enemyDefencePower = sector->GetEnemyCombatPowerVsUnits(numberOfMyCombatUnits);	
 
-		// get total combat power of available units for attack
-		float myCombatPower(0.0f);
-		for(std::set<AAIGroup*>::const_iterator group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
-			myCombatPower += (*group)->GetCombatPowerVsTargetType(targetType);
+		TargetTypeValues numberOfEnemyUnits = sector->GetNumberOfEnemyCombatUnits();
+		const float totalEnemyUnits = numberOfEnemyUnits.CalcuateSum();
 
-		if(aggressiveness * myCombatPower > enemyCombatPower)
+		if(totalEnemyUnits > 0.0f)
+		{
+			// normalize relative number of enemy units
+			numberOfEnemyUnits.MultiplyValues(1.0f / totalEnemyUnits);
+			const float myAttackPower = myCombatPower.CalculateWeightedSum(numberOfEnemyUnits);
+
+			/*ai->Log("My units: %f, %f, %f, %f\n", numberOfMyCombatUnits.GetValueOfTargetType(ETargetType::SURFACE), 
+			numberOfMyCombatUnits.GetValueOfTargetType(ETargetType::AIR), 
+			numberOfMyCombatUnits.GetValueOfTargetType(ETargetType::FLOATER), 
+			numberOfMyCombatUnits.GetValueOfTargetType(ETargetType::SUBMERGED));
+			ai->Log("Enemy units: %f, %f, %f, %f, %f\n", numberOfEnemyUnits.GetValue(ETargetType::SURFACE), 
+			numberOfEnemyUnits.GetValue(ETargetType::AIR), numberOfEnemyUnits.GetValue(ETargetType::FLOATER), 
+			numberOfEnemyUnits.GetValue(ETargetType::SUBMERGED),numberOfEnemyUnits.GetValue(ETargetType::STATIC));
+			ai->Log("My attack/enemy defence power: %f / %f\n", myAttackPower, enemyDefencePower);*/
+
+			if(aggressiveness * myAttackPower > enemyDefencePower)
+				return true;
+		}
+		else
 			return true;
 	}
 

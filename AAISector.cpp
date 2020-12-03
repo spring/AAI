@@ -19,14 +19,15 @@
 using namespace springLegacyAI;
 
 
-AAISector::AAISector()
+AAISector::AAISector() :
+	m_distanceToBase(-1), 
+	m_enemyCombatUnits(0.0f),
+	m_skippedAsScoutDestination(0)
 {
 }
 
 AAISector::~AAISector(void)
 {
-	m_enemyCombatUnits.clear();
-
 	m_ownBuildingsOfCategory.clear();
 }
 
@@ -45,12 +46,9 @@ void AAISector::Init(AAI *ai, int x, int y)
 	m_minSectorDistanceToMapEdge = std::min(xEdgeDist, yEdgeDist);
 
 	const float3 center = GetCenter();
-	m_continentId = ai->Getmap()->GetContinentID(center);
+	m_continentId = AAIMap::GetContinentID(center);
 
-	// init all kind of stuff
 	m_freeMetalSpots = false;
-	distance_to_base = -1;
-	m_skippedAsScoutDestination = 0;
 
 	// nothing sighted in that sector
 	m_enemyUnitsDetectedBySensor = 0;
@@ -59,8 +57,6 @@ void AAISector::Init(AAI *ai, int x, int y)
 	m_failedAttemptsToConstructStaticDefence = 0;
 
 	importance_this_game = 1.0f + (rand()%5)/20.0f;
-
-	m_enemyCombatUnits.resize(AAICombatUnitCategory::numberOfCombatUnitCategories, 0.0f);
 
 	m_ownBuildingsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
 }
@@ -102,7 +98,7 @@ void AAISector::UpdateLearnedData()
 		importance_this_game = 1.0f;
 
 	m_attacksByTargetTypeInCurrentGame.AddMobileTargetValues(m_attacksByTargetTypeInPreviousGames, 3.0f);
-	m_attacksByTargetTypeInCurrentGame.DecreaseByFactor(0.225f); // 0.225f = 0.9f / 4.0f ->decrease by 0.9 and account for 3.0f in line above
+	m_attacksByTargetTypeInCurrentGame.MultiplyValues(0.225f); // 0.225f = 0.9f / 4.0f ->decrease by 0.9 and account for 3.0f in line above
 }
 
 bool AAISector::AddToBase(bool addToBase)
@@ -116,9 +112,8 @@ bool AAISector::AddToBase(bool addToBase)
 			return false;
 		}
 
-		distance_to_base = 0;
+		m_distanceToBase = 0;
 
-		// increase importance
 		importance_this_game += 1;
 
 		AAIMap::s_teamSectorMap.SetSectorAsOccupiedByTeam(x, y, ai->GetMyTeamId());
@@ -130,7 +125,7 @@ bool AAISector::AddToBase(bool addToBase)
 	}
 	else	// remove from base
 	{
-		distance_to_base = 1;
+		m_distanceToBase = 1;
 
 		AAIMap::s_teamSectorMap.SetSectorAsUnoccupied(x, y);
 
@@ -148,7 +143,7 @@ void AAISector::ResetLocalCombatPower()
 void AAISector::ResetScoutedEnemiesData() 
 { 
 	m_enemyBuildings = 0;
-	std::fill(m_enemyCombatUnits.begin(),  m_enemyCombatUnits.end(), 0.0f); 
+	m_enemyCombatUnits.Fill(0.0f);
 	m_enemyStaticCombatPower.Reset();
 	m_enemyMobileCombatPower.Reset();
 };
@@ -182,6 +177,7 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 		if(categoryOfEnemyUnit.IsStaticDefence())
 		{
 			m_enemyStaticCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(enemyDefId) );
+			m_enemyCombatUnits.AddValue(ETargetType::STATIC, 1.0f);
 		}
 	}
 	// add unit to sector and update mobile_combat_power
@@ -189,9 +185,9 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 	{
 		// units that have been scouted long time ago matter less
 		const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(lastUpdateInFrame - ai->GetAICallback()->GetCurrentFrame())) / 3600.0f  );
-		const AAICombatUnitCategory& combatCategory( categoryOfEnemyUnit );
+		const AAITargetType& targetType = ai->s_buildTree.GetTargetType(enemyDefId);
 
-		m_enemyCombatUnits[combatCategory.GetArrayIndex()] += lastSeen;
+		m_enemyCombatUnits.AddValue(targetType, lastSeen);
 
 		m_enemyMobileCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(enemyDefId), lastSeen );
 	}
@@ -275,26 +271,28 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 	{
 		if(m_failedAttemptsToConstructStaticDefence < 2) // do not try to build defences if last two attempts failed
 		{
+			const float baseProximity = (m_distanceToBase <= 1) ? 1.0f : 0.0f;
+
 			std::vector<float> importanceVsTargetType(AAITargetType::numberOfMobileTargetTypes, 0.0f);
 
-			importanceVsTargetType[AAITargetType::airIndex] =  
+			importanceVsTargetType[AAITargetType::airIndex] = baseProximity +
 						  (0.1f + GetLocalAttacksBy(ETargetType::AIR, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::AIR, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::AIR));
 
 			if(m_waterTilesRatio < 0.7f)
 			{
-				importanceVsTargetType[AAITargetType::surfaceIndex] =  
+				importanceVsTargetType[AAITargetType::surfaceIndex] = baseProximity +
 						  (0.1f + GetLocalAttacksBy(ETargetType::SURFACE, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::SURFACE, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::SURFACE));
 			}
 
 			if(m_waterTilesRatio > 0.3f)
 			{
-				importanceVsTargetType[AAITargetType::floaterIndex] =  
+				importanceVsTargetType[AAITargetType::floaterIndex] = baseProximity +
 						  (0.1f + GetLocalAttacksBy(ETargetType::FLOATER, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::FLOATER, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::FLOATER));
 
-				importanceVsTargetType[AAITargetType::submergedIndex] =  
+				importanceVsTargetType[AAITargetType::submergedIndex] = baseProximity +
 						  (0.1f + GetLocalAttacksBy(ETargetType::SUBMERGED, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::SUBMERGED, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::SUBMERGED));
 			}
@@ -327,7 +325,7 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 				if(distEnemyBase < distOwnToEnemyBase)
 					highestImportance *= 2.0f;
 
-				highestImportance *= static_cast<float>(2 + this->GetEdgeDistance());
+				highestImportance *= static_cast<float>(2 + this->GetEdgeDistance()) * (2.0f /  static_cast<float>(m_distanceToBase+1));
 			}
 
 			return highestImportance;
@@ -343,7 +341,7 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 {
 	float rating(0.0f);
 
-	if( (distance_to_base > 0) && (GetNumberOfEnemyBuildings() > 0) )
+	if( (m_distanceToBase > 0) && (GetNumberOfEnemyBuildings() > 0) )
 	{
 		const bool landCheckPassed  = landSectorSelectable  && (m_waterTilesRatio < 0.35f);
 		const bool waterCheckPassed = waterSectorSelectable && (m_waterTilesRatio > 0.65f);
@@ -357,7 +355,7 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 			const float enemyBuildings = static_cast<float>(GetNumberOfEnemyBuildings());
 
 			// prefer sectors with many buildings, few lost units and low defence power/short distance to current sector
-			rating = GetLostUnits() * enemyBuildings / ( (1.0f + GetEnemyDefencePower(targetTypeOfUnits)) * (1.0f + dist) );
+			rating = GetLostUnits() * enemyBuildings / ( (1.0f + GetEnemyCombatPowerVsUnits(targetTypeOfUnits)) * (1.0f + dist) );
 		}
 	}
 
@@ -369,7 +367,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 {
 	float rating(0.0f);
 
-	if( (distance_to_base > 0) && (GetNumberOfEnemyBuildings() > 0))
+	if( (m_distanceToBase > 0) && (GetNumberOfEnemyBuildings() > 0))
 	{
 		const float myAttackPower     =   globalCombatPower[AAITargetType::staticIndex] + continentCombatPower[m_continentId][AAITargetType::staticIndex];
 		const float enemyDefencePower =   assaultGroupsOfType.GetValueOfTargetType(ETargetType::SURFACE)   * GetEnemyCombatPower(ETargetType::SURFACE)
@@ -381,7 +379,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 		const float enemyBuildings = static_cast<float>(GetNumberOfEnemyBuildings());
 
 		// prefer sectors with many buildings, few lost units and low defence power/short distance to own base
-		rating = lostUnitsFactor * (2.0f + enemyBuildings) * myAttackPower / ( (1.5f + enemyDefencePower) * static_cast<float>(1 + 2 * distance_to_base) );
+		rating = lostUnitsFactor * (2.0f + enemyBuildings) * myAttackPower / ( (1.5f + enemyDefencePower) * static_cast<float>(1 + 2 * m_distanceToBase) );
 	}
 
 	return rating;			
@@ -389,7 +387,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 
 float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout)
 {
-	if(   (distance_to_base == 0) 
+	if(   (m_distanceToBase == 0) 
 	   || (scoutMoveType.IsIncludedIn(m_suitableMovementTypes) == false) 
 	   || (GetNumberOfAlliedBuildings() > 0) )
 		return 0.0f;
@@ -465,19 +463,15 @@ bool AAISector::ShallBeConsideredForExtractorConstruction() const
 			&& (IsOccupiedByEnemies() == false);	
 }
 
-float3 AAISector::GetRandomBuildsite(int building, int tries, bool water)
+float3 AAISector::GetRandomBuildsite(UnitDefId buildingDefId, int tries) const
 {
-	if(building < 1)
-	{
-		ai->Log("ERROR: Invalid building def id %i passed to AAISector::GetRadarBuildsite()\n", building);
-		return ZeroVector;
-	}
-
 	int xStart, xEnd, yStart, yEnd;
-
 	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
-	return ai->Getmap()->GetRandomBuildsite(&ai->Getbt()->GetUnitDef(building), xStart, xEnd, yStart, yEnd, tries, water);
+	const bool                     water   = ai->s_buildTree.GetMovementType(buildingDefId).IsSea();
+	const springLegacyAI::UnitDef* unitDef  = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+
+	return ai->Getmap()->GetRandomBuildsite(unitDef, xStart, xEnd, yStart, yEnd, tries, water);
 }
 
 float3 AAISector::GetRadarArtyBuildsite(int building, float range, bool water)
@@ -556,13 +550,13 @@ float AAISector::GetLocalAttacksBy(const AAITargetType& targetType, float previo
 	return  totalAttacks / (previousGames + currentGame);
 }
 
-float AAISector::GetEnemyDefencePower(const MobileTargetTypeValues& targetTypeOfUnits) const
+float AAISector::GetEnemyCombatPowerVsUnits(const MobileTargetTypeValues& unitsOfTargetType) const
 {
 	float defencePower(0.0f);
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
 		const float totalDefPower = m_enemyStaticCombatPower.GetValueOfTargetType(targetType) + m_enemyMobileCombatPower.GetValueOfTargetType(targetType);
-		defencePower += targetTypeOfUnits.GetValueOfTargetType(targetType) * totalDefPower;
+		defencePower += unitsOfTargetType.GetValueOfTargetType(targetType) * totalDefPower;
 	}
 
 	return defencePower;
@@ -626,7 +620,7 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 	{
 		if(attackerCategory.IsCombatUnit())
 		{
-			const float increment = (distance_to_base == 0) ? 0.5f : 1.0f;
+			const float increment = (m_distanceToBase == 0) ? 0.5f : 1.0f;
 			
 			m_attacksByTargetTypeInCurrentGame.AddValueForTargetType(ai->s_buildTree.GetTargetType(attackerDefId) , increment);
 		}
@@ -656,17 +650,12 @@ bool AAISector::ConnectedToOcean() const
 	if(m_waterTilesRatio < 0.2f)
 		return false;
 
-	//! @todo: improve criterion -> look for water tiles in sector instead of just checking the center tile
-	const MapPos center(x * AAIMap::xSectorSizeMap + AAIMap::xSectorSizeMap/2, y * AAIMap::ySectorSizeMap + AAIMap::ySectorSizeMap/2);
-	const int continentId = ai->Getmap()->GetContinentID(center.x, center.y);
+	const int xStart( x   * AAIMap::xSectorSizeMap);
+	const int xEnd( (x+1) * AAIMap::xSectorSizeMap);
+	const int yStart( y   * AAIMap::ySectorSizeMap);
+	const int yEnd( (y+1) * AAIMap::ySectorSizeMap);
 
-	if(ai->Getmap()->continents[continentId].water)
-	{
-		if(ai->Getmap()->continents[continentId].size > 1200 && ai->Getmap()->continents[continentId].size > 0.5f * (float)ai->Getmap()->avg_water_continent_size )
-			return true;
-	}
-
-	return false;
+	return ai->Getmap()->IsConnectedToOcean(xStart, xEnd, yStart, yEnd);
 }
 
 float3 AAISector::DetermineUnitMovePos(AAIMovementType moveType, int continentId) const
@@ -674,7 +663,7 @@ float3 AAISector::DetermineUnitMovePos(AAIMovementType moveType, int continentId
 	BuildMapTileType forbiddenMapTileTypes(EBuildMapTileType::OCCUPIED);
 	forbiddenMapTileTypes.SetTileType(EBuildMapTileType::BLOCKED_SPACE); 
 
-	if(moveType.IsSeaUnit())
+	if(moveType.IsMobileSea())
 		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::LAND);
 	else if(moveType.IsAmphibious() || moveType.IsHover())
 		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::CLIFF);
@@ -728,7 +717,7 @@ bool AAISector::IsValidMovePos(const float3& pos, BuildMapTileType forbiddenMapT
 
 	if(AAIMap::s_buildmap[x + y * AAIMap::xMapSize].IsTileTypeNotSet(forbiddenMapTileTypes))
 	{
-		if( (continentId == AAIMap::ignoreContinentID) || (ai->Getmap()->GetContinentID(pos) == continentId) )
+		if( (continentId == AAIMap::ignoreContinentID) || (AAIMap::GetContinentID(pos) == continentId) )
 			return true;
 	}
 	return false;
