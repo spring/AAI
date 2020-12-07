@@ -180,9 +180,6 @@ public:
 	// returns true, if unit is arty
 	bool IsArty(int id);
 
-	// returns true if the unit is marked as attacker (so that it won't be classed as something else even if it can build etc.)
-	bool IsAttacker(int id);
-
 	bool IsMissileLauncher(int def_id);
 
 	bool IsDeflectionShieldEmitter(int def_id);
@@ -201,12 +198,6 @@ public:
 
 	//! @brief Returns the dynamic unit type data for the given unitDefId
 	const UnitTypeDynamic& GetDynamicUnitTypeData(UnitDefId unitDefId) const { return units_dynamic[unitDefId.id]; }
-
-	// number of sides
-	int numOfSides;
-
-	// side names
-	std::vector<std::string> sideNames;
 
 	// AAI unit defs with aai-instance specific information (number of requested, active units, etc.)
 	std::vector<UnitTypeDynamic> units_dynamic;

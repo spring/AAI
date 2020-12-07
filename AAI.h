@@ -83,6 +83,9 @@ public:
 	//! @brief Returns the unitDefId for a given unitId
 	UnitDefId GetUnitDefId(UnitId unitId) const;
 
+	//! @brief Returns the unit definition for the given unit name
+	const springLegacyAI::UnitDef* GetUnitDef(const std::string& unitName) const { return m_aiCallback->GetUnitDef(unitName.c_str()); }
+
 	//! @brief Returns pointer to AI callback
 	IAICallback* GetAICallback() const { return m_aiCallback; }
 

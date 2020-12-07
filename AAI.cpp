@@ -198,7 +198,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	Log("AAI instance: %i\n", m_aaiInstance); 
 
 	// load config file first
-	bool gameConfigLoaded    = cfg->loadGameConfig(this);
+	bool gameConfigLoaded    = cfg->LoadGameConfig(this);
 	bool generalConfigLoaded = cfg->loadGeneralConfig(*this);
 
 	m_configLoaded = gameConfigLoaded && generalConfigLoaded;
@@ -404,10 +404,7 @@ void AAI::UnitFinished(int unit)
 {
 	AAI_SCOPED_TIMER("UnitFinished")
 	if (m_initialized == false)
-    {
-        Log("Error: AAI not initialized when unit %i was finished\n", unit);
         return;
-    }
 
 	// get unit's id
 	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);

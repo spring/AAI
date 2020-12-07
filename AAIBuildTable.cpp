@@ -26,15 +26,6 @@ AttackedByRatesPerGamePhaseAndMapType AAIBuildTable::s_attackedByRates;
 AAIBuildTable::AAIBuildTable(AAI* ai)
 {
 	this->ai = ai;
-
-	numOfSides = cfg->SIDES;
-	sideNames.resize(numOfSides+1);
-	sideNames[0] = "Neutral";
-
-	for(int i = 0; i < numOfSides; ++i)
-	{
-		sideNames[i+1].assign(cfg->SIDE_NAMES[i]);
-	}
 }
 
 AAIBuildTable::~AAIBuildTable(void)
@@ -226,7 +217,7 @@ UnitDefId AAIBuildTable::GetLargestExtractor() const
 	UnitDefId largestExtractor;
 	int largestYardMap(0);
 
-	for(int side = 1; side <= cfg->SIDES; ++side)
+	for(int side = 1; side <= cfg->numberOfSides; ++side)
 	{
 		for(auto extractor = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).begin(); extractor != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).end(); ++extractor)
 		{
@@ -735,11 +726,11 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allow
 
 			const float combatEff = combatPowerValues[i] / unitData.m_totalCost;
 
-			const float rating =  unitCriteria.cost  * costStatistics.GetNormalizedSquaredDeviationFromMax( unitData.m_totalCost )
-								+ unitCriteria.range * rangeStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_primaryAbility )
-								+ unitCriteria.speed * speedStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_secondaryAbility )
-								+ unitCriteria.power * combatPowerStat.GetNormalizedSquaredDeviationFromMin( combatPowerValues[i] )
-								+ unitCriteria.efficiency * combatEfficiencyStat.GetNormalizedSquaredDeviationFromMin( combatEff )
+			const float rating =  unitCriteria.cost  * costStatistics.GetDeviationFromMax( unitData.m_totalCost )
+								+ unitCriteria.range * rangeStatistics.GetDeviationFromZero( unitData.m_primaryAbility )
+								+ unitCriteria.speed * speedStatistics.GetDeviationFromZero( unitData.m_secondaryAbility )
+								+ unitCriteria.power * combatPowerStat.GetDeviationFromZero( combatPowerValues[i] )
+								+ unitCriteria.efficiency * combatEfficiencyStat.GetDeviationFromZero( combatEff )
 								+ unitCriteria.factoryUtilization * minFactoryUtilization
 								+ 0.05f * ((float)(rand()%randomness));
 
@@ -1085,21 +1076,9 @@ bool AAIBuildTable::IsArty(int id)
 	return false;
 }
 
-bool AAIBuildTable::IsAttacker(int id)
-{
-	for(list<int>::iterator i = cfg->ATTACKERS.begin(); i != cfg->ATTACKERS.end(); ++i)
-	{
-		if(*i == id)
-			return true;
-	}
-
-	return false;
-}
-
-
 bool AAIBuildTable::IsTransporter(int id)
 {
-	for(list<int>::iterator i = cfg->TRANSPORTERS.begin(); i != cfg->TRANSPORTERS.end(); ++i)
+	for(list<int>::iterator i = cfg->transporters.begin(); i != cfg->transporters.end(); ++i)
 	{
 		if(*i == id)
 			return true;
@@ -1110,7 +1089,7 @@ bool AAIBuildTable::IsTransporter(int id)
 
 bool AAIBuildTable::AllowedToBuild(int id)
 {
-	for(list<int>::iterator i = cfg->DONT_BUILD.begin(); i != cfg->DONT_BUILD.end(); ++i)
+	for(list<int>::iterator i = cfg->ignoredUnits.begin(); i != cfg->ignoredUnits.end(); ++i)
 	{
 		if(*i == id)
 			return false;
@@ -1121,7 +1100,7 @@ bool AAIBuildTable::AllowedToBuild(int id)
 
 bool AAIBuildTable::IsMetalMaker(int id)
 {
-	for(list<int>::iterator i = cfg->METAL_MAKERS.begin(); i != cfg->METAL_MAKERS.end(); ++i)
+	for(list<int>::iterator i = cfg->metalMakers.begin(); i != cfg->metalMakers.end(); ++i)
 	{
 		if(*i == id)
 			return true;

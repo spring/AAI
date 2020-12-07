@@ -65,9 +65,9 @@ AAIExecute::~AAIExecute(void)
 void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 {
 	//debug
-	ai->Log("Playing as %s\n", ai->Getbt()->sideNames[ai->GetSide()].c_str());
+	ai->Log("Playing as %s\n", cfg->sideNames[ai->GetSide()].c_str());
 
-	if(ai->GetSide() < 1 || ai->GetSide() > ai->Getbt()->numOfSides)
+	if(ai->GetSide() < 1 || ai->GetSide() > cfg->numberOfSides)
 	{
 		ai->LogConsole("ERROR: invalid side id %i\n", ai->GetSide());
 		return;

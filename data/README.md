@@ -1,5 +1,5 @@
-Author:	Alexander		Icq: 138100896					email:	alexander.seizinger
-		Seizinger		Jabber: alexander.seizinger@jabber.org				@gmx.net
+Author:	Alexander		email:	alexander.seizinger
+		Seizinger					@gmx.net
 
 # Installation:	Windows users:
 
@@ -44,28 +44,13 @@ and CORCOM for most TA-mods). There are also some constants you may want to play
 AAI tries to load the config from a file in the aai subfolder. The name must be the same as
 the modname, with ".cfg" extension (e.g. xta_se_v066.cfg for XTA mod). If you are not sure
 about the correct filename, just start a game running that mod. AAI will complain about
-missing cfg files and put the desired cfg filename in the log files.
+missing cfg files and print the desired cfg filename in the log files.
 
 See example.cfg for more information.
 
 By default, AAI has cfg files to support the following mods:
 - XTA
-- TA:WD 5.65
-- AA 2.23 Standard
-- AA 2.23 Forge
-- Balanced AA
-- OTA Shiny 5.5
-- OTA Classic 5.5
-- BoTA 1.3
-- KuroTA 0.47
-- Star Wars 1.0
-- TLL 1.04
-- FF 1.19
-- Gundam Annihilation
-- Expand & Exterminate 0.163
-- Spring 1944
-- TA Battle Fleet
-
+- BA
 
 
 Remember due to updates of these mods the filenames might change as well, so you have to rename the mod.cfg file yourself!
