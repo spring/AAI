@@ -224,7 +224,7 @@ void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, const float3& p
 	}
 }
 
-void AAISector::FreeMetalSpot(float3 pos, const UnitDef *extractor)
+void AAISector::FreeMetalSpot(float3 pos, const springLegacyAI::UnitDef *extractor)
 {
 	// get metalspot according to position
 	for(auto spot : metalSpots)

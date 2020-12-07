@@ -54,7 +54,7 @@ public:
 	void AddExtractor(UnitId unitId, UnitDefId unitDefId, const float3& pos);
 
 	//! @brief Looks for metal spot that corresponds to given position and marks it as free
-	void FreeMetalSpot(float3 pos, const UnitDef *extractor);
+	void FreeMetalSpot(float3 pos, const springLegacyAI::UnitDef *extractor);
 
 	//! Update if there are still empty metal spots in the sector
 	void UpdateFreeMetalSpots();

@@ -219,14 +219,15 @@ UnitDefId AAIBuildTable::GetLargestExtractor() const
 
 	for(int side = 1; side <= cfg->numberOfSides; ++side)
 	{
-		for(auto extractor = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).begin(); extractor != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).end(); ++extractor)
+		for(auto extractor : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side))
 		{
-			const int yardMap = GetUnitDef(extractor->id).xsize * GetUnitDef(extractor->id).zsize;
+			const UnitFootprint& footprint = ai->s_buildTree.GetFootprint(extractor);
+			const int yardMap = footprint.xSize * footprint.ySize;
 			
 			if(yardMap > largestYardMap)
 			{
 				largestYardMap   = yardMap;
-				largestExtractor = *extractor;
+				largestExtractor = extractor;
 			}
 		}
 	}
@@ -1023,132 +1024,3 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 		}
 	}
 }*/
-
-
-bool AAIBuildTable::IsArty(int id)
-{
-	if(!GetUnitDef(id).weapons.empty())
-	{
-		float max_range = 0;
-//		const WeaponDef *longest = 0;
-
-		for(vector<UnitDef::UnitDefWeapon>::const_iterator weapon = GetUnitDef(id).weapons.begin(); weapon != GetUnitDef(id).weapons.end(); ++weapon)
-		{
-			if(weapon->def->range > max_range)
-			{
-				max_range = weapon->def->range;
-//				longest = weapon->def;
-			}
-		}
-
-		// veh, kbot, hover or ship
-		if(GetUnitDef(id).movedata)
-		{
-			if(GetUnitDef(id).movedata->moveFamily == MoveData::Tank || GetUnitDef(id).movedata->moveFamily == MoveData::KBot)
-			{
-				if(max_range > cfg->GROUND_ARTY_RANGE)
-					return true;
-			}
-			else if(GetUnitDef(id).movedata->moveFamily == MoveData::Ship)
-			{
-				if(max_range > cfg->SEA_ARTY_RANGE)
-					return true;
-			}
-			else if(GetUnitDef(id).movedata->moveFamily == MoveData::Hover)
-			{
-				if(max_range > cfg->HOVER_ARTY_RANGE)
-					return true;
-			}
-		}
-		else // aircraft
-		{
-			if(cfg->AIR_ONLY_MOD)
-			{
-				if(max_range > cfg->GROUND_ARTY_RANGE)
-					return true;
-			}
-		}
-
-		if(GetUnitDef(id).highTrajectoryType == 1)
-			return true;
-	}
-
-	return false;
-}
-
-bool AAIBuildTable::IsTransporter(int id)
-{
-	for(list<int>::iterator i = cfg->transporters.begin(); i != cfg->transporters.end(); ++i)
-	{
-		if(*i == id)
-			return true;
-	}
-
-	return false;
-}
-
-bool AAIBuildTable::AllowedToBuild(int id)
-{
-	for(list<int>::iterator i = cfg->ignoredUnits.begin(); i != cfg->ignoredUnits.end(); ++i)
-	{
-		if(*i == id)
-			return false;
-	}
-
-	return true;
-}
-
-bool AAIBuildTable::IsMetalMaker(int id)
-{
-	for(list<int>::iterator i = cfg->metalMakers.begin(); i != cfg->metalMakers.end(); ++i)
-	{
-		if(*i == id)
-			return true;
-	}
-
-	return false;
-}
-
-bool AAIBuildTable::IsMissileLauncher(int def_id)
-{
-	for(vector<UnitDef::UnitDefWeapon>::const_iterator weapon = GetUnitDef(def_id).weapons.begin(); weapon != GetUnitDef(def_id).weapons.end(); ++weapon)
-	{
-		if(weapon->def->stockpile)
-			return true;
-	}
-
-	return false;
-}
-
-bool AAIBuildTable::IsDeflectionShieldEmitter(int def_id)
-{
-	for(vector<UnitDef::UnitDefWeapon>::const_iterator weapon = GetUnitDef(def_id).weapons.begin(); weapon != GetUnitDef(def_id).weapons.end(); ++weapon)
-	{
-		if(weapon->def->isShield)
-			return true;
-	}
-
-	return false;
-}
-
-AAIUnitCategory AAIBuildTable::GetUnitCategoryOfCombatUnitIndex(int index) const
-{
-	//! @todo Use array instead of switch (is only called during initialization, thus not performance critical)
-	switch(index)
-	{
-		case 0:
-			return AAIUnitCategory(EUnitCategory::GROUND_COMBAT);
-		case 1:
-			return AAIUnitCategory(EUnitCategory::AIR_COMBAT);
-		case 2:
-			return AAIUnitCategory(EUnitCategory::HOVER_COMBAT);
-		case 3:
-			return AAIUnitCategory(EUnitCategory::SEA_COMBAT);
-		case 4:
-			return AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT);
-		case 5:
-			return AAIUnitCategory(EUnitCategory::STATIC_DEFENCE);
-		default:
-			return AAIUnitCategory(EUnitCategory::UNKNOWN);
-	}
-}

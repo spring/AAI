@@ -859,7 +859,7 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 
 float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const AAISector* sector, const AAITargetType& targetType, float terrainModifier) const
 {
-	const UnitDef *def = &ai->Getbt()->GetUnitDef(staticDefence.id);
+	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(staticDefence.id);
 
 	const int           range     = static_cast<int>(ai->s_buildTree.GetMaxRange(staticDefence)) / SQUARE_SIZE;
 	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(staticDefence);
@@ -1376,7 +1376,7 @@ void AAIMap::DetectMetalSpots()
 		return;
 	}
 
-	const UnitDef* def = &ai->Getbt()->GetUnitDef(largestExtractor.id);
+	const springLegacyAI::UnitDef* def = &ai->Getbt()->GetUnitDef(largestExtractor.id);
 	const UnitFootprint largestExtractorFootprint = ai->s_buildTree.GetFootprint(largestExtractor);
 
 	metalMap = false;

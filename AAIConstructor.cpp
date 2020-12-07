@@ -130,7 +130,6 @@ void AAIConstructor::Update()
 
 					ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
 					m_constructedDefId = constructedUnitDefId.id;
-					assert(ai->Getbt()->IsValidUnitDefID(constructedUnitDefId.id));
 					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
 
 					ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(constructedUnitDefId)); // request must be called before create to keep unit counters correct
@@ -318,7 +317,7 @@ void AAIConstructor::GiveReclaimOrder(UnitId unitId)
 void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos)
 {
 	// get def and final position
-	const UnitDef *def = &ai->Getbt()->GetUnitDef(building.id);
+	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(building.id);
 
 	// give order if building can be placed at the desired position (position lies within a valid sector)
 	const bool buildingInitializationSuccessful = ai->Getmap()->InitBuilding(def, pos);

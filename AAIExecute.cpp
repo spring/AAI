@@ -2175,7 +2175,7 @@ bool AAIExecute::defend_vs_submarine(const AAISector *left, const AAISector *rig
 
 void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 {
-	const UnitDef *def = &ai->Getbt()->GetUnitDef(unitDefId.id);
+	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(unitDefId.id);
 	const AAIUnitCategory category = ai->s_buildTree.GetUnitCategory(unitDefId);
 
 	const int  x = build_pos.x/ai->Getmap()->xSectorSize;

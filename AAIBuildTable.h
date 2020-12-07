@@ -81,10 +81,10 @@ public:
 	AAIBuildTable(AAI* ai);
 	~AAIBuildTable(void);
 
-	// call before you want to use the buildtable
-	// loads everything from a cache file or creates a new one
+	//! @brief Loads data from a file or initializes fresh combat unit related learning data.
 	void Init();
 
+	//! @brief Updates the stored combat efficiencies and attack frequencies by enemy target types for the given map type
 	void SaveModLearnData(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const AAIMapType& mapType) const;
 
 	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
@@ -177,33 +177,13 @@ public:
 	//! @brief Returns metal extractor with the largest yardmap
 	UnitDefId GetLargestExtractor() const;
 
-	// returns true, if unit is arty
-	bool IsArty(int id);
-
-	bool IsMissileLauncher(int def_id);
-
-	bool IsDeflectionShieldEmitter(int def_id);
-
-	// returns false if unit is a member of the dont_build list
-	bool AllowedToBuild(int id);
-
-	//sadly can't detect metal makers anymore, read them from config
-	bool IsMetalMaker(int id);
-
-	// returns true, if unit is a transporter
-	bool IsTransporter(int id);
-
-	//! @brief Returns the unit category for a given index (0 to 5) of an combat unit type (ground, air, hover, sea, submarine, static)
-	AAIUnitCategory GetUnitCategoryOfCombatUnitIndex(int index) const;
-
 	//! @brief Returns the dynamic unit type data for the given unitDefId
 	const UnitTypeDynamic& GetDynamicUnitTypeData(UnitDefId unitDefId) const { return units_dynamic[unitDefId.id]; }
 
 	// AAI unit defs with aai-instance specific information (number of requested, active units, etc.)
 	std::vector<UnitTypeDynamic> units_dynamic;
 
-	const UnitDef& GetUnitDef(int i) const { assert(IsValidUnitDefID(i));	return *unitList[i]; };
-	bool IsValidUnitDefID(int i) { return (i>=0) && (i<=unitList.size()); }
+	const springLegacyAI::UnitDef& GetUnitDef(int i) const { return *unitList[i]; };
 
 private:
 	std::string GetBuildCacheFileName() const;
