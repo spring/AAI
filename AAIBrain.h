@@ -67,9 +67,6 @@ public:
 	//! @brief Adds the combat power of the given unit type to the global defence capabilities 
 	void AddDefenceCapabilities(UnitDefId unitDefId);
 
-	//! @brief Determines rally point for given movement type on given continent - returns whether search has been successfull
-	bool DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId);
-
 	//! @brief Tries to add a new sectors to base, returns true if successful (may fail because base already reached maximum size or no suitable sectors found)
 	bool ExpandBase(SectorType sectorType);
 
@@ -110,6 +107,9 @@ public:
 	//! @brief Determines the construction priority of the given factory
 	float DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) const;
 
+	//! @brief Determines the selection criteria for a power plant
+	PowerPlantSelectionCriteria DeterminePowerPlantSelectionCriteria() const;
+
 	//! A list of sectors with ceratain distance (in number of sectors) to base; 0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	std::vector< std::list<AAISector*> > m_sectorsInDistToBase;
 
@@ -149,6 +149,9 @@ private:
 
 	//! Average energy surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_energySurplus;
+
+	//! Average stored energy over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_energyAvailable;
 
 	//! Average metal income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_metalIncome;

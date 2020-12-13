@@ -30,6 +30,7 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	m_centerOfBase(0, 0),
 	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_energyAvailable(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_metalIncome(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_estimatedPressureByEnemies(0.0f)
@@ -151,47 +152,6 @@ bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 		return true;
 	else
 		return false;
-}
-
-bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId)
-{
-	AAISector* bestSector(nullptr);
-	AAISector* secondBestSector(nullptr);
-
-	float highestRating(0.0f);
-
-	for(int i = 1; i <= 2; ++i)
-	{
-		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[i])
-		{
-			const float rating = sector->GetRatingForRallyPoint(moveType, continentId);
-			
-			if(rating > highestRating)
-			{
-				highestRating    = rating;
-				secondBestSector = bestSector;
-				bestSector       = sector;
-			}
-		}
-	}
-
-	// continent bound units must get a rally point on their current continent
-	const int useContinentID = moveType.CannotMoveToOtherContinents() ? continentId : AAIMap::ignoreContinentID;
-
-	if(bestSector)
-	{
-		rallyPoint = bestSector->DetermineUnitMovePos(moveType, useContinentID);
-
-		if(rallyPoint.x > 0.0f)
-			return true;
-		else if(secondBestSector)
-			rallyPoint = secondBestSector->DetermineUnitMovePos(moveType, useContinentID);
-
-		if(rallyPoint.x > 0.0f)
-			return true;
-	}
-
-	return false;
 }
 
 struct SectorForBaseExpansion
@@ -318,6 +278,8 @@ void AAIBrain::UpdateRessources(springLegacyAI::IAICallback* cb)
 
 	m_energySurplus.AddValue(energySurplus);
 	m_metalSurplus.AddValue(metalSurplus);
+
+	m_energyAvailable.AddValue(cb->GetEnergy());
 }
 
 void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spottedCombatUnits)
@@ -738,4 +700,29 @@ float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) co
 		rating *= (0.3f + 0.35f * (AAIMap::s_landTilesRatio  + m_baseFlatLandRatio) );
 
 	return rating;
+}
+
+PowerPlantSelectionCriteria AAIBrain::DeterminePowerPlantSelectionCriteria() const
+{
+	const AAIUnitStatistics& unitStatistics      = ai->s_buildTree.GetUnitStatistics(ai->GetSide());
+	const StatisticalData&   generatedPowerStats = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
+
+	const float avgPowerSurplus     = std::max(1.0f, GetAveragEnergySurplus() + 0.03f * m_energyAvailable.GetAverageValue() - 2.0f * generatedPowerStats.GetMinValue());
+	const float urgency             = (0.03f * m_energyIncome.GetAverageValue() + 0.1f) / avgPowerSurplus;
+	const float numberOfPowerPlants = static_cast<float>(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::POWER_PLANT));
+
+	// importance of buildtime ranges between 3 (no excess energy and no plants) to close to 0.25 (sufficient excess energy)
+	const float limitBuildtimeByNumberOfPlants = std::max(3.0f, 0.75f + 4.5f / (0.5f * (numberOfPowerPlants - 2.0f) + 2.0f));
+	const float buildtime = std::min(urgency + 0.25f, limitBuildtimeByNumberOfPlants);
+
+	// importance of generated power ranges from 0.25 (no power plants) to 2.0f (many power plants)
+	const float generatedPower =  1.25f + 0.875f * std::tanh(0.2f * numberOfPowerPlants - 2.0f);
+
+	// cost ranges from 2 (no power plant) to 0.5 (many power plants)
+	const float cost = 1.25f - 0.75f * std::tanh(0.2f * numberOfPowerPlants - 2.0f);
+
+	//ai->Log("Power plant selection: income %f   surplus %f   available %f", m_energyIncome.GetAverageValue(), GetAveragEnergySurplus(), 0.03f * m_energyAvailable.GetAverageValue());
+	//ai->Log("-> cost %f, buildtime %f, power %f\n", cost, buildtime, generatedPower);
+
+	return PowerPlantSelectionCriteria(cost, buildtime, generatedPower, m_energyIncome.GetAverageValue());
 }

@@ -568,9 +568,44 @@ void AAIGroup::UpdateRallyPoint()
 
 void AAIGroup::GetNewRallyPoint()
 {
-	const bool rallyPointFound = ai->Getbrain()->DetermineRallyPoint(m_rallyPoint, m_moveType, m_continentId);
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine rally point in sector close to base
+	//-----------------------------------------------------------------------------------------------------------------
+	AAISector* bestSector(nullptr);
+	AAISector* secondBestSector(nullptr);
 
-	if(rallyPointFound)
+	float highestRating(0.0f);
+
+	for(int i = 1; i <= 2; ++i)
+	{
+		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[i])
+		{
+			const float rating = sector->GetRatingForRallyPoint(m_moveType, m_continentId);
+			
+			if(rating > highestRating)
+			{
+				highestRating    = rating;
+				secondBestSector = bestSector;
+				bestSector       = sector;
+			}
+		}
+	}
+
+	// continent bound units must get a rally point on their current continent
+	const int useContinentID = m_moveType.CannotMoveToOtherContinents() ? m_continentId : AAIMap::ignoreContinentID;
+
+	if(bestSector)
+	{
+		m_rallyPoint = bestSector->DetermineUnitMovePos(m_moveType, useContinentID);
+
+		if((m_rallyPoint.x == 0.0f) && secondBestSector)
+			m_rallyPoint = secondBestSector->DetermineUnitMovePos(m_moveType, useContinentID);
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// send units to new rally point (if one has been found)
+	//-----------------------------------------------------------------------------------------------------------------
+	if(m_rallyPoint.x > 0.0f)
 	{
 		// send idle groups to new rally point
 		if(task == GROUP_IDLE)

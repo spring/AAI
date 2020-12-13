@@ -119,45 +119,93 @@ bool AAIBuildTable::IsBuildingSelectable(UnitDefId building, bool water, bool mu
 	return constructablePassed && (landCheckPassed || seaCheckPassed );
 }
 
-UnitDefId AAIBuildTable::SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water)
+UnitDefId AAIBuildTable::SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water)
 {
-	UnitDefId powerPlant = SelectPowerPlant(side, cost, buildtime, powerGeneration, water, false);
+	UnitDefId powerPlant = SelectPowerPlant(side, selectionCriteria, water, false);
 
 	if(powerPlant.IsValid() && (units_dynamic[powerPlant.id].constructorsAvailable + units_dynamic[powerPlant.id].constructorsRequested <= 0) )
 	{
 		ai->Getbt()->RequestBuilderFor(powerPlant);
-		powerPlant = SelectPowerPlant(side, cost, buildtime, powerGeneration, water, true);
+		powerPlant = SelectPowerPlant(side, selectionCriteria, water, true);
 	}
 
 	return powerPlant;
 }
 
-UnitDefId AAIBuildTable::SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water, bool mustBeConstructable) const
+UnitDefId AAIBuildTable::SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const
 {
-	UnitDefId selectedPowerPlant;
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine the power plant whose generated energy exceeds the current total energy generation the least (-> to
+	// discard more advanced plants in the beginning)
+	//-----------------------------------------------------------------------------------------------------------------
+	const float energyGenerationLimit = selectionCriteria.currentEnergyIncome+1.0f;
 
+	const AAIUnitStatistics& unitStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide());
+	float maxPower = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT).GetMaxValue();
+
+	for(auto powerPlant : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side))
+	{
+		if( IsBuildingSelectable(powerPlant, water, false) )
+		{
+			const float generatedEnergy = ai->s_buildTree.GetPrimaryAbility(powerPlant);
+
+			if( (generatedEnergy > energyGenerationLimit) && (generatedEnergy < maxPower) )
+				maxPower = generatedEnergy;
+		}
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// calculate statistics for remaining plants
+	//-----------------------------------------------------------------------------------------------------------------
+
+	StatisticalData generatedEnergies;
+	StatisticalData buildtimes;
+	StatisticalData costs;
+	std::list<UnitDefId> powerPlants;
+
+	for(auto powerPlant : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side))
+	{
+		if( IsBuildingSelectable(powerPlant, water, false))
+		{
+			if(ai->s_buildTree.GetPrimaryAbility(powerPlant) < (maxPower+1.0f))
+			{
+				powerPlants.push_back(powerPlant);
+
+				// cap energy at current energy production (to avoid jumping to very advanced power plants to fast)
+				const float cappedEnergy = std::min(ai->s_buildTree.GetPrimaryAbility(powerPlant), energyGenerationLimit);
+
+				generatedEnergies.AddValue(cappedEnergy);
+				buildtimes.AddValue( ai->s_buildTree.GetBuildtime(powerPlant) );
+				costs.AddValue(      ai->s_buildTree.GetTotalCost(powerPlant) );
+			}
+		}
+	}
+
+	generatedEnergies.Finalize();
+	buildtimes.Finalize();
+	costs.Finalize();
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// select power plant
+	//-----------------------------------------------------------------------------------------------------------------
+
+	UnitDefId selectedPowerPlant;
 	float     bestRating(0.0f);
 
-	const AAIUnitStatistics& unitStatistics  = ai->s_buildTree.GetUnitStatistics(side);
-	const StatisticalData&   generatedPowers = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
-	const StatisticalData&   buildtimes      = unitStatistics.GetUnitBuildtimeStatistics(EUnitCategory::POWER_PLANT);
-	const StatisticalData&   costs           = unitStatistics.GetUnitCostStatistics(EUnitCategory::POWER_PLANT);
-
-	for(auto powerPlant = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side).begin(); powerPlant != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side).end(); ++powerPlant)
+	for(auto powerPlant : powerPlants)
 	{
-				// check if under water or ground || water = true and building under water
-		if( IsBuildingSelectable(*powerPlant, water, mustBeConstructable) )
+		if(!mustBeConstructable || (units_dynamic[powerPlant.id].constructorsAvailable > 0) )
 		{
-			const float generatedPower = ai->s_buildTree.GetMaxRange( *powerPlant );
+			const float cappedEnergy = std::min(ai->s_buildTree.GetPrimaryAbility(powerPlant), energyGenerationLimit);
 
-			float myRating =   powerGeneration * generatedPowers.GetNormalizedDeviationFromMin(generatedPower)
-						     + cost            * costs.GetNormalizedDeviationFromMax(ai->s_buildTree.GetTotalCost(*powerPlant))
-							 + buildtime       * buildtimes.GetNormalizedDeviationFromMax(ai->s_buildTree.GetBuildtime(*powerPlant));
+			const float rating =  selectionCriteria.powerProduction * generatedEnergies.GetDeviationFromZero(cappedEnergy)
+								+ selectionCriteria.cost            * costs.GetDeviationFromMax(ai->s_buildTree.GetTotalCost(powerPlant))
+								+ selectionCriteria.buildtime       * buildtimes.GetDeviationFromMax(ai->s_buildTree.GetBuildtime(powerPlant));
 
-			if(myRating > bestRating)
+			if(rating > bestRating)
 			{
-				bestRating = myRating;
-				selectedPowerPlant = *powerPlant;
+				bestRating = rating;
+				selectedPowerPlant = powerPlant;
 			}
 		}
 	}

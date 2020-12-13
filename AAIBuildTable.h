@@ -63,6 +63,18 @@ struct StaticDefenceSelectionCriteria
 	int   randomness;         //!< Randomness applied (starting from 0, random addition to rating of up to randomness * 0.05)
 };
 
+//! Criteria used for selection of power plants
+struct PowerPlantSelectionCriteria
+{
+	PowerPlantSelectionCriteria(float cost, float buildtime, float powerProduction, float currentEnergyIncome) 
+		: cost(cost), buildtime(buildtime), powerProduction(powerProduction), currentEnergyIncome(currentEnergyIncome) {}
+
+	float cost;            //!< Total cost of power plant
+	float buildtime;       //!< Buildtime of power plant
+	float powerProduction; //!< Power generation of power plant
+	float currentEnergyIncome; //!< The current energy production
+};
+
 //! Data used to calculate rating of factories
 class FactoryRatingInputData
 {
@@ -134,7 +146,7 @@ public:
 	// randomness == 1 means no randomness at all; never set randomnes to zero -> crash
 	// ******************************************************************************************************
 	//! @brief Selects a power plant according to given criteria; a builder is requested if none available and a different power plant is chosen.
-	UnitDefId SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water);
+	UnitDefId SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water);
 
 	//! @brief Selects a metal extractor according to given criteria; a builder is requested if none available and a different extractor is chosen.
 	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water);
@@ -195,7 +207,7 @@ private:
 	bool IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const;
 
 	//! @brief Returns a power plant based on the given criteria
-	UnitDefId SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water, bool mustBeConstructable) const;
+	UnitDefId SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const;
 
 	//! @brief Returns an extractor based on the given criteria
 	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool canBuild) const;

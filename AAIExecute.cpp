@@ -682,56 +682,20 @@ bool AAIExecute::BuildExtractor()
 
 bool AAIExecute::BuildPowerPlant()
 {
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::POWER_PLANT) > 1)
+	const bool minimumNumberOfFactoriesNotMet =    (ai->Getut()->activeFactories < 1) 
+												&& (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2);
+
+	if( (ai->Getut()->GetNumberOfRequestedUnitsOfCategory(EUnitCategory::POWER_PLANT) > 1) || minimumNumberOfFactoriesNotMet)
 		return true;
-	else if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(EUnitCategory::POWER_PLANT) <= 0 && ai->Getut()->GetNumberOfRequestedUnitsOfCategory(EUnitCategory::POWER_PLANT) > 0)
-		return true;
-	else if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(EUnitCategory::POWER_PLANT) > 0)
+
+	// if power plant is already under construction try to assist construction of other power plants first
+	if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(EUnitCategory::POWER_PLANT) > 0)
 	{
-		// try to assist construction of other power plants first
-		AAIConstructor *builder;
-
-		for(list<AAIBuildTask*>::iterator task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
-		{
-			if((*task)->builder_id >= 0)
-				builder = ai->Getut()->units[(*task)->builder_id].cons;
-			else
-				builder = 0;
-
-			// find the power plant that is already under construction
-			if(builder && builder->GetCategoryOfConstructedUnit().IsPowerPlant() == true)
-			{
-				// dont build further power plants if already building an expensive plant
-				const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(AAIUnitCategory(EUnitCategory::POWER_PLANT));
-				if(ai->s_buildTree.GetTotalCost(builder->m_constructedDefId) > costStatistics.GetAvgValue() )
-					return true;
-
-				// try to assist
-				if(builder->assistants.size() < cfg->MAX_ASSISTANTS)
-				{
-					AAIConstructor *assistant = ai->Getut()->FindClosestAssistant(builder->GetBuildPos(), 5, true);
-
-					if(assistant)
-					{
-						builder->assistants.insert(assistant->m_myUnitId.id);
-						assistant->AssistConstruction(builder->m_myUnitId);
-						return true;
-					}
-					else
-						return false;
-				}
-			}
-		}
-
-		// power plant construction has not started -> builder is still on its way to construction site, wait until starting a new power plant
-		return false;
+		return AssistConstructionOfCategory(EUnitCategory::POWER_PLANT);
 	}
-	else if(ai->Getut()->activeFactories < 1 && ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2)
-		return true;
-
-	const float current_energy = ai->GetAICallback()->GetEnergyIncome();
 
 	// stop building power plants if already to much available energy
+	const float current_energy = ai->GetAICallback()->GetEnergyIncome();
 	if(current_energy > 1.5f * ai->GetAICallback()->GetEnergyUsage() + 200.0f)
 		return true;
 
@@ -742,45 +706,20 @@ bool AAIExecute::BuildPowerPlant()
 	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2)
 		ai->Getbrain()->m_sectorsInDistToBase[0].sort(suitable_for_power_plant);
 
-	const AAIUnitStatistics& unitStatistics      = ai->s_buildTree.GetUnitStatistics(ai->GetSide());
-	const StatisticalData&   generatedPowerStats = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
-
-	float cost( 1.5f );
-	float buildtime( 1.5f );
-	float generatedPower( 0.5f );
-
-	// check if already one power_plant under construction and energy short
-	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::POWER_PLANT) > 0) 
-		&& (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) > 6) 
-		&& (ai->Getbrain()->GetAveragEnergySurplus() < generatedPowerStats.GetMinValue()) )
-	{
-		buildtime = 3.0f;
-	}
-	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) > 9)
-	{
-		cost           = 0.75f;
-		buildtime      = 0.5f;
-		generatedPower = 2.0f;
-	}
-	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) > 4)
-	{
-		cost           = 1.25f;
-		buildtime      = 1.0f;
-		generatedPower = 1.0f;
-	}
+	PowerPlantSelectionCriteria selectionCriteria = ai->Getbrain()->DeterminePowerPlantSelectionCriteria();
 
 	// get water and ground plant
-	UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), cost, buildtime, generatedPower, false);
-	UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), cost, buildtime, generatedPower, true);
+	UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, false);
+	UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
 
-	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
+	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
 	{
-		BuildOrderStatus buildOrderStatus = TryConstructionOf(landPowerPlant, seaPowerPlant, *sector);
+		BuildOrderStatus buildOrderStatus = TryConstructionOf(landPowerPlant, seaPowerPlant, sector);
 
 		// only continue with search in next sector if buildOrderStatus == BuildOrderStatus::NO_BUILDSITE_FOUND - otherwise stop
 		if(    (buildOrderStatus == BuildOrderStatus::SUCCESSFUL)
 			|| (buildOrderStatus == BuildOrderStatus::BUILDING_INVALID) )
-			return true; // construction order given or no storage constructable at the moment -> continue with construction of other buidlings before retry
+			return true; // construction order given or no power plant constructable at the moment -> continue with construction of other buidlings before retry
 		else if(buildOrderStatus == BuildOrderStatus::NO_BUILDER_AVAILABLE )
 			return false; 	// stop looking for buildsite in next sector and retry next update if no builder is currently available	
 	}
@@ -2085,14 +2024,9 @@ void AAIExecute::TryConstruction(const AAIUnitCategory& category)
 
 bool AAIExecute::AssistConstructionOfCategory(const AAIUnitCategory& category)
 {
-	for(auto task = ai->GetBuildTasks().begin(); task != ai->GetBuildTasks().end(); ++task)
+	for(auto task : ai->GetBuildTasks())
 	{
-		AAIConstructor *builder;
-
-		if((*task)->builder_id >= 0)
-			builder = ai->Getut()->units[(*task)->builder_id].cons;
-		else
-			builder = nullptr;
+		AAIConstructor *builder = (task->builder_id >= 0) ? ai->Getut()->units[task->builder_id].cons : nullptr;
 
 		if(   (builder != nullptr) 
 		   && (builder->GetCategoryOfConstructedUnit() == category)

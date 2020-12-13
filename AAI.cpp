@@ -852,7 +852,7 @@ void AAI::Update()
 	}
 
 	// update income
-	if (!(tick % 45))
+	if (!(tick % 30))
 	{
 		AAI_SCOPED_TIMER("Update-Income")
 		brain->UpdateRessources(m_aiCallback);
