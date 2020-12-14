@@ -123,6 +123,9 @@ private:
 	// returns true if sufficient ressources to build unit are availbale
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
+	//! @brief Return the current power suplus (excess energy + small percentage of stored energy - offset)
+	float GetAveragePowerSurplus() const;
+
 	//! @brief Returns the movement type of the next combat unit that shall be ordered
 	AAIMovementType DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;
 

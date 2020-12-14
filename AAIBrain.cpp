@@ -626,14 +626,25 @@ void AAIBrain::UpdatePressureByEnemy()
 	//ai->Log("Current enemy pressure: %f  - map: %f    near base: %f \n", m_estimatedPressureByEnemies, sectorsWithEnemiesRatio, sectorsNearBaseWithEnemiesRatio);
 }
 
+float AAIBrain::GetAveragePowerSurplus() const
+{
+	const AAIUnitStatistics& unitStatistics      = ai->s_buildTree.GetUnitStatistics(ai->GetSide());
+	const StatisticalData&   generatedPowerStats = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
+
+	return std::max(1.0f, m_energySurplus.GetAverageValue() + 0.03f * m_energyAvailable.GetAverageValue() - 2.0f * generatedPowerStats.GetMinValue());
+}
+
 float AAIBrain::GetEnergyUrgency() const
 {
-	if(m_energySurplus.GetAverageValue() > 2000.0f)
+	const float avgPowerSurplus = GetAveragePowerSurplus();
+
+	if(avgPowerSurplus > 2000.0f)
 		return 0.0f;	
-	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) > 0)
-		return 4.0f / (2.0f * m_energySurplus.GetAverageValue() / AAIConstants::energyToMetalConversionFactor + 0.5f);
-	else
-		return 7.0f;
+	else 
+	{
+		// urgency should range from 5 (little income & suplus) towards low values when surplus is large compared to generated energy
+		return (0.04f * m_energyIncome.GetAverageValue() + 5.0f) / avgPowerSurplus;
+	}
 }
 
 float AAIBrain::GetMetalUrgency() const
@@ -704,22 +715,17 @@ float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) co
 
 PowerPlantSelectionCriteria AAIBrain::DeterminePowerPlantSelectionCriteria() const
 {
-	const AAIUnitStatistics& unitStatistics      = ai->s_buildTree.GetUnitStatistics(ai->GetSide());
-	const StatisticalData&   generatedPowerStats = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
-
-	const float avgPowerSurplus     = std::max(1.0f, GetAveragEnergySurplus() + 0.03f * m_energyAvailable.GetAverageValue() - 2.0f * generatedPowerStats.GetMinValue());
-	const float urgency             = (0.03f * m_energyIncome.GetAverageValue() + 0.1f) / avgPowerSurplus;
-	const float numberOfPowerPlants = static_cast<float>(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::POWER_PLANT));
+	const float numberOfBuildingsFactor = std::tanh(0.2f * static_cast<float>(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::POWER_PLANT)) - 2.0f);
 
 	// importance of buildtime ranges between 3 (no excess energy and no plants) to close to 0.25 (sufficient excess energy)
-	const float limitBuildtimeByNumberOfPlants = std::max(3.0f, 0.75f + 4.5f / (0.5f * (numberOfPowerPlants - 2.0f) + 2.0f));
-	const float buildtime = std::min(urgency + 0.25f, limitBuildtimeByNumberOfPlants);
+	const float urgency   = (0.04f * m_energyIncome.GetAverageValue() + 0.1f) / GetAveragePowerSurplus();
+	const float buildtime = std::min(urgency + 0.25f,  1.75f - 1.25f * numberOfBuildingsFactor);
 
-	// importance of generated power ranges from 0.25 (no power plants) to 2.0f (many power plants)
-	const float generatedPower =  1.25f + 0.875f * std::tanh(0.2f * numberOfPowerPlants - 2.0f);
+	// importance of generated power ranges from 0.25 (no power plants) to 2.25f (many power plants)
+	const float generatedPower =  1.25f + numberOfBuildingsFactor;
 
 	// cost ranges from 2 (no power plant) to 0.5 (many power plants)
-	const float cost = 1.25f - 0.75f * std::tanh(0.2f * numberOfPowerPlants - 2.0f);
+	const float cost = 1.25f - 0.75f * numberOfBuildingsFactor;
 
 	//ai->Log("Power plant selection: income %f   surplus %f   available %f", m_energyIncome.GetAverageValue(), GetAveragEnergySurplus(), 0.03f * m_energyAvailable.GetAverageValue());
 	//ai->Log("-> cost %f, buildtime %f, power %f\n", cost, buildtime, generatedPower);
