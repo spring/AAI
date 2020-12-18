@@ -638,7 +638,7 @@ float AAIBrain::GetEnergyUrgency() const
 {
 	const float avgPowerSurplus = GetAveragePowerSurplus();
 
-	if(avgPowerSurplus > 2000.0f)
+	if(avgPowerSurplus > AAIConstants::powerSurplusToStopPowerPlantConstructionThreshold)
 		return 0.0f;	
 	else 
 	{

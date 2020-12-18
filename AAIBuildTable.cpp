@@ -125,7 +125,7 @@ UnitDefId AAIBuildTable::SelectPowerPlant(int side, const PowerPlantSelectionCri
 
 	if(powerPlant.IsValid() && (units_dynamic[powerPlant.id].constructorsAvailable + units_dynamic[powerPlant.id].constructorsRequested <= 0) )
 	{
-		ai->Getbt()->RequestBuilderFor(powerPlant);
+		RequestBuilderFor(powerPlant);
 		powerPlant = SelectPowerPlant(side, selectionCriteria, water, true);
 	}
 
@@ -219,7 +219,7 @@ UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMe
 
 	if(extractor.IsValid() && (units_dynamic[extractor.id].constructorsAvailable <= 0) && (units_dynamic[extractor.id].constructorsRequested <= 0) )
 	{
-		ai->Getbt()->RequestBuilderFor(extractor);
+		RequestBuilderFor(extractor);
 		extractor = SelectExtractor(side, cost, extractedMetal, armed, water, true);
 	}
 

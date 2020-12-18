@@ -793,8 +793,8 @@ float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISect
 
 				if(ai->GetAICallback()->CanBuildAt(def, possibleBuildsite))
 				{
-					int x = possibleBuildsite.x/xSectorSize;
-					int y = possibleBuildsite.z/ySectorSize;
+					const int x = possibleBuildsite.x/xSectorSize;
+					const int y = possibleBuildsite.z/ySectorSize;
 
 					if(IsValidSector(x,y))
 						return possibleBuildsite;

@@ -74,6 +74,9 @@ public:
 	//! Minimum averaged energy surplus before constrcution of non-resource generating units shall be assisted
 	static constexpr float minEnergySurplusForConstructionAssist = 40.0f;
 
+	//! Maximum power surplus until construction of further power plants shall be considered
+	static constexpr float powerSurplusToStopPowerPlantConstructionThreshold = 2000.0f;
+
 	//! Maximum distance to rally points for units to be considered to have reached it
 	static constexpr float maxSquaredDistToRallyPoint = static_cast<float>( (16*SQUARE_SIZE)*(16*SQUARE_SIZE) );
 

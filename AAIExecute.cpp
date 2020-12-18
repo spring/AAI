@@ -680,51 +680,147 @@ bool AAIExecute::BuildExtractor()
 		return true;
 }
 
+template<typename T>
+struct InsertByRatingComparator
+{
+	bool operator()(const std::pair<T, float>& lhs, const std::pair<T, float>& rhs) const
+	{
+		return lhs.second > rhs.second;
+	}
+};
+
 bool AAIExecute::BuildPowerPlant()
 {
 	const bool minimumNumberOfFactoriesNotMet =    (ai->Getut()->activeFactories < 1) 
 												&& (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2);
 
-	if( (ai->Getut()->GetNumberOfRequestedUnitsOfCategory(EUnitCategory::POWER_PLANT) > 1) || minimumNumberOfFactoriesNotMet)
+	// stop building power plants if 
+	// - if construction of power plant ordered but not yet started
+	// - already to much available energy
+	// - minimum number of factories not constructed
+	if(    (ai->Getut()->GetNumberOfRequestedUnitsOfCategory(EUnitCategory::POWER_PLANT) > 0) 
+		|| (ai->Getbrain()->GetAveragePowerSurplus() > AAIConstants::powerSurplusToStopPowerPlantConstructionThreshold)
+		|| minimumNumberOfFactoriesNotMet)
 		return true;
 
 	// if power plant is already under construction try to assist construction of other power plants first
 	if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(EUnitCategory::POWER_PLANT) > 0)
-	{
 		return AssistConstructionOfCategory(EUnitCategory::POWER_PLANT);
-	}
 
-	// stop building power plants if already to much available energy
-	const float current_energy = ai->GetAICallback()->GetEnergyIncome();
-	if(current_energy > 1.5f * ai->GetAICallback()->GetEnergyUsage() + 200.0f)
-		return true;
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine eligible sector (and sort them according to their rating)
+	//-----------------------------------------------------------------------------------------------------------------
+	const float previousGamesWeight = 54000.0f / static_cast<float>(2*ai->GetAICallback()->GetCurrentFrame() + 54000);
+	const float currentGameWeight   = 1.0f - previousGamesWeight;
 
-	// sort sectors according to threat level
-	learned = 70000.0f / (float)(ai->GetAICallback()->GetCurrentFrame() + 35000) + 1.0f;
-	current = 2.5f - learned;
-
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2)
-		ai->Getbrain()->m_sectorsInDistToBase[0].sort(suitable_for_power_plant);
-
-	PowerPlantSelectionCriteria selectionCriteria = ai->Getbrain()->DeterminePowerPlantSelectionCriteria();
-
-	// get water and ground plant
-	UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, false);
-	UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
+	std::set< std::pair<AAISector*, float>, InsertByRatingComparator<AAISector*> > availableSectors; 
 
 	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
 	{
-		BuildOrderStatus buildOrderStatus = TryConstructionOf(landPowerPlant, seaPowerPlant, sector);
+		const float rating = sector->GetRatingForPowerPlant(previousGamesWeight, currentGameWeight);
 
-		// only continue with search in next sector if buildOrderStatus == BuildOrderStatus::NO_BUILDSITE_FOUND - otherwise stop
-		if(    (buildOrderStatus == BuildOrderStatus::SUCCESSFUL)
-			|| (buildOrderStatus == BuildOrderStatus::BUILDING_INVALID) )
-			return true; // construction order given or no power plant constructable at the moment -> continue with construction of other buidlings before retry
-		else if(buildOrderStatus == BuildOrderStatus::NO_BUILDER_AVAILABLE )
-			return false; 	// stop looking for buildsite in next sector and retry next update if no builder is currently available	
+		if(rating > 0.0f)
+			availableSectors.insert( std::pair<AAISector*, float>(sector, rating) );
 	}
 
+	std::list<AAISector*> sectors;
+
+	for(auto sector : availableSectors)
+		sectors.push_back(sector.first);
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// try to build power plant (start with highest rated sector)
+	//-----------------------------------------------------------------------------------------------------------------
+	PowerPlantSelectionCriteria selectionCriteria = ai->Getbrain()->DeterminePowerPlantSelectionCriteria();
+
+	// do not try offshore construction if base edoes not contain water
+	bool offshoreConstructionAttempted( (ai->Getbrain()->GetBaseWaterRatio() < 0.05f) ); 
+	BuildOrderStatus buildOrderStatus(BuildOrderStatus::BUILDING_INVALID);
+
+	// probability of trying to build sea power plant first is related to current water ratio of the base
+	// determine random float in [0:1]
+	const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
+
+	if( randomValue < ai->Getbrain()->GetBaseWaterRatio() )
+	{
+		UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
+		buildOrderStatus = BuildPowerPlantInSectors(seaPowerPlant, sectors);
+		offshoreConstructionAttempted = true;
+	}
+
+	// try construction on land (if not already successful on water)
+	if(buildOrderStatus != BuildOrderStatus::SUCCESSFUL)
+	{
+		UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, false);
+		buildOrderStatus = BuildPowerPlantInSectors(landPowerPlant, sectors);
+	}
+
+	// try construction on water (if not already tried and construction on land has not been successful)
+	if(!offshoreConstructionAttempted && (buildOrderStatus != BuildOrderStatus::SUCCESSFUL) )
+	{
+		UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
+		buildOrderStatus = BuildPowerPlantInSectors(seaPowerPlant, sectors);
+	}
+
+	if(buildOrderStatus == BuildOrderStatus::NO_BUILDER_AVAILABLE)
+		return false;
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// expand base if no suitable buildsite found
+	//-----------------------------------------------------------------------------------------------------------------
+
 	return true;
+}
+
+BuildOrderStatus AAIExecute::BuildPowerPlantInSectors(UnitDefId powerPlant, std::list<AAISector*>& availableSectors)
+{
+	if(powerPlant.IsValid() == false)
+		return BuildOrderStatus::BUILDING_INVALID;
+
+	const bool water = ai->s_buildTree.GetMovementType(powerPlant).IsSea();
+
+	for(auto sector : availableSectors)
+	{
+		if(    ( water && sector->GetWaterTilesRatio() > 0.05f)
+			|| (!water && sector->GetFlatTilesRatio()  > 0.05f) )
+		{
+			BuildOrderStatus buildOrderStatus = TryConstructionOfPowerPlant(powerPlant, sector);
+
+			// continue with next sector if no buildsite found in current sector - abort if successful or no constrcution unit available
+			if(buildOrderStatus == BuildOrderStatus::SUCCESSFUL)
+				return buildOrderStatus;
+			else if(buildOrderStatus == BuildOrderStatus::NO_BUILDER_AVAILABLE)
+			{
+				ai->Getbt()->RequestBuilderFor(powerPlant);
+				return buildOrderStatus;
+			}
+		}
+	}
+
+	return BuildOrderStatus::NO_BUILDSITE_FOUND;
+}
+
+BuildOrderStatus AAIExecute::TryConstructionOfPowerPlant(UnitDefId building, AAISector* sector)
+{
+	const float3 buildsite = ai->Getmap()->DetermineBuildsiteInSector(building, sector);
+
+	if(buildsite.x > 0.0f)
+	{
+		float min_dist;
+		AAIConstructor* builder = ai->Getut()->FindClosestBuilder(building, &buildsite, true, &min_dist);
+
+		if(builder)
+		{
+			builder->GiveConstructionOrder(building, buildsite);
+			futureAvailableEnergy += ai->s_buildTree.GetPrimaryAbility(building);
+
+			return BuildOrderStatus::SUCCESSFUL;
+		}
+		else
+			return BuildOrderStatus::NO_BUILDER_AVAILABLE;
+	}
+	else
+		return BuildOrderStatus::NO_BUILDSITE_FOUND;
 }
 
 bool AAIExecute::BuildMetalMaker()
@@ -1231,14 +1327,6 @@ bool AAIExecute::BuildArty()
 	return true;
 }
 
-struct CompareFactoryUrgency
-{
-	bool operator()(const std::pair<UnitDefId, float>& lhs, const std::pair<UnitDefId, float>& rhs) const
-	{
-		return lhs.second > rhs.second;
-	}
-};
-
 bool AAIExecute::BuildStaticConstructor()
 {
 	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_CONSTRUCTOR) > 0)
@@ -1248,7 +1336,7 @@ bool AAIExecute::BuildStaticConstructor()
 	// determine which factories have the highest priority
 	//-----------------------------------------------------------------------------------------------------------------
 
-	std::set< std::pair<UnitDefId, float>, CompareFactoryUrgency> requestedFactories;
+	std::set< std::pair<UnitDefId, float>, InsertByRatingComparator<UnitDefId> > requestedFactories;
 
 	//ai->Log("Building next factory:\n");
 

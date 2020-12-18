@@ -214,6 +214,9 @@ public:
 	//! @brief Returns the rating as starting sector (if a new one has to be selected as the current is already occupied by other AAI player)
 	float GetRatingAsStartSector() const;
 
+	//! @brief Returns rating as sector to build a power plant
+	float GetRatingForPowerPlant(float weightPreviousGames, float weightCurrentGame) const;
+
 	//! @brief Shall be called when scout is sent to this sector (resets counter how often this sector has been skipped)
 	void SelectedAsScoutDestination() { m_skippedAsScoutDestination = 0; }
 	

@@ -10,6 +10,7 @@
 #ifndef AAI_EXECUTE_H
 #define AAI_EXECUTE_H
 
+#include <list>
 #include "aidef.h"
 #include "AAITypes.h"
 #include "AAIUnitTypes.h"
@@ -187,6 +188,12 @@ private:
 	void stopUnit(int unit);
 	void ConstructBuildingAt(int building, int builder, float3 position);
 	bool IsBusy(int unit);
+
+	//! @brief Tries to order construction of given plant in one of the given sectors
+	BuildOrderStatus BuildPowerPlantInSectors(UnitDefId powerPlant, std::list<AAISector*>& availableSectors);
+
+	//! @brief Helper function for construction of power plants
+	BuildOrderStatus TryConstructionOfPowerPlant(UnitDefId building, AAISector* sector);
 
 	//! @brief Tries to find a suitable buildsite and builder to start the construction of the given building;
 	BuildOrderStatus TryConstructionOf(UnitDefId building, const AAISector* sector);

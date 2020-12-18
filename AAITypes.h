@@ -391,9 +391,14 @@ public:
 		     	+ (m_values[3] * mobileCombatPowerWeights.m_values[3]);
 	}
 
+	float CalculateSum() const
+	{
+		return std::accumulate(m_values.begin(), m_values.end(), 0.0f);
+	}
+
 	void Normalize()
 	{
-		const float sum = std::accumulate(m_values.begin(), m_values.end(), 0.0f);
+		const float sum = CalculateSum();
 		
 		if(sum > 0.0f)
 			std::for_each(m_values.begin(), m_values.end(), [&sum](float& value){ value /= sum; });
