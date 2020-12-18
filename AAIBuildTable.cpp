@@ -647,14 +647,10 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 		//! @todo Check unit type for jammer
 		/*
 
-
 		if(my_rating > best_rating)
 		{
-			if(GetUnitDef(*i).metalCost < cfg->MAX_METAL_COST)
-			{
-				best_jammer = *i;
-				best_rating = my_rating;
-			}
+			best_jammer = *i;
+			best_rating = my_rating;
 		}*/
 	}
 

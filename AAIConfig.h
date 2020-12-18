@@ -76,7 +76,6 @@ public:
 
 	int MIN_ENERGY_STORAGE;
 	int MIN_METAL_STORAGE;
-	int MAX_METAL_COST;
 	int MAX_AIR_TARGETS;
 
 	//! The number of different sides (side 0 = neutral will be added)

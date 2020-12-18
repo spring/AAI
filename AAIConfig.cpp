@@ -118,7 +118,6 @@ AAIConfig::AAIConfig(void)
 	AIR_DEFENCE = 8;
 	MIN_ENERGY_STORAGE = 500;
 	MIN_METAL_STORAGE = 100;
-	MAX_METAL_COST = 10000;
 	MIN_AIR_ATTACK_COST = 150;
 	MAX_AIR_TARGETS = 20;
 	AIRCRAFT_RATIO = 0.2f;
@@ -348,8 +347,6 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 			HIGH_RANGE_UNITS_RATIO = GetFloat(ai, file);
 		} else if(!strcmp(keyword, "FAST_UNITS_RATIO")) {
 			FAST_UNITS_RATIO = GetFloat(ai, file);
-		} else if(!strcmp(keyword, "MAX_METAL_COST")) {
-			MAX_METAL_COST = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_DEFENCES")) {
 			MAX_DEFENCES = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MIN_SECTOR_THREAT")) {
