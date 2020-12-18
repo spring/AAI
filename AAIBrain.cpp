@@ -148,7 +148,7 @@ bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 	else if(m_sectorsInDistToBase[0].size() < 3 && sector->GetDistanceToBase() <= 1)
 		return true;
 	// allow construction on islands close to base on water maps
-	else if(ai->Getmap()->GetMapType().IsWaterMap() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->GetDistanceToBase() <= 3) )
+	else if(ai->Getmap()->GetMapType().IsWater() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->GetDistanceToBase() <= 3) )
 		return true;
 	else
 		return false;
@@ -164,13 +164,28 @@ struct SectorForBaseExpansion
 	float      totalAttacks;
 };
 
-bool AAIBrain::ExpandBase(SectorType sectorType)
+void AAIBrain::ExpandBaseAtStartup()
+{
+	if(m_sectorsInDistToBase[0].size() == 0)
+	{
+		ai->Log("ERROR: Failed to expand initial base - no starting sector set!\n");
+		return;
+	}
+
+	AAISector* sector = *m_sectorsInDistToBase[0].begin();
+
+	const bool preferSafeSector = (sector->GetEdgeDistance() > 0) ? true : false;
+
+	ai->Getbrain()->ExpandBase( ai->Getmap()->GetMapType(), preferSafeSector);
+}
+
+bool AAIBrain::ExpandBase(const AAIMapType& sectorType, bool preferSafeSector)
 {
 	if(m_sectorsInDistToBase[0].size() >= cfg->MAX_BASE_SIZE)
 		return false;
 
 	// if aai is looking for a water sector to expand into ocean, allow greater search_dist
-	const bool expandLandBaseInWater = (sectorType == WATER_SECTOR) && (m_baseWaterRatio < 0.1f);
+	const bool expandLandBaseInWater = sectorType.IsWater() && (m_baseWaterRatio < 0.1f);
 	const int  maxSearchDistance     = expandLandBaseInWater ? 3 : 1;
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -217,16 +232,24 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 	{
 		// prefer sectors that result in more compact bases, with more metal spots, that are safer (i.e. less attacks in the past)
 		float rating = static_cast<float>( candidate->sector->GetNumberOfMetalSpots() );
-						+ 4.0f * sectorDistances.GetNormalizedDeviationFromMax(candidate->distance)
-						+ 4.0f / static_cast<float>( candidate->sector->GetEdgeDistance() + 1 );
-						+ 4.0f * sectorAttacks.GetNormalizedDeviationFromMax(candidate->totalAttacks);
+						+ 4.0f * sectorDistances.GetDeviationFromMax(candidate->distance);
 
-		if(sectorType == LAND_SECTOR)
+		if(preferSafeSector)
+		{
+			rating += 4.0f * sectorAttacks.GetDeviationFromMax(candidate->totalAttacks);
+			rating += 4.0f / static_cast<float>( candidate->sector->GetEdgeDistance() + 1 );
+		}
+		else
+		{
+			rating += std::min(static_cast<float>( candidate->sector->GetEdgeDistance() ), 4.0f);
+		}
+
+		if(sectorType.IsLand())
 		{
 			// prefer flat sectors
 			rating += 3.0f * candidate->sector->GetFlatTilesRatio();
 		}
-		else if(sectorType == WATER_SECTOR)
+		else if(sectorType.IsWater())
 		{
 			// check for continent size (to prevent AAI to expand into little ponds instead of big ocean)
 			if( candidate->sector->ConnectedToOcean() )
@@ -249,7 +272,7 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 	{
 		AssignSectorToBase(selectedSector, true);
 	
-		std::string sectorTypeString = (sectorType == LAND_SECTOR) ? "land" : "water";
+		std::string sectorTypeString = sectorType.IsLand() ? "land" : "water";
 		ai->Log("\nAdding %s sector %i,%i to base; base size: " _STPF_, sectorTypeString.c_str(), selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
 		ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
 		return true;

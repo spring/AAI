@@ -254,13 +254,13 @@ void AAIMap::ReadMapCacheFile()
 			fscanf(file, "%s ", buffer);
 
 			if(!strcmp(buffer, "LAND_MAP"))
-				s_mapType.SetMapType(EMapType::LAND_MAP);
+				s_mapType.SetMapType(EMapType::LAND);
 			else if(!strcmp(buffer, "LAND_WATER_MAP"))
-				s_mapType.SetMapType(EMapType::LAND_WATER_MAP);
+				s_mapType.SetMapType(EMapType::LAND_WATER);
 			else if(!strcmp(buffer, "WATER_MAP"))
-				s_mapType.SetMapType(EMapType::WATER_MAP);
+				s_mapType.SetMapType(EMapType::WATER);
 			else
-				s_mapType.SetMapType(EMapType::UNKNOWN_MAP);
+				s_mapType.SetMapType(EMapType::UNKNOWN);
 
 			ai->LogConsole("%s loaded", s_mapType.GetName().c_str());
 
@@ -564,12 +564,12 @@ void AAIMap::ReadMapLearnFile()
 			//---------------------------------------------------------------------------------------------------------
 			// determine movement types that are suitable to maneuvre
 			//---------------------------------------------------------------------------------------------------------
-			AAIMapType mapType(EMapType::LAND_MAP);
+			AAIMapType mapType(EMapType::LAND);
 
 			if(m_sector[i][j].GetWaterTilesRatio() > 0.7f)
-				mapType.SetMapType(EMapType::WATER_MAP);
+				mapType.SetMapType(EMapType::WATER);
 			else if(m_sector[i][j].GetWaterTilesRatio() > 0.3f)
-				mapType.SetMapType(EMapType::LAND_WATER_MAP);
+				mapType.SetMapType(EMapType::LAND_WATER);
 
 			m_sector[i][j].m_suitableMovementTypes = GetSuitableMovementTypes(mapType);
 		}
@@ -1359,11 +1359,11 @@ void AAIMap::AnalyseMap()
 void AAIMap::DetermineMapType()
 {
 	if( (static_cast<float>(max_land_continent_size) < 0.5f * static_cast<float>(max_water_continent_size) ) || (s_waterTilesRatio > 0.8f) )
-		s_mapType.SetMapType(EMapType::WATER_MAP);
+		s_mapType.SetMapType(EMapType::WATER);
 	else if(s_waterTilesRatio > 0.25f)
-		s_mapType.SetMapType(EMapType::LAND_WATER_MAP);
+		s_mapType.SetMapType(EMapType::LAND_WATER);
 	else
-		s_mapType.SetMapType(EMapType::LAND_MAP);
+		s_mapType.SetMapType(EMapType::LAND);
 }
 
 // algorithm more or less by krogothe - thx very much
@@ -1949,11 +1949,11 @@ const AAISector* AAIMap::DetermineSectorToAttack(const std::vector<float>& globa
 
 const char* AAIMap::GetMapTypeString(const AAIMapType& mapType) const
 {
-	if(mapType.IsLandMap())
+	if(mapType.IsLand())
 		return "LAND_MAP";
-	else if(mapType.IsLandWaterMap())
+	else if(mapType.IsLandWater())
 		return "LAND_WATER_MAP";
-	else if(mapType.IsWaterMap())
+	else if(mapType.IsWater())
 		return "WATER_MAP";
 	else
 		return "UNKNOWN_MAP";
@@ -2021,11 +2021,11 @@ uint32_t AAIMap::GetSuitableMovementTypes(const AAIMapType& mapType) const
 									+ static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_HOVER);
 	
 	// MOVEMENT_TYPE_GROUND allowed on non water maps (i.e. map contains land)
-	if(mapType.IsWaterMap() == false)
+	if(mapType.IsWater() == false)
 		suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_GROUND);
 
 	// MOVEMENT_TYPE_SEA_FLOATER/SUBMERGED allowed on non land maps (i.e. map contains water)
-	if(mapType.IsLandMap() == false)
+	if(mapType.IsLand() == false)
 	{
 		suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_FLOATER);
 		suitableMovementTypes |= static_cast<uint32_t>(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED);	

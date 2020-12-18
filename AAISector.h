@@ -166,19 +166,13 @@ public:
 	//! @brief Returns number of attacks by the main combat categories (ground, hover, air)
 	float GetTotalAttacksInThisGame() const 
 	{
-		return    m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::SURFACE)
-				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::AIR)
-				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::FLOATER)
-				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::SUBMERGED);
+		return m_attacksByTargetTypeInCurrentGame.CalculateSum();
 	}
 
 	//! @brief Returns number of attacks by the main combat categories (ground, hover, air)
 	float GetTotalAttacksInPreviousGames() const 
 	{
-		return    m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::SURFACE)
-				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::AIR)
-				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::FLOATER)
-				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::SUBMERGED);
+		return m_attacksByTargetTypeInPreviousGames.CalculateSum();
 	}
 
 	//! @brief Returns center position of the sector

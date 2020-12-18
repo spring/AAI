@@ -20,8 +20,6 @@ class AAISector;
 #include "AAIUnitStatistics.h"
 #include "AAIBuildTable.h"
 
-enum SectorType {UNKNOWN_SECTOR, LAND_SECTOR, LAND_WATER_SECTOR, WATER_SECTOR};
-
 class AAIBrain
 {
 public:
@@ -67,8 +65,11 @@ public:
 	//! @brief Adds the combat power of the given unit type to the global defence capabilities 
 	void AddDefenceCapabilities(UnitDefId unitDefId);
 
+	//! @brief Expands base for the first time at startup (chooses sector based on map type and start sector)
+	void ExpandBaseAtStartup();
+
 	//! @brief Tries to add a new sectors to base, returns true if successful (may fail because base already reached maximum size or no suitable sectors found)
-	bool ExpandBase(SectorType sectorType);
+	bool ExpandBase(const AAIMapType& sectorType, bool preferSafeSector = true);
 
 	// returns how much ressources can be spent for unit construction atm
 	float Affordable();

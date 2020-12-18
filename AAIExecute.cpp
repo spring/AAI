@@ -99,14 +99,7 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 	else
 		ai->Getbrain()->AssignSectorToBase(&ai->Getmap()->m_sector[x][y], true);
 	
-	const AAIMapType& mapType = ai->Getmap()->GetMapType();
-
-	if(mapType.IsWaterMap())
-		ai->Getbrain()->ExpandBase(WATER_SECTOR);
-	else if(mapType.IsLandMap())
-		ai->Getbrain()->ExpandBase(LAND_SECTOR);
-	else
-		ai->Getbrain()->ExpandBase(LAND_WATER_SECTOR);
+	ai->Getbrain()->ExpandBaseAtStartup();
 
 	// now that we know the side, init buildques
 	InitBuildques();
@@ -375,7 +368,7 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueue
 				float rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[(*fac).id].active) / static_cast<float>(buildqueue->size() + 3);
 
 				// @todo rework criterion to reflect available buildspace instead of maptype
-				if(    (ai->Getmap()->GetMapType().IsWaterMap()) 
+				if(    (ai->Getmap()->GetMapType().IsWater()) 
 				    && (ai->s_buildTree.GetMovementType(UnitDefId(*fac)).IsStaticSea() == false) )
 					rating /= 10.0f;
 
@@ -499,9 +492,9 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 		else
 		{
 			if(ai->s_buildTree.GetMovementType(building).IsStaticLand() )
-				ai->Getbrain()->ExpandBase(LAND_SECTOR);
+				ai->Getbrain()->ExpandBase(EMapType::LAND);
 			else
-				ai->Getbrain()->ExpandBase(WATER_SECTOR);
+				ai->Getbrain()->ExpandBase(EMapType::WATER);
 
 			ai->Log("Base expanded when looking for buildsite for %s\n", ai->s_buildTree.GetUnitTypeProperties(building).m_name.c_str());
 			return BuildOrderStatus::NO_BUILDSITE_FOUND;
@@ -905,7 +898,7 @@ bool AAIExecute::BuildMetalMaker()
 				}
 				else
 				{
-					ai->Getbrain()->ExpandBase(LAND_SECTOR);
+					ai->Getbrain()->ExpandBase(EMapType::LAND);
 					ai->Log("Base expanded by BuildMetalMaker()\n");
 				}
 			}
@@ -946,7 +939,7 @@ bool AAIExecute::BuildMetalMaker()
 				}
 				else
 				{
-					ai->Getbrain()->ExpandBase(WATER_SECTOR);
+					ai->Getbrain()->ExpandBase(EMapType::WATER);
 					ai->Log("Base expanded by BuildMetalMaker() (water sector)\n");
 				}
 			}
@@ -1412,12 +1405,12 @@ bool AAIExecute::BuildStaticConstructor()
 		// no suitable buildsite found
 		if(isSeaFactory)
 		{
-			ai->Getbrain()->ExpandBase(WATER_SECTOR);
+			ai->Getbrain()->ExpandBase(EMapType::WATER, false);
 			ai->Log("Base expanded by BuildFactory() (water sector)\n");
 		}
 		else
 		{
-			expanded = ai->Getbrain()->ExpandBase(LAND_SECTOR);
+			expanded = ai->Getbrain()->ExpandBase(EMapType::LAND, false);
 			ai->Log("Base expanded by BuildFactory()\n");
 		}
 

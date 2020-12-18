@@ -347,7 +347,7 @@ void AAIBuildTable::DetermineCombatPowerWeights(MobileTargetTypeValues& combatPo
 	combatPowerWeights.SetValueForTargetType(ETargetType::AIR,     0.1f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::AIR));
 	combatPowerWeights.SetValueForTargetType(ETargetType::SURFACE, 1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SURFACE));
 	
-	if(!mapType.IsLandMap())
+	if(!mapType.IsLand())
 	{
 		combatPowerWeights.SetValueForTargetType(ETargetType::FLOATER,   1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::FLOATER));
 		combatPowerWeights.SetValueForTargetType(ETargetType::SUBMERGED, 0.75f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SUBMERGED));
@@ -386,8 +386,8 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 	MobileTargetTypeValues combatPowerOfConstructedUnits;
 	int         combatUnits(0);
 
-	const bool considerLand  = !mapType.IsWaterMap();
-	const bool considerWater = !mapType.IsLandMap();
+	const bool considerLand  = !mapType.IsWater();
+	const bool considerWater = !mapType.IsLand();
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// go through buildoptions to determine input values for calculation of factory rating
