@@ -114,6 +114,9 @@ public:
 	//! @brief Determines the selection criteria for a power plant
 	PowerPlantSelectionCriteria DeterminePowerPlantSelectionCriteria() const;
 
+	//! @brief Determine the selection criteria for a storage
+	StorageSelectionCriteria DetermineStorageSelectionCriteria() const;
+
 	//! A list of sectors with ceratain distance (in number of sectors) to base; 0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	std::vector< std::list<AAISector*> > m_sectorsInDistToBase;
 
@@ -148,11 +151,8 @@ private:
 	//! Center of base (mean value of centers of all base sectors) in build map coordinates
 	MapPos m_centerOfBase;
 
-	//! Average metal surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
-	SmoothedData m_metalSurplus;
-
-	//! Average energy surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
-	SmoothedData m_energySurplus;
+	//! Average stored metal over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_metalAvailable;
 
 	//! Average stored energy over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_energyAvailable;
@@ -162,6 +162,12 @@ private:
 
 	//! Average energy income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_energyIncome;
+
+	//! Average metal surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_metalSurplus;
+
+	//! Average energy surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_energySurplus;
 
 	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
 	MobileTargetTypeValues m_recentlyAttackedByRates;

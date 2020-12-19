@@ -62,12 +62,6 @@ public:
 	//! Minimum weapons range difference to shorter ranged attacked before combat units try to keep their distance
 	static constexpr float minWeaponRangeDiffToKeepDistance = 50.0f;
 
-	//! Minimum unused metal storage capcity befor construction of metal storage is taken into account
-	static constexpr float minUnusedMetalStorageCapacityToBuildStorage = 100.0f;
-
-	//! Minimum unused metal storage capcity befor construction of energy storage is taken into account
-	static constexpr float minUnusedEnergyStorageCapacityToBuildStorage = 600.0f;
-
 	//! Minimum averaged metal surplus before constrcution of non-resource generating units shall be assisted
 	static constexpr float minMetalSurplusForConstructionAssist = 0.5f;
 

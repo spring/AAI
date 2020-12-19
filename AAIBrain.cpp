@@ -28,11 +28,12 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	m_baseFlatLandRatio(0.0f),
 	m_baseWaterRatio(0.0f),
 	m_centerOfBase(0, 0),
-	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
-	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_metalAvailable(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energyAvailable(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_metalIncome(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_estimatedPressureByEnemies(0.0f)
 {
 	this->ai = ai;
@@ -296,13 +297,14 @@ void AAIBrain::UpdateRessources(springLegacyAI::IAICallback* cb)
 	if(metalSurplus < 0.0f)
 		metalSurplus = 0.0f;
 
+	m_metalAvailable.AddValue(cb->GetMetal());
+	m_energyAvailable.AddValue(cb->GetEnergy());
+
 	m_energyIncome.AddValue(energyIncome);
 	m_metalIncome.AddValue(metalIncome);
 
 	m_energySurplus.AddValue(energySurplus);
 	m_metalSurplus.AddValue(metalSurplus);
-
-	m_energyAvailable.AddValue(cb->GetEnergy());
 }
 
 void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spottedCombatUnits)
@@ -680,12 +682,15 @@ float AAIBrain::GetMetalUrgency() const
 
 float AAIBrain::GetEnergyStorageUrgency() const
 {
-	const float unusedEnergyStorage = ai->GetAICallback()->GetEnergyStorage() - ai->GetAICallback()->GetEnergy();
-
-	if(    (m_energySurplus.GetAverageValue() / AAIConstants::energyToMetalConversionFactor > 4.0f)
-		&& (unusedEnergyStorage < AAIConstants::minUnusedEnergyStorageCapacityToBuildStorage)
-		&& (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0) )
-		return 0.15f;
+	if(    (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STORAGE) < cfg->MAX_STORAGE)
+		&& (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0)
+		&& (ai->Getut()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE) )
+	{
+		const float energyStorage = std::max(ai->GetAICallback()->GetEnergyStorage(), 1.0f);
+		
+		// urgency ranges from 0 (no energy stored) to 0.3 (storage full)
+		return 0.3f * m_energyAvailable.GetAverageValue() / energyStorage;
+	}
 	else
 		return 0.0f;
 }
@@ -694,10 +699,15 @@ float AAIBrain::GetMetalStorageUrgency() const
 {
 	const float unusedMetalStorage = ai->GetAICallback()->GetMetalStorage() - ai->GetAICallback()->GetMetal();
 
-	if( 	(m_metalSurplus.GetAverageValue() > 3.0f)
-	  	 && (unusedMetalStorage < AAIConstants::minUnusedMetalStorageCapacityToBuildStorage)
-		 && (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0) )
-		return 0.2f;
+	if(    (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STORAGE) < cfg->MAX_STORAGE)
+		&& (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0)
+		&& (ai->Getut()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE) )
+	{
+		const float metalStorage = std::max(ai->GetAICallback()->GetMetalStorage(), 1.0f);
+
+		// urgency ranges from 0 (no energy stored) to 1 (storage full)
+		return m_metalAvailable.GetAverageValue() / metalStorage;
+	}
 	else
 		return 0.0f;
 }
@@ -745,7 +755,7 @@ PowerPlantSelectionCriteria AAIBrain::DeterminePowerPlantSelectionCriteria() con
 	const float buildtime = std::min(urgency + 0.25f,  1.75f - 1.25f * numberOfBuildingsFactor);
 
 	// importance of generated power ranges from 0.25 (no power plants) to 2.25f (many power plants)
-	const float generatedPower =  1.25f + numberOfBuildingsFactor;
+	const float generatedPower = 1.25f + numberOfBuildingsFactor;
 
 	// cost ranges from 2 (no power plant) to 0.5 (many power plants)
 	const float cost = 1.25f - 0.75f * numberOfBuildingsFactor;
@@ -754,4 +764,25 @@ PowerPlantSelectionCriteria AAIBrain::DeterminePowerPlantSelectionCriteria() con
 	//ai->Log("-> cost %f, buildtime %f, power %f\n", cost, buildtime, generatedPower);
 
 	return PowerPlantSelectionCriteria(cost, buildtime, generatedPower, m_energyIncome.GetAverageValue());
+}
+
+StorageSelectionCriteria AAIBrain::DetermineStorageSelectionCriteria() const
+{
+	const float numberOfBuildingsFactor = std::tanh(static_cast<float>(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::STORAGE)) - 2.0f);
+
+	const float metalStorage = std::max(ai->GetAICallback()->GetMetalStorage(), 1.0f);
+	const float usedMetalStorageCapacity = std::min(1.1f * m_metalAvailable.GetAverageValue() / metalStorage, 1.0f);
+
+	const float energyStorage = std::max(ai->GetAICallback()->GetEnergyStorage(), 1.0f);
+	const float usedEnergyStorageCapacity = m_energyAvailable.GetAverageValue() / energyStorage;
+
+	// storedMetal/Energy ranges from 0 (no storage capacity used) to 0.5 (storage full, no storages) - 2.0 (storage full > 4 storages)
+	const float storedMetal  = (1.5f  +         numberOfBuildingsFactor) * usedMetalStorageCapacity;
+	const float storedEnergy = (1.25f + 0.75f * numberOfBuildingsFactor) * usedEnergyStorageCapacity;
+
+	// cost ranges from 2.0f (no storages) to ~0.5 (> 4 storages)
+	const float cost = 1.25f - 0.75f * numberOfBuildingsFactor;
+	const float buildtime (cost); 
+
+	return StorageSelectionCriteria(cost, buildtime, storedMetal, storedEnergy);
 }

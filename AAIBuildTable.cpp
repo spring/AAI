@@ -283,22 +283,22 @@ UnitDefId AAIBuildTable::GetLargestExtractor() const
 	return largestExtractor;
 }
 
-UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water)
+UnitDefId AAIBuildTable::SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water)
 {
-	UnitDefId selectedStorage = SelectStorage(side, cost, buildtime, metal, energy, water, false);
+	UnitDefId selectedStorage = SelectStorage(side, selectionCriteria, water, false);
 
 	if(selectedStorage.IsValid() && (units_dynamic[selectedStorage.id].constructorsAvailable <= 0))
 	{
 		if(units_dynamic[selectedStorage.id].constructorsRequested <= 0)
 			RequestBuilderFor(selectedStorage);
 
-		selectedStorage = SelectStorage(side, cost, buildtime, metal, energy, water, true);
+		selectedStorage = SelectStorage(side, selectionCriteria, water, true);
 	}
 
 	return selectedStorage;
 }
 
-UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const
+UnitDefId AAIBuildTable::SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const
 {
 	const AAIUnitStatistics& unitStatistics  = ai->s_buildTree.GetUnitStatistics(side);
 	const StatisticalData&   costs           = unitStatistics.GetUnitCostStatistics(EUnitCategory::STORAGE);
@@ -307,22 +307,22 @@ UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, fl
 	const StatisticalData&   energyStored    = unitStatistics.GetUnitSecondaryAbilityStatistics(EUnitCategory::STORAGE);
 
 	UnitDefId selectedStorage;
-	float bestRating(0.0f);
+	float highestRating(0.0f);
 
-	for(auto storage = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STORAGE, side).begin(); storage != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STORAGE, side).end(); ++storage)
+	for(auto storage : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STORAGE, side))
 	{
 		
-		if( IsBuildingSelectable(storage->id, water, mustBeConstructable) )
+		if( IsBuildingSelectable(storage.id, water, mustBeConstructable) )
 		{
-			const float myRating =    cost * costs.GetNormalizedDeviationFromMax( ai->s_buildTree.GetTotalCost(*storage) )
-									+ buildtime * buildtimes.GetNormalizedDeviationFromMax( ai->s_buildTree.GetBuildtime(*storage) )
-									+ metal * metalStored.GetNormalizedDeviationFromMin( ai->s_buildTree.GetMaxRange(*storage) )
-									+ energy * energyStored.GetNormalizedDeviationFromMin( ai->s_buildTree.GetMaxSpeed(*storage) );
+			const float rating =      selectionCriteria.cost         * costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(storage) )
+									+ selectionCriteria.buildtime    * buildtimes.GetDeviationFromMax( ai->s_buildTree.GetBuildtime(storage) )
+									+ selectionCriteria.storedMetal  * metalStored.GetDeviationFromZero( ai->s_buildTree.GetMaxRange(storage) )
+									+ selectionCriteria.storedEnergy * energyStored.GetDeviationFromZero( ai->s_buildTree.GetMaxSpeed(storage) );
 
-			if(myRating > bestRating)
+			if(rating > highestRating)
 			{
-				bestRating = myRating;
-				selectedStorage = *storage;
+				highestRating   = rating;
+				selectedStorage = storage;
 			}
 		}
 	}

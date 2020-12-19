@@ -106,8 +106,6 @@ AAI::~AAI()
 	for(auto group = GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).begin(); group != GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).end(); ++group)
 		Log("%s %i %i\n", s_buildTree.GetUnitTypeProperties( (*group)->GetUnitDefIdOfGroup() ).m_name.c_str(), (*group)->GetCurrentSize(), (*group)->GetContinentId());
 
-	Log("Future metal/energy supply:  %i / %i\n\n", (int)execute->futureAvailableMetal, (int)execute->futureAvailableEnergy);
-
 	Log("Future/active factories:     %i / %i\n\n", ut->futureFactories, ut->activeFactories);
 
 	Log("Unit production rate: %i\n\n", execute->unitProductionRate);

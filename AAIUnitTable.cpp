@@ -174,7 +174,6 @@ void AAIUnitTable::RemoveScout(int unit_id)
 void AAIUnitTable::AddPowerPlant(UnitId unitId, UnitDefId unitDefId)
 {
 	power_plants.insert(unitId.id);
-	ai->Getexecute()->futureAvailableEnergy -= ai->s_buildTree.GetPrimaryAbility(unitDefId);
 }
 
 void AAIUnitTable::RemovePowerPlant(int unit_id)

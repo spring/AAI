@@ -75,6 +75,18 @@ struct PowerPlantSelectionCriteria
 	float currentEnergyIncome; //!< The current energy production
 };
 
+//! Criteria used for selection of power plants
+struct StorageSelectionCriteria
+{
+	StorageSelectionCriteria(float cost, float buildtime, float storedMetal, float storedEnergy) 
+		: cost(cost), buildtime(buildtime), storedMetal(storedMetal), storedEnergy(storedEnergy) {}
+
+	float cost;         //!< Total cost of power plant
+	float buildtime;    //!< Buildtime of power plant
+	float storedMetal;  //!< Storage capacity for metal
+	float storedEnergy; //!< Storage capacity for energy
+};
+
 //! Data used to calculate rating of factories
 class FactoryRatingInputData
 {
@@ -161,7 +173,7 @@ public:
 	UnitDefId GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild) const;
 
 	//! @brief Selects a storage according to given criteria; a builder is requested if none available and a different storage is chosen.
-	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water);
+	UnitDefId SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water);
 
 	// return repair pad
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
@@ -219,7 +231,7 @@ private:
 	UnitDefId SelectStaticDefence(int side, const StaticDefenceSelectionCriteria& selectionCriteria, bool water, bool constructable) const;
 
 	//! @brief Selects a storage according to given criteria
-	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;
+	UnitDefId SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const;
 
 	//! @brief Determines the most suitable constructor for the given unit (mobile unit or building)
 	UnitDefId SelectConstructorFor(UnitDefId unitDefId) const;
