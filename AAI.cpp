@@ -113,10 +113,10 @@ AAI::~AAI()
 	Log("Active/under construction/requested constructors:\n");
 	for(const auto factory : s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side))
 	{
-		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(factory).m_name.c_str(), bt->units_dynamic[factory.id].active, bt->units_dynamic[factory.id].under_construction, bt->units_dynamic[factory.id].requested);
+		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(factory).m_name.c_str(), bt->units_dynamic[factory.id].active, bt->units_dynamic[factory.id].underConstruction, bt->units_dynamic[factory.id].requested);
 	}
 	for(const auto builder : s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side))
-		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(builder).m_name.c_str(), bt->units_dynamic[builder.id].active, bt->units_dynamic[builder.id].under_construction, bt->units_dynamic[builder.id].requested);
+		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(builder).m_name.c_str(), bt->units_dynamic[builder.id].active, bt->units_dynamic[builder.id].underConstruction, bt->units_dynamic[builder.id].requested);
 
 	GamePhase gamePhase(m_aiCallback->GetCurrentFrame());
 	const AttackedByRatesPerGamePhase& attackedByRates = brain->GetAttackedByRates();
@@ -330,24 +330,21 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	// get unit's id
 	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
 	UnitDefId unitDefId(def->id);
-	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
-
-	ut->UnitCreated(category);
-
-	bt->units_dynamic[def->id].requested -= 1;
-	bt->units_dynamic[def->id].under_construction += 1;
-
-	// add to unittable
+	
 	ut->AddUnit(unit, unitDefId.id);
 
 	// get commander a startup
 	if(m_initialized == false)
 	{
-		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
-		ut->UnitRequested(AAIUnitCategory(EUnitCategory::COMMANDER));
-
 		// set side
 		m_side = s_buildTree.GetSideOfUnitType( unitDefId) ;
+		
+		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
+		ut->UnitRequested(category);
+		ut->ConstructionStarted(category);
+
+		if(category.IsCommander() == false)
+			Log("Error: Starting unit is not in unit category \"commander\"!\n");
 
 		execute->InitAI(UnitId(unit), unitDefId);
 
@@ -356,27 +353,38 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		return;
 	}
 
-	// resurrected units will be handled differently
+	//-----------------------------------------------------------------------------------------------------------------
+	// resurrected or gifted units
+	//-----------------------------------------------------------------------------------------------------------------
 	if ( !m_aiCallback->UnitBeingBuilt(unit))
 	{
 		//Log("Ressurected %s\n", s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
 
-		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
+		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 		ut->UnitRequested(category);
-		ut->UnitFinished(category);
-		bt->units_dynamic[def->id].active += 1;
+		ut->ConstructionStarted(category);
+
+		bt->units_dynamic[def->id].underConstruction += 1;
 
 		if (s_buildTree.GetUnitType(unitDefId).IsFactory())
-			ut->futureFactories += 1;
+			ut->activeFactories += 1;
 
 		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
-			float3 pos = m_aiCallback->GetUnitPos(unit);
+			const float3 pos = m_aiCallback->GetUnitPos(unit);
 			map->InitBuilding(def, pos);
 		}
 	}
+	//-----------------------------------------------------------------------------------------------------------------
+	// "regular" units where construction just started
+	//-----------------------------------------------------------------------------------------------------------------
 	else
 	{
+		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
+		ut->ConstructionStarted(category);
+
+		bt->ConstructionStarted(unitDefId);
+
 		// construction of building started
 		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
@@ -386,7 +394,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 			execute->createBuildTask(UnitId(unit), unitDefId, &pos);
 
 			// add extractor to the sector
-			if (category.IsMetalExtractor() == true)
+			if (category.IsMetalExtractor())
 			{
 				AAISector* sector = map->GetSectorOfPos(pos);
 
@@ -410,9 +418,7 @@ void AAI::UnitFinished(int unit)
 	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 
 	ut->UnitFinished(category);
-
-	bt->units_dynamic[def->id].under_construction -= 1;
-	bt->units_dynamic[def->id].active += 1;
+	bt->ConstructionFinished(unitDefId);
 
 	// building was completed
 	if (s_buildTree.GetMovementType(unitDefId).IsStatic())
@@ -530,7 +536,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 	{
 		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 		ut->UnitUnderConstructionKilled(category);
-		bt->units_dynamic[def->id].under_construction -= 1;
+		bt->units_dynamic[def->id].underConstruction -= 1;
 
 		// unfinished building
 		if( category.IsBuilding() )

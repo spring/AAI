@@ -453,11 +453,11 @@ void AAIBrain::BuildUnits()
 
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
-		const float threat =  attackedByCatStatistics.GetNormalizedDeviationFromMin( attackedByCategory.GetValueOfTargetType(targetType) ) 
-	                    	+ unitsSpottedStatistics.GetNormalizedDeviationFromMin( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )
-	                    	+ 1.5f * defenceStatistics.GetNormalizedDeviationFromMax( m_totalMobileCombatPower.GetValueOfTargetType(targetType)) ;
+		const float threat =  attackedByCatStatistics.GetDeviationFromZero( attackedByCategory.GetValueOfTargetType(targetType) ) 
+	                    	+ unitsSpottedStatistics.GetDeviationFromZero( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )
+	                    	+ 1.5f * defenceStatistics.GetDeviationFromMax( m_totalMobileCombatPower.GetValueOfTargetType(targetType)) ;
 		threatByTargetType.SetValue(targetType, threat);
-	}						 
+	}
 
 	threatByTargetType.SetValue(ETargetType::STATIC, threatByTargetType.GetValue(ETargetType::SURFACE) + threatByTargetType.GetValue(ETargetType::FLOATER) );
 
@@ -475,7 +475,7 @@ void AAIBrain::BuildUnits()
 	{
 		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
 		const bool urgent(false);
-	
+
 		BuildCombatUnitOfCategory(moveType, threatByTargetType, unitSelectionCriteria, factoryUtilization, urgent);
 	}
 }

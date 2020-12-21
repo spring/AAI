@@ -133,7 +133,7 @@ void AAIConstructor::Update()
 					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
 
 					ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(constructedUnitDefId)); // request must be called before create to keep unit counters correct
-					ai->Getut()->UnitCreated(ai->s_buildTree.GetUnitCategory(constructedUnitDefId));
+					//ai->Getut()->UnitCreated(ai->s_buildTree.GetUnitCategory(constructedUnitDefId));
 
 					m_buildqueue->pop_front();
 				}
@@ -214,7 +214,7 @@ void AAIConstructor::CheckAssistance()
 		// check if another factory of that type needed
 		if( (m_buildqueue->size() >= cfg->MAX_BUILDQUE_SIZE - 1) && (assistants.size() > 1) )
 		{
-			if(ai->Getbt()->units_dynamic[m_myDefId.id].active + ai->Getbt()->units_dynamic[m_myDefId.id].requested + ai->Getbt()->units_dynamic[m_myDefId.id].under_construction  < cfg->MAX_FACTORIES_PER_TYPE)
+			if(ai->Getbt()->GetTotalNumberOfUnits(m_myDefId.id) < cfg->MAX_FACTORIES_PER_TYPE)
 			{
 				ai->Getbt()->units_dynamic[m_myDefId.id].requested += 1;
 

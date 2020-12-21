@@ -30,7 +30,7 @@ using namespace springLegacyAI;
 
 struct UnitTypeDynamic
 {
-	int under_construction;	    //!< how many units of that type are under construction
+	int underConstruction;	    //!< how many units of that type are under construction
 	int requested;			    //!< how many units of that type have been requested
 	int active;				    //!< how many units of that type are currently alive
 	int constructorsAvailable;	//!< how many factories/builders available being able to build that unit
@@ -143,11 +143,25 @@ public:
 	//! @brief Returns the attackedByRates read from the mod learning file upon initialization
 	const AttackedByRatesPerGamePhase& GetAttackedByRates(const AAIMapType& mapType) const { return s_attackedByRates.GetAttackedByRates(mapType); }
 
+	//! @brief Indicates that construction of unit has started
+	void ConstructionStarted(UnitDefId unitDefId)
+	{ 
+		units_dynamic[unitDefId.id].requested -= 1;
+		units_dynamic[unitDefId.id].underConstruction += 1;
+	}
+
+	//! @brief Indicates that construction of unit has finished
+	void ConstructionFinished(UnitDefId unitDefId)
+	{ 
+		units_dynamic[unitDefId.id].underConstruction -= 1;
+		units_dynamic[unitDefId.id].active += 1;
+	}
+
 	//! @brief Returns the future number (under construction and requested) of units of the given type
-	int GetNumberOfFutureUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].under_construction + units_dynamic[unitDefId.id].requested); }
+	int GetNumberOfFutureUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].underConstruction + units_dynamic[unitDefId.id].requested); }
 
 	//! @brief Returns the total number (active, under construction, and requested) of units of the given type
-	int GetTotalNumberOfUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].active + units_dynamic[unitDefId.id].under_construction + units_dynamic[unitDefId.id].requested); }
+	int GetTotalNumberOfUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].active + units_dynamic[unitDefId.id].underConstruction + units_dynamic[unitDefId.id].requested); }
 
 	//! @brief Returns the total number (available and requested) of constructors for the given units of the given type
 	int GetTotalNumberOfConstructorsForUnit(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].constructorsAvailable + units_dynamic[unitDefId.id].constructorsRequested); }
