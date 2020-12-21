@@ -359,8 +359,7 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	// resurrected units will be handled differently
 	if ( !m_aiCallback->UnitBeingBuilt(unit))
 	{
-		LogConsole("ressurected", 0);
-		Log("Ressurected %s\n", s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
+		//Log("Ressurected %s\n", s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
 
 		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
 		ut->UnitRequested(category);
