@@ -321,7 +321,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 	}
 }
 
-void AAI::UnitCreated(int unit, int /*builder*/)
+void AAI::UnitCreated(int unit, int builder)
 {
 	AAI_SCOPED_TIMER("UnitCreated")
 	if (m_configLoaded == false)
@@ -380,27 +380,35 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	//-----------------------------------------------------------------------------------------------------------------
 	else
 	{
-		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
-		ut->ConstructionStarted(category);
+		ConstructionStarted(UnitId(unit), unitDefId, UnitId(builder));
+	}
+}
 
-		bt->ConstructionStarted(unitDefId);
+void AAI::ConstructionStarted(UnitId unitId, UnitDefId unitDefId, UnitId constructor)
+{
+	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
+	ut->ConstructionStarted(category);
 
-		// construction of building started
-		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
+	bt->ConstructionStarted(unitDefId);
+
+	// construction of building started
+	if (s_buildTree.GetMovementType(unitDefId).IsStatic())
+	{
+		const float3 buildsite = m_aiCallback->GetUnitPos(unitId.id);
+
+		// create new buildtask
+		AAIBuildTask *task = new AAIBuildTask(unitId, unitDefId, buildsite, constructor);
+		build_tasks.push_back(task);
+
+		ut->units[constructor.id].cons->ConstructionStarted(unitId, task);
+
+		// add extractor to the sector
+		if (category.IsMetalExtractor())
 		{
-			float3 pos = m_aiCallback->GetUnitPos(unit);
+			AAISector* sector = map->GetSectorOfPos(buildsite);
 
-			// create new buildtask
-			execute->createBuildTask(UnitId(unit), unitDefId, &pos);
-
-			// add extractor to the sector
-			if (category.IsMetalExtractor())
-			{
-				AAISector* sector = map->GetSectorOfPos(pos);
-
-				if(sector)
-					sector->AddExtractor(UnitId(unit), unitDefId, pos);
-			}
+			if(sector)
+				sector->AddExtractor(unitId, unitDefId, buildsite);
 		}
 	}
 }
@@ -426,13 +434,9 @@ void AAI::UnitFinished(int unit)
 		// delete buildtask
 		for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
 		{
-			if ((*task)->unit_id == unit)
+			if( (*task)->CheckIfConstructionFinished(ut, UnitId(unit)) )
 			{
 				AAIBuildTask *build_task = *task;
-
-				if ((*task)->builder_id >= 0 && ut->units[(*task)->builder_id].cons)
-					ut->units[(*task)->builder_id].cons->ConstructionFinished();
-
 				build_tasks.erase(task);
 				spring::SafeDelete(build_task);
 				break;
@@ -544,12 +548,11 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			// delete buildtask
 			for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
 			{
-				if ((*task)->unit_id == unit)
+				if( (*task)->CheckIfConstructionFailed(this, UnitId(unit)) )
 				{
-					(*task)->BuildtaskFailed();
-					delete *task;
-
+					AAIBuildTask *buildTask = *task;
 					build_tasks.erase(task);
+					spring::SafeDelete(buildTask);
 					break;
 				}
 			}

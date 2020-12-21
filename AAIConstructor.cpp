@@ -374,15 +374,15 @@ void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 		m_assistUnitId.Invalidate();
 	}
 
-	m_constructedDefId.id  = build_task->def_id;
-	m_constructedUnitId.id = build_task->unit_id;
+	m_constructedDefId  = build_task->m_defId;
+	m_constructedUnitId = build_task->m_unitId;
 	assert(m_constructedDefId.IsValid());
 	assert(m_constructedUnitId.IsValid());
 
-	m_buildPos = build_task->build_pos;
+	m_buildPos = build_task->m_buildsite;
 
 	Command c(CMD_REPAIR);
-	c.PushParam(build_task->unit_id);
+	c.PushParam(build_task->m_unitId.id);
 
 	m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
 	ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
@@ -470,7 +470,7 @@ void AAIConstructor::Killed()
 	else if(m_activity.IsConstructing() == true)
 	{
 		if(build_task)
-			build_task->BuilderDestroyed();
+			build_task->BuilderDestroyed(ai->Getmap(), ai->Getut());
 	}
 	else if(m_activity.IsAssisting() == true)
 	{

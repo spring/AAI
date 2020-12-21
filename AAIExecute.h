@@ -54,9 +54,6 @@ public:
 	//! @brief Determines starting sector, adds another sector to base and initializes buildqueues
 	void InitAI(UnitId commanderUnitId, UnitDefId commanderDefId);
 
-    //! @brief creates a BuildTask for given unit and links it to responsible construction unit
-	void createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos);
-
 	void MoveUnitTo(int unit, float3 *position);
 
 	//! @brief Add the given unit to an existing group (or create new one if necessary)

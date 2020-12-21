@@ -64,6 +64,9 @@ public:
 	void LogConsole(const char* format, ...);
 
 	int HandleEvent(int msg, const void *data);
+
+	 //! @brief Creates a buildTask (if a building is constructed)
+	void ConstructionStarted(UnitId unitId, UnitDefId unitDefId, UnitId constructor);
 	
 	//! @brief Returns the number of AAI instances
 	int GetNumberOfAAIInstances() const { return s_aaiInstances; }

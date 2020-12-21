@@ -108,45 +108,6 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 	CheckRessources();
 }
 
-void AAIExecute::createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos)
-{
-	AAIBuildTask *task = new AAIBuildTask(ai, unitId.id, unitDefId.id, pos, ai->GetAICallback()->GetCurrentFrame());
-	ai->GetBuildTasks().push_back(task);
-
-	// find builder and associate building with that builder
-	task->builder_id = -1;
-
-	bool builderFound = false;
-
-	for(auto constructor : ai->Getut()->GetConstructors())
-	{
-		if(ai->Getut()->units[constructor.id].cons->IsHeadingToBuildsite() == true)
-		{
-			const float3& buildPos = ai->Getut()->units[constructor.id].cons->GetBuildPos();
-
-			/*if(ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_unitCategory.isStaticDefence() == true)
-			{
-				ai->Log("Builtask for %s: %f %f %f %f\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(),
-					buildPos.x, pos->x, buildPos.z, pos->z);
-			}*/
-
-			if((fabs(buildPos.x - pos->x) < 16.0f) && (fabs(buildPos.z - pos->z) < 16.0f))
-			{
-				builderFound = true;
-				task->builder_id = ai->Getut()->units[constructor.id].cons->m_myUnitId.id;
-				ai->Getut()->units[constructor.id].cons->ConstructionStarted(unitId, task);
-				break;
-			}
-		}
-	}
-
-	if(builderFound == false)
-	{
-		++m_linkingBuildTaskToBuilderFailed;
-		ai->Log("Failed to link buildtask for %s to builder\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
-	}
-}
-
 void AAIExecute::MoveUnitTo(int unit, float3 *position)
 {
 	Command c(CMD_MOVE);
@@ -1147,18 +1108,10 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	//-----------------------------------------------------------------------------------------------------------------
 	// dont start construction of further defences if expensive defences are already under construction in this sector
 	//-----------------------------------------------------------------------------------------------------------------
-	for(const auto& task : ai->GetBuildTasks())
+	for(const auto task : ai->GetBuildTasks())
 	{
-		if(ai->s_buildTree.GetUnitCategory(UnitDefId(task->def_id)).IsStaticDefence())
-		{
-			if(dest->PosInSector(task->build_pos))
-			{
-				const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(EUnitCategory::STATIC_DEFENCE);
-
-				if( ai->s_buildTree.GetTotalCost(UnitDefId(task->def_id)) > 0.7f * costStatistics.GetAvgValue() )
-					return BuildOrderStatus::SUCCESSFUL;
-			}
-		}
+		if(task->IsExpensiveUnitOfCategoryInSector(ai, EUnitCategory::STATIC_DEFENCE, dest) )
+			return BuildOrderStatus::SUCCESSFUL;
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -2115,7 +2068,7 @@ bool AAIExecute::AssistConstructionOfCategory(const AAIUnitCategory& category)
 {
 	for(auto task : ai->GetBuildTasks())
 	{
-		AAIConstructor *builder = (task->builder_id >= 0) ? ai->Getut()->units[task->builder_id].cons : nullptr;
+		AAIConstructor *builder = task->GetConstructor(ai->Getut());
 
 		if(   (builder != nullptr) 
 		   && (builder->GetCategoryOfConstructedUnit() == category)
