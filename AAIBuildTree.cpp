@@ -476,7 +476,38 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 		}
 
 		fprintf(file, "\nCombat power of combat units & static defences (vs. surface, air, ship, submarine, buildings)\n");
-		for(int id = 1; id < unitDefs.size(); ++id)
+		for(auto category : AAICombatUnitCategory::m_combatUnitCategories )
+		{
+			fprintf(file, "\n%s units:\n", AAICombatUnitCategory::m_combatCategoryNames[AAICombatUnitCategory(category).GetArrayIndex()].c_str() );
+			for(int side = 1; side <= m_numberOfSides; ++side)
+			{
+				for(auto unitDefId : GetUnitsInCombatUnitCategory(category, side) )
+				{
+					fprintf(file, "%-30s %-2.3f %-2.3f %-2.3f %-2.3f %-2.3f\n",  m_unitTypeProperties[unitDefId.id].m_name.c_str(),
+														m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::SURFACE),
+														m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::AIR),
+														m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::FLOATER),
+														m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::SUBMERGED),
+														m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::STATIC));
+				}
+			}
+		}
+
+		fprintf(file, "\nStatic defences:\n");
+		for(int side = 1; side <= m_numberOfSides; ++side)
+		{
+			for(auto unitDefId : m_unitsInCategory[side-1][AAIUnitCategory(EUnitCategory::STATIC_DEFENCE).GetArrayIndex()] )
+			{
+				fprintf(file, "%-30s %-2.3f %-2.3f %-2.3f %-2.3f %-2.3f\n",  m_unitTypeProperties[unitDefId.id].m_name.c_str(),
+													m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::SURFACE),
+													m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::AIR),
+													m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::FLOATER),
+													m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::SUBMERGED),
+													m_combatPowerOfUnits[unitDefId.id].GetValue(ETargetType::STATIC));
+			}
+		}
+
+		/*for(int id = 1; id < unitDefs.size(); ++id)
 		{
 			if(m_unitTypeProperties[id].m_unitCategory.IsCombatUnit() || m_unitTypeProperties[id].m_unitCategory.IsStaticDefence())
 			{
@@ -487,13 +518,13 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 														m_combatPowerOfUnits[id].GetValue(ETargetType::SUBMERGED),
 														m_combatPowerOfUnits[id].GetValue(ETargetType::STATIC));
 
-				/*fprintf(file, "\nWeapons: ");
+				fprintf(file, "\nWeapons: ");
 				for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDefs[id]->weapons.begin(); w != unitDefs[id]->weapons.end(); ++w)
 				{
 					fprintf(file, "  %s: %u %u", (*w).name.c_str(), (*w).badTargetCat, (*w).onlyTargetCat);
-				}*/
+				}
 			}
-		}
+		}*/
 
 		for(int side = 0; side < m_numberOfSides; ++side)
 		{
