@@ -224,7 +224,7 @@ void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, const float3& p
 	}
 }
 
-void AAISector::FreeMetalSpot(float3 pos, const UnitDef *extractor)
+void AAISector::FreeMetalSpot(float3 pos, const springLegacyAI::UnitDef *extractor)
 {
 	// get metalspot according to position
 	for(auto spot : metalSpots)
@@ -447,6 +447,18 @@ float AAISector::GetRatingAsStartSector() const
 		return 0.0f;
 	else
 		return ( static_cast<float>(2 * GetNumberOfMetalSpots() + 1) ) * m_flatTilesRatio * m_flatTilesRatio;
+}
+
+float AAISector::GetRatingForPowerPlant(float weightPreviousGames, float weightCurrentGame) const
+{
+	if(m_ownBuildingsOfCategory[AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR).GetArrayIndex()] > 1)
+		return 0.0f;
+	else
+	{
+		const float attacks = 0.1f + weightPreviousGames * m_attacksByTargetTypeInPreviousGames.CalculateSum() + weightCurrentGame * m_attacksByTargetTypeInCurrentGame.CalculateSum();
+
+		return  1.0f / (attacks * static_cast<float>(GetEdgeDistance()+1) );
+	}
 }
 
 bool AAISector::IsSectorSuitableForBaseExpansion() const

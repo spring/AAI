@@ -96,7 +96,7 @@ public:
 	void UnitRequestFailed(const AAIUnitCategory& category);
 
 	// called when unit of specified catgeory has been created (= construction started)
-	void UnitCreated(const AAIUnitCategory& category);
+	void ConstructionStarted(const AAIUnitCategory& category);
 	
 	//! @brief Shall be called when a unit under construction has been killed to update internal counters
 	void UnitUnderConstructionKilled(const AAIUnitCategory& category);

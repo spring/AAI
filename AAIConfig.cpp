@@ -87,15 +87,15 @@ float AAIConfig::GetFloat(AAI* ai, FILE* file)
 
 AAIConfig::AAIConfig(void)
 {
-	SIDES = 2;
+	numberOfSides = 2;
 	MIN_ENERGY = 18;  // min energy make value to be considered beeing a power plant
 	MAX_UNITS = 5000;
 	MAX_SCOUTS = 4;
 	MAX_SECTOR_IMPORTANCE = 6;
 	MAX_XROW = 16;
 	MAX_YROW = 16;
-	X_SPACE = 8;
-	Y_SPACE = 8;
+	X_SPACE = 12;
+	Y_SPACE = 12;
 	MAX_GROUP_SIZE = 12;
 	MAX_AIR_GROUP_SIZE = 4;
 	MAX_ANTI_AIR_GROUP_SIZE = 4;
@@ -118,7 +118,6 @@ AAIConfig::AAIConfig(void)
 	AIR_DEFENCE = 8;
 	MIN_ENERGY_STORAGE = 500;
 	MIN_METAL_STORAGE = 100;
-	MAX_METAL_COST = 10000;
 	MIN_AIR_ATTACK_COST = 150;
 	MAX_AIR_TARGETS = 20;
 	AIRCRAFT_RATIO = 0.2f;
@@ -136,7 +135,7 @@ AAIConfig::AAIConfig(void)
 	MAX_MEX_DISTANCE = 7;
 	MAX_MEX_DEFENCE_DISTANCE = 5;
 	MIN_FACTORIES_FOR_DEFENCES = 1;
-	MIN_FACTORIES_FOR_STORAGE = 2;
+	MIN_FACTORIES_FOR_STORAGE = 1;
 	MIN_FACTORIES_FOR_RADAR_JAMMER = 2;
 	MIN_AIR_SUPPORT_EFFICIENCY = 2.5f;
 	MIN_SUBMARINE_WATERLINE = 15;
@@ -166,10 +165,7 @@ AAIConfig::AAIConfig(void)
 
 AAIConfig::~AAIConfig(void)
 {
-	START_UNITS.clear();
-	SIDE_NAMES.clear();
 }
-
 
 std::string AAIConfig::GetFileName(springLegacyAI::IAICallback* cb, const std::string& filename, const std::string& prefix, const std::string& suffix, bool write) const
 {
@@ -196,17 +192,38 @@ void CheckValueRange(float& x)
 		x = 1.0f;
 }
 
-bool AAIConfig::loadGameConfig(AAI *ai)
+void ReadUnitNames(AAI *ai, FILE* file, std::list<int>& unitList, std::list< std::string >& unknownUnitsList)
+{
+	char lineBuffer[2048];
+	fgets(lineBuffer, sizeof(lineBuffer), file);
+
+	char* unitName = strtok(lineBuffer," \n");
+	while (unitName != NULL)
+	{
+		const springLegacyAI::UnitDef* unitDef = ai->GetUnitDef(unitName);
+		
+		if(unitDef)
+			unitList.push_back(unitDef->id);
+		else
+			unknownUnitsList.push_back(unitName);
+		
+		unitName = strtok(NULL, " \n");
+	}
+}
+
+bool AAIConfig::LoadGameConfig(AAI *ai)
 {
 	MAX_UNITS = ai->GetAICallback()->GetMaxUnits();
 
-	std::list<string> possible_config_filenames;
-	possible_config_filenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	possible_config_filenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	possible_config_filenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
-	FILE* file = NULL;
+	std::list<string> possibleConfigFilenames;
+	possibleConfigFilenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModHumanName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possibleConfigFilenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+	possibleConfigFilenames.push_back(GetFileName(ai->GetAICallback(), ai->GetAICallback()->GetModShortName(), MOD_CFG_PATH, CONFIG_SUFFIX));
+
+	FILE* file(NULL);
 	std::string configfile;
-	for(const std::string& filename: possible_config_filenames) {
+	for(const std::string& filename: possibleConfigFilenames)
+	{
 		file = fopen(filename.c_str(), "r");
 		if (file != NULL) 
 		{
@@ -215,97 +232,54 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 		}
 	}
 
-	if (file == NULL) {
-		ai->Log("Unable to find mod config file (required).\n");
+	if (file == NULL)
+	{
+		ai->Log("ERROR: Unable to find mod config file (required). Possible file names:\n");
+		for(const auto& filename : possibleConfigFilenames)
+			ai->Log("%s\n", filename.c_str());
 		return false;
    	}
 
-	char keyword[50];
+	std::list< std::string > unknownUnits;
+
+	char keyword[64];
 
 	bool errorOccurred = false;
 
 	while(EOF != fscanf(file, "%s", keyword))
 	{
 		if(!strcmp(keyword,"SIDES")) {
-			SIDES = GetInt(ai, file);
+			numberOfSides = GetInt(ai, file);
 		}
-		else if(!strcmp(keyword, "START_UNITS")) {
-			START_UNITS.resize(SIDES);
-			for(int i = 0; i < SIDES; i++) {
-				START_UNITS[i] = GetString(ai, file);
-				if(!GetUnitDef(ai, START_UNITS[i].c_str())) {
-					errorOccurred = true;
-					break;
-				}
+		else if(!strcmp(keyword, "SIDE_NAMES")) 
+		{
+			sideNames.resize(numberOfSides+1);
+			sideNames[0] = "Neutral";
+			for(int i = 1; i <= numberOfSides; ++i) {
+				sideNames[i] = GetString(ai, file);
 			}
-		} else if(!strcmp(keyword, "SIDE_NAMES")) {
-			SIDE_NAMES.resize(SIDES);
-			for(int i = 0; i < SIDES; i++) {
-				SIDE_NAMES[i] = GetString(ai, file);
-			}
-		} else if(!strcmp(keyword, "SCOUTS")) {
-			// get number of scouts
-			const int count = GetInt(ai, file);
-			for(int i = 0; i < count; ++i) {
-				const std::string unitdef = GetString(ai, file);
-				if(GetUnitDef(ai, unitdef)) {
-					SCOUTS.push_back(GetUnitDef(ai, unitdef)->id);
-				} else {
-					errorOccurred = true;
-					break;
-				}
-			}
-		} else if(!strcmp(keyword, "ATTACKERS")) {
-			// get number of attackers
-			const int count = GetInt(ai, file);
-
-			for(int i = 0; i < count; ++i) {
-				const std::string unitdef = GetString(ai, file);
-				if(GetUnitDef(ai, unitdef))
-					ATTACKERS.push_back(GetUnitDef(ai, unitdef)->id);
-				else {
-					errorOccurred = true;
-					break;
-				}
-			}
-		} else if(!strcmp(keyword, "TRANSPORTERS")) {
-			// get number of transporters
-			const int count = GetInt(ai, file);
-
-			for(int i = 0; i < count; ++i) {
-				const std::string unitdef = GetString(ai, file);
-				if(GetUnitDef(ai, unitdef))
-					TRANSPORTERS.push_back(GetUnitDef(ai, unitdef)->id);
-				else {
-					errorOccurred = true;
-					break;
-				}
-			}
-		} else if(!strcmp(keyword, "METAL_MAKERS")) {
-			// get number of transporters
-			const int count = GetInt(ai, file);
-			for(int i = 0; i < count; ++i) {
-				const std::string unitdef = GetString(ai, file);
-				if(GetUnitDef(ai, unitdef))
-					METAL_MAKERS.push_back(GetUnitDef(ai, unitdef)->id);
-				else {
-					errorOccurred = true;
-					break;
-				}
-			}
-		} else if(!strcmp(keyword, "DONT_BUILD")) {
-			// get number of units that should not be built
-			const int count = GetInt(ai, file);
-			for(int i = 0; i < count; ++i) {
-				const std::string unitdef = GetString(ai, file);
-				if(GetUnitDef(ai, unitdef))
-					DONT_BUILD.push_back(GetUnitDef(ai, unitdef)->id);
-				else {
-					errorOccurred = true;
-					break;
-				}
-			}
-		} else if(!strcmp(keyword,"MIN_ENERGY")) {
+		}
+		else if(!strcmp(keyword, "START_UNITS")) 
+		{
+			ReadUnitNames(ai, file, startUnits, unknownUnits);
+		} 
+		else if(!strcmp(keyword, "SCOUTS")) 
+		{
+			ReadUnitNames(ai, file, scouts, unknownUnits);
+		}
+		else if(!strcmp(keyword, "TRANSPORTERS"))
+		{
+			ReadUnitNames(ai, file, transporters, unknownUnits);
+		}
+		else if(!strcmp(keyword, "METAL_MAKERS"))
+		{
+			ReadUnitNames(ai, file, metalMakers, unknownUnits);
+		}
+		else if(!strcmp(keyword, "DONT_BUILD")) 
+		{
+			ReadUnitNames(ai, file, ignoredUnits, unknownUnits);
+		}
+		else if(!strcmp(keyword,"MIN_ENERGY")) {
 			MIN_ENERGY = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_SCOUTS")) {
 			MAX_SCOUTS = GetInt(ai, file);
@@ -373,8 +347,6 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 			HIGH_RANGE_UNITS_RATIO = GetFloat(ai, file);
 		} else if(!strcmp(keyword, "FAST_UNITS_RATIO")) {
 			FAST_UNITS_RATIO = GetFloat(ai, file);
-		} else if(!strcmp(keyword, "MAX_METAL_COST")) {
-			MAX_METAL_COST = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_DEFENCES")) {
 			MAX_DEFENCES = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MIN_SECTOR_THREAT")) {
@@ -420,9 +392,18 @@ bool AAIConfig::loadGameConfig(AAI *ai)
 	CheckValueRange(HIGH_RANGE_UNITS_RATIO);
 	CheckValueRange(FAST_UNITS_RATIO);
 
-	if(errorOccurred) {
+	if(errorOccurred)
+	{
 		ai->Log("Mod config file %s contains erroneous keyword: %s\n", configfile.c_str(), keyword);
 		return false;
+	}
+
+	if(unknownUnits.size() > 0)
+	{
+		ai->Log("Warning: The following unknown units were found when loading the mod configuration:\n");
+		for(auto unitName : unknownUnits)
+			ai->Log("%s ", unitName.c_str());
+		ai->Log("\n");
 	}
 
 	fclose(file);
@@ -438,7 +419,7 @@ bool AAIConfig::loadGeneralConfig(AAI& ai)
 	FILE* file = fopen(filename.c_str(), "r");
 
 	if(file == NULL) {
-		ai.Log("Couldn't load general config file %s\n", filename.c_str());
+		ai.Log("ERROR: Couldn't load general config file %s\n", filename.c_str());
 		return false;
 	}
 

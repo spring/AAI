@@ -13,55 +13,89 @@ using namespace std;
 #include "AAIBuildTask.h"
 #include "AAI.h"
 #include "AAIConstructor.h"
-#include "AAIUnitTable.h"
 #include "AAIBuildTable.h"
 #include "AAIExecute.h"
-#include "AAIMap.h"
 #include "AAISector.h"
 
-AAIBuildTask::AAIBuildTask(AAI *ai, int unit_id, int def_id, float3 *pos, int tick):
-	build_pos(*pos)
+AAIBuildTask::AAIBuildTask(UnitId unitId, UnitDefId unitDefId, const float3& buildsite, UnitId constructor) :
+	m_unitId(unitId),
+	m_defId(unitDefId),
+	m_buildsite(buildsite),
+	m_constructor(constructor)
 {
-	this->ai = ai;
-	this->unit_id = unit_id;
-	this->def_id = def_id;
-
-	builder_id = -1;
 }
 
 AAIBuildTask::~AAIBuildTask(void)
 {
 }
 
-void AAIBuildTask::BuilderDestroyed()
+void AAIBuildTask::BuilderDestroyed(AAIMap* map, AAIUnitTable* unitTable)
 {
-	builder_id = -1;
+	m_constructor.Invalidate();
 
 	// com only allowed if buildpos is inside the base
 	bool commander = false;
 
-	AAISector* sector = ai->Getmap()->GetSectorOfPos(build_pos);
+	AAISector* sector = map->GetSectorOfPos(m_buildsite);
 
-	if(sector && sector->GetDistanceToBase() == 0)
+	if(sector && (sector->GetDistanceToBase() == 0) )
 		commander = true;
 
 	// look for new builder
-	AAIConstructor* new_builder = ai->Getut()->FindClosestAssistant(build_pos, 10, commander);
+	AAIConstructor* nextBuilder = unitTable->FindClosestAssistant(m_buildsite, 10, commander);
 
-	if(new_builder)
+	if(nextBuilder)
 	{
-		new_builder->TakeOverConstruction(this);
-		builder_id = new_builder->m_myUnitId.id;
+		nextBuilder->TakeOverConstruction(this);
+		m_constructor = nextBuilder->m_myUnitId;
 	}
 }
 
-void AAIBuildTask::BuildtaskFailed()
+bool AAIBuildTask::CheckIfConstructionFailed(AAI* ai, UnitId unitId)
 {
-	// cleanup buildmap etc.
-	if(ai->s_buildTree.GetMovementType(UnitDefId(def_id)).IsStatic() == true)
-		ai->Getexecute()->ConstructionFailed(build_pos, def_id);
+	if(m_unitId == unitId)
+	{
+		// cleanup buildmap etc.
+		if(ai->s_buildTree.GetMovementType(m_defId).IsStatic())
+			ai->Getexecute()->ConstructionFailed(m_buildsite, m_defId);
 
-	// tell builder to stop construction (and release assisters) (if still alive)
-	if( (builder_id >= 0) && (ai->Getut()->units[builder_id].cons != nullptr) )
-		ai->Getut()->units[builder_id].cons->ConstructionFinished();
+		AAIConstructor* constructor = GetConstructor(ai->Getut());
+
+		if(constructor)
+			constructor->ConstructionFinished();
+
+		return true;
+	}
+	else
+		return false;
 }
+
+bool AAIBuildTask::CheckIfConstructionFinished(AAIUnitTable* unitTable, UnitId unitId)
+{
+	if (m_unitId == unitId)
+	{
+		AAIConstructor* constructor = GetConstructor(unitTable);
+
+		if(constructor)
+			constructor->ConstructionFinished();
+
+		return true;
+	}
+	else
+		return false;	
+}
+
+bool AAIBuildTask::IsExpensiveUnitOfCategoryInSector(AAI* ai, const AAIUnitCategory& category, const AAISector* sector) const
+{
+	if(    (ai->s_buildTree.GetUnitCategory(m_defId) == category)
+		&& sector->PosInSector(m_buildsite) )
+	{
+		const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
+
+		if( ai->s_buildTree.GetTotalCost(m_defId) > 0.7f * costStatistics.GetAvgValue() )
+			return true;
+	}
+
+	return false;
+}
+

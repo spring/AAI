@@ -314,6 +314,13 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		}
 	}
 
+	// workaround for AAI to work with mod "beyond all repair"
+	if(rootUnits.size() != cfg->numberOfSides)
+	{
+		rootUnits.clear();
+		rootUnits = cfg->startUnits;
+	}
+
 	//-----------------------------------------------------------------------------------------------------------------
 	// assign sides to units
 	//-----------------------------------------------------------------------------------------------------------------
@@ -439,6 +446,7 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 	{
 		fprintf(file, "Number of different unit types: %i\n", static_cast<int>(unitDefs.size())-1);
 		fprintf(file, "Number of factories: %i\n", static_cast<int>(m_factoryIdsTable.size()));
+		fprintf(file, "Number of sides: %i\n", m_numberOfSides);
 		fprintf(file, "Detected start units (aka commanders):\n");
 		for(int side = 1; side <= m_numberOfSides; ++side)
 		{
@@ -489,7 +497,11 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 
 		for(int side = 0; side < m_numberOfSides; ++side)
 		{
-			fprintf(file, "\n\n####### Side %i (%s) #######", side+1, cfg->SIDE_NAMES[side].c_str() );
+			// abort if too many side have been detected (to avoid crash as no name is available from config)
+			if(side >= cfg->numberOfSides)
+				break;
+
+			fprintf(file, "\n\n####### Side %i (%s) #######", side+1, cfg->sideNames[side].c_str() );
 			for(AAIUnitCategory category(AAIUnitCategory::GetFirst()); category.End() == false; category.Next())
 			{
 				fprintf(file, "\n%s:\n", GetCategoryName(category).c_str() );
@@ -797,7 +809,7 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 		return EUnitCategory::UNKNOWN;
 
 	// discard units that are on ignore list
-	if(std::find(cfg->DONT_BUILD.begin(), cfg->DONT_BUILD.end(), unitDef->id) != cfg->DONT_BUILD.end())
+	if(std::find(cfg->ignoredUnits.begin(), cfg->ignoredUnits.end(), unitDef->id) != cfg->ignoredUnits.end())
 		return EUnitCategory::UNKNOWN;
 
 	// --------------- buildings --------------------------------------------------------------------------------------
@@ -865,7 +877,7 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 		{
 			return EUnitCategory::STATIC_SUPPORT;
 		}
-		else if( (unitDef->metalMake > 0.0f) || (std::find(cfg->METAL_MAKERS.begin(), cfg->METAL_MAKERS.end(), unitDef->id) != cfg->METAL_MAKERS.end()) ) //! @todo Does not work - investigate later
+		else if( (unitDef->metalMake > 0.0f) || (std::find(cfg->metalMakers.begin(), cfg->metalMakers.end(), unitDef->id) != cfg->metalMakers.end()) ) //! @todo Does not work - investigate later
 		{
 			return EUnitCategory::METAL_MAKER;
 		}
@@ -954,7 +966,7 @@ bool AAIBuildTree::IsScout(const springLegacyAI::UnitDef* unitDef) const
 		return true;
 	else
 	{
-		for(auto i = cfg->SCOUTS.begin(); i != cfg->SCOUTS.end(); ++i)
+		for(auto i = cfg->scouts.begin(); i != cfg->scouts.end(); ++i)
 		{
 			if(*i == unitDef->id)
 				return true;
@@ -966,7 +978,7 @@ bool AAIBuildTree::IsScout(const springLegacyAI::UnitDef* unitDef) const
 
 bool AAIBuildTree::IsMobileTransport(const springLegacyAI::UnitDef* unitDef) const
 {
-	for(auto i = cfg->TRANSPORTERS.begin(); i != cfg->TRANSPORTERS.end(); ++i)
+	for(auto i = cfg->transporters.begin(); i != cfg->transporters.end(); ++i)
 	{
 		if(*i == unitDef->id)
 			return true;

@@ -28,10 +28,12 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	m_baseFlatLandRatio(0.0f),
 	m_baseWaterRatio(0.0f),
 	m_centerOfBase(0, 0),
-	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
-	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_metalAvailable(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_energyAvailable(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_metalIncome(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
 	m_estimatedPressureByEnemies(0.0f)
 {
 	this->ai = ai;
@@ -147,51 +149,10 @@ bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
 	else if(m_sectorsInDistToBase[0].size() < 3 && sector->GetDistanceToBase() <= 1)
 		return true;
 	// allow construction on islands close to base on water maps
-	else if(ai->Getmap()->GetMapType().IsWaterMap() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->GetDistanceToBase() <= 3) )
+	else if(ai->Getmap()->GetMapType().IsWater() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->GetDistanceToBase() <= 3) )
 		return true;
 	else
 		return false;
-}
-
-bool AAIBrain::DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId)
-{
-	AAISector* bestSector(nullptr);
-	AAISector* secondBestSector(nullptr);
-
-	float highestRating(0.0f);
-
-	for(int i = 1; i <= 2; ++i)
-	{
-		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[i])
-		{
-			const float rating = sector->GetRatingForRallyPoint(moveType, continentId);
-			
-			if(rating > highestRating)
-			{
-				highestRating    = rating;
-				secondBestSector = bestSector;
-				bestSector       = sector;
-			}
-		}
-	}
-
-	// continent bound units must get a rally point on their current continent
-	const int useContinentID = moveType.CannotMoveToOtherContinents() ? continentId : AAIMap::ignoreContinentID;
-
-	if(bestSector)
-	{
-		rallyPoint = bestSector->DetermineUnitMovePos(moveType, useContinentID);
-
-		if(rallyPoint.x > 0.0f)
-			return true;
-		else if(secondBestSector)
-			rallyPoint = secondBestSector->DetermineUnitMovePos(moveType, useContinentID);
-
-		if(rallyPoint.x > 0.0f)
-			return true;
-	}
-
-	return false;
 }
 
 struct SectorForBaseExpansion
@@ -204,13 +165,28 @@ struct SectorForBaseExpansion
 	float      totalAttacks;
 };
 
-bool AAIBrain::ExpandBase(SectorType sectorType)
+void AAIBrain::ExpandBaseAtStartup()
+{
+	if(m_sectorsInDistToBase[0].size() == 0)
+	{
+		ai->Log("ERROR: Failed to expand initial base - no starting sector set!\n");
+		return;
+	}
+
+	AAISector* sector = *m_sectorsInDistToBase[0].begin();
+
+	const bool preferSafeSector = (sector->GetEdgeDistance() > 0) ? true : false;
+
+	ai->Getbrain()->ExpandBase( ai->Getmap()->GetMapType(), preferSafeSector);
+}
+
+bool AAIBrain::ExpandBase(const AAIMapType& sectorType, bool preferSafeSector)
 {
 	if(m_sectorsInDistToBase[0].size() >= cfg->MAX_BASE_SIZE)
 		return false;
 
 	// if aai is looking for a water sector to expand into ocean, allow greater search_dist
-	const bool expandLandBaseInWater = (sectorType == WATER_SECTOR) && (m_baseWaterRatio < 0.1f);
+	const bool expandLandBaseInWater = sectorType.IsWater() && (m_baseWaterRatio < 0.1f);
 	const int  maxSearchDistance     = expandLandBaseInWater ? 3 : 1;
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -257,16 +233,24 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 	{
 		// prefer sectors that result in more compact bases, with more metal spots, that are safer (i.e. less attacks in the past)
 		float rating = static_cast<float>( candidate->sector->GetNumberOfMetalSpots() );
-						+ 4.0f * sectorDistances.GetNormalizedDeviationFromMax(candidate->distance)
-						+ 4.0f / static_cast<float>( candidate->sector->GetEdgeDistance() + 1 );
-						+ 4.0f * sectorAttacks.GetNormalizedDeviationFromMax(candidate->totalAttacks);
+						+ 4.0f * sectorDistances.GetDeviationFromMax(candidate->distance);
 
-		if(sectorType == LAND_SECTOR)
+		if(preferSafeSector)
+		{
+			rating += 4.0f * sectorAttacks.GetDeviationFromMax(candidate->totalAttacks);
+			rating += 4.0f / static_cast<float>( candidate->sector->GetEdgeDistance() + 1 );
+		}
+		else
+		{
+			rating += std::min(static_cast<float>( candidate->sector->GetEdgeDistance() ), 4.0f);
+		}
+
+		if(sectorType.IsLand())
 		{
 			// prefer flat sectors
 			rating += 3.0f * candidate->sector->GetFlatTilesRatio();
 		}
-		else if(sectorType == WATER_SECTOR)
+		else if(sectorType.IsWater())
 		{
 			// check for continent size (to prevent AAI to expand into little ponds instead of big ocean)
 			if( candidate->sector->ConnectedToOcean() )
@@ -289,7 +273,7 @@ bool AAIBrain::ExpandBase(SectorType sectorType)
 	{
 		AssignSectorToBase(selectedSector, true);
 	
-		std::string sectorTypeString = (sectorType == LAND_SECTOR) ? "land" : "water";
+		std::string sectorTypeString = sectorType.IsLand() ? "land" : "water";
 		ai->Log("\nAdding %s sector %i,%i to base; base size: " _STPF_, sectorTypeString.c_str(), selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
 		ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
 		return true;
@@ -312,6 +296,9 @@ void AAIBrain::UpdateRessources(springLegacyAI::IAICallback* cb)
 
 	if(metalSurplus < 0.0f)
 		metalSurplus = 0.0f;
+
+	m_metalAvailable.AddValue(cb->GetMetal());
+	m_energyAvailable.AddValue(cb->GetEnergy());
 
 	m_energyIncome.AddValue(energyIncome);
 	m_metalIncome.AddValue(metalIncome);
@@ -466,11 +453,11 @@ void AAIBrain::BuildUnits()
 
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
-		const float threat =  attackedByCatStatistics.GetNormalizedDeviationFromMin( attackedByCategory.GetValueOfTargetType(targetType) ) 
-	                    	+ unitsSpottedStatistics.GetNormalizedDeviationFromMin( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )
-	                    	+ 1.5f * defenceStatistics.GetNormalizedDeviationFromMax( m_totalMobileCombatPower.GetValueOfTargetType(targetType)) ;
+		const float threat =  attackedByCatStatistics.GetDeviationFromZero( attackedByCategory.GetValueOfTargetType(targetType) ) 
+	                    	+ unitsSpottedStatistics.GetDeviationFromZero( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )
+	                    	+ 1.5f * defenceStatistics.GetDeviationFromMax( m_totalMobileCombatPower.GetValueOfTargetType(targetType)) ;
 		threatByTargetType.SetValue(targetType, threat);
-	}						 
+	}
 
 	threatByTargetType.SetValue(ETargetType::STATIC, threatByTargetType.GetValue(ETargetType::SURFACE) + threatByTargetType.GetValue(ETargetType::FLOATER) );
 
@@ -488,7 +475,7 @@ void AAIBrain::BuildUnits()
 	{
 		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
 		const bool urgent(false);
-	
+
 		BuildCombatUnitOfCategory(moveType, threatByTargetType, unitSelectionCriteria, factoryUtilization, urgent);
 	}
 }
@@ -664,14 +651,25 @@ void AAIBrain::UpdatePressureByEnemy()
 	//ai->Log("Current enemy pressure: %f  - map: %f    near base: %f \n", m_estimatedPressureByEnemies, sectorsWithEnemiesRatio, sectorsNearBaseWithEnemiesRatio);
 }
 
+float AAIBrain::GetAveragePowerSurplus() const
+{
+	const AAIUnitStatistics& unitStatistics      = ai->s_buildTree.GetUnitStatistics(ai->GetSide());
+	const StatisticalData&   generatedPowerStats = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
+
+	return std::max(1.0f, m_energySurplus.GetAverageValue() + 0.03f * m_energyAvailable.GetAverageValue() - 2.0f * generatedPowerStats.GetMinValue());
+}
+
 float AAIBrain::GetEnergyUrgency() const
 {
-	if(m_energySurplus.GetAverageValue() > 2000.0f)
+	const float avgPowerSurplus = GetAveragePowerSurplus();
+
+	if(avgPowerSurplus > AAIConstants::powerSurplusToStopPowerPlantConstructionThreshold)
 		return 0.0f;	
-	else if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::POWER_PLANT)) > 0)
-		return 4.0f / (2.0f * m_energySurplus.GetAverageValue() / AAIConstants::energyToMetalConversionFactor + 0.5f);
-	else
-		return 7.0f;
+	else 
+	{
+		// urgency should range from 5 (little income & suplus) towards low values when surplus is large compared to generated energy
+		return (0.04f * m_energyIncome.GetAverageValue() + 5.0f) / avgPowerSurplus;
+	}
 }
 
 float AAIBrain::GetMetalUrgency() const
@@ -684,12 +682,15 @@ float AAIBrain::GetMetalUrgency() const
 
 float AAIBrain::GetEnergyStorageUrgency() const
 {
-	const float unusedEnergyStorage = ai->GetAICallback()->GetEnergyStorage() - ai->GetAICallback()->GetEnergy();
-
-	if(    (m_energySurplus.GetAverageValue() / AAIConstants::energyToMetalConversionFactor > 4.0f)
-		&& (unusedEnergyStorage < AAIConstants::minUnusedEnergyStorageCapacityToBuildStorage)
-		&& (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0) )
-		return 0.15f;
+	if(    (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STORAGE) < cfg->MAX_STORAGE)
+		&& (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0)
+		&& (ai->Getut()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE) )
+	{
+		const float energyStorage = std::max(ai->GetAICallback()->GetEnergyStorage(), 1.0f);
+		
+		// urgency ranges from 0 (no energy stored) to 0.3 (storage full)
+		return 0.3f * m_energyAvailable.GetAverageValue() / energyStorage;
+	}
 	else
 		return 0.0f;
 }
@@ -698,10 +699,15 @@ float AAIBrain::GetMetalStorageUrgency() const
 {
 	const float unusedMetalStorage = ai->GetAICallback()->GetMetalStorage() - ai->GetAICallback()->GetMetal();
 
-	if( 	(m_metalSurplus.GetAverageValue() > 3.0f)
-	  	 && (unusedMetalStorage < AAIConstants::minUnusedMetalStorageCapacityToBuildStorage)
-		 && (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0) )
-		return 0.2f;
+	if(    (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STORAGE) < cfg->MAX_STORAGE)
+		&& (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0)
+		&& (ai->Getut()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE) )
+	{
+		const float metalStorage = std::max(ai->GetAICallback()->GetMetalStorage(), 1.0f);
+
+		// urgency ranges from 0 (no energy stored) to 1 (storage full)
+		return m_metalAvailable.GetAverageValue() / metalStorage;
+	}
 	else
 		return 0.0f;
 }
@@ -738,4 +744,45 @@ float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) co
 		rating *= (0.3f + 0.35f * (AAIMap::s_landTilesRatio  + m_baseFlatLandRatio) );
 
 	return rating;
+}
+
+PowerPlantSelectionCriteria AAIBrain::DeterminePowerPlantSelectionCriteria() const
+{
+	const float numberOfBuildingsFactor = std::tanh(0.2f * static_cast<float>(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::POWER_PLANT)) - 2.0f);
+
+	// importance of buildtime ranges between 3 (no excess energy and no plants) to close to 0.25 (sufficient excess energy)
+	const float urgency   = (0.04f * m_energyIncome.GetAverageValue() + 0.1f) / GetAveragePowerSurplus();
+	const float buildtime = std::min(urgency + 0.25f,  1.75f - 1.25f * numberOfBuildingsFactor);
+
+	// importance of generated power ranges from 0.25 (no power plants) to 2.25f (many power plants)
+	const float generatedPower = 1.25f + numberOfBuildingsFactor;
+
+	// cost ranges from 2 (no power plant) to 0.5 (many power plants)
+	const float cost = 1.25f - 0.75f * numberOfBuildingsFactor;
+
+	//ai->Log("Power plant selection: income %f   surplus %f   available %f", m_energyIncome.GetAverageValue(), GetAveragEnergySurplus(), 0.03f * m_energyAvailable.GetAverageValue());
+	//ai->Log("-> cost %f, buildtime %f, power %f\n", cost, buildtime, generatedPower);
+
+	return PowerPlantSelectionCriteria(cost, buildtime, generatedPower, m_energyIncome.GetAverageValue());
+}
+
+StorageSelectionCriteria AAIBrain::DetermineStorageSelectionCriteria() const
+{
+	const float numberOfBuildingsFactor = std::tanh(static_cast<float>(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::STORAGE)) - 2.0f);
+
+	const float metalStorage = std::max(ai->GetAICallback()->GetMetalStorage(), 1.0f);
+	const float usedMetalStorageCapacity = std::min(1.1f * m_metalAvailable.GetAverageValue() / metalStorage, 1.0f);
+
+	const float energyStorage = std::max(ai->GetAICallback()->GetEnergyStorage(), 1.0f);
+	const float usedEnergyStorageCapacity = m_energyAvailable.GetAverageValue() / energyStorage;
+
+	// storedMetal/Energy ranges from 0 (no storage capacity used) to 0.5 (storage full, no storages) - 2.0 (storage full > 4 storages)
+	const float storedMetal  = (1.5f  +         numberOfBuildingsFactor) * usedMetalStorageCapacity;
+	const float storedEnergy = (1.25f + 0.75f * numberOfBuildingsFactor) * usedEnergyStorageCapacity;
+
+	// cost ranges from 2.0f (no storages) to ~0.5 (> 4 storages)
+	const float cost = 1.25f - 0.75f * numberOfBuildingsFactor;
+	const float buildtime (cost); 
+
+	return StorageSelectionCriteria(cost, buildtime, storedMetal, storedEnergy);
 }

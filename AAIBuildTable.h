@@ -30,7 +30,7 @@ using namespace springLegacyAI;
 
 struct UnitTypeDynamic
 {
-	int under_construction;	    //!< how many units of that type are under construction
+	int underConstruction;	    //!< how many units of that type are under construction
 	int requested;			    //!< how many units of that type have been requested
 	int active;				    //!< how many units of that type are currently alive
 	int constructorsAvailable;	//!< how many factories/builders available being able to build that unit
@@ -63,6 +63,30 @@ struct StaticDefenceSelectionCriteria
 	int   randomness;         //!< Randomness applied (starting from 0, random addition to rating of up to randomness * 0.05)
 };
 
+//! Criteria used for selection of power plants
+struct PowerPlantSelectionCriteria
+{
+	PowerPlantSelectionCriteria(float cost, float buildtime, float powerProduction, float currentEnergyIncome) 
+		: cost(cost), buildtime(buildtime), powerProduction(powerProduction), currentEnergyIncome(currentEnergyIncome) {}
+
+	float cost;            //!< Total cost of power plant
+	float buildtime;       //!< Buildtime of power plant
+	float powerProduction; //!< Power generation of power plant
+	float currentEnergyIncome; //!< The current energy production
+};
+
+//! Criteria used for selection of power plants
+struct StorageSelectionCriteria
+{
+	StorageSelectionCriteria(float cost, float buildtime, float storedMetal, float storedEnergy) 
+		: cost(cost), buildtime(buildtime), storedMetal(storedMetal), storedEnergy(storedEnergy) {}
+
+	float cost;         //!< Total cost of power plant
+	float buildtime;    //!< Buildtime of power plant
+	float storedMetal;  //!< Storage capacity for metal
+	float storedEnergy; //!< Storage capacity for energy
+};
+
 //! Data used to calculate rating of factories
 class FactoryRatingInputData
 {
@@ -81,10 +105,10 @@ public:
 	AAIBuildTable(AAI* ai);
 	~AAIBuildTable(void);
 
-	// call before you want to use the buildtable
-	// loads everything from a cache file or creates a new one
+	//! @brief Loads data from a file or initializes fresh combat unit related learning data.
 	void Init();
 
+	//! @brief Updates the stored combat efficiencies and attack frequencies by enemy target types for the given map type
 	void SaveModLearnData(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const AAIMapType& mapType) const;
 
 	//! @brief Updates counters for requested constructors for units that can be built by given construction unit
@@ -119,11 +143,25 @@ public:
 	//! @brief Returns the attackedByRates read from the mod learning file upon initialization
 	const AttackedByRatesPerGamePhase& GetAttackedByRates(const AAIMapType& mapType) const { return s_attackedByRates.GetAttackedByRates(mapType); }
 
+	//! @brief Indicates that construction of unit has started
+	void ConstructionStarted(UnitDefId unitDefId)
+	{ 
+		units_dynamic[unitDefId.id].requested -= 1;
+		units_dynamic[unitDefId.id].underConstruction += 1;
+	}
+
+	//! @brief Indicates that construction of unit has finished
+	void ConstructionFinished(UnitDefId unitDefId)
+	{ 
+		units_dynamic[unitDefId.id].underConstruction -= 1;
+		units_dynamic[unitDefId.id].active += 1;
+	}
+
 	//! @brief Returns the future number (under construction and requested) of units of the given type
-	int GetNumberOfFutureUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].under_construction + units_dynamic[unitDefId.id].requested); }
+	int GetNumberOfFutureUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].underConstruction + units_dynamic[unitDefId.id].requested); }
 
 	//! @brief Returns the total number (active, under construction, and requested) of units of the given type
-	int GetTotalNumberOfUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].active + units_dynamic[unitDefId.id].under_construction + units_dynamic[unitDefId.id].requested); }
+	int GetTotalNumberOfUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].active + units_dynamic[unitDefId.id].underConstruction + units_dynamic[unitDefId.id].requested); }
 
 	//! @brief Returns the total number (available and requested) of constructors for the given units of the given type
 	int GetTotalNumberOfConstructorsForUnit(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].constructorsAvailable + units_dynamic[unitDefId.id].constructorsRequested); }
@@ -134,7 +172,7 @@ public:
 	// randomness == 1 means no randomness at all; never set randomnes to zero -> crash
 	// ******************************************************************************************************
 	//! @brief Selects a power plant according to given criteria; a builder is requested if none available and a different power plant is chosen.
-	UnitDefId SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water);
+	UnitDefId SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water);
 
 	//! @brief Selects a metal extractor according to given criteria; a builder is requested if none available and a different extractor is chosen.
 	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water);
@@ -149,7 +187,7 @@ public:
 	UnitDefId GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild) const;
 
 	//! @brief Selects a storage according to given criteria; a builder is requested if none available and a different storage is chosen.
-	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water);
+	UnitDefId SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water);
 
 	// return repair pad
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
@@ -177,42 +215,13 @@ public:
 	//! @brief Returns metal extractor with the largest yardmap
 	UnitDefId GetLargestExtractor() const;
 
-	// returns true, if unit is arty
-	bool IsArty(int id);
-
-	// returns true if the unit is marked as attacker (so that it won't be classed as something else even if it can build etc.)
-	bool IsAttacker(int id);
-
-	bool IsMissileLauncher(int def_id);
-
-	bool IsDeflectionShieldEmitter(int def_id);
-
-	// returns false if unit is a member of the dont_build list
-	bool AllowedToBuild(int id);
-
-	//sadly can't detect metal makers anymore, read them from config
-	bool IsMetalMaker(int id);
-
-	// returns true, if unit is a transporter
-	bool IsTransporter(int id);
-
-	//! @brief Returns the unit category for a given index (0 to 5) of an combat unit type (ground, air, hover, sea, submarine, static)
-	AAIUnitCategory GetUnitCategoryOfCombatUnitIndex(int index) const;
-
 	//! @brief Returns the dynamic unit type data for the given unitDefId
 	const UnitTypeDynamic& GetDynamicUnitTypeData(UnitDefId unitDefId) const { return units_dynamic[unitDefId.id]; }
-
-	// number of sides
-	int numOfSides;
-
-	// side names
-	std::vector<std::string> sideNames;
 
 	// AAI unit defs with aai-instance specific information (number of requested, active units, etc.)
 	std::vector<UnitTypeDynamic> units_dynamic;
 
-	const UnitDef& GetUnitDef(int i) const { assert(IsValidUnitDefID(i));	return *unitList[i]; };
-	bool IsValidUnitDefID(int i) { return (i>=0) && (i<=unitList.size()); }
+	const springLegacyAI::UnitDef& GetUnitDef(int i) const { return *unitList[i]; };
 
 private:
 	std::string GetBuildCacheFileName() const;
@@ -224,7 +233,7 @@ private:
 	bool IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const;
 
 	//! @brief Returns a power plant based on the given criteria
-	UnitDefId SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water, bool mustBeConstructable) const;
+	UnitDefId SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const;
 
 	//! @brief Returns an extractor based on the given criteria
 	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool canBuild) const;
@@ -236,7 +245,7 @@ private:
 	UnitDefId SelectStaticDefence(int side, const StaticDefenceSelectionCriteria& selectionCriteria, bool water, bool constructable) const;
 
 	//! @brief Selects a storage according to given criteria
-	UnitDefId SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const;
+	UnitDefId SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const;
 
 	//! @brief Determines the most suitable constructor for the given unit (mobile unit or building)
 	UnitDefId SelectConstructorFor(UnitDefId unitDefId) const;

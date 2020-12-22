@@ -26,15 +26,6 @@ AttackedByRatesPerGamePhaseAndMapType AAIBuildTable::s_attackedByRates;
 AAIBuildTable::AAIBuildTable(AAI* ai)
 {
 	this->ai = ai;
-
-	numOfSides = cfg->SIDES;
-	sideNames.resize(numOfSides+1);
-	sideNames[0] = "Neutral";
-
-	for(int i = 0; i < numOfSides; ++i)
-	{
-		sideNames[i+1].assign(cfg->SIDE_NAMES[i]);
-	}
 }
 
 AAIBuildTable::~AAIBuildTable(void)
@@ -128,45 +119,93 @@ bool AAIBuildTable::IsBuildingSelectable(UnitDefId building, bool water, bool mu
 	return constructablePassed && (landCheckPassed || seaCheckPassed );
 }
 
-UnitDefId AAIBuildTable::SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water)
+UnitDefId AAIBuildTable::SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water)
 {
-	UnitDefId powerPlant = SelectPowerPlant(side, cost, buildtime, powerGeneration, water, false);
+	UnitDefId powerPlant = SelectPowerPlant(side, selectionCriteria, water, false);
 
 	if(powerPlant.IsValid() && (units_dynamic[powerPlant.id].constructorsAvailable + units_dynamic[powerPlant.id].constructorsRequested <= 0) )
 	{
-		ai->Getbt()->RequestBuilderFor(powerPlant);
-		powerPlant = SelectPowerPlant(side, cost, buildtime, powerGeneration, water, true);
+		RequestBuilderFor(powerPlant);
+		powerPlant = SelectPowerPlant(side, selectionCriteria, water, true);
 	}
 
 	return powerPlant;
 }
 
-UnitDefId AAIBuildTable::SelectPowerPlant(int side, float cost, float buildtime, float powerGeneration, bool water, bool mustBeConstructable) const
+UnitDefId AAIBuildTable::SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const
 {
-	UnitDefId selectedPowerPlant;
+	//-----------------------------------------------------------------------------------------------------------------
+	// determine the power plant whose generated energy exceeds the current total energy generation the least (-> to
+	// discard more advanced plants in the beginning)
+	//-----------------------------------------------------------------------------------------------------------------
+	const float energyGenerationLimit = selectionCriteria.currentEnergyIncome+1.0f;
 
+	const AAIUnitStatistics& unitStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide());
+	float maxPower = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT).GetMaxValue();
+
+	for(auto powerPlant : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side))
+	{
+		if( IsBuildingSelectable(powerPlant, water, false) )
+		{
+			const float generatedEnergy = ai->s_buildTree.GetPrimaryAbility(powerPlant);
+
+			if( (generatedEnergy > energyGenerationLimit) && (generatedEnergy < maxPower) )
+				maxPower = generatedEnergy;
+		}
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// calculate statistics for remaining plants
+	//-----------------------------------------------------------------------------------------------------------------
+
+	StatisticalData generatedEnergies;
+	StatisticalData buildtimes;
+	StatisticalData costs;
+	std::list<UnitDefId> powerPlants;
+
+	for(auto powerPlant : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side))
+	{
+		if( IsBuildingSelectable(powerPlant, water, false))
+		{
+			if(ai->s_buildTree.GetPrimaryAbility(powerPlant) < (maxPower+1.0f))
+			{
+				powerPlants.push_back(powerPlant);
+
+				// cap energy at current energy production (to avoid jumping to very advanced power plants to fast)
+				const float cappedEnergy = std::min(ai->s_buildTree.GetPrimaryAbility(powerPlant), energyGenerationLimit);
+
+				generatedEnergies.AddValue(cappedEnergy);
+				buildtimes.AddValue( ai->s_buildTree.GetBuildtime(powerPlant) );
+				costs.AddValue(      ai->s_buildTree.GetTotalCost(powerPlant) );
+			}
+		}
+	}
+
+	generatedEnergies.Finalize();
+	buildtimes.Finalize();
+	costs.Finalize();
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// select power plant
+	//-----------------------------------------------------------------------------------------------------------------
+
+	UnitDefId selectedPowerPlant;
 	float     bestRating(0.0f);
 
-	const AAIUnitStatistics& unitStatistics  = ai->s_buildTree.GetUnitStatistics(side);
-	const StatisticalData&   generatedPowers = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::POWER_PLANT);
-	const StatisticalData&   buildtimes      = unitStatistics.GetUnitBuildtimeStatistics(EUnitCategory::POWER_PLANT);
-	const StatisticalData&   costs           = unitStatistics.GetUnitCostStatistics(EUnitCategory::POWER_PLANT);
-
-	for(auto powerPlant = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side).begin(); powerPlant != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::POWER_PLANT, side).end(); ++powerPlant)
+	for(auto powerPlant : powerPlants)
 	{
-				// check if under water or ground || water = true and building under water
-		if( IsBuildingSelectable(*powerPlant, water, mustBeConstructable) )
+		if(!mustBeConstructable || (units_dynamic[powerPlant.id].constructorsAvailable > 0) )
 		{
-			const float generatedPower = ai->s_buildTree.GetMaxRange( *powerPlant );
+			const float cappedEnergy = std::min(ai->s_buildTree.GetPrimaryAbility(powerPlant), energyGenerationLimit);
 
-			float myRating =   powerGeneration * generatedPowers.GetNormalizedDeviationFromMin(generatedPower)
-						     + cost            * costs.GetNormalizedDeviationFromMax(ai->s_buildTree.GetTotalCost(*powerPlant))
-							 + buildtime       * buildtimes.GetNormalizedDeviationFromMax(ai->s_buildTree.GetBuildtime(*powerPlant));
+			const float rating =  selectionCriteria.powerProduction * generatedEnergies.GetDeviationFromZero(cappedEnergy)
+								+ selectionCriteria.cost            * costs.GetDeviationFromMax(ai->s_buildTree.GetTotalCost(powerPlant))
+								+ selectionCriteria.buildtime       * buildtimes.GetDeviationFromMax(ai->s_buildTree.GetBuildtime(powerPlant));
 
-			if(myRating > bestRating)
+			if(rating > bestRating)
 			{
-				bestRating = myRating;
-				selectedPowerPlant = *powerPlant;
+				bestRating = rating;
+				selectedPowerPlant = powerPlant;
 			}
 		}
 	}
@@ -180,7 +219,7 @@ UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMe
 
 	if(extractor.IsValid() && (units_dynamic[extractor.id].constructorsAvailable <= 0) && (units_dynamic[extractor.id].constructorsRequested <= 0) )
 	{
-		ai->Getbt()->RequestBuilderFor(extractor);
+		RequestBuilderFor(extractor);
 		extractor = SelectExtractor(side, cost, extractedMetal, armed, water, true);
 	}
 
@@ -226,16 +265,17 @@ UnitDefId AAIBuildTable::GetLargestExtractor() const
 	UnitDefId largestExtractor;
 	int largestYardMap(0);
 
-	for(int side = 1; side <= cfg->SIDES; ++side)
+	for(int side = 1; side <= cfg->numberOfSides; ++side)
 	{
-		for(auto extractor = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).begin(); extractor != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).end(); ++extractor)
+		for(auto extractor : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side))
 		{
-			const int yardMap = GetUnitDef(extractor->id).xsize * GetUnitDef(extractor->id).zsize;
+			const UnitFootprint& footprint = ai->s_buildTree.GetFootprint(extractor);
+			const int yardMap = footprint.xSize * footprint.ySize;
 			
 			if(yardMap > largestYardMap)
 			{
 				largestYardMap   = yardMap;
-				largestExtractor = *extractor;
+				largestExtractor = extractor;
 			}
 		}
 	}
@@ -243,22 +283,22 @@ UnitDefId AAIBuildTable::GetLargestExtractor() const
 	return largestExtractor;
 }
 
-UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water)
+UnitDefId AAIBuildTable::SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water)
 {
-	UnitDefId selectedStorage = SelectStorage(side, cost, buildtime, metal, energy, water, false);
+	UnitDefId selectedStorage = SelectStorage(side, selectionCriteria, water, false);
 
 	if(selectedStorage.IsValid() && (units_dynamic[selectedStorage.id].constructorsAvailable <= 0))
 	{
 		if(units_dynamic[selectedStorage.id].constructorsRequested <= 0)
 			RequestBuilderFor(selectedStorage);
 
-		selectedStorage = SelectStorage(side, cost, buildtime, metal, energy, water, true);
+		selectedStorage = SelectStorage(side, selectionCriteria, water, true);
 	}
 
 	return selectedStorage;
 }
 
-UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, float metal, float energy, bool water, bool mustBeConstructable) const
+UnitDefId AAIBuildTable::SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const
 {
 	const AAIUnitStatistics& unitStatistics  = ai->s_buildTree.GetUnitStatistics(side);
 	const StatisticalData&   costs           = unitStatistics.GetUnitCostStatistics(EUnitCategory::STORAGE);
@@ -267,22 +307,22 @@ UnitDefId AAIBuildTable::SelectStorage(int side, float cost, float buildtime, fl
 	const StatisticalData&   energyStored    = unitStatistics.GetUnitSecondaryAbilityStatistics(EUnitCategory::STORAGE);
 
 	UnitDefId selectedStorage;
-	float bestRating(0.0f);
+	float highestRating(0.0f);
 
-	for(auto storage = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STORAGE, side).begin(); storage != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STORAGE, side).end(); ++storage)
+	for(auto storage : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STORAGE, side))
 	{
 		
-		if( IsBuildingSelectable(storage->id, water, mustBeConstructable) )
+		if( IsBuildingSelectable(storage.id, water, mustBeConstructable) )
 		{
-			const float myRating =    cost * costs.GetNormalizedDeviationFromMax( ai->s_buildTree.GetTotalCost(*storage) )
-									+ buildtime * buildtimes.GetNormalizedDeviationFromMax( ai->s_buildTree.GetBuildtime(*storage) )
-									+ metal * metalStored.GetNormalizedDeviationFromMin( ai->s_buildTree.GetMaxRange(*storage) )
-									+ energy * energyStored.GetNormalizedDeviationFromMin( ai->s_buildTree.GetMaxSpeed(*storage) );
+			const float rating =      selectionCriteria.cost         * costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(storage) )
+									+ selectionCriteria.buildtime    * buildtimes.GetDeviationFromMax( ai->s_buildTree.GetBuildtime(storage) )
+									+ selectionCriteria.storedMetal  * metalStored.GetDeviationFromZero( ai->s_buildTree.GetMaxRange(storage) )
+									+ selectionCriteria.storedEnergy * energyStored.GetDeviationFromZero( ai->s_buildTree.GetMaxSpeed(storage) );
 
-			if(myRating > bestRating)
+			if(rating > highestRating)
 			{
-				bestRating = myRating;
-				selectedStorage = *storage;
+				highestRating   = rating;
+				selectedStorage = storage;
 			}
 		}
 	}
@@ -307,7 +347,7 @@ void AAIBuildTable::DetermineCombatPowerWeights(MobileTargetTypeValues& combatPo
 	combatPowerWeights.SetValueForTargetType(ETargetType::AIR,     0.1f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::AIR));
 	combatPowerWeights.SetValueForTargetType(ETargetType::SURFACE, 1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SURFACE));
 	
-	if(!mapType.IsLandMap())
+	if(!mapType.IsLand())
 	{
 		combatPowerWeights.SetValueForTargetType(ETargetType::FLOATER,   1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::FLOATER));
 		combatPowerWeights.SetValueForTargetType(ETargetType::SUBMERGED, 0.75f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SUBMERGED));
@@ -346,8 +386,8 @@ void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, c
 	MobileTargetTypeValues combatPowerOfConstructedUnits;
 	int         combatUnits(0);
 
-	const bool considerLand  = !mapType.IsWaterMap();
-	const bool considerWater = !mapType.IsLandMap();
+	const bool considerLand  = !mapType.IsWater();
+	const bool considerWater = !mapType.IsLand();
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// go through buildoptions to determine input values for calculation of factory rating
@@ -607,14 +647,10 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 		//! @todo Check unit type for jammer
 		/*
 
-
 		if(my_rating > best_rating)
 		{
-			if(GetUnitDef(*i).metalCost < cfg->MAX_METAL_COST)
-			{
-				best_jammer = *i;
-				best_rating = my_rating;
-			}
+			best_jammer = *i;
+			best_rating = my_rating;
 		}*/
 	}
 
@@ -735,11 +771,11 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allow
 
 			const float combatEff = combatPowerValues[i] / unitData.m_totalCost;
 
-			const float rating =  unitCriteria.cost  * costStatistics.GetNormalizedSquaredDeviationFromMax( unitData.m_totalCost )
-								+ unitCriteria.range * rangeStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_primaryAbility )
-								+ unitCriteria.speed * speedStatistics.GetNormalizedSquaredDeviationFromMin( unitData.m_secondaryAbility )
-								+ unitCriteria.power * combatPowerStat.GetNormalizedSquaredDeviationFromMin( combatPowerValues[i] )
-								+ unitCriteria.efficiency * combatEfficiencyStat.GetNormalizedSquaredDeviationFromMin( combatEff )
+			const float rating =  unitCriteria.cost  * costStatistics.GetDeviationFromMax( unitData.m_totalCost )
+								+ unitCriteria.range * rangeStatistics.GetDeviationFromZero( unitData.m_primaryAbility )
+								+ unitCriteria.speed * speedStatistics.GetDeviationFromZero( unitData.m_secondaryAbility )
+								+ unitCriteria.power * combatPowerStat.GetDeviationFromZero( combatPowerValues[i] )
+								+ unitCriteria.efficiency * combatEfficiencyStat.GetDeviationFromZero( combatEff )
 								+ unitCriteria.factoryUtilization * minFactoryUtilization
 								+ 0.05f * ((float)(rand()%randomness));
 
@@ -1032,144 +1068,3 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 		}
 	}
 }*/
-
-
-bool AAIBuildTable::IsArty(int id)
-{
-	if(!GetUnitDef(id).weapons.empty())
-	{
-		float max_range = 0;
-//		const WeaponDef *longest = 0;
-
-		for(vector<UnitDef::UnitDefWeapon>::const_iterator weapon = GetUnitDef(id).weapons.begin(); weapon != GetUnitDef(id).weapons.end(); ++weapon)
-		{
-			if(weapon->def->range > max_range)
-			{
-				max_range = weapon->def->range;
-//				longest = weapon->def;
-			}
-		}
-
-		// veh, kbot, hover or ship
-		if(GetUnitDef(id).movedata)
-		{
-			if(GetUnitDef(id).movedata->moveFamily == MoveData::Tank || GetUnitDef(id).movedata->moveFamily == MoveData::KBot)
-			{
-				if(max_range > cfg->GROUND_ARTY_RANGE)
-					return true;
-			}
-			else if(GetUnitDef(id).movedata->moveFamily == MoveData::Ship)
-			{
-				if(max_range > cfg->SEA_ARTY_RANGE)
-					return true;
-			}
-			else if(GetUnitDef(id).movedata->moveFamily == MoveData::Hover)
-			{
-				if(max_range > cfg->HOVER_ARTY_RANGE)
-					return true;
-			}
-		}
-		else // aircraft
-		{
-			if(cfg->AIR_ONLY_MOD)
-			{
-				if(max_range > cfg->GROUND_ARTY_RANGE)
-					return true;
-			}
-		}
-
-		if(GetUnitDef(id).highTrajectoryType == 1)
-			return true;
-	}
-
-	return false;
-}
-
-bool AAIBuildTable::IsAttacker(int id)
-{
-	for(list<int>::iterator i = cfg->ATTACKERS.begin(); i != cfg->ATTACKERS.end(); ++i)
-	{
-		if(*i == id)
-			return true;
-	}
-
-	return false;
-}
-
-
-bool AAIBuildTable::IsTransporter(int id)
-{
-	for(list<int>::iterator i = cfg->TRANSPORTERS.begin(); i != cfg->TRANSPORTERS.end(); ++i)
-	{
-		if(*i == id)
-			return true;
-	}
-
-	return false;
-}
-
-bool AAIBuildTable::AllowedToBuild(int id)
-{
-	for(list<int>::iterator i = cfg->DONT_BUILD.begin(); i != cfg->DONT_BUILD.end(); ++i)
-	{
-		if(*i == id)
-			return false;
-	}
-
-	return true;
-}
-
-bool AAIBuildTable::IsMetalMaker(int id)
-{
-	for(list<int>::iterator i = cfg->METAL_MAKERS.begin(); i != cfg->METAL_MAKERS.end(); ++i)
-	{
-		if(*i == id)
-			return true;
-	}
-
-	return false;
-}
-
-bool AAIBuildTable::IsMissileLauncher(int def_id)
-{
-	for(vector<UnitDef::UnitDefWeapon>::const_iterator weapon = GetUnitDef(def_id).weapons.begin(); weapon != GetUnitDef(def_id).weapons.end(); ++weapon)
-	{
-		if(weapon->def->stockpile)
-			return true;
-	}
-
-	return false;
-}
-
-bool AAIBuildTable::IsDeflectionShieldEmitter(int def_id)
-{
-	for(vector<UnitDef::UnitDefWeapon>::const_iterator weapon = GetUnitDef(def_id).weapons.begin(); weapon != GetUnitDef(def_id).weapons.end(); ++weapon)
-	{
-		if(weapon->def->isShield)
-			return true;
-	}
-
-	return false;
-}
-
-AAIUnitCategory AAIBuildTable::GetUnitCategoryOfCombatUnitIndex(int index) const
-{
-	//! @todo Use array instead of switch (is only called during initialization, thus not performance critical)
-	switch(index)
-	{
-		case 0:
-			return AAIUnitCategory(EUnitCategory::GROUND_COMBAT);
-		case 1:
-			return AAIUnitCategory(EUnitCategory::AIR_COMBAT);
-		case 2:
-			return AAIUnitCategory(EUnitCategory::HOVER_COMBAT);
-		case 3:
-			return AAIUnitCategory(EUnitCategory::SEA_COMBAT);
-		case 4:
-			return AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT);
-		case 5:
-			return AAIUnitCategory(EUnitCategory::STATIC_DEFENCE);
-		default:
-			return AAIUnitCategory(EUnitCategory::UNKNOWN);
-	}
-}

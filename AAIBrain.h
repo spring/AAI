@@ -20,8 +20,6 @@ class AAISector;
 #include "AAIUnitStatistics.h"
 #include "AAIBuildTable.h"
 
-enum SectorType {UNKNOWN_SECTOR, LAND_SECTOR, LAND_WATER_SECTOR, WATER_SECTOR};
-
 class AAIBrain
 {
 public:
@@ -67,11 +65,11 @@ public:
 	//! @brief Adds the combat power of the given unit type to the global defence capabilities 
 	void AddDefenceCapabilities(UnitDefId unitDefId);
 
-	//! @brief Determines rally point for given movement type on given continent - returns whether search has been successfull
-	bool DetermineRallyPoint(float3& rallyPoint, const AAIMovementType& moveType, int continentId);
+	//! @brief Expands base for the first time at startup (chooses sector based on map type and start sector)
+	void ExpandBaseAtStartup();
 
 	//! @brief Tries to add a new sectors to base, returns true if successful (may fail because base already reached maximum size or no suitable sectors found)
-	bool ExpandBase(SectorType sectorType);
+	bool ExpandBase(const AAIMapType& sectorType, bool preferSafeSector = true);
 
 	// returns how much ressources can be spent for unit construction atm
 	float Affordable();
@@ -92,6 +90,9 @@ public:
 	//! @brief Returns the recent attacks by the given target type
 	float GetRecentAttacksBy(const AAITargetType& targetType) const { return m_recentlyAttackedByRates.GetValueOfTargetType(targetType); }
 
+	//! @brief Return the current power suplus (excess energy + small percentage of stored energy - offset)
+	float GetAveragePowerSurplus() const;
+
 	//! @brief Returns urgency to build power plant
 	float GetEnergyUrgency() const;
 
@@ -109,6 +110,12 @@ public:
 
 	//! @brief Determines the construction priority of the given factory
 	float DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) const;
+
+	//! @brief Determines the selection criteria for a power plant
+	PowerPlantSelectionCriteria DeterminePowerPlantSelectionCriteria() const;
+
+	//! @brief Determine the selection criteria for a storage
+	StorageSelectionCriteria DetermineStorageSelectionCriteria() const;
 
 	//! A list of sectors with ceratain distance (in number of sectors) to base; 0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	std::vector< std::list<AAISector*> > m_sectorsInDistToBase;
@@ -144,17 +151,23 @@ private:
 	//! Center of base (mean value of centers of all base sectors) in build map coordinates
 	MapPos m_centerOfBase;
 
-	//! Average metal surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
-	SmoothedData m_metalSurplus;
+	//! Average stored metal over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_metalAvailable;
 
-	//! Average energy surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
-	SmoothedData m_energySurplus;
+	//! Average stored energy over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_energyAvailable;
 
 	//! Average metal income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_metalIncome;
 
 	//! Average energy income over the last AAIConfig::INCOME_SAMPLE_POINTS frames
 	SmoothedData m_energyIncome;
+
+	//! Average metal surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_metalSurplus;
+
+	//! Average energy surplus over the last AAIConfig::INCOME_SAMPLE_POINTS frames
+	SmoothedData m_energySurplus;
 
 	//! Counter by what enemy unit category own units/buidlings have been killed (counter is decreasing over time)
 	MobileTargetTypeValues m_recentlyAttackedByRates;

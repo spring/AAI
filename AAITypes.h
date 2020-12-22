@@ -207,11 +207,11 @@ struct UnitTypeProperties
 //! Enum for the different types of maps
 enum class EMapType : int
 {
-	LAND_MAP              = 0, //!< Map primarily/only consists of land
-	LAND_WATER_MAP        = 1, //!< Mixed land & water map
-    WATER_MAP             = 2, //!< Pure water map (may contain small islands)
-	NUMBER_OF_MAP_TYPES   = 3,
-	UNKNOWN_MAP           = 4
+	LAND                = 0, //!< Map primarily/only consists of land
+	LAND_WATER          = 1, //!< Mixed land & water map
+    WATER               = 2, //!< Pure water map (may contain small islands)
+	NUMBER_OF_MAP_TYPES = 3,
+	UNKNOWN             = 4
 } ;
 
 //! @brief Map type (allows distinction of of behaviour based on map type) + helper functions
@@ -220,21 +220,21 @@ class AAIMapType
 public:
 	AAIMapType(EMapType mapType) : m_mapType(mapType) {}
 
-	AAIMapType() : AAIMapType(EMapType::UNKNOWN_MAP) {}
+	AAIMapType() : AAIMapType(EMapType::UNKNOWN) {}
 
 	void SetMapType(EMapType mapType) { m_mapType = mapType; }
 
-	bool IsLandMap() const { return m_mapType == EMapType::LAND_MAP; }
+	bool IsLand() const { return m_mapType == EMapType::LAND; }
 
-	bool IsLandWaterMap() const { return m_mapType == EMapType::LAND_WATER_MAP; }
+	bool IsLandWater() const { return m_mapType == EMapType::LAND_WATER; }
 
-	bool IsWaterMap() const { return m_mapType == EMapType::WATER_MAP; }
+	bool IsWater() const { return m_mapType == EMapType::WATER; }
 
 	int GetArrayIndex() const { return static_cast<int>(m_mapType); }
 
 	static const int numberOfMapTypes = static_cast<int>(EMapType::NUMBER_OF_MAP_TYPES);
 
-	static const EMapType first = EMapType::LAND_MAP;
+	static const EMapType first = EMapType::LAND;
 
 	void Next() { m_mapType = static_cast<EMapType>( static_cast<int>(m_mapType) + 1 ); }
 
@@ -391,9 +391,14 @@ public:
 		     	+ (m_values[3] * mobileCombatPowerWeights.m_values[3]);
 	}
 
+	float CalculateSum() const
+	{
+		return std::accumulate(m_values.begin(), m_values.end(), 0.0f);
+	}
+
 	void Normalize()
 	{
-		const float sum = std::accumulate(m_values.begin(), m_values.end(), 0.0f);
+		const float sum = CalculateSum();
 		
 		if(sum > 0.0f)
 			std::for_each(m_values.begin(), m_values.end(), [&sum](float& value){ value /= sum; });

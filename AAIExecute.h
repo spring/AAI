@@ -10,6 +10,7 @@
 #ifndef AAI_EXECUTE_H
 #define AAI_EXECUTE_H
 
+#include <list>
 #include "aidef.h"
 #include "AAITypes.h"
 #include "AAIUnitTypes.h"
@@ -52,9 +53,6 @@ public:
 
 	//! @brief Determines starting sector, adds another sector to base and initializes buildqueues
 	void InitAI(UnitId commanderUnitId, UnitDefId commanderDefId);
-
-    //! @brief creates a BuildTask for given unit and links it to responsible construction unit
-	void createBuildTask(UnitId unitId, UnitDefId unitDefId, float3 *pos);
 
 	void MoveUnitTo(int unit, float3 *position);
 
@@ -125,9 +123,6 @@ public:
 	int unitProductionRate;
 
 	// ressource management
-	// tells ai, how many times additional metal/energy has been requested
-	float futureAvailableMetal;
-	float futureAvailableEnergy;
 	int disabledMMakers;
 
 	//! @brief Sets urgency to construct building of given category to given value if larger than current value
@@ -187,6 +182,15 @@ private:
 	void stopUnit(int unit);
 	void ConstructBuildingAt(int building, int builder, float3 position);
 	bool IsBusy(int unit);
+
+	//! @brief Determine sectors that are suitable to construct eco (power plants, storage, metal makers); highest ranked sector is first in the list
+	void DetermineSectorsToConstructEco(std::list<AAISector*>& sectors) const;
+
+	//! @brief Tries to order construction of given building in one of the given sectors
+	BuildOrderStatus ConstructBuildingInSectors(UnitDefId building, std::list<AAISector*>& availableSectors);
+
+	//! @brief Helper function for construction of buildings
+	BuildOrderStatus TryConstructionOfBuilding(UnitDefId building, AAISector* sector);
 
 	//! @brief Tries to find a suitable buildsite and builder to start the construction of the given building;
 	BuildOrderStatus TryConstructionOf(UnitDefId building, const AAISector* sector);

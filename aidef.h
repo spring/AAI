@@ -62,17 +62,14 @@ public:
 	//! Minimum weapons range difference to shorter ranged attacked before combat units try to keep their distance
 	static constexpr float minWeaponRangeDiffToKeepDistance = 50.0f;
 
-	//! Minimum unused metal storage capcity befor construction of metal storage is taken into account
-	static constexpr float minUnusedMetalStorageCapacityToBuildStorage = 100.0f;
-
-	//! Minimum unused metal storage capcity befor construction of energy storage is taken into account
-	static constexpr float minUnusedEnergyStorageCapacityToBuildStorage = 600.0f;
-
 	//! Minimum averaged metal surplus before constrcution of non-resource generating units shall be assisted
 	static constexpr float minMetalSurplusForConstructionAssist = 0.5f;
 
 	//! Minimum averaged energy surplus before constrcution of non-resource generating units shall be assisted
 	static constexpr float minEnergySurplusForConstructionAssist = 40.0f;
+
+	//! Maximum power surplus until construction of further power plants shall be considered
+	static constexpr float powerSurplusToStopPowerPlantConstructionThreshold = 2000.0f;
 
 	//! Maximum distance to rally points for units to be considered to have reached it
 	static constexpr float maxSquaredDistToRallyPoint = static_cast<float>( (16*SQUARE_SIZE)*(16*SQUARE_SIZE) );

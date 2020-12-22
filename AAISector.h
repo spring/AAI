@@ -54,7 +54,7 @@ public:
 	void AddExtractor(UnitId unitId, UnitDefId unitDefId, const float3& pos);
 
 	//! @brief Looks for metal spot that corresponds to given position and marks it as free
-	void FreeMetalSpot(float3 pos, const UnitDef *extractor);
+	void FreeMetalSpot(float3 pos, const springLegacyAI::UnitDef *extractor);
 
 	//! Update if there are still empty metal spots in the sector
 	void UpdateFreeMetalSpots();
@@ -166,19 +166,13 @@ public:
 	//! @brief Returns number of attacks by the main combat categories (ground, hover, air)
 	float GetTotalAttacksInThisGame() const 
 	{
-		return    m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::SURFACE)
-				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::AIR)
-				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::FLOATER)
-				+ m_attacksByTargetTypeInCurrentGame.GetValueOfTargetType(ETargetType::SUBMERGED);
+		return m_attacksByTargetTypeInCurrentGame.CalculateSum();
 	}
 
 	//! @brief Returns number of attacks by the main combat categories (ground, hover, air)
 	float GetTotalAttacksInPreviousGames() const 
 	{
-		return    m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::SURFACE)
-				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::AIR)
-				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::FLOATER)
-				+ m_attacksByTargetTypeInPreviousGames.GetValueOfTargetType(ETargetType::SUBMERGED);
+		return m_attacksByTargetTypeInPreviousGames.CalculateSum();
 	}
 
 	//! @brief Returns center position of the sector
@@ -213,6 +207,9 @@ public:
 
 	//! @brief Returns the rating as starting sector (if a new one has to be selected as the current is already occupied by other AAI player)
 	float GetRatingAsStartSector() const;
+
+	//! @brief Returns rating as sector to build a power plant
+	float GetRatingForPowerPlant(float weightPreviousGames, float weightCurrentGame) const;
 
 	//! @brief Shall be called when scout is sent to this sector (resets counter how often this sector has been skipped)
 	void SelectedAsScoutDestination() { m_skippedAsScoutDestination = 0; }

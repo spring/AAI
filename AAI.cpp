@@ -106,8 +106,6 @@ AAI::~AAI()
 	for(auto group = GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).begin(); group != GetUnitGroupsList(EUnitCategory::GROUND_COMBAT).end(); ++group)
 		Log("%s %i %i\n", s_buildTree.GetUnitTypeProperties( (*group)->GetUnitDefIdOfGroup() ).m_name.c_str(), (*group)->GetCurrentSize(), (*group)->GetContinentId());
 
-	Log("Future metal/energy supply:  %i / %i\n\n", (int)execute->futureAvailableMetal, (int)execute->futureAvailableEnergy);
-
 	Log("Future/active factories:     %i / %i\n\n", ut->futureFactories, ut->activeFactories);
 
 	Log("Unit production rate: %i\n\n", execute->unitProductionRate);
@@ -115,10 +113,10 @@ AAI::~AAI()
 	Log("Active/under construction/requested constructors:\n");
 	for(const auto factory : s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side))
 	{
-		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(factory).m_name.c_str(), bt->units_dynamic[factory.id].active, bt->units_dynamic[factory.id].under_construction, bt->units_dynamic[factory.id].requested);
+		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(factory).m_name.c_str(), bt->units_dynamic[factory.id].active, bt->units_dynamic[factory.id].underConstruction, bt->units_dynamic[factory.id].requested);
 	}
 	for(const auto builder : s_buildTree.GetUnitsInCategory(EUnitCategory::MOBILE_CONSTRUCTOR, m_side))
-		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(builder).m_name.c_str(), bt->units_dynamic[builder.id].active, bt->units_dynamic[builder.id].under_construction, bt->units_dynamic[builder.id].requested);
+		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(builder).m_name.c_str(), bt->units_dynamic[builder.id].active, bt->units_dynamic[builder.id].underConstruction, bt->units_dynamic[builder.id].requested);
 
 	GamePhase gamePhase(m_aiCallback->GetCurrentFrame());
 	const AttackedByRatesPerGamePhase& attackedByRates = brain->GetAttackedByRates();
@@ -198,7 +196,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	Log("AAI instance: %i\n", m_aaiInstance); 
 
 	// load config file first
-	bool gameConfigLoaded    = cfg->loadGameConfig(this);
+	bool gameConfigLoaded    = cfg->LoadGameConfig(this);
 	bool generalConfigLoaded = cfg->loadGeneralConfig(*this);
 
 	m_configLoaded = gameConfigLoaded && generalConfigLoaded;
@@ -323,7 +321,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 	}
 }
 
-void AAI::UnitCreated(int unit, int /*builder*/)
+void AAI::UnitCreated(int unit, int builder)
 {
 	AAI_SCOPED_TIMER("UnitCreated")
 	if (m_configLoaded == false)
@@ -332,24 +330,21 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 	// get unit's id
 	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
 	UnitDefId unitDefId(def->id);
-	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
-
-	ut->UnitCreated(category);
-
-	bt->units_dynamic[def->id].requested -= 1;
-	bt->units_dynamic[def->id].under_construction += 1;
-
-	// add to unittable
+	
 	ut->AddUnit(unit, unitDefId.id);
 
 	// get commander a startup
 	if(m_initialized == false)
 	{
-		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
-		ut->UnitRequested(AAIUnitCategory(EUnitCategory::COMMANDER));
-
 		// set side
 		m_side = s_buildTree.GetSideOfUnitType( unitDefId) ;
+		
+		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
+		ut->UnitRequested(category);
+		ut->ConstructionStarted(category);
+
+		if(category.IsCommander() == false)
+			Log("Error: Starting unit is not in unit category \"commander\"!\n");
 
 		execute->InitAI(UnitId(unit), unitDefId);
 
@@ -358,44 +353,62 @@ void AAI::UnitCreated(int unit, int /*builder*/)
 		return;
 	}
 
-	// resurrected units will be handled differently
+	//-----------------------------------------------------------------------------------------------------------------
+	// resurrected or gifted units
+	//-----------------------------------------------------------------------------------------------------------------
 	if ( !m_aiCallback->UnitBeingBuilt(unit))
 	{
-		LogConsole("ressurected", 0);
-		Log("Ressurected %s\n", s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
+		//Log("Ressurected %s\n", s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
 
-		// must be called to prevent UnitCreated() some lines above from resulting in -1 requested commanders
+		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 		ut->UnitRequested(category);
-		ut->UnitFinished(category);
-		bt->units_dynamic[def->id].active += 1;
+		ut->ConstructionStarted(category);
+
+		bt->units_dynamic[def->id].underConstruction += 1;
 
 		if (s_buildTree.GetUnitType(unitDefId).IsFactory())
-			ut->futureFactories += 1;
+			ut->activeFactories += 1;
 
 		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
-			float3 pos = m_aiCallback->GetUnitPos(unit);
+			const float3 pos = m_aiCallback->GetUnitPos(unit);
 			map->InitBuilding(def, pos);
 		}
 	}
+	//-----------------------------------------------------------------------------------------------------------------
+	// "regular" units where construction just started
+	//-----------------------------------------------------------------------------------------------------------------
 	else
 	{
-		// construction of building started
-		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
+		ConstructionStarted(UnitId(unit), unitDefId, UnitId(builder));
+	}
+}
+
+void AAI::ConstructionStarted(UnitId unitId, UnitDefId unitDefId, UnitId constructor)
+{
+	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
+	ut->ConstructionStarted(category);
+
+	bt->ConstructionStarted(unitDefId);
+
+	// construction of building started
+	if (s_buildTree.GetMovementType(unitDefId).IsStatic())
+	{
+		const float3 buildsite = m_aiCallback->GetUnitPos(unitId.id);
+
+		// create new buildtask
+		AAIBuildTask *task = new AAIBuildTask(unitId, unitDefId, buildsite, constructor);
+		build_tasks.push_back(task);
+
+		ut->units[constructor.id].cons->ConstructionStarted(unitId, task);
+
+		// add extractor to the sector
+		if (category.IsMetalExtractor())
 		{
-			float3 pos = m_aiCallback->GetUnitPos(unit);
+			AAISector* sector = map->GetSectorOfPos(buildsite);
 
-			// create new buildtask
-			execute->createBuildTask(UnitId(unit), unitDefId, &pos);
-
-			// add extractor to the sector
-			if (category.IsMetalExtractor() == true)
-			{
-				AAISector* sector = map->GetSectorOfPos(pos);
-
-				if(sector)
-					sector->AddExtractor(UnitId(unit), unitDefId, pos);
-			}
+			if(sector)
+				sector->AddExtractor(unitId, unitDefId, buildsite);
 		}
 	}
 }
@@ -404,10 +417,7 @@ void AAI::UnitFinished(int unit)
 {
 	AAI_SCOPED_TIMER("UnitFinished")
 	if (m_initialized == false)
-    {
-        Log("Error: AAI not initialized when unit %i was finished\n", unit);
         return;
-    }
 
 	// get unit's id
 	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
@@ -416,9 +426,7 @@ void AAI::UnitFinished(int unit)
 	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 
 	ut->UnitFinished(category);
-
-	bt->units_dynamic[def->id].under_construction -= 1;
-	bt->units_dynamic[def->id].active += 1;
+	bt->ConstructionFinished(unitDefId);
 
 	// building was completed
 	if (s_buildTree.GetMovementType(unitDefId).IsStatic())
@@ -426,13 +434,9 @@ void AAI::UnitFinished(int unit)
 		// delete buildtask
 		for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
 		{
-			if ((*task)->unit_id == unit)
+			if( (*task)->CheckIfConstructionFinished(ut, UnitId(unit)) )
 			{
 				AAIBuildTask *build_task = *task;
-
-				if ((*task)->builder_id >= 0 && ut->units[(*task)->builder_id].cons)
-					ut->units[(*task)->builder_id].cons->ConstructionFinished();
-
 				build_tasks.erase(task);
 				spring::SafeDelete(build_task);
 				break;
@@ -536,7 +540,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 	{
 		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 		ut->UnitUnderConstructionKilled(category);
-		bt->units_dynamic[def->id].under_construction -= 1;
+		bt->units_dynamic[def->id].underConstruction -= 1;
 
 		// unfinished building
 		if( category.IsBuilding() )
@@ -544,12 +548,11 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			// delete buildtask
 			for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
 			{
-				if ((*task)->unit_id == unit)
+				if( (*task)->CheckIfConstructionFailed(this, UnitId(unit)) )
 				{
-					(*task)->BuildtaskFailed();
-					delete *task;
-
+					AAIBuildTask *buildTask = *task;
 					build_tasks.erase(task);
+					spring::SafeDelete(buildTask);
 					break;
 				}
 			}
@@ -855,7 +858,7 @@ void AAI::Update()
 	}
 
 	// update income
-	if (!(tick % 45))
+	if (!(tick % 30))
 	{
 		AAI_SCOPED_TIMER("Update-Income")
 		brain->UpdateRessources(m_aiCallback);

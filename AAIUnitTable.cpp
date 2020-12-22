@@ -174,7 +174,6 @@ void AAIUnitTable::RemoveScout(int unit_id)
 void AAIUnitTable::AddPowerPlant(UnitId unitId, UnitDefId unitDefId)
 {
 	power_plants.insert(unitId.id);
-	ai->Getexecute()->futureAvailableEnergy -= ai->s_buildTree.GetPrimaryAbility(unitDefId);
 }
 
 void AAIUnitTable::RemovePowerPlant(int unit_id)
@@ -396,7 +395,7 @@ void AAIUnitTable::UnitRequestFailed(const AAIUnitCategory& category)
 	--m_requestedUnitsOfCategory[category.GetArrayIndex()];
 }
 
-void AAIUnitTable::UnitCreated(const AAIUnitCategory& category)
+void AAIUnitTable::ConstructionStarted(const AAIUnitCategory& category)
 {
 	--m_requestedUnitsOfCategory[category.GetArrayIndex()];
 	++m_underConstructionUnitsOfCategory[category.GetArrayIndex()];

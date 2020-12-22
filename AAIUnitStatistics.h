@@ -144,7 +144,7 @@ public:
 	float GetDeviationFromMax(float value) const
 	{
 		if(m_maxValue != 0.0f) // range only exactly 0.0f if insufficient number of data points or difference too small
-			return (m_maxValue - value) / m_maxValue;
+			return 1.0f - value / m_maxValue; //(m_maxValue - value) / m_maxValue;
 		else
 			return 0.0f;
 	}

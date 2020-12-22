@@ -130,11 +130,10 @@ void AAIConstructor::Update()
 
 					ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
 					m_constructedDefId = constructedUnitDefId.id;
-					assert(ai->Getbt()->IsValidUnitDefID(constructedUnitDefId.id));
 					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
 
 					ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(constructedUnitDefId)); // request must be called before create to keep unit counters correct
-					ai->Getut()->UnitCreated(ai->s_buildTree.GetUnitCategory(constructedUnitDefId));
+					//ai->Getut()->UnitCreated(ai->s_buildTree.GetUnitCategory(constructedUnitDefId));
 
 					m_buildqueue->pop_front();
 				}
@@ -215,7 +214,7 @@ void AAIConstructor::CheckAssistance()
 		// check if another factory of that type needed
 		if( (m_buildqueue->size() >= cfg->MAX_BUILDQUE_SIZE - 1) && (assistants.size() > 1) )
 		{
-			if(ai->Getbt()->units_dynamic[m_myDefId.id].active + ai->Getbt()->units_dynamic[m_myDefId.id].requested + ai->Getbt()->units_dynamic[m_myDefId.id].under_construction  < cfg->MAX_FACTORIES_PER_TYPE)
+			if(ai->Getbt()->GetTotalNumberOfUnits(m_myDefId.id) < cfg->MAX_FACTORIES_PER_TYPE)
 			{
 				ai->Getbt()->units_dynamic[m_myDefId.id].requested += 1;
 
@@ -318,7 +317,7 @@ void AAIConstructor::GiveReclaimOrder(UnitId unitId)
 void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos)
 {
 	// get def and final position
-	const UnitDef *def = &ai->Getbt()->GetUnitDef(building.id);
+	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(building.id);
 
 	// give order if building can be placed at the desired position (position lies within a valid sector)
 	const bool buildingInitializationSuccessful = ai->Getmap()->InitBuilding(def, pos);
@@ -375,15 +374,15 @@ void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 		m_assistUnitId.Invalidate();
 	}
 
-	m_constructedDefId.id  = build_task->def_id;
-	m_constructedUnitId.id = build_task->unit_id;
+	m_constructedDefId  = build_task->m_defId;
+	m_constructedUnitId = build_task->m_unitId;
 	assert(m_constructedDefId.IsValid());
 	assert(m_constructedUnitId.IsValid());
 
-	m_buildPos = build_task->build_pos;
+	m_buildPos = build_task->m_buildsite;
 
 	Command c(CMD_REPAIR);
-	c.PushParam(build_task->unit_id);
+	c.PushParam(build_task->m_unitId.id);
 
 	m_activity.SetActivity(EConstructorActivity::CONSTRUCTING);
 	ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
@@ -471,7 +470,7 @@ void AAIConstructor::Killed()
 	else if(m_activity.IsConstructing() == true)
 	{
 		if(build_task)
-			build_task->BuilderDestroyed();
+			build_task->BuilderDestroyed(ai->Getmap(), ai->Getut());
 	}
 	else if(m_activity.IsAssisting() == true)
 	{

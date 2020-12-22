@@ -37,7 +37,7 @@ public:
 	AAIConfig(void);
 
 	// @brief Load configuration for specific game/mod from config file
-	bool loadGameConfig(AAI *ai);
+	bool LoadGameConfig(AAI *ai);
 
 	// @brief Load general AAI config
 	bool loadGeneralConfig(AAI& ai);
@@ -73,19 +73,31 @@ public:
 	float AIRCRAFT_RATIO;
 	float HIGH_RANGE_UNITS_RATIO;
 	float FAST_UNITS_RATIO;
-	int SIDES;
+
 	int MIN_ENERGY_STORAGE;
 	int MIN_METAL_STORAGE;
-	int MAX_METAL_COST;
 	int MAX_AIR_TARGETS;
-	std::vector<std::string> START_UNITS;
-	std::vector<std::string> SIDE_NAMES;
 
-	list<int> SCOUTS;
-	list<int> ATTACKERS;
-	list<int> TRANSPORTERS;
-	list<int> METAL_MAKERS;
-	list<int> DONT_BUILD;
+	//! The number of different sides (side 0 = neutral will be added)
+	int numberOfSides;
+
+	//! The names of the different sides
+	std::vector<std::string> sideNames;
+
+	//! The start units (i.e. commanders) for the different sides
+	std::list<int> startUnits;
+
+	//! A list of units that shall be considered to be scouts
+	std::list<int> scouts;
+
+	//! A list of units that shall be considered to be transport units
+	std::list<int> transporters;
+
+	//! A list of units that shall be considered to be metal makers
+	std::list<int> metalMakers;
+
+	//! A list of units that shall be ignored (i.e. not assigned to any category and thus not used)
+	std::list<int> ignoredUnits;
 
 	//float KBOT_MAX_SLOPE;
 	//float VEHICLE_MAX_SLOPE;
@@ -120,7 +132,7 @@ public:
 	float SCOUTING_MEMORY_FACTOR;
 	int   LEARN_RATE;
 
-	const static int  INCOME_SAMPLE_POINTS = 8; //!< Number of data poiunts used to calculate smoothed energy/metal income/surplus 
+	const static int  INCOME_SAMPLE_POINTS = 16; //!< Number of data poiunts used to calculate smoothed energy/metal income/surplus 
 
 	/**
 	 * open a file in springs data directory
