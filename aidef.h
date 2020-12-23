@@ -45,7 +45,7 @@ public:
 	static constexpr float minInitialCombatPower = 1.0f;
 
 	//! Initial combat power if unit is not allowed to target units of target category
-	static constexpr float noValidTargetInitialCombarPower = 0.1f;
+	static constexpr float noValidTargetInitialCombatPower = 0.1f;
 
 	//! The maximum change from a single combat (attacker killes certain unit) - prevent odd statistical values from "lucky kills" (e.g. weak units gets last shot on stong one)
 	static constexpr float maxCombatPowerChangeAfterSingleCombat = 0.15f;

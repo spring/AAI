@@ -140,10 +140,10 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 	{
 		const AAIUnitStatistics& unitStatistics = GetUnitStatistics(side);
 		
-		for(auto category = combatCategories.begin(); category != combatCategories.end(); ++category)
+		for(auto category : combatCategories)
 		{
-			unitCosts.AddValue( unitStatistics.GetUnitCostStatistics(*category).GetMinValue() );
-			unitCosts.AddValue( unitStatistics.GetUnitCostStatistics(*category).GetMaxValue() );
+			unitCosts.AddValue( unitStatistics.GetUnitCostStatistics(category).GetMinValue() );
+			unitCosts.AddValue( unitStatistics.GetUnitCostStatistics(category).GetMaxValue() );
 		}
 
 		unitCosts.AddValue( unitStatistics.GetUnitCostStatistics(EUnitCategory::STATIC_DEFENCE).GetMinValue() );
@@ -151,7 +151,7 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 	}
 	unitCosts.Finalize();
 
-	const float baseCombatPower = AAIConstants::minInitialCombatPower - AAIConstants::noValidTargetInitialCombarPower;
+	const float baseCombatPower = AAIConstants::minInitialCombatPower - AAIConstants::noValidTargetInitialCombatPower;
 	const float costBasedCombarPower = 0.5f * AAIConstants::maxCombatPower - AAIConstants::minInitialCombatPower;
 
 	const int numberOfUnitTypes = cb->GetNumUnitDefs();
@@ -165,19 +165,17 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 		if( (GetSideOfUnitType(unitDefId) > 0) && (GetUnitCategory(unitDefId).IsCombatUnit() || GetUnitCategory(unitDefId).IsStaticDefence()))
 		{
 			unsigned int allowedTargetCategories(0u);
-			for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDefs[id]->weapons.begin(); w != unitDefs[id]->weapons.end(); ++w)
+			for(const auto& weapon : unitDefs[id]->weapons)
 			{
-				allowedTargetCategories |= (*w).onlyTargetCat;
+				allowedTargetCategories |= weapon.onlyTargetCat;
 			}
 
 			// initial combat power ranges from AAIConstants::noValidTargetInitialCombarPower to 0.5f * AAIConstants::maxCombatPower, 
 			// depending on total cost of the unit and its allowed target categories
 			const float power = baseCombatPower + costBasedCombarPower * unitCosts.GetNormalizedDeviationFromMin( GetTotalCost(unitDefId) );
 
-			TargetTypeValues combatPower;
-			combatPower.SetValue(ETargetType::STATIC, AAIConstants::noValidTargetInitialCombarPower + power);
-			
-			for(auto targetType : AAITargetType::m_mobileTargetTypes)
+			TargetTypeValues combatPower;		
+			for(auto targetType : AAITargetType::m_targetTypes)
 			{
 				int numberOfTargetableUnits(0);
 				int totalNumberOfUnits(0);
@@ -195,7 +193,7 @@ void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 				}
 
 				const float targetableUnitsRatio = (totalNumberOfUnits > 0) ? static_cast<float>(numberOfTargetableUnits) / static_cast<float>(totalNumberOfUnits) : 1.0f;
-				combatPower.SetValue(targetType, AAIConstants::noValidTargetInitialCombarPower + power * targetableUnitsRatio);	
+				combatPower.SetValue(targetType, AAIConstants::noValidTargetInitialCombatPower + power * targetableUnitsRatio);	
 			}
 
 			m_combatPowerOfUnits[id].SetValues(combatPower);
@@ -507,25 +505,6 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 			}
 		}
 
-		/*for(int id = 1; id < unitDefs.size(); ++id)
-		{
-			if(m_unitTypeProperties[id].m_unitCategory.IsCombatUnit() || m_unitTypeProperties[id].m_unitCategory.IsStaticDefence())
-			{
-				fprintf(file, "%-30s %-2.3f %-2.3f %-2.3f %-2.3f %-2.3f\n",  m_unitTypeProperties[id].m_name.c_str(),
-														m_combatPowerOfUnits[id].GetValue(ETargetType::SURFACE),
-														m_combatPowerOfUnits[id].GetValue(ETargetType::AIR),
-														m_combatPowerOfUnits[id].GetValue(ETargetType::FLOATER),
-														m_combatPowerOfUnits[id].GetValue(ETargetType::SUBMERGED),
-														m_combatPowerOfUnits[id].GetValue(ETargetType::STATIC));
-
-				fprintf(file, "\nWeapons: ");
-				for(std::vector<springLegacyAI::UnitDef::UnitDefWeapon>::const_iterator w = unitDefs[id]->weapons.begin(); w != unitDefs[id]->weapons.end(); ++w)
-				{
-					fprintf(file, "  %s: %u %u", (*w).name.c_str(), (*w).badTargetCat, (*w).onlyTargetCat);
-				}
-			}
-		}*/
-
 		for(int side = 0; side < m_numberOfSides; ++side)
 		{
 			// abort if too many side have been detected (to avoid crash as no name is available from config)
@@ -762,23 +741,6 @@ void AAIBuildTree::InitFactoryDefIdLookUpTable(int numberOfFactories)
 			++nextFactoryId;
 		}
 	}
-
-	/*int currentId(0);
-	const std::array<AAIUnitCategory, 3> constructorCategories = {	AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR),
-																	AAIUnitCategory(EUnitCategory::MOBILE_CONSTRUCTOR),
-																	AAIUnitCategory(EUnitCategory::COMMANDER) };
-
-	for(const auto& category : constructorCategories)
-	{
-		for(const auto& unitDefId : GetUnitsInCategory(category, side))
-		{
-			if(GetUnitType(unitDefId).IsFactory())
-			{
-				m_unitTypeProperties[unitDefId.id].m_factoryId.Set(currentId);
-				++currentId;
-			}
-		}
-	}*/
 }
 
 void AAIBuildTree::UpdateUnitTypes(UnitDefId unitDefId, const springLegacyAI::UnitDef* unitDef)
