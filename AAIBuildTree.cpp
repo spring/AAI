@@ -52,11 +52,11 @@ AAIBuildTree::AAIBuildTree() :
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::MOBILE_CONSTRUCTOR).GetArrayIndex()].append("Mobile Constructor");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::MOBILE_SUPPORT).GetArrayIndex()].append("Mobile Support");
 
-	m_combatUnitCategories.push_back(EUnitCategory::GROUND_COMBAT);
-	m_combatUnitCategories.push_back(EUnitCategory::AIR_COMBAT);
-	m_combatUnitCategories.push_back(EUnitCategory::HOVER_COMBAT);
-	m_combatUnitCategories.push_back(EUnitCategory::SEA_COMBAT);
-	m_combatUnitCategories.push_back(EUnitCategory::SUBMARINE_COMBAT);
+	m_combatUnitCategories = {  AAIUnitCategory(EUnitCategory::GROUND_COMBAT),
+								AAIUnitCategory(EUnitCategory::AIR_COMBAT),
+								AAIUnitCategory(EUnitCategory::HOVER_COMBAT),
+								AAIUnitCategory(EUnitCategory::SEA_COMBAT),
+								AAIUnitCategory(EUnitCategory::SUBMARINE_COMBAT) };
 }
 
 AAIBuildTree::~AAIBuildTree(void)
@@ -548,25 +548,6 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 				fprintf(file, "Min/max/avg cost: %f/%f/%f,   Min/max/avg range: %f/%f/%f\n",
 									cost.GetMinValue(), cost.GetMaxValue(), cost.GetAvgValue(), 
 									range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue());
-			}
-
-			fprintf(file, "Combat unit categories:\n");
-			for(auto combatUnitCategory : AAICombatUnitCategory::m_combatUnitCategories )
-			{
-				fprintf(file, "\n%s:\n", AAICombatUnitCategory::m_combatCategoryNames[AAICombatUnitCategory(combatUnitCategory).GetArrayIndex()].c_str());
-			
-				for(auto unitDefId : GetUnitsInCombatUnitCategory(combatUnitCategory, side+1) )
-				{
-					fprintf(file, "%s ", GetUnitTypeProperties(unitDefId).m_name.c_str());
-				}
-				fprintf(file, "\n");
-				const StatisticalData& cost      = m_unitCategoryStatisticsOfSide[side].GetCombatCostStatistics(combatUnitCategory);
-				const StatisticalData& range     = m_unitCategoryStatisticsOfSide[side].GetCombatRangeStatistics(combatUnitCategory);
-				const StatisticalData& speed     = m_unitCategoryStatisticsOfSide[side].GetCombatSpeedStatistics(combatUnitCategory);
-				fprintf(file, "Min/max/avg cost: %f/%f/%f,   Min/max/avg range: %f/%f/%f,    Min/max/avg speed: %f/%f/%f\n",
-									cost.GetMinValue(),  cost.GetMaxValue(),  cost.GetAvgValue(), 
-									range.GetMinValue(), range.GetMaxValue(), range.GetAvgValue(),
-									speed.GetMinValue(), speed.GetMaxValue(), speed.GetAvgValue());
 			}
 
 			/*for(auto powerPlant = m_unitsInCategory[side][AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()].begin(); powerPlant != m_unitsInCategory[side][AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()].end(); ++powerPlant)

@@ -20,7 +20,6 @@
 #include "LegacyCpp/MoveData.h"
 using namespace springLegacyAI;
 
-
 AttackedByRatesPerGamePhaseAndMapType AAIBuildTable::s_attackedByRates;
 
 AAIBuildTable::AAIBuildTable(AAI* ai)
@@ -695,17 +694,78 @@ UnitDefId AAIBuildTable::SelectScout(int side, float sightRange, float cost, flo
 	return selectedScout;
 }
 
-void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const TargetTypeValues& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat)
+void AAIBuildTable::SelectCombatUnits(std::list<UnitDefId>& unitList, int side, const AAIMovementType& allowedMoveTypes, bool constructorAvailable) const
 {
+	const auto& combatUnitCategories = ai->s_buildTree.GetCombatUnitCatgegories();
+
+	std::vector<bool> checkCategory(combatUnitCategories.size(), false);
+
+	if(allowedMoveTypes.IsAir())
+		checkCategory[1] = true;
+
+	if(allowedMoveTypes.Includes(EMovementType::MOVEMENT_TYPE_GROUND) || allowedMoveTypes.Includes(EMovementType::MOVEMENT_TYPE_AMPHIBIOUS) )
+	{
+		checkCategory[0] = true;
+		checkCategory[2] = true;
+	}
+
+	if(allowedMoveTypes.Includes(EMovementType::MOVEMENT_TYPE_HOVER))
+		checkCategory[2] = true;
+
+	if(allowedMoveTypes.Includes(EMovementType::MOVEMENT_TYPE_SEA_FLOATER))
+	{
+		checkCategory[2] = true;
+		checkCategory[3] = true;
+	}
+
+	if(allowedMoveTypes.Includes(EMovementType::MOVEMENT_TYPE_SEA_SUBMERGED))
+		checkCategory[4] = true;
+
+	int i(0);
+	for(auto unitCategory : combatUnitCategories)
+	{
+		if(checkCategory[i])
+		{
+			for(auto unitDefId : ai->s_buildTree.GetUnitsInCategory(unitCategory, side) )
+			{
+				const bool constructorAvailabilityCheckPassed = (constructorAvailable == false) || (units_dynamic[unitDefId.id].constructorsAvailable > 0);
+				
+				if(constructorAvailabilityCheckPassed && ai->s_buildTree.GetMovementType(unitDefId).IsIncludedIn(allowedMoveTypes))
+					unitList.push_back(unitDefId);
+			}
+		}
+
+		++i;
+	}
+}
+
+UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allowedMoveTypes, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness, bool constructorAvailable) const
+{
+	//-----------------------------------------------------------------------------------------------------------------
+	// get data needed for selection
+	//-----------------------------------------------------------------------------------------------------------------
+
+	std::list<UnitDefId> unitList;
+	SelectCombatUnits(unitList, side, allowedMoveTypes, constructorAvailable);
+
+	StatisticalData costStatistics;
+	StatisticalData rangeStatistics;
+	StatisticalData speedStatistics;
+	StatisticalData combatPowerStat;
+	StatisticalData combatEfficiencyStat;
+	std::vector<float> combatPowerValues(unitList.size()); // values for individual units (in order of appearance in unitList)
+
 	int i = 0;
-	for(const auto& unitDefId : unitList)
+	for(auto unitDefId : unitList)
 	{
 		const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(unitDefId);
 
-		const float combatPower = combatPowerWeights.CalculateWeightedSum(ai->s_buildTree.GetCombatPower(unitDefId)); 
-
+		const float combatPower = combatPowerCriteria.CalculateWeightedSum(ai->s_buildTree.GetCombatPower(unitDefId)); 
 		const float combatEff   = combatPower / unitData.m_totalCost;
 
+		costStatistics.AddValue(unitData.m_totalCost);
+		rangeStatistics.AddValue(unitData.m_primaryAbility);
+		speedStatistics.AddValue(unitData.m_secondaryAbility);
 		combatPowerStat.AddValue(combatPower);
 		combatEfficiencyStat.AddValue(combatEff);
 		combatPowerValues[i] = combatPower;
@@ -713,82 +773,65 @@ void AAIBuildTable::CalculateCombatPowerForUnits(const std::list<UnitDefId>& uni
 		++i;
 	}
 
+	costStatistics.Finalize();
+	rangeStatistics.Finalize();
+	speedStatistics.Finalize();
 	combatPowerStat.Finalize();
 	combatEfficiencyStat.Finalize();
-}
-
-UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allowedMoveTypes, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness)
-{
-	//-----------------------------------------------------------------------------------------------------------------
-	// get data needed for selection
-	//-----------------------------------------------------------------------------------------------------------------
-
-	AAICombatUnitCategory combatUnitCategory;
-	if(allowedMoveTypes.IsAir())
-		combatUnitCategory.SetCategory(ECombatUnitCategory::AIR);
-	else if(allowedMoveTypes.Includes(EMovementType::MOVEMENT_TYPE_GROUND) || allowedMoveTypes.Includes(EMovementType::MOVEMENT_TYPE_AMPHIBIOUS) )
-		combatUnitCategory.SetCategory(ECombatUnitCategory::SURFACE);
-	else
-		combatUnitCategory.SetCategory(ECombatUnitCategory::SEA);
-
-	const auto& unitList = ai->s_buildTree.GetUnitsInCombatUnitCategory(combatUnitCategory, side);
-
-	const StatisticalData& costStatistics  = ai->s_buildTree.GetUnitStatistics(side).GetCombatCostStatistics(combatUnitCategory);
-	const StatisticalData& rangeStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatRangeStatistics(combatUnitCategory);
-	const StatisticalData& speedStatistics = ai->s_buildTree.GetUnitStatistics(side).GetCombatSpeedStatistics(combatUnitCategory);
-
-	StatisticalData combatPowerStat;		               // absolute combat power
-	StatisticalData combatEfficiencyStat;	               // combat power related to unit cost
-	std::vector<float> combatPowerValues(unitList.size()); // values for individual units (in order of appearance in unitList)
-
-	CalculateCombatPowerForUnits(unitList, combatPowerCriteria, combatPowerValues, combatPowerStat, combatEfficiencyStat);
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// begin with selection
 	//-----------------------------------------------------------------------------------------------------------------
+
+	//ai->Log("Selected combat unit (move type %u): cost %f  range %f   speed %f   power %f   efficiency %f   fact. ut. %f   combat: %f %f %f %f %f\n", static_cast<uint32_t>(allowedMoveTypes.GetMovementType()),
+	//unitCriteria.cost, unitCriteria.range, unitCriteria.speed, unitCriteria.power, unitCriteria.efficiency, unitCriteria.factoryUtilization,
+	//combatPowerCriteria.m_values[0], combatPowerCriteria.m_values[1], combatPowerCriteria.m_values[2], combatPowerCriteria.m_values[3], combatPowerCriteria.m_values[4]);
+
 	UnitDefId selectedUnitType;
 	float highestRating(0.0f);
-
-	int i(0);
+	i = 0;
 	for(const auto& unitDefId : unitList)
 	{
+		const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(unitDefId);
+
 		float minFactoryUtilization(0.0f);
-
-		if(ai->s_buildTree.GetMovementType(unitDefId).IsIncludedIn(allowedMoveTypes))
+		for(const auto& factory : ai->s_buildTree.GetConstructedByList(unitDefId))
 		{
-			for(const auto& factory : ai->s_buildTree.GetConstructedByList(unitDefId))
-			{
-				const float utilization = factoryUtilization[ai->s_buildTree.GetUnitTypeProperties(factory).m_factoryId.id];
+			const float utilization = factoryUtilization[ai->s_buildTree.GetUnitTypeProperties(factory).m_factoryId.id];
 
-				if(utilization > minFactoryUtilization)
-					minFactoryUtilization = utilization;
-			}
+			if(utilization > minFactoryUtilization)
+				minFactoryUtilization = utilization;
 		}
+			
+		const float combatEff = combatPowerValues[i] / unitData.m_totalCost;
 
-		if(minFactoryUtilization > 0.0f)
+		const float rating =  unitCriteria.cost  * costStatistics.GetDeviationFromMax( unitData.m_totalCost )
+							+ unitCriteria.range * rangeStatistics.GetDeviationFromZero( unitData.m_primaryAbility )
+							+ unitCriteria.speed * speedStatistics.GetDeviationFromZero( unitData.m_secondaryAbility )
+							+ unitCriteria.power * combatPowerStat.GetDeviationFromZero( combatPowerValues[i] )
+							+ unitCriteria.efficiency * combatEfficiencyStat.GetDeviationFromZero( combatEff )
+							+ unitCriteria.factoryUtilization * minFactoryUtilization
+							+ 0.1f * ((float)(rand()%randomness));
+
+		/*ai->Log("%s: %f  -  %f %f %f %f %f %f\n", unitData.m_name.c_str(), rating, 
+												unitCriteria.cost * costStatistics.GetDeviationFromMax(unitData.m_totalCost), 
+												unitCriteria.range * rangeStatistics.GetDeviationFromZero(unitData.m_primaryAbility),
+												unitCriteria.speed * speedStatistics.GetDeviationFromZero(unitData.m_secondaryAbility),
+												unitCriteria.power * combatPowerStat.GetDeviationFromZero(combatPowerValues[i]),
+												unitCriteria.efficiency * combatEfficiencyStat.GetDeviationFromZero(combatEff),
+												minFactoryUtilization);*/
+
+		if(rating > highestRating)
 		{
-			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(unitDefId);
-
-			const float combatEff = combatPowerValues[i] / unitData.m_totalCost;
-
-			const float rating =  unitCriteria.cost  * costStatistics.GetDeviationFromMax( unitData.m_totalCost )
-								+ unitCriteria.range * rangeStatistics.GetDeviationFromZero( unitData.m_primaryAbility )
-								+ unitCriteria.speed * speedStatistics.GetDeviationFromZero( unitData.m_secondaryAbility )
-								+ unitCriteria.power * combatPowerStat.GetDeviationFromZero( combatPowerValues[i] )
-								+ unitCriteria.efficiency * combatEfficiencyStat.GetDeviationFromZero( combatEff )
-								+ unitCriteria.factoryUtilization * minFactoryUtilization
-								+ 0.05f * ((float)(rand()%randomness));
-
-			if(rating > highestRating)
-			{
-				highestRating       = rating;
-				selectedUnitType.id = unitDefId.id;
-			}
+			highestRating       = rating;
+			selectedUnitType.id = unitDefId.id;
 		}
-
+		
 		++i;
 	}
-	
+
+	//ai->Log("Selected: %s\n", ai->s_buildTree.GetUnitTypeProperties(selectedUnitType).m_name.c_str() );
+
 	return selectedUnitType;
 }
 

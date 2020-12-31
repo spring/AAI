@@ -244,14 +244,6 @@ public:
 	const StatisticalData& GetUnitPrimaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitPrimaryAbilityStatistics[category.GetArrayIndex()]; }
 
 	const StatisticalData& GetUnitSecondaryAbilityStatistics(const AAIUnitCategory& category) const { return m_unitSecondaryAbilityStatistics[category.GetArrayIndex()]; }
-	
-	const StatisticalData& GetCombatCostStatistics(const AAICombatUnitCategory& combatUnitCategory)      const { return m_combatCostStatistics[combatUnitCategory.GetArrayIndex()]; }
-
-	const StatisticalData& GetCombatBuildtimeStatistics(const AAICombatUnitCategory& combatUnitCategory) const { return m_combatBuildtimeStatistics[combatUnitCategory.GetArrayIndex()]; }
-
-	const StatisticalData& GetCombatRangeStatistics(const AAICombatUnitCategory& combatUnitCategory)     const { return m_combatRangeStatistics[combatUnitCategory.GetArrayIndex()]; }
-
-	const StatisticalData& GetCombatSpeedStatistics(const AAICombatUnitCategory& combatUnitCategory)     const { return m_combatSpeedStatistics[combatUnitCategory.GetArrayIndex()]; }
 
 	const SensorStatistics& GetSensorStatistics() const { return m_sensorStatistics; }
 private:
@@ -266,18 +258,6 @@ private:
 
 	//! Min,max,avg:  speed for scouts, mobile constructors, mobile artillery
 	std::vector<StatisticalData> m_unitSecondaryAbilityStatistics;
-
-	//! Min,max,avg cost for every unit category
-	std::vector<StatisticalData> m_combatCostStatistics;
-	
-	//! Min,max,avg buildtime for every unit category
-	std::vector<StatisticalData> m_combatBuildtimeStatistics;
-
-	//! Min.max,avg range of combat unit category
-	std::vector<StatisticalData> m_combatRangeStatistics;
-
-	//! Min,max,avg speed for every combat unit category
-	std::vector<StatisticalData> m_combatSpeedStatistics;
 
 	//! Statistical data for radar, sonar, and seismic sensores
 	SensorStatistics             m_sensorStatistics;

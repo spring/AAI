@@ -59,6 +59,9 @@ public:
 	//! @brief Add the given unit to an existing group (or create new one if necessary)
 	void AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId);
 
+	//! @brief Selects combat unit according to given criteria and tries to order its construction
+	void BuildCombatUnitOfCategory(const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent);
+
 	void BuildScouts();
 
 	void SendScoutToNewDest(int scout);

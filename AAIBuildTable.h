@@ -193,7 +193,7 @@ public:
 	int GetAirBase(int side, float cost, bool water, bool canBuild);
 
 	//! @brief Selects a combat unit of specified movement type according to given criteria
-	UnitDefId SelectCombatUnit(int side, const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness);
+	UnitDefId SelectCombatUnit(int side, const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitCriteria, const std::vector<float>& factoryUtilization, int randomness, bool constructorAvailable) const;
 
 	//! @brief Selects a static artillery according to given criteria
 	UnitDefId SelectStaticArtillery(int side, float cost, float range, bool water) const;
@@ -232,6 +232,9 @@ private:
 	//! @brief Helper function used for building selection
 	bool IsBuildingSelectable(UnitDefId building, bool water, bool mustBeConstructable) const;
 
+	//! @brief Adds combat units matching the given criteria to the list
+	void SelectCombatUnits(std::list<UnitDefId>& unitList, int side, const AAIMovementType& allowedMoveTypes, bool constructorAvailable) const;
+
 	//! @brief Returns a power plant based on the given criteria
 	UnitDefId SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const;
 
@@ -255,9 +258,6 @@ private:
 
 	//! @brief Calculates the rating of the given factory for the given map type
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;
-
-	//! @brief Calculates the combat statistics needed for unit selection
-	void CalculateCombatPowerForUnits(const std::list<UnitDefId>& unitList, const TargetTypeValues& combatPowerWeights, std::vector<float>& combatPowerValues, StatisticalData& combatPowerStat, StatisticalData& combatEfficiencyStat);
 
 	//! A list containing the next factories that shall be built
 	std::list<UnitDefId> m_factoryBuildqueue;

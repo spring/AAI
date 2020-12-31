@@ -63,7 +63,7 @@ public:
 	static constexpr float minWeaponRangeDiffToKeepDistance = 50.0f;
 
 	//! Minimum averaged metal surplus before constrcution of non-resource generating units shall be assisted
-	static constexpr float minMetalSurplusForConstructionAssist = 0.5f;
+	static constexpr float minMetalSurplusForConstructionAssist = 1.0f;
 
 	//! Minimum averaged energy surplus before constrcution of non-resource generating units shall be assisted
 	static constexpr float minEnergySurplusForConstructionAssist = 40.0f;

@@ -325,7 +325,7 @@ public:
 		m_values[4] += multiplier * values.m_values[4];
 	}
 
-private:
+//private:
 	std::array<float, AAITargetType::numberOfTargetTypes> m_values;
 
 	friend class MobileTargetTypeValues;

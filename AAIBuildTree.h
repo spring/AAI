@@ -127,7 +127,7 @@ public:
 	const std::string& GetCategoryName(const AAIUnitCategory& category) const { return m_unitCategoryNames[category.GetArrayIndex()]; }
 
 	//! @brief Returns a list containing all unit categories of combat units
-	const std::list<AAIUnitCategory>& GetCombatUnitCatgegories() const { return m_combatUnitCategories; }
+	const auto& GetCombatUnitCatgegories() const { return m_combatUnitCategories; }
 
 private:
 	//! @brief Sets side for given unit type, and recursively calls itself for all unit types that can be constructed by it.
@@ -203,8 +203,8 @@ private:
 	//! For every side (not neutral), a list of units that belong to a certain combat category (order: m_unitsInCombatCategory[side][category])
 	std::vector< std::vector< std::list<UnitDefId> > >  m_unitsInCombatCategory;
 
-	//! A list containing all catgeories of combat units
-	std::list< AAIUnitCategory >                  m_combatUnitCategories;
+	//! An array containing the unit categories of the different combat units
+	std::array< AAIUnitCategory, 5 >              m_combatUnitCategories;
 
 	//! For every side, min/max/avg values for various data (e.g. cost) for every unit category
 	std::vector< AAIUnitStatistics >              m_unitCategoryStatisticsOfSide;
@@ -213,7 +213,7 @@ private:
 	std::vector< std::string >                    m_unitCategoryNames;
 
 	//! The combat power of every unit
-	std::vector<TargetTypeValues>                   m_combatPowerOfUnits;
+	std::vector<TargetTypeValues>                 m_combatPowerOfUnits;
 
 	//! This vetcor stores the UnitDefIds corresponding to any valid factory id
 	std::vector<UnitDefId>                        m_factoryIdsTable;

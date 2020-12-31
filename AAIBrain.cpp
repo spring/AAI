@@ -422,8 +422,36 @@ float AAIBrain::Affordable()
 
 void AAIBrain::BuildUnits()
 {
+	//-----------------------------------------------------------------------------------------------------------------
+	// Determine urgency to counter each of the different combat categories
+	//-----------------------------------------------------------------------------------------------------------------
+
+	TargetTypeValues combatPowerVsTargetType;
+	CalculateThreatByTargetType(combatPowerVsTargetType);
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// Order construction of units according to determined threat/own defence capabilities
+	//-----------------------------------------------------------------------------------------------------------------
+
+	UnitSelectionCriteria unitSelectionCriteria;
+	DetermineCombatUnitSelectionCriteria(unitSelectionCriteria);
+
+	std::vector<float> factoryUtilization(ai->s_buildTree.GetNumberOfFactories(), 0.0f);
+	ai->Getexecute()->DetermineFactoryUtilization(factoryUtilization, true);
+
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
+	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
+	{
+		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
+		const bool urgent(false);
+
+		ai->Getexecute()->BuildCombatUnitOfCategory(moveType, combatPowerVsTargetType, unitSelectionCriteria, factoryUtilization, urgent);
+	}
+}
+
+void AAIBrain::CalculateThreatByTargetType(TargetTypeValues& combatPowerVsTargetType) const
+{
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate threat by and defence vs. the different combat categories
 	//-----------------------------------------------------------------------------------------------------------------
@@ -431,6 +459,8 @@ void AAIBrain::BuildUnits()
 	StatisticalData attackedByCatStatistics;
 	StatisticalData unitsSpottedStatistics;
 	StatisticalData defenceStatistics;
+
+	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
@@ -447,37 +477,87 @@ void AAIBrain::BuildUnits()
 	defenceStatistics.Finalize();
 
 	//-----------------------------------------------------------------------------------------------------------------
-	// Calculate urgency to counter each of the different combat categories
+	// Determine urgency to counter each of the different combat categories
 	//-----------------------------------------------------------------------------------------------------------------
+
+	const float mapFactor(0.25f);
+	TargetTypeValues threatByMap(0.0f);
+
+	threatByMap.AddValue(ETargetType::AIR, mapFactor);
+
+	if(AAIMap::s_waterTilesRatio < 0.85f)
+		threatByMap.AddValue(ETargetType::SURFACE,   mapFactor * (1.0f - AAIMap::s_waterTilesRatio) );
+
+	if(AAIMap::s_waterTilesRatio > 0.15f)
+	{
+		threatByMap.AddValue(ETargetType::FLOATER,   mapFactor * AAIMap::s_waterTilesRatio);
+		threatByMap.AddValue(ETargetType::SUBMERGED, mapFactor * AAIMap::s_waterTilesRatio);
+	}
+
+	//-----------------------------------------------------------------------------------------------------------------
+	// Calculate urgency to counter each target category (attack pressure by this target vs. defence power agaibnst this target type)
+	//-----------------------------------------------------------------------------------------------------------------
+
+	//ai->Log("Threat/defence by target type:\n");
+
 	TargetTypeValues threatByTargetType;
+	float highestThreat(0.0f);
+	ETargetType typeHighestThreat;
 
 	for(const auto& targetType : AAITargetType::m_mobileTargetTypes)
 	{
-		const float threat =  attackedByCatStatistics.GetDeviationFromZero( attackedByCategory.GetValueOfTargetType(targetType) ) 
-	                    	+ unitsSpottedStatistics.GetDeviationFromZero( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) )
-	                    	+ 1.5f * defenceStatistics.GetDeviationFromMax( m_totalMobileCombatPower.GetValueOfTargetType(targetType)) ;
-		threatByTargetType.SetValue(targetType, threat);
+		const float sum =   threatByMap.GetValue(targetType) 
+						  + attackedByCatStatistics.GetDeviationFromZero( attackedByCategory.GetValueOfTargetType(targetType) ) 
+						  + unitsSpottedStatistics.GetDeviationFromZero( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) );
+
+		const float threat = sum / (0.1f + defenceStatistics.GetDeviationFromMax(m_totalMobileCombatPower.GetValueOfTargetType(targetType)) );
+		combatPowerVsTargetType.SetValue(targetType, threat);
+
+		if(threat > highestThreat)
+		{
+			highestThreat     = threat;
+			typeHighestThreat = targetType;
+		}
+
+		//ai->Log("%s: %f, %f / %f -> %f   ", AAITargetType(targetType).GetName().c_str(), attackedByCatStatistics.GetDeviationFromZero( attackedByCategory.GetValueOfTargetType(targetType) ), 
+		//			unitsSpottedStatistics.GetDeviationFromZero( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) ),
+		//			defenceStatistics.GetDeviationFromMax(m_totalMobileCombatPower.GetValueOfTargetType(targetType)), threat );
 	}
-
-	threatByTargetType.SetValue(ETargetType::STATIC, threatByTargetType.GetValue(ETargetType::SURFACE) + threatByTargetType.GetValue(ETargetType::FLOATER) );
+	//ai->Log("\n");
 
 	//-----------------------------------------------------------------------------------------------------------------
-	// Order construction of units according to determined threat/own defence capabilities
+	// set combat power vs less important target types to zero depending on target type that is currently perceived as highest threat
 	//-----------------------------------------------------------------------------------------------------------------
 
-	UnitSelectionCriteria unitSelectionCriteria;
-	DetermineCombatUnitSelectionCriteria(unitSelectionCriteria);
-
-	std::vector<float> factoryUtilization(ai->s_buildTree.GetNumberOfFactories(), 0.0f);
-	ai->Getexecute()->DetermineFactoryUtilization(factoryUtilization, true);
-
-	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
+	switch(typeHighestThreat)
 	{
-		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
-		const bool urgent(false);
-
-		BuildCombatUnitOfCategory(moveType, threatByTargetType, unitSelectionCriteria, factoryUtilization, urgent);
+		case ETargetType::SURFACE:
+		{
+			combatPowerVsTargetType.SetValue(ETargetType::AIR,       0.0f);
+			combatPowerVsTargetType.SetValue(ETargetType::FLOATER,   0.0f);
+			combatPowerVsTargetType.SetValue(ETargetType::SUBMERGED, 0.0f);
+			break;
+		}
+		case ETargetType::AIR:
+		{
+			combatPowerVsTargetType.SetValue(ETargetType::SURFACE,   0.0f);
+			combatPowerVsTargetType.SetValue(ETargetType::FLOATER,   0.0f);
+			combatPowerVsTargetType.SetValue(ETargetType::SUBMERGED, 0.0f);
+			break;
+		}
+		case ETargetType::FLOATER:
+		case ETargetType::SUBMERGED:
+		{
+			combatPowerVsTargetType.SetValue(ETargetType::SURFACE, 0.0f);
+			combatPowerVsTargetType.SetValue(ETargetType::AIR,     0.0f);
+			break;
+		}
 	}
+
+
+	// weight importance of combat power vs static units (i.e. enemy defences) based on current pressure
+	const float combatPowerVsStatic = (combatPowerVsTargetType.GetValue(ETargetType::SURFACE) + combatPowerVsTargetType.GetValue(ETargetType::FLOATER)) * 1.25f * (1.0f - m_estimatedPressureByEnemies);
+	combatPowerVsTargetType.SetValue(ETargetType::STATIC, combatPowerVsStatic);
 }
 
 bool IsRandomNumberBelow(float threshold)
@@ -492,7 +572,7 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 	AAIMovementType moveType;
 	if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
 	{
-		moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_AIR);
+		moveType.SetMovementType(EMovementType::MOVEMENT_TYPE_AIR);
 	}
 	else
 	{
@@ -501,13 +581,7 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 		int enemyBuildingsOnLand, enemyBuildingsOnSea;
 		ai->Getmap()->DetermineSpottedEnemyBuildingsOnContinentType(enemyBuildingsOnLand, enemyBuildingsOnSea);
 
-		if( (enemyBuildingsOnLand+enemyBuildingsOnSea) == 0)
-		{
-			enemyBuildingsOnLand = 1;
-			enemyBuildingsOnSea  = 1;
-		}
-
-		const float totalBuildings = static_cast<float>(enemyBuildingsOnLand+enemyBuildingsOnSea);
+		const float totalBuildings = static_cast<float>( std::max(enemyBuildingsOnLand+enemyBuildingsOnSea, 1) );
 
 		// ratio of sea units is determined: 25% water ratio on map, 75% ratio of enemy buildings on sea
 		float waterUnitRatio = 0.25f * (AAIMap::s_waterTilesRatio + 3.0f * static_cast<float>(enemyBuildingsOnSea) / totalBuildings);
@@ -534,82 +608,58 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 	return moveType;
 }
 
-void AAIBrain::BuildCombatUnitOfCategory(const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent)
-{
-	// Select unit according to determined criteria
-	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), moveType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6);
-
-	// Order construction of selected unit
-	if(unitDefId.IsValid())
-	{
-		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
-		const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
-
-		int numberOfUnits(1);
-
-		if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
-			numberOfUnits = 3;
-		else if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
-			numberOfUnits = 2;
-		
-		ai->Getexecute()->AddUnitToBuildqueue(unitDefId, numberOfUnits, BuildQueuePosition::END);
-	}
-}
-
 void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const
 {
-	unitSelectionCriteria.range      = 0.25f;
-	unitSelectionCriteria.cost       = 0.5f;
-	unitSelectionCriteria.power      = 1.0f;
-	unitSelectionCriteria.efficiency = 1.0f;
-	unitSelectionCriteria.factoryUtilization = 2.0f;
+	// income factor ranges from 1.0 (no metal income) to 0.0 (high metal income)
+	const float metalIncome = m_metalIncome.GetAverageValue();
+	const float incomeFactor = 1.0f / (0.01f * metalIncome*metalIncome + 1.0f);
 
-	// prefer faster units from time to time if enemy pressure
-	if( (m_estimatedPressureByEnemies < 0.25f) && IsRandomNumberBelow(cfg->FAST_UNITS_RATIO) )
-	{
-		if(rand()%100 < 70)
-			unitSelectionCriteria.speed = 1.0f;
-		else
-			unitSelectionCriteria.speed = 2.0f;
-	}
-	else
-		unitSelectionCriteria.speed      = 0.1f + (1.0f - m_estimatedPressureByEnemies) * 0.3f;
+	// cost ranges from 0.5 (excess metal, low threat level) to 2.0 (low metal)
+	unitSelectionCriteria.cost       = 0.5f + 1.5f * incomeFactor;
+
+	// power ranges from 0.5 (low income) to 2.5 (high income, high enemy pressure)
+	unitSelectionCriteria.power      = 0.5f + 1.5f * (1.0f - incomeFactor) + 0.5f * m_estimatedPressureByEnemies;
+
+	// efficiency ranges form 0.25 (high income, low threat level) to 1 (low income, high threat level)
+	unitSelectionCriteria.efficiency = 0.25f + 0.5f * m_estimatedPressureByEnemies + 0.25f * incomeFactor;
+
+	unitSelectionCriteria.factoryUtilization = 1.5f;
 
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
-	// prefer cheaper but effective units in the first few minutes
 	if(gamePhase.IsStartingPhase())
 	{
-		unitSelectionCriteria.speed      = 0.25f;
-		unitSelectionCriteria.cost       = 2.0f;
-		unitSelectionCriteria.efficiency = 2.0f;
-	}
-	else if(gamePhase.IsEarlyPhase())
-	{
-		unitSelectionCriteria.cost       = 1.0f;
-		unitSelectionCriteria.efficiency = 1.5f;
+		unitSelectionCriteria.speed      = 0.35f;
+		unitSelectionCriteria.range      = 0.25f;
 	}
 	else
 	{
-		// determine speed, range & eff
+		if( IsRandomNumberBelow(cfg->FAST_UNITS_RATIO) )
+		{
+			// speed in 0.5 to 1.5
+			const float speed = static_cast<float>(rand()%6);
+			unitSelectionCriteria.speed = 0.5f + 0.2f * speed;
+		}
+		else
+		{
+			// speed in 0.1 to 0.5
+			const float speed = static_cast<float>(rand()%5);
+			unitSelectionCriteria.speed = 0.1f + 0.1f * speed;
+		}
+		
+
 		if( IsRandomNumberBelow(cfg->HIGH_RANGE_UNITS_RATIO) )
 		{
-			const int t = rand()%1000;
-
-			if(t < 350)
-				unitSelectionCriteria.range = 0.75f;
-			else if(t < 700)
-				unitSelectionCriteria.range = 1.2f;
-			else
-				unitSelectionCriteria.range = 1.5f;
+			// range in 0.5 to 1.5
+			const float range = static_cast<float>(rand()%6);
+			unitSelectionCriteria.range = 0.5f + 0.2f * range;
 		}
-
-		if( IsRandomNumberBelow(0.25f) )
-			unitSelectionCriteria.power = 2.5f;
 		else
-			unitSelectionCriteria.power = 1.0f + (1.0f - m_estimatedPressureByEnemies) * 0.5f;
-
-		unitSelectionCriteria.cost = 0.5f + m_estimatedPressureByEnemies * 1.0f;
+		{
+			// range in 0.1 to 0.5
+			const float range = static_cast<float>(rand()%5);
+			unitSelectionCriteria.range = 0.1f + 0.1f * range;
+		}
 	}
 }
 
@@ -643,12 +693,12 @@ void AAIBrain::UpdatePressureByEnemy()
 	const float sectorsWithEnemiesRatio         = static_cast<float>(sectorsOccupiedByEnemies)         / static_cast<float>(AAIMap::xSectors * AAIMap::ySectors);
 	const float sectorsNearBaseWithEnemiesRatio = static_cast<float>(sectorsNearBaseOccupiedByEnemies) / static_cast<float>( m_sectorsInDistToBase[0].size() + m_sectorsInDistToBase[1].size() );
 
-	m_estimatedPressureByEnemies = sectorsWithEnemiesRatio + 2.0f * sectorsNearBaseWithEnemiesRatio;
+	m_estimatedPressureByEnemies = 2.0f * sectorsWithEnemiesRatio + 2.0f * sectorsNearBaseWithEnemiesRatio;
 
 	if(m_estimatedPressureByEnemies > 1.0f)
 		m_estimatedPressureByEnemies = 1.0f;
 
-	//ai->Log("Current enemy pressure: %f  - map: %f    near base: %f \n", m_estimatedPressureByEnemies, sectorsWithEnemiesRatio, sectorsNearBaseWithEnemiesRatio);
+	//ai->Log("Current enemy pressure: %f  - map: %i - %f    near base: %i - %f\n", m_estimatedPressureByEnemies, sectorsOccupiedByEnemies , sectorsWithEnemiesRatio, sectorsNearBaseOccupiedByEnemies, sectorsNearBaseWithEnemiesRatio);
 }
 
 float AAIBrain::GetAveragePowerSurplus() const

@@ -15,11 +15,6 @@ AAIUnitStatistics::AAIUnitStatistics()
 	m_unitBuildtimeStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
 	m_unitPrimaryAbilityStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
 	m_unitSecondaryAbilityStatistics.resize( AAIUnitCategory::numberOfUnitCategories );
-
-	m_combatCostStatistics.resize( AAITargetType::numberOfMobileTargetTypes );
-	m_combatBuildtimeStatistics.resize( AAITargetType::numberOfMobileTargetTypes );
-	m_combatRangeStatistics.resize( AAITargetType::numberOfMobileTargetTypes );
-	m_combatSpeedStatistics.resize( AAITargetType::numberOfMobileTargetTypes );
 };
 
 AAIUnitStatistics::~AAIUnitStatistics()
@@ -28,11 +23,6 @@ AAIUnitStatistics::~AAIUnitStatistics()
 	m_unitBuildtimeStatistics.clear();
 	m_unitPrimaryAbilityStatistics.clear();
 	m_unitSecondaryAbilityStatistics.clear();
-
-	m_combatCostStatistics.clear();
-	m_combatBuildtimeStatistics.clear();
-	m_combatRangeStatistics.clear();
-	m_combatSpeedStatistics.clear();
 };
 
 void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& unitDefs, const std::vector<UnitTypeProperties>& unitProperties, const std::vector< std::list<UnitDefId> >& unitsInCategory, const std::vector< std::list<UnitDefId> >& unitsInCombatCategory)
@@ -55,27 +45,6 @@ void AAIUnitStatistics::Init(const std::vector<const springLegacyAI::UnitDef*>& 
 		m_unitCostStatistics[cat].Finalize();
 		m_unitPrimaryAbilityStatistics[cat].Finalize();
 		m_unitSecondaryAbilityStatistics[cat].Finalize();
-	}
-
-	//-----------------------------------------------------------------------------------------------------------------
-	// calculate combat category statistics
-	//-----------------------------------------------------------------------------------------------------------------
-	for(const auto combatUnitCategory : AAICombatUnitCategory::m_combatUnitCategories) 
-	{
-		const int i = AAICombatUnitCategory(combatUnitCategory).GetArrayIndex();
-
-		for(auto unitDefId : unitsInCombatCategory[i])
-		{
-			m_combatCostStatistics[i].AddValue( unitProperties[unitDefId.id].m_totalCost );
-			m_combatBuildtimeStatistics[i].AddValue( unitProperties[unitDefId.id].m_buildtime );
-			m_combatRangeStatistics[i].AddValue( unitProperties[unitDefId.id].m_primaryAbility );
-			m_combatSpeedStatistics[i].AddValue( unitProperties[unitDefId.id].m_secondaryAbility );
-		}
-
-		m_combatCostStatistics[i].Finalize();
-		m_combatBuildtimeStatistics[i].Finalize();
-		m_combatRangeStatistics[i].Finalize();
-		m_combatSpeedStatistics[i].Finalize();
 	}
 
 	m_sensorStatistics.Init(unitDefs, unitProperties, unitsInCategory);

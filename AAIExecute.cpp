@@ -170,6 +170,36 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	ai->GetUnitGroupsList(category).push_back(new_group);
 }
 
+void AAIExecute::BuildCombatUnitOfCategory(const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent)
+{
+	// determine random float in [0:1]
+	const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
+
+	// select unit independently from available constructor from time to time (to make sure AAI will order factories for advanced units as the game progresses)
+	const bool constructorAvailable = (randomValue < 0.8f) && (ai->Getut()->activeFactories > 0);
+
+	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), moveType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6, constructorAvailable);
+
+	// Order construction of selected unit
+	if(unitDefId.IsValid())
+	{
+		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
+		const StatisticalData& costStatistics = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(category);
+
+		int numberOfUnits(1);
+
+		if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_LIGHT_ASSAULT * costStatistics.GetMaxValue())
+			numberOfUnits = 3;
+		else if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
+			numberOfUnits = 2;
+		
+		if( ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0 )
+			ai->Getbt()->RequestFactoryFor(unitDefId);
+		else
+			AddUnitToBuildqueue(unitDefId, numberOfUnits, BuildQueuePosition::END);
+	}
+}
+
 void AAIExecute::BuildScouts()
 {
 	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::SCOUT) < cfg->MAX_SCOUTS)
@@ -316,20 +346,15 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueue
 	std::list<UnitDefId>* selectedBuildqueue(nullptr);
 	float highestRating(0.0f);
 
-	for(std::list<UnitDefId>::const_iterator fac = ai->s_buildTree.GetConstructedByList(unitDefId).begin(); fac != ai->s_buildTree.GetConstructedByList(unitDefId).end(); ++fac)
+	for(auto constructor : ai->s_buildTree.GetConstructedByList(unitDefId))
 	{
-		if(ai->Getbt()->units_dynamic[(*fac).id].active > 0)
+		if(ai->Getbt()->units_dynamic[constructor.id].active > 0)
 		{
-			std::list<UnitDefId>* buildqueue = GetBuildqueueOfFactory(*fac);
+			std::list<UnitDefId>* buildqueue = GetBuildqueueOfFactory(constructor);
 
 			if(buildqueue)
 			{
-				float rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[(*fac).id].active) / static_cast<float>(buildqueue->size() + 3);
-
-				// @todo rework criterion to reflect available buildspace instead of maptype
-				if(    (ai->Getmap()->GetMapType().IsWater()) 
-				    && (ai->s_buildTree.GetMovementType(UnitDefId(*fac)).IsStaticSea() == false) )
-					rating /= 10.0f;
+				const float rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[constructor.id].active) / static_cast<float>(buildqueue->size() + 2);
 
 				if(rating > highestRating)
 				{

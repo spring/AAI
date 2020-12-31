@@ -130,13 +130,13 @@ private:
 	// returns true if sufficient ressources to build unit are availbale
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
+	//! @brief Determines the combat efficiciency vs different target types for the selection of the next combat unit
+	void CalculateThreatByTargetType(TargetTypeValues& threatByTargetType) const;
+
 	//! @brief Returns the movement type of the next combat unit that shall be ordered
 	AAIMovementType DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;
 
-	//! @brief Selects combat unit according to given criteria and tries to order its construction
-	void BuildCombatUnitOfCategory(const AAIMovementType& moveType, const TargetTypeValues& combatPowerCriteria, const UnitSelectionCriteria& unitSelectionCriteria, const std::vector<float>& factoryUtilization, bool urgent);
-
-	//! @brief Determines criteria for combat unit selection based on current game phase (@todo: Take other criteria into account)
+	//! @brief Determines criteria for combat unit selection based on current economical and combat/pressure situation
 	void DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const;
 
 	//! The combat power of all mobile units against the different target types
