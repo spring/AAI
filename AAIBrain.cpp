@@ -427,7 +427,7 @@ void AAIBrain::BuildUnits()
 	//-----------------------------------------------------------------------------------------------------------------
 
 	TargetTypeValues combatPowerVsTargetType;
-	CalculateThreatByTargetType(combatPowerVsTargetType);
+	DetermineCombatPowerVsTargetType(combatPowerVsTargetType);
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// Order construction of units according to determined threat/own defence capabilities
@@ -450,7 +450,7 @@ void AAIBrain::BuildUnits()
 	}
 }
 
-void AAIBrain::CalculateThreatByTargetType(TargetTypeValues& combatPowerVsTargetType) const
+void AAIBrain::DetermineCombatPowerVsTargetType(TargetTypeValues& combatPowerVsTargetType) const
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate threat by and defence vs. the different combat categories

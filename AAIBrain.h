@@ -131,7 +131,7 @@ private:
 	bool RessourcesForConstr(int unit, int workertime = 175);
 
 	//! @brief Determines the combat efficiciency vs different target types for the selection of the next combat unit
-	void CalculateThreatByTargetType(TargetTypeValues& threatByTargetType) const;
+	void DetermineCombatPowerVsTargetType(TargetTypeValues& threatByTargetType) const;
 
 	//! @brief Returns the movement type of the next combat unit that shall be ordered
 	AAIMovementType DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;

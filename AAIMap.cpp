@@ -82,22 +82,22 @@ AAIMap::~AAIMap(void)
 
 		Learn();
 
-		const std::string mapLearn_filename = LocateMapLearnFile();
+		const std::string mapLearningDataFilename = LocateMapLearnFile();
 
 		// save map data
-		FILE *save_file = fopen(mapLearn_filename.c_str(), "w+");
+		FILE *file = fopen(mapLearningDataFilename.c_str(), "w+");
 
-		fprintf(save_file, "%s \n", MAP_LEARN_VERSION);
+		fprintf(file, "%s\n", MAP_LEARN_VERSION);
 
-		for(int y = 0; y < ySectors; y++)
+		for(int y = 0; y < ySectors; ++y)
 		{
-			for(int x = 0; x < xSectors; x++)
-				m_sector[x][y].SaveDataToFile(save_file);
-			
-			fprintf(save_file, "\n");
+			for(int x = 0; x < xSectors; ++x)
+				m_sector[x][y].SaveDataToFile(file);
+
+			fprintf(file, "\n");
 		}
 
-		fclose(save_file);
+		fclose(file);
 
 		s_buildmap.clear();
 		blockmap.clear();

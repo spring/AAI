@@ -21,6 +21,8 @@ using namespace springLegacyAI;
 
 AAISector::AAISector() :
 	m_distanceToBase(-1), 
+	m_lostUnits(0.0f),
+	m_lostAirUnits(0.0f),
 	m_enemyCombatUnits(0.0f),
 	m_skippedAsScoutDestination(0)
 {
@@ -97,8 +99,9 @@ void AAISector::UpdateLearnedData()
 	if(importance_this_game < 1.0f)
 		importance_this_game = 1.0f;
 
-	m_attacksByTargetTypeInCurrentGame.AddMobileTargetValues(m_attacksByTargetTypeInPreviousGames, 3.0f);
-	m_attacksByTargetTypeInCurrentGame.MultiplyValues(0.225f); // 0.225f = 0.9f / 4.0f ->decrease by 0.9 and account for 3.0f in line above
+	m_attacksByTargetTypeInPreviousGames.MultiplyValues(3.0f);
+	m_attacksByTargetTypeInPreviousGames.AddMobileTargetValues(m_attacksByTargetTypeInCurrentGame);
+	m_attacksByTargetTypeInPreviousGames.MultiplyValues(0.225f); // 0.225f = 0.9f / 4.0f ->decrease by 0.9 and account for 3.0f in line above
 }
 
 bool AAISector::AddToBase(bool addToBase)
