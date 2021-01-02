@@ -75,12 +75,12 @@ AAIMap::AAIMap(AAI *ai) :
 
 AAIMap::~AAIMap(void)
 {
+	UpdateLearningData();
+
 	// delete common data only if last AAI instance is deleted
 	if(ai->GetNumberOfAAIInstances() == 0)
 	{
 		ai->Log("Saving map learn file\n");
-
-		Learn();
 
 		const std::string mapLearningDataFilename = LocateMapLearnFile();
 
@@ -600,7 +600,7 @@ void AAIMap::ReadMapLearnFile()
 		ai->LogConsole("New map-learning file created");
 }
 
-void AAIMap::Learn()
+void AAIMap::UpdateLearningData()
 {
 	for(int y = 0; y < ySectors; ++y)
 	{
@@ -1671,6 +1671,8 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 void AAIMap::UpdateEnemyScoutingData()
 {
 	std::fill(m_buildingsOnContinent.begin(), m_buildingsOnContinent.end(), 0);
+
+	const int currentFrame = ai->GetAICallback()->GetCurrentFrame();
 	
 	// map of known enemy buildings has been updated -> update sector data
 	for(int y = 0; y < ySectors; ++y)
@@ -1679,7 +1681,7 @@ void AAIMap::UpdateEnemyScoutingData()
 		{
 			m_sector[x][y].ResetScoutedEnemiesData();
 
-			m_scoutedEnemyUnitsMap.UpdateSectorWithScoutedUnits(&m_sector[x][y], m_buildingsOnContinent);
+			m_scoutedEnemyUnitsMap.UpdateSectorWithScoutedUnits(&m_sector[x][y], m_buildingsOnContinent, currentFrame);
 		}
 	}
 }

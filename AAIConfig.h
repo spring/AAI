@@ -129,7 +129,6 @@ public:
 
 	// game specific
 	int   SCOUT_UPDATE_FREQUENCY;
-	float SCOUTING_MEMORY_FACTOR;
 	int   LEARN_RATE;
 
 	const static int  INCOME_SAMPLE_POINTS = 16; //!< Number of data poiunts used to calculate smoothed energy/metal income/surplus 

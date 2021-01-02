@@ -323,7 +323,7 @@ void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spotted
 
 void AAIBrain::UpdateAttackedByValues()
 {
-	m_recentlyAttackedByRates.MultiplyValues(0.96f);
+	m_recentlyAttackedByRates.MultiplyValues(0.985f);
 }
 
 void AAIBrain::AttackedBy(const AAITargetType& attackerTargetType)

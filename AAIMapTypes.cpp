@@ -97,7 +97,7 @@ void AAIScoutedUnitsMap::ResetTiles(int xLosMap, int yLosMap, int frame)
 	}
 }
 
-void AAIScoutedUnitsMap::UpdateSectorWithScoutedUnits(AAISector *sector, std::vector<int>& buildingsOnContinent)
+void AAIScoutedUnitsMap::UpdateSectorWithScoutedUnits(AAISector *sector, std::vector<int>& buildingsOnContinent, int currentFrame)
 {
 	const int xStart = (sector->x * AAIMap::xSectorSizeMap) / scoutMapResolution;
 	const int yStart = (sector->y * AAIMap::ySectorSizeMap) / scoutMapResolution;
@@ -114,7 +114,7 @@ void AAIScoutedUnitsMap::UpdateSectorWithScoutedUnits(AAISector *sector, std::ve
 
 			if(unitDefId.IsValid())
 			{
-				sector->AddScoutedEnemyUnit(unitDefId, m_lastUpdateInFrameMap[tileIndex]);
+				sector->AddScoutedEnemyUnit(unitDefId, currentFrame - m_lastUpdateInFrameMap[tileIndex]);
 
 				const int continentId = AAIMap::s_continentMap.GetContinentID( MapPos((xStart+x)*scoutMapResolution, (yStart+y)*scoutMapResolution) );
 				

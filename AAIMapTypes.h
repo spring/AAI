@@ -139,7 +139,7 @@ public:
 	}
 
 	//! @brief Updates the scouted units within the given sector
-	void UpdateSectorWithScoutedUnits(AAISector *sector, std::vector<int>& buildingsOnContinent);
+	void UpdateSectorWithScoutedUnits(AAISector *sector, std::vector<int>& buildingsOnContinent, int currentFrame);
 
 private:
 	//! The map containing the unit definition id of a scouted unit on occupying this tile (or 0 if none)

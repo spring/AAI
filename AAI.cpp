@@ -842,7 +842,7 @@ void AAI::Update()
 	}
 
 	// update sectors
-	if (!(tick % 163))
+	if (!((tick+15) % 120))
 	{
 		AAI_SCOPED_TIMER("Update-Sectors")
 		brain->UpdateAttackedByValues();

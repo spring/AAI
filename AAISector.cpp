@@ -18,7 +18,6 @@
 #include "LegacyCpp/UnitDef.h"
 using namespace springLegacyAI;
 
-
 AAISector::AAISector() :
 	m_distanceToBase(-1), 
 	m_lostUnits(0.0f),
@@ -82,7 +81,6 @@ void AAISector::LoadDataFromFile(FILE* file)
 	}
 
 	importance_this_game = importance_learned;
-	//m_attacksByTargetTypeInCurrentGame = m_attacksByTargetTypeInPreviousGames;
 }
 
 void AAISector::SaveDataToFile(FILE* file)
@@ -169,7 +167,7 @@ void AAISector::AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly)
 	}
 }
 
-void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
+void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int framesSinceLastUpdate)
 {
 	const AAIUnitCategory& categoryOfEnemyUnit = ai->s_buildTree.GetUnitCategory(enemyDefId);
 	// add building to sector (and update stat_combat_power if it's a stat defence)
@@ -186,8 +184,8 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 	// add unit to sector and update mobile_combat_power
 	else if(categoryOfEnemyUnit.IsCombatUnit())
 	{
-		// units that have been scouted long time ago matter less
-		const float lastSeen = exp(cfg->SCOUTING_MEMORY_FACTOR * ((float)(lastUpdateInFrame - ai->GetAICallback()->GetCurrentFrame())) / 3600.0f  );
+		// units that have been scouted long time ago matter less (1 min ~ 70%, 2 min ~ 48%, 5 min ~ 16%)
+		const float lastSeen = exp(- static_cast<float>(framesSinceLastUpdate) / 5000.0f );
 		const AAITargetType& targetType = ai->s_buildTree.GetTargetType(enemyDefId);
 
 		m_enemyCombatUnits.AddValue(targetType, lastSeen);
@@ -199,8 +197,8 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame)
 void AAISector::DecreaseLostUnits()
 {
 	// decrease values (so the ai "forgets" values from time to time)...
-	m_lostUnits    *= 0.95f;
-	m_lostAirUnits *= 0.95f;
+	m_lostUnits    *= 0.985f;
+	m_lostAirUnits *= 0.985f;
 }
 
 void AAISector::AddMetalSpot(AAIMetalSpot *spot)

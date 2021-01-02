@@ -98,7 +98,7 @@ public:
 	void ResetScoutedEnemiesData();
 
 	//! @brief Updates enemy combat power and counters
-	void AddScoutedEnemyUnit(UnitDefId enemyDefId, int lastUpdateInFrame);
+	void AddScoutedEnemyUnit(UnitDefId enemyDefId, int framesSinceLastUpdate);
 
 	//! @brief Return the total number of enemy combat units
 	float GetTotalEnemyCombatUnits() const { return m_enemyCombatUnits.CalcuateSum(); };

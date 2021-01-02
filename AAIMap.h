@@ -223,7 +223,7 @@ private:
 	void DetermineMapType();
 
 	// calculates learning effect
-	void Learn();
+	void UpdateLearningData();
 
 	//! @brief Read the learning data for this map (or initialize with defualt data if none are available)
 	void ReadMapLearnFile();
