@@ -157,7 +157,6 @@ AAIConfig::AAIConfig(void)
 	LEARN_RATE = 5;
 	CONSTRUCTION_TIMEOUT = 1500;
 	CLIFF_SLOPE = 0.085f;
-	SCOUT_UPDATE_FREQUENCY = 127;
 	WATER_MAP_RATIO = 0.8f;
 	LAND_WATER_MAP_RATIO = 0.3f;
 }
@@ -433,10 +432,9 @@ bool AAIConfig::loadGeneralConfig(AAI& ai)
 			WATER_MAP_RATIO = GetFloat(&ai, file);
 		} else if(!strcmp(keyword, "LAND_WATER_MAP_RATIO")) {
 			LAND_WATER_MAP_RATIO = GetFloat(&ai, file);
-		} else if(!strcmp(keyword, "SCOUT_UPDATE_FREQUENCY")) {
-			SCOUT_UPDATE_FREQUENCY = GetInt(&ai, file);;
-		} 
-		else {
+		}
+		else 
+		{
 			errorOccurred = true;
 			break;
 		}

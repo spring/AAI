@@ -795,7 +795,7 @@ void AAI::Update()
 	}
 
 	// scouting
-	if (!((tick + 2 * GetAAIInstance()) % cfg->SCOUT_UPDATE_FREQUENCY))
+	if (!((tick + 2 * GetAAIInstance()) % 60))
 	{
 		AAI_SCOPED_TIMER("Scouting_1")
 		map->CheckUnitsInLOSUpdate();
