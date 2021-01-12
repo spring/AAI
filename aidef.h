@@ -48,7 +48,7 @@ public:
 	static constexpr float noValidTargetInitialCombatPower = 0.1f;
 
 	//! The maximum change from a single combat (attacker killes certain unit) - prevent odd statistical values from "lucky kills" (e.g. weak units gets last shot on stong one)
-	static constexpr float maxCombatPowerChangeAfterSingleCombat = 0.15f;
+	static constexpr float maxCombatPowerChangeAfterSingleCombat = 0.25f;
 
 	//! The factor applied to determine change of combat power for killer/destroyed unit type
 	static constexpr float combatPowerLearningFactor = 0.02f;
@@ -75,10 +75,10 @@ public:
 	static constexpr float maxSquaredDistToRallyPoint = static_cast<float>( (16*SQUARE_SIZE)*(16*SQUARE_SIZE) );
 
 	//! The factor applied to the combat power of the own units (when deciding whether to attack)
-	static constexpr float attackCombatPowerFactor = 2.0f;
+	static constexpr float attackCombatPowerFactor = 2.5f;
 
 	//! If the local defence power against the target type of the attacker is below this threshold combat units shall be orderd to support.
-	static constexpr float localDefencePowerToRequestSupportThreshold = 2.0f;
+	static constexpr float localDefencePowerToRequestSupportThreshold = 1.0f;
 
 	//! The minimum number of frames between two updates of the units in current LOS (to avoid too heavy CPU load)
 	static constexpr int   minFramesBetweenLOSUpdates = 10;

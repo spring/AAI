@@ -117,6 +117,9 @@ public:
 	//! @brief Determine the selection criteria for a storage
 	StorageSelectionCriteria DetermineStorageSelectionCriteria() const;
 
+	//! @brief Determine the selection criteria for static defences for the given sector
+	void DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCriteria& selectionCriteria, const AAISector* sector) const;
+
 	//! A list of sectors with ceratain distance (in number of sectors) to base; 0 = sectors the ai uses to build its base, 1 = direct neighbours etc.
 	std::vector< std::list<AAISector*> > m_sectorsInDistToBase;
 

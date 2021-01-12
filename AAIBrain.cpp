@@ -836,3 +836,87 @@ StorageSelectionCriteria AAIBrain::DetermineStorageSelectionCriteria() const
 
 	return StorageSelectionCriteria(cost, buildtime, storedMetal, storedEnergy);
 }
+
+
+void AAIBrain::DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCriteria& selectionCriteria, const AAISector* sector) const
+{
+	// defence ranges from 0.2 (high defence power vs given target type) to 1 (no defence power)
+	const float defence    = exp(- sector->GetFriendlyStaticDefencePower(selectionCriteria.targetType) / 6.0f);
+
+	// income factor ranges from 1.0 (no metal income) to 0.0 (high metal income)
+	const float metalIncome = m_metalIncome.GetAverageValue();
+	const float incomeFactor = 1.0f / (0.01f * metalIncome*metalIncome + 1.0f);
+
+	// cost ranges from 0.5 (excess metal, high defence power) to 2.0 (low metal, low defence power)
+	selectionCriteria.cost        = 0.5f + incomeFactor + 0.5f * defence;
+
+	// power ranges from 0.5 (low income) to 3.0 (high income, low defence power & high enemy pressure)
+	selectionCriteria.combatPower = 0.5f + 0.5f * (1.0f - incomeFactor) + 1.5f * defence + 0.5f * m_estimatedPressureByEnemies;
+
+	// buildtimes ranges form 0.25 (high income, low threat level) to 2 (low income, low defence power/high threat level)
+	selectionCriteria.buildtime = 0.25f + 0.5f * m_estimatedPressureByEnemies + 1.25f * defence;
+
+	// range ranges from 0.1 to 1.5, depending on ratio of units with high ranges
+	if( IsRandomNumberBelow(cfg->HIGH_RANGE_UNITS_RATIO) )
+	{
+		// range in 0.5 to 1.5
+		const float range = static_cast<float>(rand()%6);
+		selectionCriteria.range = 0.5f + 0.2f * range;
+	}
+	else
+	{
+		// range in 0.1 to 0.5
+		const float range = static_cast<float>(rand()%5);
+		selectionCriteria.range = 0.1f + 0.1f * range;
+	}
+
+	// importance of terrain (for placement of defence) depends on range
+	selectionCriteria.terrain = 0.1f + 1.25f * selectionCriteria.range;
+
+	if(sector->GetDistanceToBase() > 1)
+		selectionCriteria.terrain += 1.0f;
+
+	selectionCriteria.randomness = 3;
+
+
+	/*
+	if(staticDefences > 2)
+	{
+		int t = rand()%500;
+
+		if(t < 100)
+		{
+			selectionCriteria.range   = 2.0f;
+			selectionCriteria.terrain = 10.0f;
+		}
+		else if(t < 200)
+		{
+			selectionCriteria.range   = 1.0f;
+			selectionCriteria.terrain = 5.0f;
+		}
+
+		selectionCriteria.randomness = 15;
+	}
+	if(staticDefences == 2)
+	{
+		selectionCriteria.cost        = 0.75f;
+		selectionCriteria.buildtime   = 0.5f;
+		selectionCriteria.combatPower = 1.5f;
+		selectionCriteria.randomness  = 10;
+	}
+	else if(staticDefences == 1)
+	{
+		selectionCriteria.cost        = 1.5f;
+		selectionCriteria.buildtime   = 1.5f;
+		selectionCriteria.combatPower = 1.25f;
+		selectionCriteria.range       = 0.3f;
+	}
+	else // no static defences so far
+	{
+
+	}
+
+	if( (staticDefences > 2) && (rand()%cfg->LEARN_RATE == 1) ) // select defence more randomly from time to time
+		selectionCriteria.randomness = 20;*/
+}
+

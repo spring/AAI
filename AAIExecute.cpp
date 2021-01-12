@@ -1142,53 +1142,8 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	//-----------------------------------------------------------------------------------------------------------------
 	// determine criteria for selection of static defence and its buildsite
 	//-----------------------------------------------------------------------------------------------------------------
-	StaticDefenceSelectionCriteria selectionCriteria(targetType, 2.5f, 0.5f, 1.0f, 0.2f, 1.0f, 0);
-
-	if(dest->GetDistanceToBase() > 1)
-		selectionCriteria.terrain = 2.0f;
-
-	const int staticDefences = dest->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE);
-	if(staticDefences > 2)
-	{
-		int t = rand()%500;
-
-		if(t < 100)
-		{
-			selectionCriteria.range   = 2.0f;
-			selectionCriteria.terrain = 10.0f;
-		}
-		else if(t < 200)
-		{
-			selectionCriteria.range   = 1.0f;
-			selectionCriteria.terrain = 5.0f;
-		}
-
-		selectionCriteria.randomness = 15;
-	}
-	if(staticDefences == 2)
-	{
-		selectionCriteria.cost        = 0.75f;
-		selectionCriteria.buildtime   = 0.5f;
-		selectionCriteria.combatPower = 1.5f;
-		selectionCriteria.randomness  = 10;
-	}
-	else if(staticDefences == 1)
-	{
-		selectionCriteria.cost        = 1.5f;
-		selectionCriteria.buildtime   = 1.5f;
-		selectionCriteria.combatPower = 1.25f;
-		selectionCriteria.range       = 0.3f;
-	}
-	else // no static defences so far
-	{
-		selectionCriteria.cost        = 2.0f;
-		selectionCriteria.buildtime   = 3.0f;
-		selectionCriteria.combatPower = 1.0f;
-		selectionCriteria.range       = 0.1f;
-	}
-
-	if( (staticDefences > 2) && (rand()%cfg->LEARN_RATE == 1) ) // select defence more randomly from time to time
-		selectionCriteria.randomness = 20;
+	StaticDefenceSelectionCriteria selectionCriteria(targetType);
+	ai->Getbrain()->DetermineStaticDefenceSelectionCriteria(selectionCriteria, dest);
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// try construction of static defence according to determined criteria

@@ -495,9 +495,9 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, const StaticDefenceSelect
 	// calculate combat power
 	StatisticalData combatPowerStat;		
 
-	for(auto defence = unitList.begin(); defence != unitList.end(); ++defence)
+	for(auto defence : unitList)
 	{
-		const float defenceCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetValue(selectionCriteria.targetType);
+		const float defenceCombatPower = ai->s_buildTree.GetCombatPower(defence).GetValue(selectionCriteria.targetType);
 		combatPowerStat.AddValue(defenceCombatPower);
 	}
 
@@ -507,24 +507,24 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, const StaticDefenceSelect
 	UnitDefId selectedDefence;
 	float bestRating(0.0f);
 
-	for(auto defence = unitList.begin(); defence != unitList.end(); ++defence)
+	for(auto defence : unitList)
 	{
-		if( IsBuildingSelectable(*defence, water, mustBeConstructable) )
+		if( IsBuildingSelectable(defence, water, mustBeConstructable) )
 		{
-			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(*defence);
+			const UnitTypeProperties& unitData = ai->s_buildTree.GetUnitTypeProperties(defence);
 
-			const float myCombatPower = ai->s_buildTree.GetCombatPower(*defence).GetValue(selectionCriteria.targetType);
+			const float myCombatPower = ai->s_buildTree.GetCombatPower(defence).GetValue(selectionCriteria.targetType);
 
-			float myRating =  selectionCriteria.cost        * costs.GetNormalizedDeviationFromMax( unitData.m_totalCost )
-							+ selectionCriteria.buildtime   * buildtimes.GetNormalizedDeviationFromMax( unitData.m_buildtime )
-							+ selectionCriteria.range       * ranges.GetNormalizedDeviationFromMin( unitData.m_primaryAbility )
-							+ selectionCriteria.combatPower * combatPowerStat.GetNormalizedDeviationFromMin( myCombatPower )
+			float myRating =  selectionCriteria.cost        * costs.GetDeviationFromMax( unitData.m_totalCost )
+							+ selectionCriteria.buildtime   * buildtimes.GetDeviationFromMax( unitData.m_buildtime )
+							+ selectionCriteria.range       * ranges.GetDeviationFromZero( unitData.m_primaryAbility )
+							+ selectionCriteria.combatPower * combatPowerStat.GetDeviationFromZero( myCombatPower )
 							+ 0.05f * ((float)(rand()%(selectionCriteria.randomness+1)));
 
 			if(myRating > bestRating)
 			{
 				bestRating = myRating;
-				selectedDefence = *defence;
+				selectedDefence = defence;
 			}
 		}
 	}
