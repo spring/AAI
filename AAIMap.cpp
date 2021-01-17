@@ -376,7 +376,7 @@ void AAIMap::ReadMapCacheFile()
 		land_metal_spots = 0;
 		water_metal_spots = 0;
 
-		fprintf(file, _STPF_ " \n", metal_spots.size());
+		fprintf(file, "%u\n", static_cast<unsigned int>(metal_spots.size()) );
 
 		for(std::list<AAIMetalSpot>::iterator spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
 		{
@@ -503,7 +503,7 @@ void AAIMap::ReadContinentFile()
 	s_continentMap.SaveToFile(file);
 
 	// save continents
-	fprintf(file, "\n" _STPF_ " \n", s_continents.size());
+	fprintf(file, "\n%u\n", static_cast<unsigned int>(s_continents.size()) );
 
 	for(size_t c = 0; c < s_continents.size(); ++c)
 		fprintf(file, "%i %i \n", s_continents[c].size, (int)s_continents[c].water);
