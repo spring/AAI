@@ -921,16 +921,16 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 			{
 				// criterion 1: how well is tile already covered by existing static defences
 				const MapPos mapPos(xPos, yPos);
-				const float defenceValue = 2.5f * AAIConstants::maxCombatPower / (1.0f + 0.25f * s_defenceMaps.GetValue(mapPos, targetType) );
+				const float defenceValue = 2.5f * AAIConstants::maxCombatPower / (1.0f + 0.35f * s_defenceMaps.GetValue(mapPos, targetType) );
 
 				// criterion 2: distance to center of base (prefer static defences closer to base)
-				const float distanceValue = AAIConstants::maxCombatPower * distanceStatistics.GetNormalizedDeviationFromMax(distancesToBaseCenter[index]);
+				const float distanceValue = 0.75f * AAIConstants::maxCombatPower * distanceStatistics.GetNormalizedDeviationFromMax(distancesToBaseCenter[index]);
 
 				// criterion 3: terrain (prefer defences on high ground, avoid defences close to walls of canyons/valleys)
 				const int cell = (xPos/4 + (xMapSize/4) * yPos/4);
 				const float terrainValue = std::min(AAIConstants::maxCombatPower, terrainModifier * plateau_map[cell]);
 
-				float rating = defenceValue + distanceValue + terrainValue + 0.2f * (float)(rand()%15);
+				float rating = defenceValue + distanceValue + terrainValue + 0.2f * (float)(rand()%10);
 
 				// determine minimum distance from buildpos to the edges of the map
 				const int edge_distance = GetEdgeDistance(xPos, yPos);

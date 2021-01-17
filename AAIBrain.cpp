@@ -840,21 +840,24 @@ StorageSelectionCriteria AAIBrain::DetermineStorageSelectionCriteria() const
 
 void AAIBrain::DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCriteria& selectionCriteria, const AAISector* sector) const
 {
-	// defence ranges from 0.2 (high defence power vs given target type) to 1 (no defence power)
-	const float defence    = exp(- sector->GetFriendlyStaticDefencePower(selectionCriteria.targetType) / 6.0f);
+	// defence factor ranges from 0.0 (high defence power vs given target type) to 1 (no defence power)
+	const float defenceFactor    = exp(- sector->GetFriendlyStaticDefencePower(selectionCriteria.targetType) / 6.0f);
+
+	// defence factor ranges from 0.0 (~ 10 static defences) to 1 (no static defences)
+	const float numberOfDefencesFactor = exp( - static_cast<float>(sector->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE)) / 3.0f );
 
 	// income factor ranges from 1.0 (no metal income) to 0.0 (high metal income)
 	const float metalIncome = m_metalIncome.GetAverageValue();
 	const float incomeFactor = 1.0f / (0.01f * metalIncome*metalIncome + 1.0f);
 
 	// cost ranges from 0.5 (excess metal, high defence power) to 2.0 (low metal, low defence power)
-	selectionCriteria.cost        = 0.5f + incomeFactor + 0.5f * defence;
+	selectionCriteria.cost        = 0.5f + incomeFactor + 0.5f * defenceFactor;
 
 	// power ranges from 0.5 (low income) to 3.0 (high income, low defence power & high enemy pressure)
-	selectionCriteria.combatPower = 0.5f + 0.5f * (1.0f - incomeFactor) + 1.5f * defence + 0.5f * m_estimatedPressureByEnemies;
+	selectionCriteria.combatPower = 0.5f + 0.5f * (1.0f - incomeFactor) + 1.5f * (1.0f - numberOfDefencesFactor) + 0.5f * m_estimatedPressureByEnemies;
 
 	// buildtimes ranges form 0.25 (high income, low threat level) to 2 (low income, low defence power/high threat level)
-	selectionCriteria.buildtime = 0.25f + 0.5f * m_estimatedPressureByEnemies + 1.25f * defence;
+	selectionCriteria.buildtime = 0.25f + 0.5f * m_estimatedPressureByEnemies + 1.25f * defenceFactor;
 
 	// range ranges from 0.1 to 1.5, depending on ratio of units with high ranges
 	if( IsRandomNumberBelow(cfg->HIGH_RANGE_UNITS_RATIO) )
