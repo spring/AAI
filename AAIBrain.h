@@ -74,8 +74,8 @@ public:
 	// returns how much ressources can be spent for unit construction atm
 	float Affordable();
 
-	// returns true if commander is allowed for construction at the specified position in the sector
-	bool CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos);
+	//! @brief Returns whether commander is allowed for construction in the given sector
+	bool IsCommanderAllowedForConstructionInSector(const AAISector *sector) const;
 
 	void DefendCommander(int attacker);
 

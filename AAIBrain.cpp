@@ -140,16 +140,16 @@ void AAIBrain::UpdateCenterOfBase()
 	}
 }
 
-bool AAIBrain::CommanderAllowedForConstructionAt(AAISector *sector, float3 *pos)
+bool AAIBrain::IsCommanderAllowedForConstructionInSector(const AAISector *sector) const
 {
 	// commander is always allowed in base
+	if(sector->IsOccupiedByEnemies())
+		return false;
+
 	if(sector->GetDistanceToBase() <= 0)
 		return true;
 	// allow construction close to base for small bases
 	else if(m_sectorsInDistToBase[0].size() < 3 && sector->GetDistanceToBase() <= 1)
-		return true;
-	// allow construction on islands close to base on water maps
-	else if(ai->Getmap()->GetMapType().IsWater() && (ai->GetAICallback()->GetElevation(pos->x, pos->z) >= 0) && (sector->GetDistanceToBase() <= 3) )
 		return true;
 	else
 		return false;
@@ -837,7 +837,6 @@ StorageSelectionCriteria AAIBrain::DetermineStorageSelectionCriteria() const
 	return StorageSelectionCriteria(cost, buildtime, storedMetal, storedEnergy);
 }
 
-
 void AAIBrain::DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCriteria& selectionCriteria, const AAISector* sector) const
 {
 	// defence factor ranges from 0.0 (high defence power vs given target type) to 1 (no defence power)
@@ -880,46 +879,5 @@ void AAIBrain::DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCri
 		selectionCriteria.terrain += 1.0f;
 
 	selectionCriteria.randomness = 3;
-
-
-	/*
-	if(staticDefences > 2)
-	{
-		int t = rand()%500;
-
-		if(t < 100)
-		{
-			selectionCriteria.range   = 2.0f;
-			selectionCriteria.terrain = 10.0f;
-		}
-		else if(t < 200)
-		{
-			selectionCriteria.range   = 1.0f;
-			selectionCriteria.terrain = 5.0f;
-		}
-
-		selectionCriteria.randomness = 15;
-	}
-	if(staticDefences == 2)
-	{
-		selectionCriteria.cost        = 0.75f;
-		selectionCriteria.buildtime   = 0.5f;
-		selectionCriteria.combatPower = 1.5f;
-		selectionCriteria.randomness  = 10;
-	}
-	else if(staticDefences == 1)
-	{
-		selectionCriteria.cost        = 1.5f;
-		selectionCriteria.buildtime   = 1.5f;
-		selectionCriteria.combatPower = 1.25f;
-		selectionCriteria.range       = 0.3f;
-	}
-	else // no static defences so far
-	{
-
-	}
-
-	if( (staticDefences > 2) && (rand()%cfg->LEARN_RATE == 1) ) // select defence more randomly from time to time
-		selectionCriteria.randomness = 20;*/
 }
 

@@ -473,7 +473,8 @@ bool AAISector::ShallBeConsideredForExtractorConstruction() const
 {
 	return 	   m_freeMetalSpots 
 			&& (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(x, y, ai->GetMyTeamId()) == false)
-			&& (IsOccupiedByEnemies() == false);	
+			&& (IsOccupiedByEnemies() == false)
+			&& (IsOccupiedByAllies()  == false);	
 }
 
 float3 AAISector::GetRandomBuildsite(UnitDefId buildingDefId, int tries) const

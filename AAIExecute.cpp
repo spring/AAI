@@ -575,7 +575,7 @@ bool AAIExecute::BuildExtractor()
 	std::list<PossibleSpotForMetalExtractor> extractorSpots;
 
 	// determine max search dist - prevent crashes on smaller maps
-	const int maxSearchDist = min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->m_sectorsInDistToBase.size()) );
+	const int maxSearchDist = std::min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->m_sectorsInDistToBase.size()) );
 
 	bool freeMetalSpotFound = false;
 	
@@ -594,7 +594,7 @@ bool AAIExecute::BuildExtractor()
 						const UnitDefId extractor = (spot->pos.y >= 0.0f) ? landExtractor : seaExtractor;
 
 						float distanceToClosestBuilder;
-						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor, &spot->pos, ai->Getbrain()->CommanderAllowedForConstructionAt(sector, &spot->pos), &distanceToClosestBuilder);
+						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor, &spot->pos, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector), &distanceToClosestBuilder);
 						
 						const float rating = (1.0f + ai->Getmap()->GetDistanceToCenterOfEnemyBase(spot->pos)) / (1.0f + distanceToClosestBuilder);
 
@@ -1170,7 +1170,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 		if(buildsite.x > 0.0f)
 		{
 			float min_dist;
-			AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedDefence, &buildsite, true, &min_dist);
+			AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedDefence, &buildsite, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector), &min_dist);
 
 			if(builder)
 			{
