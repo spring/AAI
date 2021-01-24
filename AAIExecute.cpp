@@ -1737,7 +1737,7 @@ void AAIExecute::CheckConstructionOfNanoTurret()
 				{
 					const AAISector* sector = ai->Getmap()->GetSectorOfPos(buildsite);
 
-					if(sector->GetNumberOfBuildings(EUnitCategory::STATIC_ASSISTANCE) < 5)
+					if(sector->GetNumberOfBuildings(EUnitCategory::STATIC_ASSISTANCE) < cfg->MAX_NANO_TURRETS_PER_SECTOR)
 					{
 						float min_dist;
 						AAIConstructor *builder = ai->Getut()->FindClosestBuilder(nanoTurretDefId, &buildsite, true, &min_dist);

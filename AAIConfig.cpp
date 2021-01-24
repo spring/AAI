@@ -105,6 +105,7 @@ AAIConfig::AAIConfig(void)
 	MAX_BUILDERS = 50;
 	MAX_BUILDERS_PER_TYPE = 5;
 	MAX_FACTORIES_PER_TYPE = 3;
+	MAX_NANO_TURRETS_PER_SECTOR = 5;
 	MAX_BUILDQUE_SIZE = 12;
 	MAX_ASSISTANTS = 4;
 	MIN_ASSISTANCE_BUILDTIME = 15;
@@ -273,6 +274,7 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 		{
 			ReadUnitNames(ai, file, m_metalMakers, unknownUnits);
 		}
+
 		else if(!strcmp(keyword, "DONT_BUILD")) 
 		{
 			ReadUnitNames(ai, file, m_ignoredUnits, unknownUnits);
@@ -335,6 +337,8 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 			MAX_BUILDERS_PER_TYPE = GetInt(ai, file);
 		} else if(!strcmp(keyword, "MAX_FACTORIES_PER_TYPE")) {
 			MAX_FACTORIES_PER_TYPE = GetInt(ai, file);
+		} else if(!strcmp(keyword, "MAX_NANO_TURRETS_PER_SECTOR")) {
+			MAX_NANO_TURRETS_PER_SECTOR = GetInt(ai, file);	
 		} else if(!strcmp(keyword, "MIN_ASSISTANCE_BUILDTIME")) {
 			MIN_ASSISTANCE_BUILDTIME = GetInt(ai, file);
 		} else if(!strcmp(keyword, "AIR_DEFENCE")) {

@@ -62,6 +62,7 @@ public:
 	int MAX_BUILDERS_PER_TYPE; // max builders of same unit type
 	int MAX_FACTORIES_PER_TYPE;
 	int MAX_BUILDQUE_SIZE;
+	int MAX_NANO_TURRETS_PER_SECTOR;
 	int MAX_ASSISTANTS;
 	int MIN_ASSISTANCE_BUILDTIME;
 	int MAX_BASE_SIZE;
@@ -144,7 +145,10 @@ private:
 	~AAIConfig(void);
 
 	const UnitDef* GetUnitDef(AAI* ai, const std::string& name);
+
+	//! @brief Reads one integer from the given file
 	int GetInt(AAI* ai, FILE* file);
+
 	float GetFloat(AAI* ai, FILE* file);
 	std::string GetString(AAI* ai, FILE* file);
 
