@@ -787,11 +787,11 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 		return EUnitCategory::UNKNOWN;
 
 	// --------------- buildings --------------------------------------------------------------------------------------
-	if(m_unitTypeProperties[unitDef->id].m_movementType.IsStatic() == true)
+	if(m_unitTypeProperties[unitDef->id].m_movementType.IsStatic())
 	{
 		if( IsNanoTurret(unitDef) )
 		{
-			return EUnitCategory::STATIC_SUPPORT;
+			return EUnitCategory::STATIC_ASSISTANCE;
 		}
 		else if(m_unitTypeCanConstructLists[unitDef->id].size() > 0)
 		{

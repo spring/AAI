@@ -1708,7 +1708,9 @@ void AAIExecute::CheckDefences()
 
 void AAIExecute::CheckConstructionOfNanoTurret()
 {
-	if( (ai->Getbrain()->GetAverageMetalSurplus() < 0.5f) && (ai->Getbrain()->GetAverageAvailableMetal() > 50.0f) )
+	const bool insufficientResources       = (ai->Getbrain()->GetAverageMetalSurplus() < 0.5f) && (ai->Getbrain()->GetAverageAvailableMetal() > 50.0f);
+	const bool nanoTurretUnderConstruction = ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_ASSISTANCE) > 0;
+	if( insufficientResources || nanoTurretUnderConstruction )
 		return;
 
 	for(auto constructorUnitId : ai->Getut()->GetConstructors())
@@ -1720,12 +1722,12 @@ void AAIExecute::CheckConstructionOfNanoTurret()
 			UnitDefId landNanoTurretDefId = ai->Getbt()->SelectNanoTurret(ai->GetSide(), false);
 			UnitDefId seaNanoTurretDefId  = ai->Getbt()->SelectNanoTurret(ai->GetSide(), true);
 
-			if(landNanoTurretDefId.IsValid() && (ai->Getbt()->GetNumberOfFutureUnits(landNanoTurretDefId) <= 0) )
+			if(landNanoTurretDefId.IsValid())
 			{
 				float3 buildsite = ai->Getmap()->FindBuildsiteCloseToUnit(landNanoTurretDefId, constructorUnitId);
 				UnitDefId nanoTurretDefId = landNanoTurretDefId;
 
-				if( (buildsite.x == 0.0f) && seaNanoTurretDefId.IsValid() && (ai->Getbt()->GetNumberOfFutureUnits(seaNanoTurretDefId) <= 0))
+				if( (buildsite.x == 0.0f) && seaNanoTurretDefId.IsValid())
 				{
 					buildsite = ai->Getmap()->FindBuildsiteCloseToUnit(seaNanoTurretDefId, constructorUnitId);
 					nanoTurretDefId = seaNanoTurretDefId;
@@ -1735,7 +1737,7 @@ void AAIExecute::CheckConstructionOfNanoTurret()
 				{
 					const AAISector* sector = ai->Getmap()->GetSectorOfPos(buildsite);
 
-					if(sector->GetNumberOfBuildings(EUnitCategory::STATIC_SUPPORT) < 4)
+					if(sector->GetNumberOfBuildings(EUnitCategory::STATIC_ASSISTANCE) < 5)
 					{
 						float min_dist;
 						AAIConstructor *builder = ai->Getut()->FindClosestBuilder(nanoTurretDefId, &buildsite, true, &min_dist);

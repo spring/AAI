@@ -24,23 +24,24 @@ enum class EUnitCategory : int
 	STATIC_ARTILLERY     =  2, //! 
 	STORAGE              =  3, //! 
 	STATIC_CONSTRUCTOR   =  4, //! factories
-	STATIC_SUPPORT       =  5, //! jammer, air base, missile launcher, shields
-	STATIC_SENSOR        =  6, //! radar, sonar, seismic
-	POWER_PLANT          =  7, //! 
-	METAL_EXTRACTOR      =  8, //!
-	METAL_MAKER          =  9, //!
-	COMMANDER            = 10, //!
-	GROUND_COMBAT        = 11, //! 
-	AIR_COMBAT           = 12, //!
-	HOVER_COMBAT         = 13, //!
-	SEA_COMBAT           = 14, //!
-	SUBMARINE_COMBAT     = 15,    
-	MOBILE_ARTILLERY     = 16, //!
-	SCOUT                = 17, //!
-	TRANSPORT            = 18, //!
-	MOBILE_CONSTRUCTOR   = 19, //!
-	MOBILE_SUPPORT       = 20, //! mobile radar, jammer, anti-nukes
-	NUMBER_OF_CATEGORIES = 21
+	STATIC_ASSISTANCE    =  5, //! nano turrets 
+	STATIC_SUPPORT       =  6, //! jammer, air base, missile launcher, shields
+	STATIC_SENSOR        =  7, //! radar, sonar, seismic
+	POWER_PLANT          =  8, //! 
+	METAL_EXTRACTOR      =  9, //!
+	METAL_MAKER          = 10, //!
+	COMMANDER            = 11, //!
+	GROUND_COMBAT        = 12, //! 
+	AIR_COMBAT           = 13, //!
+	HOVER_COMBAT         = 14, //!
+	SEA_COMBAT           = 15, //!
+	SUBMARINE_COMBAT     = 16,    
+	MOBILE_ARTILLERY     = 17, //!
+	SCOUT                = 18, //!
+	TRANSPORT            = 19, //!
+	MOBILE_CONSTRUCTOR   = 20, //!
+	MOBILE_SUPPORT       = 21, //! mobile radar, jammer, anti-nukes
+	NUMBER_OF_CATEGORIES = 22
 };
 
 //! The unit category is a coarse classification used to differentiate between different types of units.
@@ -68,6 +69,8 @@ public:
 	bool IsStorage()           const { return (m_unitCategory == EUnitCategory::STORAGE) ? true : false; };
 
 	bool IsStaticConstructor() const { return (m_unitCategory == EUnitCategory::STATIC_CONSTRUCTOR) ? true : false; };
+
+	bool IsStaticAssistance()  const { return (m_unitCategory == EUnitCategory::STATIC_ASSISTANCE) ? true : false; };
 
 	bool IsStaticSupport()     const { return (m_unitCategory == EUnitCategory::STATIC_SUPPORT) ? true : false; };
 

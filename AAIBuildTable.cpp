@@ -536,10 +536,9 @@ UnitDefId AAIBuildTable::SelectNanoTurret(int side, bool water) const
 {
 	UnitDefId selectedTurret;
 
-	for(auto nanoTurret : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SUPPORT, side) )
+	for(auto nanoTurret : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_ASSISTANCE, side) )
 	{
-		if(    ai->s_buildTree.GetUnitType(nanoTurret).IsConstructionAssist() 
-			&& IsBuildingSelectable(nanoTurret, water, true) )
+		if(IsBuildingSelectable(nanoTurret, water, true) )
 		{
 			selectedTurret = nanoTurret;
 		}

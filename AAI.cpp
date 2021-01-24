@@ -444,50 +444,50 @@ void AAI::UnitFinished(int unit)
 		}
 
 		// check if building belongs to one of this groups
-		if (category.IsMetalExtractor() == true)
+		if (category.IsMetalExtractor())
 		{
 			ut->AddExtractor(unit);
 
 			// order defence if necessary
 			execute->BuildStaticDefenceForExtractor(UnitId(unit), unitDefId);
 		}
-		else if (category.IsPowerPlant() == true)
+		else if (category.IsPowerPlant())
 		{
 			ut->AddPowerPlant(UnitId(unit), unitDefId);
 		}
-		else if (category.IsMetalMaker() == true)
+		else if (category.IsMetalMaker())
 		{
 			ut->AddMetalMaker(unit, def->id);
 		}
-		else if (category.IsStaticSensor() == true)
+		else if (category.IsStaticSensor())
 		{
 			ut->AddStaticSensor(UnitId(unit));
 		}
-		else if (category.IsStaticSupport() == true)
+		else if (category.IsStaticSupport())
 		{
 			const AAIUnitType& unitType = s_buildTree.GetUnitType(unitDefId);
 			if(unitType.IsRadarJammer() || unitType.IsSonarJammer())
 				ut->AddJammer(unit, def->id);
-			else if(unitType.IsConstructionAssist())
-			{
-				float3 position = GetAICallback()->GetUnitPos(unit);
-				position.x += 32.0f;
-				position.z += 32.0f;
-
-				Command c(CMD_PATROL);
-				c.PushPos(position);
-				GetAICallback()->GiveOrder(unit, &c);
-			}
 		}
-		else if (category.IsStaticArtillery() == true)
+		else if (category.IsStaticArtillery())
 		{
 			ut->AddStationaryArty(unit, def->id);
 		}
-		else if (category.IsStaticConstructor() == true)
+		else if (category.IsStaticConstructor())
 		{
 			ut->AddConstructor(UnitId(unit), unitDefId);
 
 			ut->units[unit].cons->Update();
+		}
+		else if(category.IsStaticAssistance())
+		{
+			float3 position = GetAICallback()->GetUnitPos(unit);
+			position.x += 32.0f;
+			position.z += 32.0f;
+
+			Command c(CMD_PATROL);
+			c.PushPos(position);
+			GetAICallback()->GiveOrder(unit, &c);
 		}
 		return;
 	}
