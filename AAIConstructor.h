@@ -91,6 +91,9 @@ public:
 	//! @brief Checks if an active construction order has failed; if this is the case update internal data
 	void CheckIfConstructionFailed();
 
+	//! @brief Returns whether nano turret is desired to support unit production (always false for builders)
+	bool IsAssitanceByNanoTurretDesired() const;
+
 	// checks if assisting builders needed
 	void CheckAssistance();
 

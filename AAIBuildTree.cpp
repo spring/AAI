@@ -316,7 +316,7 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 	if(rootUnits.size() != cfg->numberOfSides)
 	{
 		rootUnits.clear();
-		rootUnits = cfg->startUnits;
+		rootUnits = cfg->m_startUnits;
 	}
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -677,7 +677,7 @@ EMovementType AAIBuildTree::DetermineMovementType(const springLegacyAI::UnitDef*
     // stationary
     else
     {
-        if(unitDef->minWaterDepth <= 0)
+        if(unitDef->minWaterDepth <= 0.0f)
         {
             moveType = EMovementType::MOVEMENT_TYPE_STATIC_LAND;
         }
@@ -783,13 +783,17 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 		return EUnitCategory::UNKNOWN;
 
 	// discard units that are on ignore list
-	if(std::find(cfg->ignoredUnits.begin(), cfg->ignoredUnits.end(), unitDef->id) != cfg->ignoredUnits.end())
+	if(std::find(cfg->m_ignoredUnits.begin(), cfg->m_ignoredUnits.end(), unitDef->id) != cfg->m_ignoredUnits.end())
 		return EUnitCategory::UNKNOWN;
 
 	// --------------- buildings --------------------------------------------------------------------------------------
 	if(m_unitTypeProperties[unitDef->id].m_movementType.IsStatic() == true)
 	{
-		if(m_unitTypeCanConstructLists[unitDef->id].size() > 0)
+		if( IsNanoTurret(unitDef) )
+		{
+			return EUnitCategory::STATIC_SUPPORT;
+		}
+		else if(m_unitTypeCanConstructLists[unitDef->id].size() > 0)
 		{
 			return EUnitCategory::STATIC_CONSTRUCTOR;
 		}
@@ -851,7 +855,7 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 		{
 			return EUnitCategory::STATIC_SUPPORT;
 		}
-		else if( (unitDef->metalMake > 0.0f) || (std::find(cfg->metalMakers.begin(), cfg->metalMakers.end(), unitDef->id) != cfg->metalMakers.end()) ) //! @todo Does not work - investigate later
+		else if( (unitDef->metalMake > 0.0f) || (std::find(cfg->m_metalMakers.begin(), cfg->m_metalMakers.end(), unitDef->id) != cfg->m_metalMakers.end()) ) //! @todo Does not work - investigate later
 		{
 			return EUnitCategory::METAL_MAKER;
 		}
@@ -934,13 +938,18 @@ EUnitCategory AAIBuildTree::DetermineUnitCategory(const springLegacyAI::UnitDef*
 	return EUnitCategory::UNKNOWN;
 }
 
+bool AAIBuildTree::IsNanoTurret(const springLegacyAI::UnitDef* unitDef) const
+{
+	return unitDef->canAssist && (unitDef->buildOptions.size() == 0);
+}
+
 bool AAIBuildTree::IsScout(const springLegacyAI::UnitDef* unitDef) const
 {
 	if( (unitDef->speed > cfg->SCOUT_SPEED) && (unitDef->canfly == false) )
 		return true;
 	else
 	{
-		for(auto i = cfg->scouts.begin(); i != cfg->scouts.end(); ++i)
+		for(auto i = cfg->m_scouts.begin(); i != cfg->m_scouts.end(); ++i)
 		{
 			if(*i == unitDef->id)
 				return true;
@@ -952,7 +961,7 @@ bool AAIBuildTree::IsScout(const springLegacyAI::UnitDef* unitDef) const
 
 bool AAIBuildTree::IsMobileTransport(const springLegacyAI::UnitDef* unitDef) const
 {
-	for(auto i = cfg->transporters.begin(); i != cfg->transporters.end(); ++i)
+	for(auto i = cfg->m_transporters.begin(); i != cfg->m_transporters.end(); ++i)
 	{
 		if(*i == unitDef->id)
 			return true;

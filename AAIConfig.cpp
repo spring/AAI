@@ -259,23 +259,23 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 		}
 		else if(!strcmp(keyword, "START_UNITS")) 
 		{
-			ReadUnitNames(ai, file, startUnits, unknownUnits);
+			ReadUnitNames(ai, file, m_startUnits, unknownUnits);
 		} 
 		else if(!strcmp(keyword, "SCOUTS")) 
 		{
-			ReadUnitNames(ai, file, scouts, unknownUnits);
+			ReadUnitNames(ai, file, m_scouts, unknownUnits);
 		}
 		else if(!strcmp(keyword, "TRANSPORTERS"))
 		{
-			ReadUnitNames(ai, file, transporters, unknownUnits);
+			ReadUnitNames(ai, file, m_transporters, unknownUnits);
 		}
 		else if(!strcmp(keyword, "METAL_MAKERS"))
 		{
-			ReadUnitNames(ai, file, metalMakers, unknownUnits);
+			ReadUnitNames(ai, file, m_metalMakers, unknownUnits);
 		}
 		else if(!strcmp(keyword, "DONT_BUILD")) 
 		{
-			ReadUnitNames(ai, file, ignoredUnits, unknownUnits);
+			ReadUnitNames(ai, file, m_ignoredUnits, unknownUnits);
 		}
 		else if(!strcmp(keyword,"MIN_ENERGY")) {
 			MIN_ENERGY = GetInt(ai, file);
@@ -409,7 +409,7 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 	return true;
 }
 
-bool AAIConfig::loadGeneralConfig(AAI& ai)
+bool AAIConfig::LoadGeneralConfig(AAI& ai)
 {
 	// load general settings
 	const std::string filename = GetFileName(ai.GetAICallback(), GENERAL_CFG_FILE, CFG_PATH);

@@ -532,6 +532,22 @@ UnitDefId AAIBuildTable::SelectStaticDefence(int side, const StaticDefenceSelect
 	return selectedDefence;
 }
 
+UnitDefId AAIBuildTable::SelectNanoTurret(int side, bool water) const
+{
+	UnitDefId selectedTurret;
+
+	for(auto nanoTurret : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_SUPPORT, side) )
+	{
+		if(    ai->s_buildTree.GetUnitType(nanoTurret).IsConstructionAssist() 
+			&& IsBuildingSelectable(nanoTurret, water, true) )
+		{
+			selectedTurret = nanoTurret;
+		}
+	}
+
+	return selectedTurret;
+}
+
 int AAIBuildTable::GetAirBase(int side, float /*cost*/, bool water, bool canBuild)
 {
 	float best_ranking = 0, my_ranking;

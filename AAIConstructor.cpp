@@ -204,6 +204,12 @@ void AAIConstructor::Update()
 	}
 }
 
+bool AAIConstructor::IsAssitanceByNanoTurretDesired() const
+{
+	//! @todo Take production time of units into account
+	return ai->s_buildTree.GetMovementType(m_myDefId).IsStatic() && (m_buildqueue->size() >= cfg->MAX_BUILDQUE_SIZE - 2);
+}
+
 void AAIConstructor::CheckAssistance()
 {
 	//-----------------------------------------------------------------------------------------------------------------
@@ -395,7 +401,6 @@ void AAIConstructor::CheckIfConstructionFailed()
 		ConstructionFailed();
 	}
 }
-
 
 void AAIConstructor::ConstructionFailed()
 {

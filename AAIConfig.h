@@ -40,7 +40,7 @@ public:
 	bool LoadGameConfig(AAI *ai);
 
 	// @brief Load general AAI config
-	bool loadGeneralConfig(AAI& ai);
+	bool LoadGeneralConfig(AAI& ai);
 
 	// constants (will be loaded in aaiconfig)
 
@@ -85,19 +85,19 @@ public:
 	std::vector<std::string> sideNames;
 
 	//! The start units (i.e. commanders) for the different sides
-	std::list<int> startUnits;
+	std::list<int> m_startUnits;
 
 	//! A list of units that shall be considered to be scouts
-	std::list<int> scouts;
+	std::list<int> m_scouts;
 
 	//! A list of units that shall be considered to be transport units
-	std::list<int> transporters;
+	std::list<int> m_transporters;
 
 	//! A list of units that shall be considered to be metal makers
-	std::list<int> metalMakers;
+	std::list<int> m_metalMakers;
 
 	//! A list of units that shall be ignored (i.e. not assigned to any category and thus not used)
-	std::list<int> ignoredUnits;
+	std::list<int> m_ignoredUnits;
 
 	//float KBOT_MAX_SLOPE;
 	//float VEHICLE_MAX_SLOPE;

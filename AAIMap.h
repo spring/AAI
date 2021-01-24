@@ -93,7 +93,10 @@ public:
 
 	float3 GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries, bool water = false);
 
-	//!  @brief Searches for a buildiste in given sector starting from top left corner 
+	//! @brief Searches for a buildsite close to the given unit; returns ZeroVector if none found
+	float3 FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) const;
+
+	//! @brief Searches for a buildiste in given sector starting from top left corner 
 	float3 DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const;
 
 	// prefer buildsites that are on plateus and not too close to the edge of the map
@@ -203,6 +206,9 @@ private:
 
 	//! @brief Updates enemy buildings/enemy combat power in sectors based on scout map entris updated by UpdateEnemyUnitsInLOS()
 	void UpdateEnemyScoutingData();
+
+	//! @brief Helper function to check if the given building may be constructed at the given map position
+	float3 CheckConstructionAt(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const;
 
 	//! @brief Converts the given position (in map coordinates) to a position in buildmap coordinates
 	void Pos2BuildMapPos(float3* position, const UnitDef* def) const;

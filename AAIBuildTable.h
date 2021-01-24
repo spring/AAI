@@ -185,6 +185,9 @@ public:
 	//! @brief Selects a static defence according to given criteria; a builder is requested if none available and a different static defence is chosen.
 	UnitDefId SelectStaticDefence(int side, const StaticDefenceSelectionCriteria& selectionCriteria, bool water);
 
+	//! @brief Selects a nano turret
+	UnitDefId SelectNanoTurret(int side, bool water) const;
+
 	//! @brief Selects a metal maker - currently not implemented (returns no valid unit def id)
 	UnitDefId GetMetalMaker(int side, float cost, float efficiency, float metal, float urgency, bool water, bool canBuild) const;
 

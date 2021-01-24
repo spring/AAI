@@ -768,6 +768,40 @@ float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 	return ZeroVector;
 }
 
+float3 AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) const
+{
+	const float3 unitPosition = ai->GetAICallback()->GetUnitPos(unitId.id);
+
+	const UnitFootprint            footprint = DetermineRequiredFreeBuildspace(buildingDefId);
+	const springLegacyAI::UnitDef* unitDef   = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+
+	// check rect
+	const int xStart = unitPosition.x / SQUARE_SIZE;
+	const int yStart = unitPosition.z / SQUARE_SIZE;
+
+	for(int xInc = 0; xInc < 24; xInc += 2)
+	{
+		for(int yInc = 0; yInc < 24; yInc += 2)
+		{
+			float3 buildsite = CheckConstructionAt(footprint, unitDef, MapPos(xStart - xInc, yStart - yInc) );
+
+			if(buildsite.x == 0.0f)
+				buildsite = CheckConstructionAt(footprint, unitDef, MapPos(xStart - xInc, yStart + yInc) );
+
+			if(buildsite.x == 0.0f)
+				buildsite = CheckConstructionAt(footprint, unitDef, MapPos(xStart + xInc, yStart - yInc) );
+
+			if(buildsite.x == 0.0f)
+				buildsite = CheckConstructionAt(footprint, unitDef, MapPos(xStart + xInc, yStart + yInc) );
+
+			if(buildsite.x > 0.0f)
+				return buildsite;
+		}
+	}
+
+	return ZeroVector;
+}
+
 float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const
 {
 	int xStart, xEnd, yStart, yEnd;
@@ -964,9 +998,34 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	return buildsite;
 }
 
-bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& size, bool water) const
+float3 AAIMap::CheckConstructionAt(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const
 {
-	if( (xPos+size.xSize > xMapSize) || (yPos+size.ySize > yMapSize) )
+	const bool water = unitDef->minWaterDepth > 0.0f;
+	if(CanBuildAt(mapPos.x, mapPos.y, footprint, water))
+	{
+		float3 possibleBuildsite(static_cast<float>(mapPos.x), 0.0f, static_cast<float>(mapPos.y));
+
+		// buildmap allows construction, now check if otherwise blocked
+		BuildMapPos2Pos(&possibleBuildsite, unitDef);
+		Pos2FinalBuildPos(&possibleBuildsite, unitDef);
+
+		if(ai->GetAICallback()->CanBuildAt(unitDef, possibleBuildsite))
+		{
+			const int x = possibleBuildsite.x/xSectorSize;
+			const int y = possibleBuildsite.z/ySectorSize;
+
+			if(IsValidSector(x,y))
+				return possibleBuildsite;
+		}
+	}
+
+	return ZeroVector;
+}
+		
+
+bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& footprint, bool water) const
+{
+	if( (xPos+footprint.xSize > xMapSize) || (yPos+footprint.ySize > yMapSize) )
 		return false; // buildsite too close to edges of map
 	else
 	{
@@ -980,9 +1039,9 @@ bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& size, bool wate
 			invalidTileTypes.SetTileType(EBuildMapTileType::CLIFF);
 		}
 
-		for(int y = yPos; y < yPos+size.ySize; ++y)
+		for(int y = yPos; y < yPos+footprint.ySize; ++y)
 		{
-			for(int x = xPos; x < xPos+size.xSize; ++x)
+			for(int x = xPos; x < xPos+footprint.xSize; ++x)
 			{
 				// all squares must be valid
 				if(s_buildmap[x+y*xMapSize].IsTileTypeSet(invalidTileTypes))

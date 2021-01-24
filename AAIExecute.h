@@ -95,6 +95,9 @@ public:
 	//
 	void CheckDefences();
 
+	//! @brief Check if construction nano turrets shall be ordered to support busy static constructors
+	void CheckConstructionOfNanoTurret();
+
 	// called when building has been finished / contruction failed
 	void ConstructionFailed(float3 build_pos, UnitDefId unitDefId);
 

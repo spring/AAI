@@ -1706,6 +1706,49 @@ void AAIExecute::CheckDefences()
 		BuildStationaryDefenceVS(targetType2, second);
 }
 
+void AAIExecute::CheckConstructionOfNanoTurret()
+{
+	if( (ai->Getbrain()->GetAverageMetalSurplus() < 0.5f) && (ai->Getbrain()->GetAverageAvailableMetal() > 50.0f) )
+		return;
+
+	for(auto constructorUnitId : ai->Getut()->GetConstructors())
+	{
+		const AAIConstructor* constructor = ai->Getut()->GetUnit(constructorUnitId).cons;
+
+		if( constructor->IsAssitanceByNanoTurretDesired() )
+		{
+			UnitDefId landNanoTurretDefId = ai->Getbt()->SelectNanoTurret(ai->GetSide(), false);
+			UnitDefId seaNanoTurretDefId  = ai->Getbt()->SelectNanoTurret(ai->GetSide(), true);
+
+			if(landNanoTurretDefId.IsValid() && (ai->Getbt()->GetNumberOfFutureUnits(landNanoTurretDefId) <= 0) )
+			{
+				float3 buildsite = ai->Getmap()->FindBuildsiteCloseToUnit(landNanoTurretDefId, constructorUnitId);
+				UnitDefId nanoTurretDefId = landNanoTurretDefId;
+
+				if( (buildsite.x == 0.0f) && seaNanoTurretDefId.IsValid() && (ai->Getbt()->GetNumberOfFutureUnits(seaNanoTurretDefId) <= 0))
+				{
+					buildsite = ai->Getmap()->FindBuildsiteCloseToUnit(seaNanoTurretDefId, constructorUnitId);
+					nanoTurretDefId = seaNanoTurretDefId;
+				}
+
+				if(buildsite.x > 0.0f)
+				{
+					const AAISector* sector = ai->Getmap()->GetSectorOfPos(buildsite);
+
+					if(sector->GetNumberOfBuildings(EUnitCategory::STATIC_SUPPORT) < 4)
+					{
+						float min_dist;
+						AAIConstructor *builder = ai->Getut()->FindClosestBuilder(nanoTurretDefId, &buildsite, true, &min_dist);
+
+						if(builder)
+							builder->GiveConstructionOrder(nanoTurretDefId, buildsite);
+					}
+				}
+			}
+		}
+	}
+}
+
 void AAIExecute::CheckRessources()
 {
 	SetConstructionUrgencyIfHigher(EUnitCategory::METAL_EXTRACTOR, ai->Getbrain()->GetMetalUrgency());

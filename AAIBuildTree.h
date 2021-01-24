@@ -165,6 +165,7 @@ private:
 	//-----------------------------------------------------------------------------------------------------------------
 	// helper functions for determineUnitCategory(...)
 	//-----------------------------------------------------------------------------------------------------------------
+	bool IsNanoTurret(const springLegacyAI::UnitDef* unitDef) const;
 	bool IsScout(const springLegacyAI::UnitDef* unitDef) const;
 	bool IsMobileTransport(const springLegacyAI::UnitDef* unitDef) const;
 	bool IsArtillery(const springLegacyAI::UnitDef* unitDef, float artilleryRangeThreshold) const;

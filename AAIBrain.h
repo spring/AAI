@@ -31,6 +31,8 @@ public:
 	//! @brief Returns the current estimation how much the AAI instance is under pressure by the enemies, values ranging from 0 (min) to 1 (max).
 	float GetPressureByEnemy() const { return m_estimatedPressureByEnemies; }	
 
+	float GetAverageAvailableMetal() const { return m_metalAvailable.GetAverageValue(); }
+
 	float GetAverageMetalSurplus() const { return m_metalSurplus.GetAverageValue(); }
 
 	float GetAveragEnergySurplus() const { return m_energySurplus.GetAverageValue(); }

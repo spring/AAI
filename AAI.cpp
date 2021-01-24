@@ -197,7 +197,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 
 	// load config file first
 	bool gameConfigLoaded    = cfg->LoadGameConfig(this);
-	bool generalConfigLoaded = cfg->loadGeneralConfig(*this);
+	bool generalConfigLoaded = cfg->LoadGeneralConfig(*this);
 
 	m_configLoaded = gameConfigLoaded && generalConfigLoaded;
 
@@ -465,7 +465,19 @@ void AAI::UnitFinished(int unit)
 		}
 		else if (category.IsStaticSupport() == true)
 		{
-			ut->AddJammer(unit, def->id);
+			const AAIUnitType& unitType = s_buildTree.GetUnitType(unitDefId);
+			if(unitType.IsRadarJammer() || unitType.IsSonarJammer())
+				ut->AddJammer(unit, def->id);
+			else if(unitType.IsConstructionAssist())
+			{
+				float3 position = GetAICallback()->GetUnitPos(unit);
+				position.x += 32.0f;
+				position.z += 32.0f;
+
+				Command c(CMD_PATROL);
+				c.PushPos(position);
+				GetAICallback()->GiveOrder(unit, &c);
+			}
 		}
 		else if (category.IsStaticArtillery() == true)
 		{
@@ -835,7 +847,7 @@ void AAI::Update()
 	}
 
 	// ressource management
-	if (!(tick % 199))
+	if (!(tick % 200))
 	{
 		AAI_SCOPED_TIMER("Resource-Management")
 		execute->CheckRessources();
@@ -876,6 +888,7 @@ void AAI::Update()
 	{
 		AAI_SCOPED_TIMER("BuilderAndFactory-Management")
 		ut->UpdateConstructors();
+		execute->CheckConstructionOfNanoTurret();
 	}
 
 	if (!(tick % 337))
@@ -891,7 +904,7 @@ void AAI::Update()
 	}
 
 	// build radar/jammer
-	if (!(tick % 1177))
+	if (!((tick+77) % 1200))
 	{
 		execute->CheckRecon();
 		//execute->CheckJammer();
@@ -900,7 +913,7 @@ void AAI::Update()
 	}
 
 	// upgrade mexes
-	if (!(tick % 1273))
+	if (!(tick % 1200))
 	{
 		AAI_SCOPED_TIMER("Upgrade-Mexes")
 		execute->CheckMexUpgrade();

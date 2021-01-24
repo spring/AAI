@@ -110,6 +110,8 @@ public:
 	//! @brief Calls the update() fucntion for every active constructor (e.g. looks for assistants for constructions, checks if factories are idle, ...)
 	void UpdateConstructors();
 
+	AAIUnit& GetUnit(UnitId unitId) { return units[unitId.id]; }
+
 	// units[i].unitId = -1 -> not used , -2 -> enemy unit
 	std::vector<AAIUnit> units;
 
