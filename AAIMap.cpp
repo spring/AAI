@@ -398,7 +398,7 @@ void AAIMap::ReadMapCacheFile()
 
 void AAIMap::ReadContinentFile()
 {
-	const std::string filename = cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, true, true, true), MAP_CACHE_PATH, "_continent.dat", true);
+	const std::string filename = cfg->GetFileName(ai->GetAICallback(), cfg->GetUniqueName(ai->GetAICallback(), true, true, true, true), MAP_CACHE_PATH, "_continent.dat", true);
 	FILE* file = fopen(filename.c_str(), "r");
 
 	if(file != NULL)
@@ -494,7 +494,7 @@ void AAIMap::ReadContinentFile()
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 	// save movement maps
-	const std::string movementfile = cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, false, true, false), MAP_CACHE_PATH, "_movement.dat", true);
+	const std::string movementfile = cfg->GetFileName(ai->GetAICallback(), cfg->GetUniqueName(ai->GetAICallback(), true, false, true, false), MAP_CACHE_PATH, "_movement.dat", true);
 	file = fopen(movementfile.c_str(), "w+");
 
 	fprintf(file, "%s\n",  CONTINENT_DATA_VERSION);
@@ -518,12 +518,12 @@ void AAIMap::ReadContinentFile()
 
 std::string AAIMap::LocateMapLearnFile() const
 {
-	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, true, true, true), MAP_LEARN_PATH, "_maplearn.dat", true);
+	return cfg->GetFileName(ai->GetAICallback(), cfg->GetUniqueName(ai->GetAICallback(), true, true, true, true), MAP_LEARN_PATH, "_maplearn.dat", true);
 }
 
 std::string AAIMap::LocateMapCacheFile() const
 {
-	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), false, false, true, true), MAP_LEARN_PATH, "_mapcache.dat", true);
+	return cfg->GetFileName(ai->GetAICallback(), cfg->GetUniqueName(ai->GetAICallback(), false, false, true, true), MAP_LEARN_PATH, "_mapcache.dat", true);
 }
 
 void AAIMap::ReadMapLearnFile()

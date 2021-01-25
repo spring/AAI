@@ -230,7 +230,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 
 	if(GetAAIInstance() == 1)
 	{
-		std::string filename = cfg->GetFileName(m_aiCallback, cfg->getUniqueName(m_aiCallback, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
+		std::string filename = cfg->GetFileName(m_aiCallback, cfg->GetUniqueName(m_aiCallback, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
 		s_buildTree.PrintSummaryToFile(filename, m_aiCallback);
 
 		brain->InitAttackedByRates( bt->GetAttackedByRates(map->GetMapType()) );

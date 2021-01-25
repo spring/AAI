@@ -42,8 +42,6 @@ public:
 	// @brief Load general AAI config
 	bool LoadGeneralConfig(AAI& ai);
 
-	// constants (will be loaded in aaiconfig)
-
 	// mod specific
 	int MIN_ENERGY;  // min energy make value to be considered beeing a power plant
 	int MAX_UNITS;
@@ -59,7 +57,7 @@ public:
 	int MAX_ANTI_AIR_GROUP_SIZE;
 	int MAX_ARTY_GROUP_SIZE;
 
-	int MAX_BUILDERS_PER_TYPE; // max builders of same unit type
+	int MAX_BUILDERS_PER_TYPE;
 	int MAX_FACTORIES_PER_TYPE;
 	int MAX_BUILDQUE_SIZE;
 	int MAX_NANO_TURRETS_PER_SECTOR;
@@ -131,7 +129,7 @@ public:
 	// game specific
 	int   LEARN_RATE;
 
-	const static int  INCOME_SAMPLE_POINTS = 16; //!< Number of data poiunts used to calculate smoothed energy/metal income/surplus 
+	static constexpr int  INCOME_SAMPLE_POINTS = 16; //!< Number of data points used to calculate smoothed energy/metal income/surplus 
 
 	/**
 	 * open a file in springs data directory
@@ -139,36 +137,34 @@ public:
 	 * @param mode mode file to open, see manpage of fopen
 	 */
 	std::string GetFileName(springLegacyAI::IAICallback* cb, const std::string& filename, const std::string& prefix = "", const std::string& suffix = "", bool write = false) const;
-	std::string getUniqueName(springLegacyAI::IAICallback* cb, bool game, bool gamehash, bool map, bool maphash) const;
+	std::string GetUniqueName(springLegacyAI::IAICallback* cb, bool game, bool gamehash, bool map, bool maphash) const;
 
 private:
 	~AAIConfig(void);
 
-	const UnitDef* GetUnitDef(AAI* ai, const std::string& name);
+	//! @brief Returns the unit definition for the unit with the given name (nullptr if not found)
+	const springLegacyAI::UnitDef* GetUnitDef(AAI* ai, const std::string& name);
 
 	//! @brief Reads one integer from the given file
-	int GetInt(AAI* ai, FILE* file);
+	int ReadNextInteger(AAI* ai, FILE* file);
 
-	float GetFloat(AAI* ai, FILE* file);
-	std::string GetString(AAI* ai, FILE* file);
+	//! @brief Read one float from the given file
+	float ReadNextFloat(AAI* ai, FILE* file);
 
-	int CONSTRUCTION_TIMEOUT;
+	//! @brief Read string from the given file
+	std::string ReadNextString(AAI* ai, FILE* file);
+
 	float WATER_MAP_RATIO;
 	float LAND_WATER_MAP_RATIO;
 	float LIGHT_ASSAULT_RATIO;
 	int MIN_FACTORIES_FOR_RADAR_JAMMER;
-//	int MAX_MEX_DEFENCE_COST;
 	int MAX_METAL_MAKERS;
-	float MIN_SECTOR_THREAT;
-//	float SHIP_MIN_WATERDEPTH;
 	int MIN_AIR_ATTACK_COST;
 	int MAX_BUILDERS;
-	int MIN_ASSISTANCE_BUILDSPEED;
 	int AIR_DEFENCE;
 	float MEDIUM_ASSAULT_RATIO;
 	float HEAVY_ASSAULT_RATIO;
 	float SUPER_HEAVY_ASSAULT_RATIO;
-	int MIN_SUBMARINE_WATERLINE;
 
 };
 

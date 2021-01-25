@@ -852,7 +852,7 @@ UnitDefId AAIBuildTable::SelectCombatUnit(int side, const AAIMovementType& allow
 
 std::string AAIBuildTable::GetBuildCacheFileName() const
 {
-	return cfg->GetFileName(ai->GetAICallback(), cfg->getUniqueName(ai->GetAICallback(), true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
+	return cfg->GetFileName(ai->GetAICallback(), cfg->GetUniqueName(ai->GetAICallback(), true, true, false, false), MOD_LEARN_PATH, "_buildcache.txt", true);
 }
 
 bool AAIBuildTable::LoadModLearnData()
