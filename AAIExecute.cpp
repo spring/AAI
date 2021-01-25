@@ -1563,7 +1563,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 				yDir *= inverseNorm;
 
 				// static defence shall be placed in sufficient distance to extractor in direction of assumed center of enemy base
-				const UnitFootprint extractorFootprint = ai->s_buildTree.GetFootprint(extractorDefId);
+				const UnitFootprint& extractorFootprint = ai->s_buildTree.GetFootprint(extractorDefId);
 				const float distToExtratcor = 80.f + static_cast<float>( SQUARE_SIZE * std::max(extractorFootprint.xSize, extractorFootprint.ySize) );
 
 				float3 defenceBuildPos;

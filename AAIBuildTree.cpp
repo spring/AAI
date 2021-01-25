@@ -351,9 +351,14 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		m_unitTypeProperties[id].m_buildtime = unitDefs[id]->buildTime;
 		m_unitTypeProperties[id].m_health    = unitDefs[id]->health;
 		m_unitTypeProperties[id].m_name      = unitDefs[id]->humanName;
-		m_unitTypeProperties[id].m_footprint = UnitFootprint(unitDefs[id]->xsize, unitDefs[id]->zsize);
+
+		const EMovementType moveType = DetermineMovementType(unitDefs[id]);
+		m_unitTypeProperties[id].m_movementType.SetMovementType(moveType);
+
+		const bool sea   = m_unitTypeProperties[id].m_movementType.IsSea();
+		const bool hover = m_unitTypeProperties[id].m_movementType.IsHover();
+		m_unitTypeProperties[id].m_footprint.SetInvalidTileType(sea, hover);
 		
-		m_unitTypeProperties[id].m_movementType.SetMovementType( DetermineMovementType(unitDefs[id]) );
 		m_unitTypeProperties[id].m_targetType.SetType( DetermineTargetType(m_unitTypeProperties[id].m_movementType) );
 	}
 

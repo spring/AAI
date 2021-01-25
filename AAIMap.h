@@ -91,7 +91,7 @@ public:
 	//! @brief Returns the maximum number of units lost in any sector of the map
 	float GetMaximumNumberOfLostUnits() const;
 
-	float3 GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries, bool water = false);
+	float3 FindRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries);
 
 	//! @brief Searches for a buildsite close to the given unit; returns ZeroVector if none found
 	float3 FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) const;
@@ -242,7 +242,7 @@ private:
 	void ReadMapCacheFile();
 
 	//! @brief Returns true if buildmap allows construction of unit with given footprint at goven position
-	bool CanBuildAt(int xPos, int yPos, const UnitFootprint& size, bool water = false) const;
+	bool CanBuildAt(int xPos, int yPos, const UnitFootprint& size) const;
 
 	//! @brief Blocks/unblocks map tiles (to prevent AAI from packing buildings too close to each other)
 	//!        Automatically clamps given values to map size (avoids running over any map edges)

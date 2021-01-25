@@ -18,6 +18,7 @@ typedef unsigned int   uint32_t;
 #include <algorithm>
 #include "aidef.h"
 #include "AAIUnitTypes.h"
+#include "AAIMapRelatedTypes.h"
 
 //! Movement types that are used to describe the movement type of every unit
 enum class EMovementType : uint32_t
@@ -155,12 +156,32 @@ private:
 //! Size of a unit (in map tiles) 
 struct UnitFootprint
 {
-	UnitFootprint(int x, int y) : xSize(x), ySize(y) {}
+	UnitFootprint(int x, int y, BuildMapTileType invalidTileTypes) : xSize(x), ySize(y), invalidTileTypes(invalidTileTypes) {}
 
-	UnitFootprint() : UnitFootprint(0, 0) {}
+	UnitFootprint() : UnitFootprint(0, 0, BuildMapTileType(EBuildMapTileType::OCCUPIED, EBuildMapTileType::BLOCKED_SPACE)) {}
 
-	int xSize;
-	int ySize;
+	void SetInvalidTileType(bool sea, bool hover)
+	{
+		invalidTileTypes.SetTileType(EBuildMapTileType::OCCUPIED);
+		invalidTileTypes.SetTileType(EBuildMapTileType::BLOCKED_SPACE);
+
+		if(sea)
+			invalidTileTypes.SetTileType(EBuildMapTileType::LAND);
+		else if(!hover)
+		{
+			invalidTileTypes.SetTileType(EBuildMapTileType::WATER);
+			invalidTileTypes.SetTileType(EBuildMapTileType::CLIFF);
+		}
+	}
+
+	//! The x sie (in map cells) of the unit
+	int              xSize;
+
+	//! The y size (in map cells) of the unit
+	int              ySize;
+
+	//! Tile types on which the unit cannot be constructed
+	BuildMapTileType invalidTileTypes;
 };
 
 //! Unit Type properties needed by AAI for internal decision making (i.e. unit type selection)
@@ -188,7 +209,7 @@ struct UnitTypeProperties
 	//! Movement type (land, sea, air, hover, submarine, ...)
 	AAIMovementType m_movementType;
 
-	//! Size of the unit (in map tiles) 
+	//! Foot of the unit (size in map tiles & tile type where it may be constructed) 
 	UnitFootprint   m_footprint;
 
 	//! The category of the unit

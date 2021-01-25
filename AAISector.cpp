@@ -481,11 +481,8 @@ float3 AAISector::GetRandomBuildsite(UnitDefId buildingDefId, int tries) const
 {
 	int xStart, xEnd, yStart, yEnd;
 	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
-
-	const bool                     water   = ai->s_buildTree.GetMovementType(buildingDefId).IsSea();
 	const springLegacyAI::UnitDef* unitDef  = &ai->Getbt()->GetUnitDef(buildingDefId.id);
-
-	return ai->Getmap()->GetRandomBuildsite(unitDef, xStart, xEnd, yStart, yEnd, tries, water);
+	return ai->Getmap()->FindRandomBuildsite(unitDef, xStart, xEnd, yStart, yEnd, tries);
 }
 
 float3 AAISector::GetRadarArtyBuildsite(int building, float range, bool water)

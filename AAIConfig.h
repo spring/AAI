@@ -165,7 +165,6 @@ private:
 	float MEDIUM_ASSAULT_RATIO;
 	float HEAVY_ASSAULT_RATIO;
 	float SUPER_HEAVY_ASSAULT_RATIO;
-
 };
 
 extern AAIConfig *cfg;

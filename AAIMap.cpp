@@ -729,7 +729,7 @@ void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, 
 	}	
 }
 
-float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries, bool water)
+float3 AAIMap::FindRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries)
 {
 	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
 
@@ -749,7 +749,7 @@ float3 AAIMap::GetRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int 
 			pos.z = yStart + rand()%(yEnd - yStart - footprint.ySize);
 
 		// check if buildmap allows construction
-		if(CanBuildAt(pos.x, pos.z, footprint, water))
+		if(CanBuildAt(pos.x, pos.z, footprint))
 		{
 			// buildmap allows construction, now check if otherwise blocked
 			BuildMapPos2Pos(&pos, def);
@@ -808,7 +808,6 @@ float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISect
 	sector->DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
 	const UnitFootprint            footprint = DetermineRequiredFreeBuildspace(buildingDefId);
-	const bool                     water     = ai->s_buildTree.GetMovementType(buildingDefId).IsSea();
 	const springLegacyAI::UnitDef* def       = &ai->Getbt()->GetUnitDef(buildingDefId.id);
 
 	// check rect
@@ -817,7 +816,7 @@ float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISect
 		for(int xPos = xStart; xPos < xEnd; xPos += 2)
 		{
 			// check if buildmap allows construction
-			if(CanBuildAt(xPos, yPos, footprint, water))
+			if(CanBuildAt(xPos, yPos, footprint))
 			{
 				float3 possibleBuildsite(static_cast<float>(xPos), 0.0f, static_cast<float>(yPos));
 
@@ -856,7 +855,7 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 	{
 		for(int xPos = xStart; xPos < xEnd; xPos += 2)
 		{
-			if(CanBuildAt(xPos, yPos, footprint, water))
+			if(CanBuildAt(xPos, yPos, footprint))
 			{
 				const float edgeDist = static_cast<float>(GetEdgeDistance(xPos, yPos)) / range;
 
@@ -897,7 +896,6 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 
 	const int           range     = static_cast<int>(ai->s_buildTree.GetMaxRange(staticDefence)) / SQUARE_SIZE;
 	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(staticDefence);
-	const bool          water     = ai->s_buildTree.GetMovementType(staticDefence).IsStaticSea();
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// determine search horizontal and vertical search range
@@ -951,7 +949,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	{
 		for(int xPos = xStart; xPos < xEnd; xPos += 4)
 		{
-			if(CanBuildAt(xPos, yPos, footprint, water))
+			if(CanBuildAt(xPos, yPos, footprint))
 			{
 				// criterion 1: how well is tile already covered by existing static defences
 				const MapPos mapPos(xPos, yPos);
@@ -1000,8 +998,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 
 float3 AAIMap::CheckConstructionAt(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const
 {
-	const bool water = unitDef->minWaterDepth > 0.0f;
-	if(CanBuildAt(mapPos.x, mapPos.y, footprint, water))
+	if(CanBuildAt(mapPos.x, mapPos.y, footprint))
 	{
 		float3 possibleBuildsite(static_cast<float>(mapPos.x), 0.0f, static_cast<float>(mapPos.y));
 
@@ -1023,28 +1020,18 @@ float3 AAIMap::CheckConstructionAt(const UnitFootprint& footprint, const springL
 }
 		
 
-bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& footprint, bool water) const
+bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& footprint) const
 {
 	if( (xPos+footprint.xSize > xMapSize) || (yPos+footprint.ySize > yMapSize) )
 		return false; // buildsite too close to edges of map
 	else
 	{
-		BuildMapTileType invalidTileTypes(EBuildMapTileType::OCCUPIED, EBuildMapTileType::BLOCKED_SPACE);
-
-		if(water)
-			invalidTileTypes.SetTileType(EBuildMapTileType::LAND);
-		else
-		{
-			invalidTileTypes.SetTileType(EBuildMapTileType::WATER);
-			invalidTileTypes.SetTileType(EBuildMapTileType::CLIFF);
-		}
-
 		for(int y = yPos; y < yPos+footprint.ySize; ++y)
 		{
 			for(int x = xPos; x < xPos+footprint.xSize; ++x)
 			{
 				// all squares must be valid
-				if(s_buildmap[x+y*xMapSize].IsTileTypeSet(invalidTileTypes))
+				if(s_buildmap[x+y*xMapSize].IsTileTypeSet(footprint.invalidTileTypes))
 					return false;
 			}
 		}
@@ -1299,7 +1286,7 @@ UnitFootprint AAIMap::DetermineRequiredFreeBuildspace(UnitDefId unitDefId) const
 	{
 		const int xSize = ai->s_buildTree.GetFootprint(unitDefId).xSize + cfg->X_SPACE;
 		const int ySize = ai->s_buildTree.GetFootprint(unitDefId).ySize + 2 * cfg->Y_SPACE;
-		return UnitFootprint(xSize, ySize);
+		return UnitFootprint(xSize, ySize, ai->s_buildTree.GetFootprint(unitDefId).invalidTileTypes);
 	}
 	else
 		return ai->s_buildTree.GetFootprint(unitDefId);
@@ -1537,10 +1524,9 @@ void AAIMap::DetectMetalSpots()
 			//{
 				Pos2BuildMapPos(&pos, def);
 
-				if(pos.z >= 2 && pos.x >= 2 && pos.x < xMapSize-2 && pos.z < yMapSize-2)
+				if( (pos.z >= 2) && (pos.x >= 2) && (pos.x < xMapSize-2) && (pos.z < yMapSize-2) )
 				{
-					const bool water = temp.pos.y < 0.0f;
-					if(CanBuildAt(pos.x, pos.z, largestExtractorFootprint, water))
+					if(CanBuildAt(pos.x, pos.z, largestExtractorFootprint))
 					{
 						metal_spots.push_back(temp);
 						++SpotsFound;
