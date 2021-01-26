@@ -631,7 +631,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 				// mark spots of destroyed mexes as unoccupied
 				if(sector)
-					sector->FreeMetalSpot(m_aiCallback->GetUnitPos(unit), def);
+					sector->FreeMetalSpot(m_aiCallback->GetUnitPos(unit), unitDefId);
 			}
 			else if (category.IsPowerPlant())
 			{

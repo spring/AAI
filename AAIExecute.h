@@ -98,8 +98,8 @@ public:
 	//! @brief Check if construction nano turrets shall be ordered to support busy static constructors
 	void CheckConstructionOfNanoTurret();
 
-	// called when building has been finished / contruction failed
-	void ConstructionFailed(float3 build_pos, UnitDefId unitDefId);
+	//! @brief Cleans up buildmap/updates internal counters/frees metalspots if contruction has failed
+	void ConstructionFailed(const float3& buildsite, UnitDefId unitDefId);
 
 	//! @brief Orders construction of static defence to protect metal extractor
 	void BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId extractorDefId) const;

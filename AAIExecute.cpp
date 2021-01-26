@@ -2174,28 +2174,24 @@ bool AAIExecute::defend_vs_submarine(const AAISector *left, const AAISector *rig
 		>  ((2.0f + right->GetLocalAttacksBy(ETargetType::SUBMERGED, learned, current)) / (right->GetFriendlyStaticDefencePower(ETargetType::SUBMERGED) + 0.5f));
 }
 
-void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
+void AAIExecute::ConstructionFailed(const float3& buildsite, UnitDefId unitDefId)
 {
-	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(unitDefId.id);
 	const AAIUnitCategory category = ai->s_buildTree.GetUnitCategory(unitDefId);
-
-	const int  x = build_pos.x/ai->Getmap()->xSectorSize;
-	const int  y = build_pos.z/ai->Getmap()->ySectorSize;
-	const bool validSector = ai->Getmap()->IsValidSector(x, y);
+	AAISector* sector = ai->Getmap()->GetSectorOfPos(buildsite);
 
 	// decrease number of units of that category in the target sector
-	if(validSector)
-		ai->Getmap()->m_sector[x][y].RemoveBuilding(category);
+	if(sector)
+		sector->RemoveBuilding(category);
 
 	// free metalspot if mex was odered to be built
 	if(category.IsMetalExtractor())
 	{
-		if(validSector)
-			ai->Getmap()->m_sector[x][y].FreeMetalSpot(build_pos, def);
+		if(sector)
+			sector->FreeMetalSpot(buildsite, unitDefId);
 	}
 	else if(category.IsStaticDefence())
 	{
-		ai->Getmap()->AddOrRemoveStaticDefence(build_pos, unitDefId, false);
+		ai->Getmap()->AddOrRemoveStaticDefence(buildsite, unitDefId, false);
 	}
 	else if(category.IsStaticConstructor())
 	{
@@ -2205,7 +2201,8 @@ void AAIExecute::ConstructionFailed(float3 build_pos, UnitDefId unitDefId)
 	}
 
 	// update buildmap of sector
-	ai->Getmap()->UpdateBuildMap(build_pos, def, false);
+	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(unitDefId.id);
+	ai->Getmap()->UpdateBuildMap(buildsite, def, false);
 }
 
 AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTargetType, const float3& pos, int importance) const

@@ -207,43 +207,36 @@ void AAISector::AddMetalSpot(AAIMetalSpot *spot)
 	m_freeMetalSpots = true;
 }
 
-void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, const float3& pos)
+void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, float3 pos)
 {
+	ai->Getmap()->ConvertPositionToFinalBuildsite(pos, ai->s_buildTree.GetFootprint(unitDefId));
+
 	for(auto spot : metalSpots)
 	{
 		// only check occupied spots
-		if(spot->occupied)
+		if(spot->occupied && spot->DoesSpotBelongToPosition(pos))
 		{
-			ai->Getmap()->Pos2FinalBuildPos(&spot->pos, &ai->Getbt()->GetUnitDef(unitDefId.id));
-
-			if(spot->DoesSpotBelongToPosition(pos))
-			{
-				spot->extractorUnitId = unitId;
-				spot->extractorDefId  = unitDefId;
-			}
+			spot->extractorUnitId = unitId;
+			spot->extractorDefId  = unitDefId;
 		}
 	}
 }
 
-void AAISector::FreeMetalSpot(float3 pos, const springLegacyAI::UnitDef *extractor)
+void AAISector::FreeMetalSpot(float3 pos, UnitDefId extractorDefId)
 {
+	ai->Getmap()->ConvertPositionToFinalBuildsite(pos, ai->s_buildTree.GetFootprint(extractorDefId));
+
 	// get metalspot according to position
 	for(auto spot : metalSpots)
 	{
 		// only check occupied spots
-		if(spot->occupied)
+		if(spot->occupied && spot->DoesSpotBelongToPosition(pos) )
 		{
-			// compare positions
-			ai->Getmap()->Pos2FinalBuildPos(&spot->pos, extractor);
+			spot->SetUnoccupied();
 
-			if( spot->DoesSpotBelongToPosition(pos) )
-			{
-				spot->SetUnoccupied();
-
-				m_freeMetalSpots = true;
-				return;
-			}
-		}
+			m_freeMetalSpots = true;
+			return;
+		}	
 	}
 }
 
@@ -481,8 +474,7 @@ float3 AAISector::GetRandomBuildsite(UnitDefId buildingDefId, int tries) const
 {
 	int xStart, xEnd, yStart, yEnd;
 	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
-	const springLegacyAI::UnitDef* unitDef  = &ai->Getbt()->GetUnitDef(buildingDefId.id);
-	return ai->Getmap()->FindRandomBuildsite(unitDef, xStart, xEnd, yStart, yEnd, tries);
+	return ai->Getmap()->FindRandomBuildsite(buildingDefId, xStart, xEnd, yStart, yEnd, tries);
 }
 
 float3 AAISector::GetRadarArtyBuildsite(int building, float range, bool water)

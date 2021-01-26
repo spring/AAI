@@ -53,7 +53,7 @@ public:
 	float GetDistanceToCenterOfEnemyBase(const float3& position) const;
 
 	//! @brief Converts given position to final building position for the given unit type
-	void Pos2FinalBuildPos(float3 *pos, const UnitDef *def) const;
+	void ConvertPositionToFinalBuildsite(float3& buildsite, const UnitFootprint& footprint) const;
 
 	//! @brief Returns whether x/y specify a valid sector
 	bool IsValidSector(int x, int y) const { return( (x >= 0) && (y >= 0) && (x < xSectors) && (y < ySectors) ); }
@@ -91,7 +91,8 @@ public:
 	//! @brief Returns the maximum number of units lost in any sector of the map
 	float GetMaximumNumberOfLostUnits() const;
 
-	float3 FindRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries);
+	//! @brief Searches the given number of tries for a random builsite in the given area, returns ZeroVector if none found 
+	float3 FindRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, int yStart, int yEnd, int tries) const;
 
 	//! @brief Searches for a buildsite close to the given unit; returns ZeroVector if none found
 	float3 FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) const;
@@ -242,7 +243,7 @@ private:
 	void ReadMapCacheFile();
 
 	//! @brief Returns true if buildmap allows construction of unit with given footprint at goven position
-	bool CanBuildAt(int xPos, int yPos, const UnitFootprint& size) const;
+	bool CanBuildAt(const MapPos& mapPos, const UnitFootprint& size) const;
 
 	//! @brief Blocks/unblocks map tiles (to prevent AAI from packing buildings too close to each other)
 	//!        Automatically clamps given values to map size (avoids running over any map edges)
@@ -259,9 +260,14 @@ private:
 
 	//! @brief Occupies/frees the given cells of the buildmap
 	void ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, bool occupy);
-
-public:
-	void BuildMapPos2Pos(float3 *pos, const UnitDef* def) const;
+	
+	//! @brief Calculates position (in unit coordinates) for given position (in buildmap coordinates) and footprint
+	void ConvertMapPosToUnitPos(const MapPos& mapPos, float3 &pos, const UnitFootprint& footprint) const
+	{
+		// shift to center of building and convert to higher resolution
+		pos.x = static_cast<float>( SQUARE_SIZE * (mapPos.x + footprint.xSize/2) );
+		pos.z = static_cast<float>( SQUARE_SIZE * (mapPos.y + footprint.ySize/2) );
+	}
 
 private:
 	std::string LocateMapLearnFile() const;

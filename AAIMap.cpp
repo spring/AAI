@@ -676,28 +676,17 @@ void AAIMap::Pos2BuildMapPos(float3 *position, const UnitDef* def) const
 		position->z = static_cast<float>(z);
 }
 
-void AAIMap::BuildMapPos2Pos(float3 *pos, const UnitDef *def) const
+void AAIMap::ConvertPositionToFinalBuildsite(float3& buildsite, const UnitFootprint& footprint) const
 {
-	// shift to middlepoint
-	pos->x += def->xsize/2;
-	pos->z += def->zsize/2;
-
-	// back to unit coordinates
-	pos->x *= SQUARE_SIZE;
-	pos->z *= SQUARE_SIZE;
-}
-
-void AAIMap::Pos2FinalBuildPos(float3 *pos, const UnitDef* def) const
-{
-	if(def->xsize&2) // check if xsize is a multiple of 4
-		pos->x=floor((pos->x)/(SQUARE_SIZE*2))*SQUARE_SIZE*2+8;
+	if(footprint.xSize&2) // check if xSize is a multiple of 4
+		buildsite.x = floor( (buildsite.x)   / (2*SQUARE_SIZE) ) * 2 * SQUARE_SIZE + 8;
 	else
-		pos->x=floor((pos->x+8)/(SQUARE_SIZE*2))*SQUARE_SIZE*2;
+		buildsite.x = floor( (buildsite.x+8) / (2*SQUARE_SIZE) ) * 2 * SQUARE_SIZE;
 
-	if(def->zsize&2)
-		pos->z=floor((pos->z)/(SQUARE_SIZE*2))*SQUARE_SIZE*2+8;
+	if(footprint.ySize&2) // check if ySize is a multiple of 4
+		buildsite.z = floor( (buildsite.z)   / (2*SQUARE_SIZE) ) * 2 * SQUARE_SIZE + 8;
 	else
-		pos->z=floor((pos->z+8)/(SQUARE_SIZE*2))*SQUARE_SIZE*2;
+		buildsite.z = floor( (buildsite.z+8) / (2*SQUARE_SIZE) ) * 2 * SQUARE_SIZE;
 }
 
 void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, bool occupy)
@@ -729,38 +718,40 @@ void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, 
 	}	
 }
 
-float3 AAIMap::FindRandomBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, int tries)
+float3 AAIMap::FindRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, int yStart, int yEnd, int tries) const
 {
-	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(unitDefId);
+
+	const int randomXRange = xEnd - xStart - footprint.xSize;
+	const int randomYRange = yEnd - yStart - footprint.ySize;
 
 	for(int i = 0; i < tries; i++)
 	{
-		float3 pos;
+		// determine random position within given rectangle
+		MapPos mapPos(xStart, yStart);
 
-		// get random pos within rectangle
-		if(xEnd - xStart - footprint.xSize < 1)
-			pos.x = xStart;
-		else
-			pos.x = xStart + rand()%(xEnd - xStart - footprint.xSize);
+		if( randomXRange > 0)
+			mapPos.x += rand()%randomXRange;
 
-		if(yEnd - yStart - footprint.ySize < 1)
-			pos.z = yStart;
-		else
-			pos.z = yStart + rand()%(yEnd - yStart - footprint.ySize);
+		if( randomYRange > 0)
+			mapPos.y += rand()%randomYRange;
 
 		// check if buildmap allows construction
-		if(CanBuildAt(pos.x, pos.z, footprint))
-		{
-			// buildmap allows construction, now check if otherwise blocked
-			BuildMapPos2Pos(&pos, def);
-			Pos2FinalBuildPos(&pos, def);
+		if(CanBuildAt(mapPos, footprint))
+		{	
+			float3 possibleBuildsite;
+			ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
+			ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
 
-			if(ai->GetAICallback()->CanBuildAt(def, pos))
+			const springLegacyAI::UnitDef* unitDef  = &ai->Getbt()->GetUnitDef(unitDefId.id);
+			if(ai->GetAICallback()->CanBuildAt(unitDef, possibleBuildsite))
 			{
-				AAISector* sector = GetSectorOfPos(pos);
+				const int x = possibleBuildsite.x/xSectorSize;
+				const int y = possibleBuildsite.z/ySectorSize;
 
-				if(sector)
-					return pos;
+				if(IsValidSector(x,y))
+					return possibleBuildsite;
+
 			}
 		}
 	}
@@ -815,14 +806,14 @@ float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISect
 	{
 		for(int xPos = xStart; xPos < xEnd; xPos += 2)
 		{
-			// check if buildmap allows construction
-			if(CanBuildAt(xPos, yPos, footprint))
-			{
-				float3 possibleBuildsite(static_cast<float>(xPos), 0.0f, static_cast<float>(yPos));
+			const MapPos mapPos(xPos, yPos);
 
-				// buildmap allows construction, now check if otherwise blocked
-				BuildMapPos2Pos(&possibleBuildsite, def);
-				Pos2FinalBuildPos(&possibleBuildsite, def);
+			// check if buildmap allows construction
+			if(CanBuildAt(mapPos, footprint))
+			{
+				float3 possibleBuildsite;
+				ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
+				ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
 
 				if(ai->GetAICallback()->CanBuildAt(def, possibleBuildsite))
 				{
@@ -855,7 +846,9 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 	{
 		for(int xPos = xStart; xPos < xEnd; xPos += 2)
 		{
-			if(CanBuildAt(xPos, yPos, footprint))
+			const MapPos mapPos(xPos, yPos);
+
+			if(CanBuildAt(mapPos, footprint))
 			{
 				const float edgeDist = static_cast<float>(GetEdgeDistance(xPos, yPos)) / range;
 
@@ -869,17 +862,13 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 					
 				if(rating > highestRating)
 				{
-					float3 pos;
-					pos.x = xPos;
-					pos.z = yPos;
+					float3 possibleBuildsite;
+					ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
+					ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
 
-					// buildmap allows construction, now check if otherwise blocked
-					BuildMapPos2Pos(&pos, def);
-					Pos2FinalBuildPos(&pos, def);
-
-					if(ai->GetAICallback()->CanBuildAt(def, pos))
+					if(ai->GetAICallback()->CanBuildAt(def, possibleBuildsite))
 					{
-						selectedPosition = pos;
+						selectedPosition = possibleBuildsite;
 						highestRating = rating;
 					}
 				}
@@ -949,10 +938,11 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	{
 		for(int xPos = xStart; xPos < xEnd; xPos += 4)
 		{
-			if(CanBuildAt(xPos, yPos, footprint))
+			const MapPos mapPos(xPos, yPos);
+
+			if(CanBuildAt(mapPos, footprint))
 			{
 				// criterion 1: how well is tile already covered by existing static defences
-				const MapPos mapPos(xPos, yPos);
 				const float defenceValue = 2.5f * AAIConstants::maxCombatPower / (1.0f + 0.35f * s_defenceMaps.GetValue(mapPos, targetType) );
 
 				// criterion 2: distance to center of base (prefer static defences closer to base)
@@ -973,15 +963,13 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 
 				if(rating > highestRating)
 				{
-					float3 pos(static_cast<float>(xPos), 0.0f, static_cast<float>(yPos));
+					float3 possibleBuildsite;
+					ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
+					ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
 
-					// buildmap allows construction, now check if otherwise blocked
-					BuildMapPos2Pos(&pos, def);
-					Pos2FinalBuildPos(&pos, def);
-
-					if(ai->GetAICallback()->CanBuildAt(def, pos))
+					if(ai->GetAICallback()->CanBuildAt(def, possibleBuildsite))
 					{
-						buildsite = pos;
+						buildsite = possibleBuildsite;
 						highestRating = rating;
 					}
 				}
@@ -998,13 +986,11 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 
 float3 AAIMap::CheckConstructionAt(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const
 {
-	if(CanBuildAt(mapPos.x, mapPos.y, footprint))
+	if(CanBuildAt(mapPos, footprint))
 	{
-		float3 possibleBuildsite(static_cast<float>(mapPos.x), 0.0f, static_cast<float>(mapPos.y));
-
-		// buildmap allows construction, now check if otherwise blocked
-		BuildMapPos2Pos(&possibleBuildsite, unitDef);
-		Pos2FinalBuildPos(&possibleBuildsite, unitDef);
+		float3 possibleBuildsite;
+		ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
+		ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
 
 		if(ai->GetAICallback()->CanBuildAt(unitDef, possibleBuildsite))
 		{
@@ -1018,17 +1004,16 @@ float3 AAIMap::CheckConstructionAt(const UnitFootprint& footprint, const springL
 
 	return ZeroVector;
 }
-		
 
-bool AAIMap::CanBuildAt(int xPos, int yPos, const UnitFootprint& footprint) const
+bool AAIMap::CanBuildAt(const MapPos& mapPos, const UnitFootprint& footprint) const
 {
-	if( (xPos+footprint.xSize > xMapSize) || (yPos+footprint.ySize > yMapSize) )
+	if( (mapPos.x+footprint.xSize > xMapSize) || (mapPos.y+footprint.ySize > yMapSize) )
 		return false; // buildsite too close to edges of map
 	else
 	{
-		for(int y = yPos; y < yPos+footprint.ySize; ++y)
+		for(int y = mapPos.y; y < mapPos.y+footprint.ySize; ++y)
 		{
-			for(int x = xPos; x < xPos+footprint.xSize; ++x)
+			for(int x = mapPos.x; x < mapPos.x+footprint.xSize; ++x)
 			{
 				// all squares must be valid
 				if(s_buildmap[x+y*xMapSize].IsTileTypeSet(footprint.invalidTileTypes))
@@ -1510,11 +1495,12 @@ void AAIMap::DetectMetalSpots()
 
 		if (!Stopme)
 		{
-			pos.x = coordx * 2 * SQUARE_SIZE;
-			pos.z = coordy * 2 * SQUARE_SIZE;
-			pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
+			//pos.x = coordx * 2 * SQUARE_SIZE;
+			//pos.z = coordy * 2 * SQUARE_SIZE;	
+			ConvertMapPosToUnitPos(MapPos(2*coordx, 2*coordy), pos, largestExtractorFootprint);
+			ConvertPositionToFinalBuildsite(pos, largestExtractorFootprint);
 
-			Pos2FinalBuildPos(&pos, def);
+			pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
 
 			temp.amount = TempMetal * ai->GetAICallback()->GetMaxMetal() * MaxMetal / 255.0f;
 			temp.occupied = false;
@@ -1523,15 +1509,17 @@ void AAIMap::DetectMetalSpots()
 			//if(ai->Getcb()->CanBuildAt(def, pos))
 			//{
 				Pos2BuildMapPos(&pos, def);
+				MapPos mapPos(pos.x, pos.z);
 
-				if( (pos.z >= 2) && (pos.x >= 2) && (pos.x < xMapSize-2) && (pos.z < yMapSize-2) )
+				//! @todo Check if this is correct or results in unnecessary shifts / rounding errors.
+				if( (mapPos.x >= 2) && (mapPos.y >= 2) && (mapPos.x < xMapSize-2) && (mapPos.y < yMapSize-2) )
 				{
-					if(CanBuildAt(pos.x, pos.z, largestExtractorFootprint))
+					if(CanBuildAt(mapPos, largestExtractorFootprint))
 					{
 						metal_spots.push_back(temp);
 						++SpotsFound;
 
-						ChangeBuildMapOccupation(pos.x-2, pos.z-2, def->xsize+2, def->zsize+2, true);
+						ChangeBuildMapOccupation(mapPos.x-2, mapPos.y-2, largestExtractorFootprint.xSize+2, largestExtractorFootprint.ySize+2, true);
 					}
 				}
 			//}
