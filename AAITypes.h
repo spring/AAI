@@ -158,21 +158,7 @@ struct UnitFootprint
 {
 	UnitFootprint(int x, int y, BuildMapTileType invalidTileTypes) : xSize(x), ySize(y), invalidTileTypes(invalidTileTypes) {}
 
-	UnitFootprint() : UnitFootprint(0, 0, BuildMapTileType(EBuildMapTileType::OCCUPIED, EBuildMapTileType::BLOCKED_SPACE)) {}
-
-	void SetInvalidTileType(bool sea, bool hover)
-	{
-		invalidTileTypes.SetTileType(EBuildMapTileType::OCCUPIED);
-		invalidTileTypes.SetTileType(EBuildMapTileType::BLOCKED_SPACE);
-
-		if(sea)
-			invalidTileTypes.SetTileType(EBuildMapTileType::LAND);
-		else if(!hover)
-		{
-			invalidTileTypes.SetTileType(EBuildMapTileType::WATER);
-			invalidTileTypes.SetTileType(EBuildMapTileType::CLIFF);
-		}
-	}
+	UnitFootprint() : UnitFootprint(0, 0, BuildMapTileType(EBuildMapTileType::NOT_SET)) {}
 
 	//! The x sie (in map cells) of the unit
 	int              xSize;

@@ -355,11 +355,25 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 		const EMovementType moveType = DetermineMovementType(unitDefs[id]);
 		m_unitTypeProperties[id].m_movementType.SetMovementType(moveType);
 
-		const bool sea   = m_unitTypeProperties[id].m_movementType.IsSea();
-		const bool hover = m_unitTypeProperties[id].m_movementType.IsHover();
-		m_unitTypeProperties[id].m_footprint.SetInvalidTileType(sea, hover);
-		
 		m_unitTypeProperties[id].m_targetType.SetType( DetermineTargetType(m_unitTypeProperties[id].m_movementType) );
+
+		m_unitTypeProperties[id].m_footprint.invalidTileTypes.SetTileType(EBuildMapTileType::OCCUPIED);
+		m_unitTypeProperties[id].m_footprint.invalidTileTypes.SetTileType(EBuildMapTileType::BLOCKED_SPACE);
+
+		if(m_unitTypeProperties[id].m_movementType.IsSea())
+			m_unitTypeProperties[id].m_footprint.invalidTileTypes.SetTileType(EBuildMapTileType::LAND);
+		else
+		{
+			m_unitTypeProperties[id].m_footprint.invalidTileTypes.SetTileType(EBuildMapTileType::CLIFF);
+
+			if(m_unitTypeProperties[id].m_movementType.IsHover() == false)
+				m_unitTypeProperties[id].m_footprint.invalidTileTypes.SetTileType(EBuildMapTileType::WATER);
+		}
+	
+		m_unitTypeProperties[id].m_footprint.xSize = unitDefs[id]->xsize;
+		m_unitTypeProperties[id].m_footprint.ySize = unitDefs[id]->zsize;
+
+		
 	}
 
 	// second loop because movement type information for all units is needed to determine unit type

@@ -707,15 +707,14 @@ void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, 
 			// debug
 			/*if(x%2 == 0 && y%2 == 0)
 			{
+				const springLegacyAI::UnitDef* unitDef = ai->GetAICallback()->GetUnitDef("armmine1");
 				float3 myPos;
-				myPos.x = x;
-				myPos.z = y;
-				BuildMapPos2Pos(&myPos, ai->Getcb()->GetUnitDef("armmine1")); 
-				myPos.y = ai->Getcb()->GetElevation(myPos.x, myPos.z);
-				ai->Getcb()->DrawUnit("armmine1", myPos, 0.0f, 2000, ai->Getcb()->GetMyAllyTeam(), true, true);
+				ConvertMapPosToUnitPos(MapPos(x,y), myPos, ai->s_buildTree.GetFootprint(unitDef->id) ); 
+				myPos.y = ai->GetAICallback()->GetElevation(myPos.x, myPos.z);
+				ai->GetAICallback()->DrawUnit("armmine1", myPos, 0.0f, 2000, ai->GetAICallback()->GetMyAllyTeam(), true, true);
 			}*/
 		}
-	}	
+	}
 }
 
 float3 AAIMap::FindRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, int yStart, int yEnd, int tries) const
@@ -765,6 +764,8 @@ float3 AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) 
 
 	const UnitFootprint            footprint = DetermineRequiredFreeBuildspace(buildingDefId);
 	const springLegacyAI::UnitDef* unitDef   = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+
+	ai->Log("Invalid tile type for %s: %u\n", ai->s_buildTree.GetUnitTypeProperties(buildingDefId).m_name.c_str(), footprint.invalidTileTypes.m_tileType);
 
 	// check rect
 	const int xStart = unitPosition.x / SQUARE_SIZE;
@@ -1203,10 +1204,9 @@ void AAIMap::BlockTiles(int xPos, int yPos, int width, int height, bool block)
 			// debug
 			/*if(x%2 == 0 && y%2 == 0)
 			{
+				const springLegacyAI::UnitDef* unitDef = ai->GetAICallback()->GetUnitDef("armmine1");
 				float3 myPos;
-				myPos.x = x;
-				myPos.z = y;
-				BuildMapPos2Pos(&myPos, ai->GetAICallback()->GetUnitDef("armmine1")); 
+				ConvertMapPosToUnitPos(MapPos(x,y), myPos, ai->s_buildTree.GetFootprint(unitDef->id) ); 
 				myPos.y = ai->GetAICallback()->GetElevation(myPos.x, myPos.z);
 				ai->GetAICallback()->DrawUnit("armmine1", myPos, 0.0f, 2000, ai->GetAICallback()->GetMyAllyTeam(), true, true);
 			}*/
