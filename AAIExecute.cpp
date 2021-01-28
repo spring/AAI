@@ -496,7 +496,7 @@ bool AAIExecute::BuildExtractor()
 
 		if(landExtractor.IsValid())
 		{
-			AAIConstructor* land_builder  = ai->Getut()->FindBuilder(landExtractor.id, true);
+			AAIConstructor* land_builder  = ai->Getut()->FindBuilder(landExtractor, true);
 
 			if(land_builder)
 			{
@@ -555,7 +555,7 @@ bool AAIExecute::BuildExtractor()
 		landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, false);
 
 		if(landExtractor.IsValid())
-			land_builder = ai->Getut()->FindBuilder(landExtractor.id, true);
+			land_builder = ai->Getut()->FindBuilder(landExtractor, true);
 	}
 
 	if(ai->Getmap()->water_metal_spots > 0)
@@ -563,7 +563,7 @@ bool AAIExecute::BuildExtractor()
 		seaExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, true);
 
 		if(seaExtractor.IsValid())
-			water_builder = ai->Getut()->FindBuilder(seaExtractor.id, true);
+			water_builder = ai->Getut()->FindBuilder(seaExtractor, true);
 	}
 
 	// check if there is any builder for at least one of the selected extractors available
@@ -696,33 +696,64 @@ bool AAIExecute::BuildPowerPlant()
 	bool offshoreConstructionAttempted( (ai->Getbrain()->GetBaseWaterRatio() < 0.05f) ); 
 	BuildOrderStatus buildOrderStatus(BuildOrderStatus::BUILDING_INVALID);
 
-	// probability of trying to build sea power plant first is related to current water ratio of the base
-	// determine random float in [0:1]
-	const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
-
-	if( randomValue < ai->Getbrain()->GetBaseWaterRatio() )
-	{
-		UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
-		buildOrderStatus = ConstructBuildingInSectors(seaPowerPlant, sectors);
-		offshoreConstructionAttempted = true;
-	}
-
-	// try construction on land (if not already successful on water)
-	if(buildOrderStatus != BuildOrderStatus::SUCCESSFUL)
+	if(ai->Getut()->GetNumberOfActiveBuilders() == 1)
 	{
 		UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, false);
-		buildOrderStatus = ConstructBuildingInSectors(landPowerPlant, sectors);
-	}
-
-	// try construction on water (if not already tried and construction on land has not been successful)
-	if(!offshoreConstructionAttempted && (buildOrderStatus != BuildOrderStatus::SUCCESSFUL) )
-	{
 		UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
-		buildOrderStatus = ConstructBuildingInSectors(seaPowerPlant, sectors);
-	}
 
-	if(buildOrderStatus == BuildOrderStatus::NO_BUILDER_AVAILABLE)
-		return false;
+		AAIConstructor* constructor = ai->Getut()->FindBuilder(landPowerPlant, true);
+
+		if(constructor == nullptr)
+			constructor = ai->Getut()->FindBuilder(seaPowerPlant, true);
+
+		if(constructor == nullptr)
+			return false; // no builder currently available -> check again next update
+
+		BuildSite buildSite = ai->Getmap()->FindBuildsiteCloseToUnit(landPowerPlant, constructor->m_myUnitId);
+
+		if(buildSite.IsValid())
+		{
+			constructor->GiveConstructionOrder(landPowerPlant, buildSite.Position());
+		}
+		else
+		{
+			buildSite = ai->Getmap()->FindBuildsiteCloseToUnit(seaPowerPlant, constructor->m_myUnitId);
+
+			if(buildSite.IsValid())	
+				constructor->GiveConstructionOrder(seaPowerPlant, buildSite.Position());
+		}
+	}
+	else
+	{
+		// probability of trying to build sea power plant first is related to current water ratio of the base
+		// determine random float in [0:1]
+		const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
+
+		if( randomValue < ai->Getbrain()->GetBaseWaterRatio() )
+		{
+			UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
+			buildOrderStatus = ConstructBuildingInSectors(seaPowerPlant, sectors);
+			offshoreConstructionAttempted = true;
+		}
+
+		// try construction on land (if not already successful on water)
+		if(buildOrderStatus != BuildOrderStatus::SUCCESSFUL)
+		{
+			UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, false);
+			buildOrderStatus = ConstructBuildingInSectors(landPowerPlant, sectors);
+		}
+
+		// try construction on water (if not already tried and construction on land has not been successful)
+		if(!offshoreConstructionAttempted && (buildOrderStatus != BuildOrderStatus::SUCCESSFUL) )
+		{
+			UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
+			buildOrderStatus = ConstructBuildingInSectors(seaPowerPlant, sectors);
+		}
+
+		if(buildOrderStatus == BuildOrderStatus::NO_BUILDER_AVAILABLE)
+			return false;
+
+	}
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// expand base if no suitable buildsite found
@@ -1299,7 +1330,7 @@ bool AAIExecute::BuildStaticConstructor()
 	for(auto requestedFactory : requestedFactories)
 	{
 		// find suitable builder
-		AAIConstructor* builder = ai->Getut()->FindBuilder(requestedFactory.first.id, true);
+		AAIConstructor* builder = ai->Getut()->FindBuilder(requestedFactory.first, true);
 	
 		if(builder == nullptr)
 		{
@@ -1715,26 +1746,26 @@ void AAIExecute::CheckConstructionOfNanoTurret()
 
 			if(landNanoTurretDefId.IsValid())
 			{
-				float3 buildsite = ai->Getmap()->FindBuildsiteCloseToUnit(landNanoTurretDefId, constructorUnitId);
+				BuildSite buildSite = ai->Getmap()->FindBuildsiteCloseToUnit(landNanoTurretDefId, constructorUnitId);
 				UnitDefId nanoTurretDefId = landNanoTurretDefId;
 
-				if( (buildsite.x == 0.0f) && seaNanoTurretDefId.IsValid())
+				if( (buildSite.IsValid() == false) && seaNanoTurretDefId.IsValid())
 				{
-					buildsite = ai->Getmap()->FindBuildsiteCloseToUnit(seaNanoTurretDefId, constructorUnitId);
+					buildSite = ai->Getmap()->FindBuildsiteCloseToUnit(seaNanoTurretDefId, constructorUnitId);
 					nanoTurretDefId = seaNanoTurretDefId;
 				}
 
-				if(buildsite.x > 0.0f)
+				if(buildSite.IsValid())
 				{
-					const AAISector* sector = ai->Getmap()->GetSectorOfPos(buildsite);
+					const AAISector* sector = ai->Getmap()->GetSectorOfPos(buildSite.Position());
 
 					if(sector->GetNumberOfBuildings(EUnitCategory::STATIC_ASSISTANCE) < cfg->MAX_NANO_TURRETS_PER_SECTOR)
 					{
 						float min_dist;
-						AAIConstructor *builder = ai->Getut()->FindClosestBuilder(nanoTurretDefId, &buildsite, true, &min_dist);
+						AAIConstructor *builder = ai->Getut()->FindClosestBuilder(nanoTurretDefId, &buildSite.Position(), true, &min_dist);
 
 						if(builder)
-							builder->GiveConstructionOrder(nanoTurretDefId, buildsite);
+							builder->GiveConstructionOrder(nanoTurretDefId, buildSite.Position());
 					}
 				}
 			}

@@ -758,7 +758,7 @@ float3 AAIMap::FindRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, in
 	return ZeroVector;
 }
 
-float3 AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) const
+BuildSite AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) const
 {
 	const float3 unitPosition = ai->GetAICallback()->GetUnitPos(unitId.id);
 
@@ -771,27 +771,29 @@ float3 AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) 
 	const int xStart = unitPosition.x / SQUARE_SIZE;
 	const int yStart = unitPosition.z / SQUARE_SIZE;
 
+	BuildSite buildSite;
+
 	for(int xInc = 0; xInc < 24; xInc += 2)
 	{
 		for(int yInc = 0; yInc < 24; yInc += 2)
 		{
-			float3 buildsite = CheckConstructionAt(footprint, unitDef, MapPos(xStart - xInc, yStart - yInc) );
+			buildSite = CheckConstructionAt(footprint, unitDef, MapPos(xStart - xInc, yStart - yInc) );
 
-			if(buildsite.x == 0.0f)
-				buildsite = CheckConstructionAt(footprint, unitDef, MapPos(xStart - xInc, yStart + yInc) );
+			if(buildSite.IsValid() == false)
+				buildSite = CheckConstructionAt(footprint, unitDef, MapPos(xStart - xInc, yStart + yInc) );
 
-			if(buildsite.x == 0.0f)
-				buildsite = CheckConstructionAt(footprint, unitDef, MapPos(xStart + xInc, yStart - yInc) );
+			if(buildSite.IsValid() == false)
+				buildSite = CheckConstructionAt(footprint, unitDef, MapPos(xStart + xInc, yStart - yInc) );
 
-			if(buildsite.x == 0.0f)
-				buildsite = CheckConstructionAt(footprint, unitDef, MapPos(xStart + xInc, yStart + yInc) );
+			if(buildSite.IsValid() == false)
+				buildSite = CheckConstructionAt(footprint, unitDef, MapPos(xStart + xInc, yStart + yInc) );
 
-			if(buildsite.x > 0.0f)
-				return buildsite;
+			if(buildSite.IsValid())
+				return buildSite;
 		}
 	}
 
-	return ZeroVector;
+	return buildSite;
 }
 
 float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const
@@ -989,25 +991,25 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	return buildsite;
 }
 
-float3 AAIMap::CheckConstructionAt(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const
+BuildSite AAIMap::CheckConstructionAt(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const
 {
 	if(CanBuildAt(mapPos, footprint))
 	{
-		float3 possibleBuildsite;
-		ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
-		ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
+		float3 position;
+		ConvertMapPosToUnitPos(mapPos, position, footprint);
+		ConvertPositionToFinalBuildsite(position, footprint);
 
-		if(ai->GetAICallback()->CanBuildAt(unitDef, possibleBuildsite))
+		if(ai->GetAICallback()->CanBuildAt(unitDef, position))
 		{
-			const int x = possibleBuildsite.x/xSectorSize;
-			const int y = possibleBuildsite.z/ySectorSize;
+			const int x = position.x/xSectorSize;
+			const int y = position.z/ySectorSize;
 
 			if(IsValidSector(x,y))
-				return possibleBuildsite;
+				return BuildSite(position, 1.0f, true);
 		}
 	}
 
-	return ZeroVector;
+	return BuildSite();
 }
 
 bool AAIMap::CanBuildAt(const MapPos& mapPos, const UnitFootprint& footprint) const

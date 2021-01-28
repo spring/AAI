@@ -75,7 +75,11 @@ public:
 	void AddStationaryArty(int unit_id, int def_id);
 	void RemoveStationaryArty(int unit_id);
 
-	AAIConstructor* FindBuilder(int building, bool commander);
+	//! @brief Returns the number of active builders (incl. commander)
+	int GetNumberOfActiveBuilders() const { return m_activeUnitsOfCategory[AAIUnitCategory(EUnitCategory::COMMANDER).GetArrayIndex()] + m_activeUnitsOfCategory[AAIUnitCategory(EUnitCategory::MOBILE_CONSTRUCTOR).GetArrayIndex()]; }
+
+	//! @brief Returns any available builder for the given unit
+	AAIConstructor* FindBuilder(UnitDefId building, bool commander);
 
 	//! @brief Finds the closest builder and stores the time it needs to reach the given positon
 	AAIConstructor* FindClosestBuilder(UnitDefId building, const float3 *pos, bool commander, float *timeToReachPosition);

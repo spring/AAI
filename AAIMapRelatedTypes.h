@@ -131,7 +131,9 @@ public:
 class BuildSite
 {
 public:
-	BuildSite() : m_position(ZeroVector), m_rating(0.0f), m_valid(false) {}
+	BuildSite(const float3& position, float rating, bool valid) : m_position(position), m_rating(rating), m_valid(valid) {}
+
+	BuildSite() : BuildSite(ZeroVector, 0.0f, false) {}
 
 	void SetBuildSite(const float3& position, float rating)
 	{

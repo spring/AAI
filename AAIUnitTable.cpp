@@ -224,31 +224,28 @@ void AAIUnitTable::RemoveStationaryArty(int unit_id)
 	stationary_arty.erase(unit_id);
 }
 
-AAIConstructor* AAIUnitTable::FindBuilder(int building, bool commander)
+AAIConstructor* AAIUnitTable::FindBuilder(UnitDefId building, bool commander)
 {
-	AAIConstructor *builder;
-
 	// look for idle builder
-	for(auto constructor : m_constructors)
+	for(auto constructorUnitId : m_constructors)
 	{
 		// check all builders
-		if( ai->s_buildTree.GetUnitType(units[constructor.id].cons->m_myDefId).IsBuilder() )
+		if( ai->s_buildTree.GetUnitType(units[constructorUnitId.id].cons->m_myDefId).IsBuilder() )
 		{
-			builder = units[constructor.id].cons;
+			AAIConstructor *constructor = units[constructorUnitId.id].cons;
 
 			// find unit that can directly build that building
-			if(    (builder->IsAvailableForConstruction() == true) 
-				&& (ai->s_buildTree.CanBuildUnitType(builder->m_myDefId.id, building) == true) )
+			if( constructor->IsAvailableForConstruction() && ai->s_buildTree.CanBuildUnitType(constructor->m_myDefId, building) )
 			{
 				// filter out commander (if not allowed)
-				if(! (!commander &&  ai->s_buildTree.GetUnitCategory(builder->m_myDefId).IsCommander() ) )
-					return builder;
+				if(! (!commander &&  ai->s_buildTree.GetUnitCategory(constructor->m_myDefId).IsCommander() ) )
+					return constructor;
 			}
 		}
 	}
 
 	// no builder found
-	return 0;
+	return nullptr;
 }
 
 AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float3 *pos, bool commander, float *timeToReachPosition)
