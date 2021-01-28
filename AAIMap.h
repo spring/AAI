@@ -100,8 +100,8 @@ public:
 	//! @brief Searches for a buildiste in given sector starting from top left corner 
 	float3 DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const;
 
-	// prefer buildsites that are on plateus and not too close to the edge of the map
-	float3 GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, float range, bool water);
+	//! @brief Searches for a buildsite that is preferably elevated with respect to its surroundings and not close to the map edges
+	BuildSite DetermineElevatedBuildsite(UnitDefId buildingDefId, int xStart, int xEnd, int yStart, int yEnd, float range) const;
 
 	//! @brief Determines the most suitable buidliste for the given static defence in the given sector (returns ZeroVector if no buildsite found)
 	float3 DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const AAISector* sector, const AAITargetType& targetType, float terrainModifier) const;

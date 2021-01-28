@@ -42,7 +42,7 @@ struct AAIContinent
 	bool water;
 };
 
-//! Movement types that are used to describe the movement type of every unit
+//! Describes the properties of a build map tile that are relevant to decide whether a given unit maybe constructed on the tile
 enum class EBuildMapTileType : uint8_t
 {
 	NOT_SET       = 0x00u, //!< Unknown/not set
@@ -125,6 +125,36 @@ public:
 
 	//! number of tiles in y-direction (AAI internal nomenclature, equals z-direction in spring
 	int m_ySize;
+};
+
+//! A possible build site
+class BuildSite
+{
+public:
+	BuildSite() : m_position(ZeroVector), m_rating(0.0f), m_valid(false) {}
+
+	void SetBuildSite(const float3& position, float rating)
+	{
+		m_position = position;
+		m_rating   = rating;
+		m_valid    = true;
+	}
+
+	float3& Position()        { return m_position; }
+
+	float   GetRating() const { return m_rating; }
+
+	bool    IsValid()   const { return m_valid; }
+
+private:
+	//! The position (in unit coordinates)
+	float3 m_position;
+
+	//! The rating of the build site
+	float  m_rating;
+
+	//! Flag indicating whether build site is valid
+	bool   m_valid;
 };
 
 #endif

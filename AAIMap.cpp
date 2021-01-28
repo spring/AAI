@@ -831,18 +831,18 @@ float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISect
 	return ZeroVector;
 }
 
-float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, int yStart, int yEnd, float range, bool water)
+BuildSite AAIMap::DetermineElevatedBuildsite(UnitDefId buildingDefId, int xStart, int xEnd, int yStart, int yEnd, float range) const
 {
-	float3 selectedPosition = ZeroVector;
-
-	float highestRating(-10000.0f);
-
 	// convert range from unit coordinates to build map coordinates
-	range /= 8.0f;
+	range /= static_cast<float>(SQUARE_SIZE);
 
-	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(UnitDefId(def->id));
+	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(buildingDefId);
+	const bool water = ai->s_buildTree.GetMovementType(buildingDefId).IsSea();
 
-	// go through rect
+	const float maxEdgeDistance = 0.5f * static_cast<float>( std::min(AAIMap::xMapSize, AAIMap::yMapSize));
+
+	BuildSite bestBuildSite;
+
 	for(int yPos = yStart; yPos < yEnd; yPos += 2)
 	{
 		for(int xPos = xStart; xPos < xEnd; xPos += 2)
@@ -851,33 +851,37 @@ float3 AAIMap::GetRadarArtyBuildsite(const UnitDef *def, int xStart, int xEnd, i
 
 			if(CanBuildAt(mapPos, footprint))
 			{
-				const float edgeDist = static_cast<float>(GetEdgeDistance(xPos, yPos)) / range;
+				// distance to map edge factor ranging from 0 (at the edge) to 1 (distance to edge equals/exceeds range)
+				const float edgeDistanceFactor = std::min(static_cast<float>(GetEdgeDistance(xPos, yPos)) / range, 1.0f);
 
-				float rating = 0.04f * (float)(rand()%50) + edgeDist;
-
-				if(!water)
+				// elevated terrain factor ranges from to 0 (in valley) to 1 (on plateau) (only relevant for land based buildings)
+				float elevatedTerrainFactor(0.0f);
+				if(water == false)
 				{
 					const int plateauMapCellIndex = xPos/4 + yPos/4 * (xMapSize/4);
-					rating += plateau_map[plateauMapCellIndex];
+					elevatedTerrainFactor = 0.5f * (1.0f + 0.01f * std::max(-100.0f, std::min( plateau_map[plateauMapCellIndex], 100.0f)));
 				}
-					
-				if(rating > highestRating)
-				{
-					float3 possibleBuildsite;
-					ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
-					ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
 
-					if(ai->GetAICallback()->CanBuildAt(def, possibleBuildsite))
+				const float rating = 0.05f * (float)(rand()%20) + 5.0f * edgeDistanceFactor + 3.0 * elevatedTerrainFactor;
+
+				if(rating > bestBuildSite.GetRating())
+				{
+					float3 position;
+					ConvertMapPosToUnitPos(mapPos, position, footprint);
+					ConvertPositionToFinalBuildsite(position, footprint);
+
+					const springLegacyAI::UnitDef* unitDef = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+
+					if(ai->GetAICallback()->CanBuildAt(unitDef, position))
 					{
-						selectedPosition = possibleBuildsite;
-						highestRating = rating;
+						bestBuildSite.SetBuildSite(position, rating);
 					}
 				}
 			}
 		}
 	}
 
-	return selectedPosition;
+	return bestBuildSite;
 }
 
 float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const AAISector* sector, const AAITargetType& targetType, float terrainModifier) const
@@ -2071,18 +2075,13 @@ uint32_t AAIMap::GetSuitableMovementTypes(const AAIMapType& mapType) const
 
 int AAIMap::GetEdgeDistance(int xPos, int yPos) const
 {
-	int edge_distance = xPos;
+	const int distToRightEdge  = xMapSize - xPos;
+	const int distToBottomEdge = yMapSize - yPos;
 
-	if(xMapSize - xPos < edge_distance)
-		edge_distance = xMapSize - xPos;
+	const int xEdgeDistance = std::min(xPos, distToRightEdge);
+	const int yEdgeDistance = std::min(yPos, distToBottomEdge);
 
-	if(yPos < edge_distance)
-		edge_distance = yPos;
-
-	if(yMapSize - yPos < edge_distance)
-		edge_distance = yMapSize - yPos;
-
-	return edge_distance;
+	return std::min(xEdgeDistance, yEdgeDistance);
 }
 
 float AAIMap::GetEdgeDistance(const float3& pos) const

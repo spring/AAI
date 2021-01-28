@@ -123,9 +123,10 @@ public:
 	bool ShallBeConsideredForExtractorConstruction() const;
 
 	//! @brief Returns a buildsite that has been chosen randomly (the given number of trials) - ZeroVector if none found
-	float3 GetRandomBuildsite(UnitDefId buildingDefId, int trials) const;
+	float3 DetermineRandomBuildsite(UnitDefId buildingDefId, int trials) const;
 
-	float3 GetRadarArtyBuildsite(int building, float range, bool water);
+	//! @brief Searches for a buildsite that is preferably elevated with respect to its surroundings and not close to the map edges
+	BuildSite DetermineElevatedBuildsite(UnitDefId buildingDefId, float range) const;
 
 	//! @brief Returns position of known enemy buildings (or center if no buidlings in sector)
 	float3 DetermineAttackPosition() const;

@@ -302,7 +302,7 @@ float3 AAIExecute::DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) c
 float3 AAIExecute::DetermineBuildsiteInSector(UnitDefId building, const AAISector* sector) const
 {
 	// try random buildpos first
-	const float3 buildsite = sector->GetRandomBuildsite(building, 20);
+	const float3 buildsite = sector->DetermineRandomBuildsite(building, 20);
 
 	if(buildsite.x > 0.0f)
 		return buildsite;
@@ -1219,47 +1219,44 @@ bool AAIExecute::BuildArty()
 
 	//ai->Log("Selected artillery (land/sea): %s / %s\n", ai->s_buildTree.GetUnitTypeProperties(landArtillery).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(seaArtillery).m_name.c_str());
 
-	float  bestRating(0.0f);
-	float3 bestPosition(ZeroVector);
+	BuildSite bestBuildSite;
 
 	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
 	{
 		if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_ARTILLERY) < 2)
 		{
-			float3 position = ZeroVector;
+			BuildSite buildSite;
 
 			if(landArtillery.IsValid()  && ((*sector)->GetWaterTilesRatio() < 0.9f) )
-				position = (*sector)->GetRadarArtyBuildsite(landArtillery.id, ai->s_buildTree.GetMaxRange(landArtillery)/4.0f, false);
+				buildSite = (*sector)->DetermineElevatedBuildsite(landArtillery, ai->s_buildTree.GetMaxRange(landArtillery)/2.0f);
 
-			if((position.x <= 0.0f) && seaArtillery.IsValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
-				position = (*sector)->GetRadarArtyBuildsite(seaArtillery.id, ai->s_buildTree.GetMaxRange(seaArtillery)/4.0f, true);
+			if( (buildSite.IsValid() == false) && seaArtillery.IsValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
+				buildSite = (*sector)->DetermineElevatedBuildsite(seaArtillery, ai->s_buildTree.GetMaxRange(seaArtillery)/2.0f);
 			
-			if(position.x > 0)
+			if(buildSite.IsValid())
 			{
-				const float myRating = ai->Getmap()->GetEdgeDistance(position);
-
-				if(myRating > bestRating)
+				if(buildSite.GetRating() > bestBuildSite.GetRating())
 				{
-					bestRating   = myRating;
-					bestPosition = position;
+					bestBuildSite = buildSite;
 				}
 			}
 		}
 	}
 
 	// Check if suitable position for artillery has been found
-	if(bestPosition.x > 0.0f)
+	if(bestBuildSite.IsValid())
 	{
-		UnitDefId artillery = (bestPosition.y > 0.0f) ? landArtillery : seaArtillery;
+		const float3& position = bestBuildSite.Position();
+		UnitDefId artillery = (position.y > 0.0f) ? landArtillery : seaArtillery;
 
 		//ai->Log("Position for %s found\n", ai->s_buildTree.GetUnitTypeProperties(artillery).m_name.c_str());
 
 		float minDistance;
-		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(artillery, &bestPosition, true, &minDistance);
+		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(artillery, &position, true, &minDistance);
 
 		if(builder)
 		{
-			builder->GiveConstructionOrder(artillery, bestPosition);
+			builder->GiveConstructionOrder(artillery, position);
 			return true;
 		}
 		else
@@ -1378,10 +1375,6 @@ bool AAIExecute::BuildRadar()
 	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(sensor) > ai->Getbrain()->m_sectorsInDistToBase[0].size())
 		return true;
 
-
-	float3 bestPosition(ZeroVector);
-	float  bestRating(-100000.0f);
-
 	const float cost = ai->Getbrain()->Affordable();
 	const float range = 10.0 / (cost + 1);
 
@@ -1389,6 +1382,7 @@ bool AAIExecute::BuildRadar()
 	const UnitDefId	seaRadar  = ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, true);
 
 	UnitDefId selectedRadar;
+	BuildSite bestBuildSite;
 	
 	for(int dist = 0; dist < 2; ++dist)
 	{
@@ -1396,27 +1390,24 @@ bool AAIExecute::BuildRadar()
 		{
 			if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_SENSOR) <= 0)
 			{
-				float3 myPosition(ZeroVector);
+				BuildSite buildSite;
 				bool   seaPositionFound(false);
 
 				if( landRadar.IsValid() && ((*sector)->GetWaterTilesRatio() < 0.9f) )
-					myPosition = (*sector)->GetRadarArtyBuildsite(landRadar.id, ai->s_buildTree.GetMaxRange(landRadar), false);
+					buildSite = (*sector)->DetermineElevatedBuildsite(landRadar, ai->s_buildTree.GetMaxRange(landRadar));
 
-				if( (myPosition.x == 0.0f) && seaRadar.IsValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
+				if( (buildSite.IsValid() == false) && seaRadar.IsValid() && ((*sector)->GetWaterTilesRatio() > 0.1f) )
 				{
-					myPosition = (*sector)->GetRadarArtyBuildsite(seaRadar.id, ai->s_buildTree.GetMaxRange(seaRadar), true);
+					buildSite = (*sector)->DetermineElevatedBuildsite(seaRadar, ai->s_buildTree.GetMaxRange(seaRadar));
 					seaPositionFound = true;
 				}
 
-				if(myPosition.x > 0.0f)
+				if(buildSite.IsValid())
 				{
-					const float myRating = - ai->Getmap()->GetEdgeDistance(myPosition);
-
-					if(myRating > bestRating)
+					if(buildSite.GetRating() > bestBuildSite.GetRating())
 					{
 						selectedRadar = seaPositionFound ? seaRadar : landRadar;
-						bestPosition  = myPosition;
-						bestRating    = myRating;
+						bestBuildSite = buildSite;
 					}
 				}
 			}
@@ -1426,11 +1417,11 @@ bool AAIExecute::BuildRadar()
 	if(selectedRadar.IsValid())
 	{
 		float min_dist;
-		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedRadar, &bestPosition, true, &min_dist);
+		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedRadar, &bestBuildSite.Position(), true, &min_dist);
 
 		if(builder)
 		{
-			builder->GiveConstructionOrder(selectedRadar, bestPosition);
+			builder->GiveConstructionOrder(selectedRadar, bestBuildSite.Position());
 			return true;
 		}
 		else
