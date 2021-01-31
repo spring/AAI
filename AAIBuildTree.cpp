@@ -125,6 +125,29 @@ const std::list<UnitDefId>& AAIBuildTree::GetUnitsOfTargetType(const AAITargetTy
 		return GetUnitsInCategory(EUnitCategory::STATIC_DEFENCE, side);
 }
 
+UnitDefId AAIBuildTree::GetLargestExtractor() const
+{
+	UnitDefId largestExtractor;
+	int largestYardMap(0);
+
+	for(int side = 1; side <= cfg->numberOfSides; ++side)
+	{
+		for(auto extractor : GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side))
+		{
+			const UnitFootprint& footprint = GetFootprint(extractor);
+			const int yardMap = footprint.xSize * footprint.ySize;
+			
+			if(yardMap > largestYardMap)
+			{
+				largestYardMap   = yardMap;
+				largestExtractor = extractor;
+			}
+		}
+	}
+
+	return largestExtractor;
+}
+
 void AAIBuildTree::InitCombatPowerOfUnits(springLegacyAI::IAICallback* cb)
 {
 	// calculate statistics of max costs of all combat units

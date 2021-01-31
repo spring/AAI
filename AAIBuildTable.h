@@ -217,9 +217,6 @@ public:
 	// @brief Tries to build an assistant for the specified kind of unit
 	//void AddAssistant(uint32_t allowedMovementTypes, bool mustBeConstructable);
 
-	//! @brief Returns metal extractor with the largest yardmap
-	UnitDefId GetLargestExtractor() const;
-
 	//! @brief Returns the dynamic unit type data for the given unitDefId
 	const UnitTypeDynamic& GetDynamicUnitTypeData(UnitDefId unitDefId) const { return units_dynamic[unitDefId.id]; }
 

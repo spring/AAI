@@ -259,29 +259,6 @@ UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMe
 	return selectedExtractorDefId.id;
 }
 
-UnitDefId AAIBuildTable::GetLargestExtractor() const
-{
-	UnitDefId largestExtractor;
-	int largestYardMap(0);
-
-	for(int side = 1; side <= cfg->numberOfSides; ++side)
-	{
-		for(auto extractor : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side))
-		{
-			const UnitFootprint& footprint = ai->s_buildTree.GetFootprint(extractor);
-			const int yardMap = footprint.xSize * footprint.ySize;
-			
-			if(yardMap > largestYardMap)
-			{
-				largestYardMap   = yardMap;
-				largestExtractor = extractor;
-			}
-		}
-	}
-
-	return largestExtractor;
-}
-
 UnitDefId AAIBuildTable::SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water)
 {
 	UnitDefId selectedStorage = SelectStorage(side, selectionCriteria, water, false);

@@ -470,11 +470,11 @@ bool AAISector::ShallBeConsideredForExtractorConstruction() const
 			&& (IsOccupiedByAllies()  == false);	
 }
 
-float3 AAISector::DetermineRandomBuildsite(UnitDefId buildingDefId, int tries) const
+BuildSite AAISector::DetermineRandomBuildsite(UnitDefId buildingDefId, int tries) const
 {
 	int xStart, xEnd, yStart, yEnd;
 	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
-	return ai->Getmap()->FindRandomBuildsite(buildingDefId, xStart, xEnd, yStart, yEnd, tries);
+	return ai->Getmap()->DetermineRandomBuildsite(buildingDefId, xStart, xEnd, yStart, yEnd, tries);
 }
 
 BuildSite AAISector::DetermineElevatedBuildsite(UnitDefId buildingDefId, float range) const

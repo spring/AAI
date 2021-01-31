@@ -123,7 +123,7 @@ public:
 	bool ShallBeConsideredForExtractorConstruction() const;
 
 	//! @brief Returns a buildsite that has been chosen randomly (the given number of trials) - ZeroVector if none found
-	float3 DetermineRandomBuildsite(UnitDefId buildingDefId, int trials) const;
+	BuildSite DetermineRandomBuildsite(UnitDefId buildingDefId, int trials) const;
 
 	//! @brief Searches for a buildsite that is preferably elevated with respect to its surroundings and not close to the map edges
 	BuildSite DetermineElevatedBuildsite(UnitDefId buildingDefId, float range) const;

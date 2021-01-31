@@ -92,13 +92,13 @@ public:
 	float GetMaximumNumberOfLostUnits() const;
 
 	//! @brief Searches the given number of tries for a random builsite in the given area, returns ZeroVector if none found 
-	float3 FindRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, int yStart, int yEnd, int tries) const;
+	BuildSite DetermineRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, int yStart, int yEnd, int tries) const;
 
 	//! @brief Searches for a buildsite close to the given unit; returns ZeroVector if none found
 	BuildSite FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) const;
 
 	//! @brief Searches for a buildiste in given sector starting from top left corner 
-	float3 DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const;
+	BuildSite DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const;
 
 	//! @brief Searches for a buildsite that is preferably elevated with respect to its surroundings and not close to the map edges
 	BuildSite DetermineElevatedBuildsite(UnitDefId buildingDefId, int xStart, int xEnd, int yStart, int yEnd, float range) const;

@@ -188,9 +188,6 @@ void AAIUnitTable::AddMetalMaker(int unit_id, int def_id)
 
 void AAIUnitTable::RemoveMetalMaker(int unit_id)
 {
-	if(!ai->GetAICallback()->IsUnitActivated(unit_id))
-		--ai->Getexecute()->disabledMMakers;
-
 	metal_makers.erase(unit_id);
 }
 

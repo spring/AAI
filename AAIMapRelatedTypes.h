@@ -142,11 +142,11 @@ public:
 		m_valid    = true;
 	}
 
-	float3& Position()        { return m_position; }
+	const float3& Position()  const { return m_position; }
 
-	float   GetRating() const { return m_rating; }
+	float         GetRating() const { return m_rating; }
 
-	bool    IsValid()   const { return m_valid; }
+	bool          IsValid()   const { return m_valid; }
 
 private:
 	//! The position (in unit coordinates)

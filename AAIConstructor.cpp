@@ -120,13 +120,13 @@ void AAIConstructor::Update()
 			else
 			{
 				// find buildpos for the unit
-				const float3 pos = ai->Getexecute()->DetermineBuildsiteForUnit(m_myUnitId, constructedUnitDefId);
+				const BuildSite buildSite = ai->Getexecute()->DetermineBuildsiteForUnit(m_myUnitId, constructedUnitDefId);
 
-				if(pos.x > 0.0f)
+				if(buildSite.IsValid())
 				{
 					// give build order
 					Command c(-constructedUnitDefId.id);
-					c.PushPos(pos);
+					c.PushPos(buildSite.Position());
 
 					ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
 					m_constructedDefId = constructedUnitDefId.id;

@@ -66,6 +66,10 @@ public:
 
 	void SendScoutToNewDest(int scout);
 
+	//! @brief Returns the current unit production rate (i.e. how many unit AAI tries to order per unit production update step)
+	int GetUnitProductionRate() const { return m_unitProductionRate; }
+
+	//! @brief Returns the number of Build Tasks that could not be linked to a construction unit (for debugging only - should be zero)
 	unsigned int GetLinkingBuildTaskToBuilderFailedCounter() const { return m_linkingBuildTaskToBuilderFailed; };
 
 	//! @brief Searches for a position to retreat unit of certain type
@@ -124,12 +128,7 @@ public:
 	void DetermineFactoryUtilization(std::vector<float>& factoryUtilization, bool considerOnlyActiveFactoryTypes) const;
 
 	//! @brief Determines buildsite for a unit (not building) that shall be constructed by the given construction unit
-	float3 DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitDefId) const;
-
-	int unitProductionRate;
-
-	// ressource management
-	int disabledMMakers;
+	BuildSite DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitDefId) const;
 
 	//! @brief Sets urgency to construct building of given category to given value if larger than current value
 	void SetConstructionUrgencyIfHigher(const AAIUnitCategory& category, float urgency)
@@ -178,10 +177,10 @@ private:
 	AAIGroup* GetClosestGroupForDefence(const AAITargetType& attackerTargetType, const float3& pos, int importance)  const;
 	
 	//! @brief Determines buildsite for a building that shall be constructed by the given construction unit
-	float3 DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) const;
+	BuildSite DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) const;
 
 	//! @brief Determines buildiste for the given building in the given sector, returns ZeroVector if none found
-	float3 DetermineBuildsiteInSector(UnitDefId building, const AAISector* sector) const;
+	BuildSite DetermineBuildsiteInSector(UnitDefId building, const AAISector* sector) const;
 	
 	void InitBuildques();
 
@@ -214,9 +213,6 @@ private:
 	bool BuildArty();
 	bool BuildAirBase();
 
-	float averageMetalUsage;
-	float averageEnergyUsage;
-
 	//! Buildqueues for the factories
 	std::vector< std::list<UnitDefId> > m_buildqueues;
 
@@ -232,12 +228,16 @@ private:
 	//! Target type against which which next defence shall be effective
 	AAITargetType m_nextDefenceVsTargetType;
 
-	int issued_orders;
+	//! The number of units the AI tries to order in every unit production update step
+	int m_unitProductionRate;
+
+	//! The total number of issued orders (primarily for debug purposes)
+	int m_numberOfIssuedOrders;
+
+	//! Number of times a building was created but no suitable builder could be identfied (should be zero - just for debug purposes)
+	unsigned int m_linkingBuildTaskToBuilderFailed;
 
 	AAI *ai;
-
-	//! Number of times a building was created but no suitable builder could be identfied.
-	unsigned int m_linkingBuildTaskToBuilderFailed;
 };
 
 #endif

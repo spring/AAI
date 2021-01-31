@@ -120,6 +120,9 @@ public:
 	//! @brief Returns the list of units of the given target type
 	const std::list<UnitDefId>& GetUnitsOfTargetType(const AAITargetType& targetType, int side) const;
 
+	//! @brief Returns metal extractor with the largest yardmap
+	UnitDefId GetLargestExtractor() const;
+
 	//! @brief Returns the unit category statistics for given side
 	const AAIUnitStatistics& GetUnitStatistics(int side) const { return m_unitCategoryStatisticsOfSide[side-1]; }
 

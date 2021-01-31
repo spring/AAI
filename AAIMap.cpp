@@ -717,7 +717,7 @@ void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, 
 	}
 }
 
-float3 AAIMap::FindRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, int yStart, int yEnd, int tries) const
+BuildSite AAIMap::DetermineRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, int yStart, int yEnd, int tries) const
 {
 	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(unitDefId);
 
@@ -738,24 +738,24 @@ float3 AAIMap::FindRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, in
 		// check if buildmap allows construction
 		if(CanBuildAt(mapPos, footprint))
 		{	
-			float3 possibleBuildsite;
-			ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
-			ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
+			float3 position;
+			ConvertMapPosToUnitPos(mapPos, position, footprint);
+			ConvertPositionToFinalBuildsite(position, footprint);
 
 			const springLegacyAI::UnitDef* unitDef  = &ai->Getbt()->GetUnitDef(unitDefId.id);
-			if(ai->GetAICallback()->CanBuildAt(unitDef, possibleBuildsite))
+			if(ai->GetAICallback()->CanBuildAt(unitDef, position))
 			{
-				const int x = possibleBuildsite.x/xSectorSize;
-				const int y = possibleBuildsite.z/ySectorSize;
+				const int x = position.x/xSectorSize;
+				const int y = position.z/ySectorSize;
 
 				if(IsValidSector(x,y))
-					return possibleBuildsite;
+					return BuildSite(position, 1.0f, true);
 
 			}
 		}
 	}
 
-	return ZeroVector;
+	return BuildSite();
 }
 
 BuildSite AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitId) const
@@ -764,8 +764,6 @@ BuildSite AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitI
 
 	const UnitFootprint            footprint = DetermineRequiredFreeBuildspace(buildingDefId);
 	const springLegacyAI::UnitDef* unitDef   = &ai->Getbt()->GetUnitDef(buildingDefId.id);
-
-	ai->Log("Invalid tile type for %s: %u\n", ai->s_buildTree.GetUnitTypeProperties(buildingDefId).m_name.c_str(), footprint.invalidTileTypes.m_tileType);
 
 	// check rect
 	const int xStart = unitPosition.x / SQUARE_SIZE;
@@ -796,7 +794,7 @@ BuildSite AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitI
 	return buildSite;
 }
 
-float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const
+BuildSite AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISector* sector) const
 {
 	int xStart, xEnd, yStart, yEnd;
 	sector->DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
@@ -814,23 +812,23 @@ float3 AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAISect
 			// check if buildmap allows construction
 			if(CanBuildAt(mapPos, footprint))
 			{
-				float3 possibleBuildsite;
-				ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
-				ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
+				float3 position;
+				ConvertMapPosToUnitPos(mapPos, position, footprint);
+				ConvertPositionToFinalBuildsite(position, footprint);
 
-				if(ai->GetAICallback()->CanBuildAt(def, possibleBuildsite))
+				if(ai->GetAICallback()->CanBuildAt(def, position))
 				{
-					const int x = possibleBuildsite.x/xSectorSize;
-					const int y = possibleBuildsite.z/ySectorSize;
+					const int x = position.x/xSectorSize;
+					const int y = position.z/ySectorSize;
 
 					if(IsValidSector(x,y))
-						return possibleBuildsite;
+						return BuildSite(position, 1.0f, true);
 				}
 			}
 		}
 	}
 
-	return ZeroVector;
+	return BuildSite();
 }
 
 BuildSite AAIMap::DetermineElevatedBuildsite(UnitDefId buildingDefId, int xStart, int xEnd, int yStart, int yEnd, float range) const
@@ -1406,7 +1404,7 @@ void AAIMap::DetermineMapType()
 // algorithm more or less by krogothe - thx very much
 void AAIMap::DetectMetalSpots()
 {
-	const UnitDefId largestExtractor = ai->Getbt()->GetLargestExtractor();
+	const UnitDefId largestExtractor = ai->s_buildTree.GetLargestExtractor();
 	if ( largestExtractor.IsValid() == false ) 
 	{
 		ai->Log("No metal extractor unit known!");

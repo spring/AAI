@@ -441,7 +441,7 @@ void AAIBrain::BuildUnits()
 
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
-	for(int i = 0; i < ai->Getexecute()->unitProductionRate; ++i)
+	for(int i = 0; i < ai->Getexecute()->GetUnitProductionRate(); ++i)
 	{
 		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
 		const bool urgent(false);

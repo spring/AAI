@@ -108,7 +108,7 @@ AAI::~AAI()
 
 	Log("Future/active factories:     %i / %i\n\n", ut->futureFactories, ut->activeFactories);
 
-	Log("Unit production rate: %i\n\n", execute->unitProductionRate);
+	Log("Unit production rate: %i\n\n", execute->GetUnitProductionRate());
 
 	Log("Active/under construction/requested constructors:\n");
 	for(const auto factory : s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, m_side))
