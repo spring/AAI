@@ -19,6 +19,32 @@ class AAI;
 class AAIExecute;
 class AAIConstructor;
 
+//! Used to store the information of a construction unit that is currently available
+class AvailableConstructor
+{
+public:
+	AvailableConstructor(AAIConstructor* constructor, float travelTimeToBuildSite) : m_constructor(constructor), m_travelTimeToBuildSite(travelTimeToBuildSite) {}
+
+	AvailableConstructor() : AvailableConstructor(nullptr, 0.0f) {}
+
+	void SetAvailableConstructor(AAIConstructor* constructor, float travelTimeToBuildSite) 
+	{
+		m_constructor           = constructor;
+		m_travelTimeToBuildSite = travelTimeToBuildSite;
+	}
+
+	bool            IsValid()               const { return m_constructor != nullptr; }
+
+	AAIConstructor* Constructor()           const { return m_constructor; }
+
+	float           TravelTimeToBuildSite() const { return m_travelTimeToBuildSite; }
+
+private:
+	AAIConstructor* m_constructor;
+
+	float           m_travelTimeToBuildSite;
+};
+
 class AAIUnitTable
 {
 public:
@@ -82,7 +108,7 @@ public:
 	AAIConstructor* FindBuilder(UnitDefId building, bool commander);
 
 	//! @brief Finds the closest builder and stores the time it needs to reach the given positon
-	AAIConstructor* FindClosestBuilder(UnitDefId building, const float3 *pos, bool commander, float *timeToReachPosition);
+	AvailableConstructor FindClosestBuilder(UnitDefId building, const float3& position, bool commander);
 
 	//! @brief Finds the closests assistance suitable to assist cosntruction at given position (nullptr if none found) 
 	AAIConstructor* FindClosestAssistant(const float3& pos, int importance, bool commander);

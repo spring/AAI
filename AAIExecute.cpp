@@ -448,12 +448,11 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 
 		if(buildSite.IsValid())
 		{
-			float min_dist;
-			AAIConstructor* builder = ai->Getut()->FindClosestBuilder(building, &buildSite.Position(), true, &min_dist);
+			const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(building, buildSite.Position(), true);
 
-			if(builder)
+			if(selectedConstructor.IsValid())
 			{
-				builder->GiveConstructionOrder(building, buildSite.Position());
+				selectedConstructor.Constructor()->GiveConstructionOrder(building, buildSite.Position());
 				return BuildOrderStatus::SUCCESSFUL;
 			}
 			else
@@ -571,7 +570,7 @@ bool AAIExecute::BuildExtractor()
 	const int maxSearchDist = std::min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->m_sectorsInDistToBase.size()) );
 
 	bool freeMetalSpotFound = false;
-	
+
 	for(int distanceFromBase = 0; distanceFromBase < maxSearchDist; ++distanceFromBase)
 	{
 		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase])
@@ -586,13 +585,12 @@ bool AAIExecute::BuildExtractor()
 
 						const UnitDefId extractor = (spot->pos.y >= 0.0f) ? landExtractor : seaExtractor;
 
-						float distanceToClosestBuilder;
-						AAIConstructor* builder = ai->Getut()->FindClosestBuilder(extractor, &spot->pos, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector), &distanceToClosestBuilder);
-						
-						const float rating = (1.0f + ai->Getmap()->GetDistanceToCenterOfEnemyBase(spot->pos)) / (1.0f + distanceToClosestBuilder);
+						const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(extractor, spot->pos, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector));
 
-						if(builder)
-							extractorSpots.push_back(PossibleSpotForMetalExtractor(spot, builder, rating));
+						const float rating = (1.0f + ai->Getmap()->GetDistanceToCenterOfEnemyBase(spot->pos)) / (1.0f + selectedConstructor.TravelTimeToBuildSite());
+
+						if(selectedConstructor.IsValid())
+							extractorSpots.push_back(PossibleSpotForMetalExtractor(spot, selectedConstructor.Constructor(), rating));
 
 						if(extractorSpots.size() >= maxExtractorBuildSpots)
 							break;
@@ -636,7 +634,7 @@ bool AAIExecute::BuildExtractor()
 		if(sector)
 			sector->UpdateFreeMetalSpots();
 
-		return true;	
+		return true;
 	}
 
 	// dont build other things if construction could not be started due to unavailable builders
@@ -808,12 +806,11 @@ BuildOrderStatus AAIExecute::TryConstructionOfBuilding(UnitDefId building, AAISe
 
 	if(buildSite.IsValid())
 	{
-		float min_dist;
-		AAIConstructor* builder = ai->Getut()->FindClosestBuilder(building, &buildSite.Position(), true, &min_dist);
+		const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(building, buildSite.Position(), true);
 
-		if(builder)
+		if(selectedConstructor.IsValid())
 		{
-			builder->GiveConstructionOrder(building, buildSite.Position());
+			selectedConstructor.Constructor()->GiveConstructionOrder(building, buildSite.Position());
 			return BuildOrderStatus::SUCCESSFUL;
 		}
 		else
@@ -887,12 +884,11 @@ bool AAIExecute::BuildMetalMaker()
 
 				if(buildSite.IsValid())
 				{
-					float min_dist;
-					builder = ai->Getut()->FindClosestBuilder(maker, &buildSite.Position(), true, &min_dist);
+					const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(maker, buildSite.Position(), true);
 
-					if(builder)
+					if(selectedConstructor.IsValid())
 					{
-						builder->GiveConstructionOrder(maker, buildSite.Position());
+						selectedConstructor.Constructor()->GiveConstructionOrder(maker, buildSite.Position());
 						return true;
 					}
 					else
@@ -928,12 +924,11 @@ bool AAIExecute::BuildMetalMaker()
 
 				if(buildSite.IsValid())
 				{
-					float min_dist;
-					builder = ai->Getut()->FindClosestBuilder(maker, &buildSite.Position(), true, &min_dist);
+					const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(maker, buildSite.Position(), true);
 
-					if(builder)
+					if(selectedConstructor.IsValid())
 					{
-						builder->GiveConstructionOrder(maker, buildSite.Position());
+						selectedConstructor.Constructor()->GiveConstructionOrder(maker, buildSite.Position());
 						return true;
 					}
 					else
@@ -1191,12 +1186,11 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 
 		if(buildsite.x > 0.0f)
 		{
-			float min_dist;
-			AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedDefence, &buildsite, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector), &min_dist);
+			const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(selectedDefence, buildsite, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector));
 
-			if(builder)
+			if(selectedConstructor.IsValid())
 			{
-				builder->GiveConstructionOrder(selectedDefence, buildsite);
+				selectedConstructor.Constructor()->GiveConstructionOrder(selectedDefence, buildsite);
 				ai->Getmap()->AddOrRemoveStaticDefence(buildsite, selectedDefence, true);
 				return BuildOrderStatus::SUCCESSFUL;
 			}
@@ -1268,17 +1262,13 @@ bool AAIExecute::BuildArty()
 	// Check if suitable position for artillery has been found
 	if(bestBuildSite.IsValid())
 	{
-		const float3& position = bestBuildSite.Position();
-		UnitDefId artillery = (position.y > 0.0f) ? landArtillery : seaArtillery;
+		const UnitDefId artillery = (bestBuildSite.Position().y > 0.0f) ? landArtillery : seaArtillery;
 
-		//ai->Log("Position for %s found\n", ai->s_buildTree.GetUnitTypeProperties(artillery).m_name.c_str());
+		const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(artillery, bestBuildSite.Position(), true);
 
-		float minDistance;
-		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(artillery, &position, true, &minDistance);
-
-		if(builder)
+		if(selectedConstructor.IsValid())
 		{
-			builder->GiveConstructionOrder(artillery, position);
+			selectedConstructor.Constructor()->GiveConstructionOrder(artillery, bestBuildSite.Position());
 			return true;
 		}
 		else
@@ -1350,12 +1340,11 @@ bool AAIExecute::BuildStaticConstructor()
 
 			if(buildsite.IsValid())
 			{
-				float min_dist;
-				builder = ai->Getut()->FindClosestBuilder(requestedFactory.first, &buildsite.Position(), true, &min_dist);
+				const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(requestedFactory.first, buildsite.Position(), true);
 
-				if(builder != nullptr)
+				if(selectedConstructor.IsValid())
 				{
-					builder->GiveConstructionOrder(requestedFactory.first, buildsite.Position());
+					selectedConstructor.Constructor()->GiveConstructionOrder(requestedFactory.first, buildsite.Position());
 
 					ai->Getbt()->ConstructionOrderForFactoryGiven(requestedFactory.first);
 					return true;
@@ -1438,12 +1427,11 @@ bool AAIExecute::BuildRadar()
 
 	if(selectedRadar.IsValid())
 	{
-		float min_dist;
-		AAIConstructor *builder = ai->Getut()->FindClosestBuilder(selectedRadar, &bestBuildSite.Position(), true, &min_dist);
+		const AvailableConstructor selectedBuilder = ai->Getut()->FindClosestBuilder(selectedRadar, bestBuildSite.Position(), true);
 
-		if(builder)
+		if(selectedBuilder.IsValid())
 		{
-			builder->GiveConstructionOrder(selectedRadar, bestBuildSite.Position());
+			selectedBuilder.Constructor()->GiveConstructionOrder(selectedRadar, bestBuildSite.Position());
 			return true;
 		}
 		else
@@ -1592,14 +1580,12 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 
 					const bool commanderAllowed = sector ? (sector->GetDistanceToBase() < 3) : false;
 
-					float min_dist;
-					AAIConstructor *builder = ai->Getut()->FindClosestBuilder(defence, &finalDefenceBuildPos, commanderAllowed, &min_dist);
+					const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(defence, finalDefenceBuildPos, commanderAllowed);
 
-					if(builder)
-						builder->GiveConstructionOrder(defence, finalDefenceBuildPos);
+					if(selectedConstructor.IsValid())
+						selectedConstructor.Constructor()->GiveConstructionOrder(defence, finalDefenceBuildPos);
 					else
 						ai->Log("No construction unit found to defend extractor %s!\n", ai->s_buildTree.GetUnitTypeProperties(defence).m_name.c_str());
-					
 				}
 			}
 		}
@@ -1752,11 +1738,10 @@ void AAIExecute::CheckConstructionOfNanoTurret()
 
 					if(sector->GetNumberOfBuildings(EUnitCategory::STATIC_ASSISTANCE) < cfg->MAX_NANO_TURRETS_PER_SECTOR)
 					{
-						float min_dist;
-						AAIConstructor *builder = ai->Getut()->FindClosestBuilder(nanoTurretDefId, &buildSite.Position(), true, &min_dist);
+						const AvailableConstructor constructor = ai->Getut()->FindClosestBuilder(nanoTurretDefId, buildSite.Position(), true);
 
-						if(builder)
-							builder->GiveConstructionOrder(nanoTurretDefId, buildSite.Position());
+						if(constructor.IsValid())
+							constructor.Constructor()->GiveConstructionOrder(nanoTurretDefId, buildSite.Position());
 					}
 				}
 			}

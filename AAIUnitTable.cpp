@@ -245,12 +245,11 @@ AAIConstructor* AAIUnitTable::FindBuilder(UnitDefId building, bool commander)
 	return nullptr;
 }
 
-AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float3 *pos, bool commander, float *timeToReachPosition)
+AvailableConstructor AAIUnitTable::FindClosestBuilder(UnitDefId building, const float3& position, bool commander)
 {
-	const int continent = AAIMap::GetContinentID(*pos);
+	const int continent = AAIMap::GetContinentID(position);
 
-	*timeToReachPosition = 0.0f;
-	AAIConstructor *selectedBuilder(nullptr);
+	AvailableConstructor selectedBuilder;
 
 	// look for idle builder
 	for(auto constructor : m_constructors)
@@ -274,17 +273,14 @@ AAIConstructor* AAIUnitTable::FindClosestBuilder(UnitDefId building, const float
 				// filter out commander
 				if(continentCheckPassed && commanderCheckPassed)
 				{
-					float travelTime = fastmath::apxsqrt( (builderPosition.x - pos->x) * (builderPosition.x - pos->x) + (builderPosition.z - pos->z) * (builderPosition.z - pos->z) );
+					const float dx         = builderPosition.x - position.x;
+					const float dy         = builderPosition.z - position.z;
+					const float maxSpeed   = std::max(0.1f, ai->s_buildTree.GetMaxSpeed(builder->m_myDefId));
 
-					const float maxSpeed = ai->s_buildTree.GetMaxSpeed(builder->m_myDefId);
-					if(maxSpeed > 0.0f)
-						travelTime /= maxSpeed;
+					const float travelTime = fastmath::apxsqrt(  dx * dx + dy * dy ) / maxSpeed;
 
-					if( (travelTime < *timeToReachPosition) || (selectedBuilder == nullptr))
-					{
-						selectedBuilder      = builder;
-						*timeToReachPosition = travelTime;
-					}
+					if( (travelTime < selectedBuilder.TravelTimeToBuildSite()) || (selectedBuilder.IsValid() == false))
+						selectedBuilder.SetAvailableConstructor(builder, travelTime);
 				}
 			}
 		}
