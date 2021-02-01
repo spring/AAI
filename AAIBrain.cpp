@@ -837,6 +837,19 @@ StorageSelectionCriteria AAIBrain::DetermineStorageSelectionCriteria() const
 	return StorageSelectionCriteria(cost, buildtime, storedMetal, storedEnergy);
 }
 
+ExtractorSelectionCriteria AAIBrain::DetermineExtractorSelectionCriteria() const
+{
+	// income factor ranges from 1.0 (no metal income) to 0.0 (high metal income)
+	const float metalIncome = m_metalIncome.GetAverageValue();
+	const float incomeFactor = 1.0f / (0.01f * metalIncome*metalIncome + 1.0f);
+
+	// cost ranges from 0.5 (excess metal, high defence power) to 2.0 (low metal, low defence power)
+	const float cost           = 0.5f + 1.5f * incomeFactor;
+	const float extractedMetal = 0.5f + 1.5f * (1.0f - incomeFactor);
+
+	return ExtractorSelectionCriteria(cost, extractedMetal, 0.0f);
+}
+
 void AAIBrain::DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCriteria& selectionCriteria, const AAISector* sector) const
 {
 	// defence factor ranges from 0.0 (high defence power vs given target type) to 1 (no defence power)
@@ -880,4 +893,3 @@ void AAIBrain::DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCri
 
 	selectionCriteria.randomness = 3;
 }
-

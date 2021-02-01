@@ -476,15 +476,26 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 	return BuildOrderStatus::BUILDING_INVALID;
 }
 
+template<typename T>
+struct InsertByRatingComparator
+{
+	bool operator()(const std::pair<T, float>& lhs, const std::pair<T, float>& rhs) const
+	{
+		return lhs.second > rhs.second;
+	}
+};
+
 bool AAIExecute::BuildExtractor()
 {
+	ExtractorSelectionCriteria selectionCriteria = ai->Getbrain()->DetermineExtractorSelectionCriteria();
+
 	//-----------------------------------------------------------------------------------------------------------------
 	// metal map
 	//-----------------------------------------------------------------------------------------------------------------
 	if(ai->Getmap()->metalMap)
 	{
 		// get id of an extractor and look for suitable builder
-		UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), 1.0f, 0.5f, false, false);
+		const UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, false);
 
 		if(landExtractor.IsValid())
 		{
@@ -511,60 +522,9 @@ bool AAIExecute::BuildExtractor()
 	// normal map
 	//-----------------------------------------------------------------------------------------------------------------
 
-	const GamePhase& gamePhase = ai->GetGamePhase();
-
-	float cost       = 0.5f;
-	float efficiency = 2.0f;
-
-	if(gamePhase.IsStartingPhase())
-	{
-		efficiency = 1.0;
-		cost       = 2.0f;
-	}
-	else if(gamePhase.IsEarlyPhase())
-	{
-		efficiency = 1.0;
-		cost       = 1.5f;
-	}
-	else
-	{
-		float metalSurplus = ai->Getbrain()->GetAverageMetalSurplus();
-
-		if(metalSurplus < 0.5f && ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::METAL_EXTRACTOR) < 4)
-		{
-			efficiency = 1.0;
-			cost       = 2.0f;
-		}
-	}
-
-	// select a land/water mex
-	UnitDefId landExtractor, seaExtractor;
-
-	AAIConstructor *land_builder = nullptr, *water_builder = nullptr;
-
-	if(ai->Getmap()->land_metal_spots > 0)
-	{
-		landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, false);
-
-		if(landExtractor.IsValid())
-			land_builder = ai->Getut()->FindBuilder(landExtractor, true);
-	}
-
-	if(ai->Getmap()->water_metal_spots > 0)
-	{
-		seaExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, efficiency, false, true);
-
-		if(seaExtractor.IsValid())
-			water_builder = ai->Getut()->FindBuilder(seaExtractor, true);
-	}
-
-	// check if there is any builder for at least one of the selected extractors available
-	if(!land_builder && !water_builder)
-		return false;
-
 	// check the first 10 free spots for the one with least distance to available builder
-	const int maxExtractorBuildSpots = 10;
-	std::list<PossibleSpotForMetalExtractor> extractorSpots;
+	const int maxExtractorBuildSpots(10);
+	std::set< std::pair<AvailableMetalSpot, float>, InsertByRatingComparator<AvailableMetalSpot> > extractorSpots;
 
 	// determine max search dist - prevent crashes on smaller maps
 	const int maxSearchDist = std::min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->m_sectorsInDistToBase.size()) );
@@ -573,6 +533,9 @@ bool AAIExecute::BuildExtractor()
 
 	for(int distanceFromBase = 0; distanceFromBase < maxSearchDist; ++distanceFromBase)
 	{
+		if(distanceFromBase > 0)
+			selectionCriteria.armed = 0.5f;
+
 		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase])
 		{
 			if( sector->ShallBeConsideredForExtractorConstruction() )
@@ -583,17 +546,15 @@ bool AAIExecute::BuildExtractor()
 					{
 						freeMetalSpotFound = true;
 
-						const UnitDefId extractor = (spot->pos.y >= 0.0f) ? landExtractor : seaExtractor;
+						const bool      water     = (spot->pos.y >= 0.0f) ? false : true;
+						const UnitDefId extractor = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, water);
 
 						const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(extractor, spot->pos, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector));
 
 						const float rating = (1.0f + ai->Getmap()->GetDistanceToCenterOfEnemyBase(spot->pos)) / (1.0f + selectedConstructor.TravelTimeToBuildSite());
 
 						if(selectedConstructor.IsValid())
-							extractorSpots.push_back(PossibleSpotForMetalExtractor(spot, selectedConstructor.Constructor(), rating));
-
-						if(extractorSpots.size() >= maxExtractorBuildSpots)
-							break;
+							extractorSpots.insert( std::pair<AvailableMetalSpot, float>(AvailableMetalSpot(spot, selectedConstructor.Constructor(), extractor), rating) );
 					}
 				}
 			}
@@ -610,26 +571,13 @@ bool AAIExecute::BuildExtractor()
 	// look for spot with minimum dist to available builder
 	if(extractorSpots.size() > 0)
 	{
-		PossibleSpotForMetalExtractor& bestSpot = *(extractorSpots.begin());
-
-		float highestRating(0.0f);
-
-		for(auto spot = extractorSpots.begin(); spot != extractorSpots.end(); ++spot)
-		{
-			if(spot->m_rating > highestRating)
-			{
-				bestSpot = *spot;
-				highestRating = spot->m_rating;
-			}
-		}
+		const AvailableMetalSpot& metalSpot = (extractorSpots.begin())->first;
 
 		// order mex construction for best spot
-		const UnitDefId& extractor = (bestSpot.m_metalSpot->pos.y < 0.0f) ? seaExtractor : landExtractor;
+		metalSpot.builder->GiveConstructionOrder(metalSpot.extractor, metalSpot.metalSpot->pos);
+		metalSpot.metalSpot->occupied = true;
 
-		bestSpot.m_builder->GiveConstructionOrder(extractor, bestSpot.m_metalSpot->pos);
-		bestSpot.m_metalSpot->occupied = true;
-
-		AAISector* sector = ai->Getmap()->GetSectorOfPos(bestSpot.m_metalSpot->pos);
+		AAISector* sector = ai->Getmap()->GetSectorOfPos(metalSpot.metalSpot->pos);
 
 		if(sector)
 			sector->UpdateFreeMetalSpots();
@@ -643,15 +591,6 @@ bool AAIExecute::BuildExtractor()
 	else
 		return true;
 }
-
-template<typename T>
-struct InsertByRatingComparator
-{
-	bool operator()(const std::pair<T, float>& lhs, const std::pair<T, float>& rhs) const
-	{
-		return lhs.second > rhs.second;
-	}
-};
 
 bool AAIExecute::BuildPowerPlant()
 {
@@ -1781,10 +1720,10 @@ void AAIExecute::CheckRessources()
 	}
 }
 
-void AAIExecute::CheckMexUpgrade()
+void AAIExecute::CheckExtractorUpgrade()
 {
 	//-----------------------------------------------------------------------------------------------------------------
-	// skip check for extarctor upgrade if there are empty metal spots or extractors under construction
+	// skip check for extractor upgrade if there are empty metal spots or extractors under construction
 	//-----------------------------------------------------------------------------------------------------------------
 	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
 	{
@@ -1801,20 +1740,26 @@ void AAIExecute::CheckMexUpgrade()
 	//-----------------------------------------------------------------------------------------------------------------
 	// determine which type of extractor could be build on land/sea
 	//-----------------------------------------------------------------------------------------------------------------
-	const float cost = 0.25f + ai->Getbrain()->Affordable() / 8.0f;
-	const float extractedMetal  = 6.0f / (cost + 0.75f);
 
-	const UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, extractedMetal, false, false);
-	const UnitDefId seaExtractor  = ai->Getbt()->SelectExtractor(ai->GetSide(), cost, extractedMetal, false, true);
+	ExtractorSelectionCriteria selectionCriteria = ai->Getbrain()->DetermineExtractorSelectionCriteria();
 
-	const float landExtractedMetal = landExtractor.IsValid() ? ai->s_buildTree.GetMaxRange(landExtractor) : 0.0f;
-	const float seaExtractedMetal  = seaExtractor.IsValid()  ? ai->s_buildTree.GetMaxRange(seaExtractor)  : 0.0f;
+	const UnitDefId landExtractor  = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, false);
+	const UnitDefId seaExtractor   = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, true);
+
+	const bool constructorForLandExtractorAvailable = landExtractor.IsValid() && (ai->Getbt()->GetNumberOfAvailableConstructorsForUnit(landExtractor) > 0);
+	const bool constructorForSeaExtractorAvailable  = seaExtractor.IsValid()  && (ai->Getbt()->GetNumberOfAvailableConstructorsForUnit(seaExtractor)  > 0);
+
+	if( (constructorForLandExtractorAvailable == false) && (constructorForSeaExtractorAvailable == false) )
+		return;
+
+	const float landExtractedMetal = constructorForLandExtractorAvailable ? ai->s_buildTree.GetMaxRange(landExtractor) : 0.0f;
+	const float seaExtractedMetal  = constructorForSeaExtractorAvailable  ? ai->s_buildTree.GetMaxRange(seaExtractor)  : 0.0f;
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// check existing extractors within/close to base for possible upgrade
 	//-----------------------------------------------------------------------------------------------------------------
 	float maxExtractedMetalGain(0.0f);
-	AAIMetalSpot *selectedMetalSpot = nullptr;
+	AAIMetalSpot* selectedMetalSpot(nullptr);
 
 	for(int dist = 0; dist < 2; ++dist)
 	{

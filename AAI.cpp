@@ -913,10 +913,10 @@ void AAI::Update()
 	}
 
 	// upgrade mexes
-	if (!(tick % 1200))
+	if (!((tick+11) % 300))
 	{
-		AAI_SCOPED_TIMER("Upgrade-Mexes")
-		execute->CheckMexUpgrade();
+		AAI_SCOPED_TIMER("Check Upgrades")
+		execute->CheckExtractorUpgrade();
 		execute->CheckRadarUpgrade();
 		//execute->CheckJammerUpgrade();
 	}

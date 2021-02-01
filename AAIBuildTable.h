@@ -77,7 +77,7 @@ struct PowerPlantSelectionCriteria
 	float currentEnergyIncome; //!< The current energy production
 };
 
-//! Criteria used for selection of power plants
+//! Criteria used for selection of storages
 struct StorageSelectionCriteria
 {
 	StorageSelectionCriteria(float cost, float buildtime, float storedMetal, float storedEnergy) 
@@ -87,6 +87,16 @@ struct StorageSelectionCriteria
 	float buildtime;    //!< Buildtime of power plant
 	float storedMetal;  //!< Storage capacity for metal
 	float storedEnergy; //!< Storage capacity for energy
+};
+
+//! Criteria used for selection of metal extractors
+struct ExtractorSelectionCriteria
+{
+	ExtractorSelectionCriteria(float cost, float extractedMetal, float armed) : cost(cost), extractedMetal(extractedMetal), armed(armed) {}
+
+	float cost;           //!< Total cost of the extractor
+	float extractedMetal; //!< The ammount of extracted metal
+	float armed;          //!< Extra rating if extractor is armed
 };
 
 //! Data used to calculate rating of factories
@@ -165,8 +175,11 @@ public:
 	//! @brief Returns the total number (active, under construction, and requested) of units of the given type
 	int GetTotalNumberOfUnits(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].active + units_dynamic[unitDefId.id].underConstruction + units_dynamic[unitDefId.id].requested); }
 
-	//! @brief Returns the total number (available and requested) of constructors for the given units of the given type
+	//! @brief Returns the total number (available and requested) of constructors for the given unit type
 	int GetTotalNumberOfConstructorsForUnit(UnitDefId unitDefId) const { return (units_dynamic[unitDefId.id].constructorsAvailable + units_dynamic[unitDefId.id].constructorsRequested); }
+
+	//! @brief Returns the number of available constructors for the given unit type
+	int GetNumberOfAvailableConstructorsForUnit(UnitDefId unitDefId) const { return units_dynamic[unitDefId.id].constructorsAvailable; }
 
 	// ******************************************************************************************************
 	// the following functions are used to determine units that suit a certain purpose
@@ -177,7 +190,7 @@ public:
 	UnitDefId SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water);
 
 	//! @brief Selects a metal extractor according to given criteria; a builder is requested if none available and a different extractor is chosen.
-	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water);
+	UnitDefId SelectExtractor(int side, const ExtractorSelectionCriteria& selectionCriteria, bool water);
 
 	//! @brief Selects a radar according to given criteria; a builder is requested if none available and a different radar is chosen.
 	UnitDefId SelectRadar(int side, float cost, float range, bool water);
@@ -241,7 +254,7 @@ private:
 	UnitDefId SelectPowerPlant(int side, const PowerPlantSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const;
 
 	//! @brief Returns an extractor based on the given criteria
-	UnitDefId SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool canBuild) const;
+	UnitDefId SelectExtractor(int side, const ExtractorSelectionCriteria& selectionCriteria, bool water, bool canBuild) const;
 
 	//! @brief Returns a radar according to given criteria
 	UnitDefId SelectRadar(int side, float cost, float range, bool water, bool canBuild) const;

@@ -212,20 +212,20 @@ UnitDefId AAIBuildTable::SelectPowerPlant(int side, const PowerPlantSelectionCri
 	return selectedPowerPlant;
 }
 
-UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water)
+UnitDefId AAIBuildTable::SelectExtractor(int side, const ExtractorSelectionCriteria& selectionCriteria, bool water)
 {
-	UnitDefId extractor = SelectExtractor(side, cost, extractedMetal, armed, water, false);
+	UnitDefId extractor = SelectExtractor(side, selectionCriteria, water, false);
 
 	if(extractor.IsValid() && (units_dynamic[extractor.id].constructorsAvailable <= 0) && (units_dynamic[extractor.id].constructorsRequested <= 0) )
 	{
 		RequestBuilderFor(extractor);
-		extractor = SelectExtractor(side, cost, extractedMetal, armed, water, true);
+		extractor = SelectExtractor(side, selectionCriteria, water, true);
 	}
 
 	return extractor;
 }
 
-UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMetal, bool armed, bool water, bool mustBeConstructable) const
+UnitDefId AAIBuildTable::SelectExtractor(int side, const ExtractorSelectionCriteria& selectionCriteria, bool water, bool mustBeConstructable) const
 {
 	UnitDefId selectedExtractorDefId;
 	float     bestRating(0.0f);
@@ -234,29 +234,27 @@ UnitDefId AAIBuildTable::SelectExtractor(int side, float cost, float extractedMe
 	const StatisticalData&   extractedMetalStatistics = unitStatistics.GetUnitPrimaryAbilityStatistics(EUnitCategory::METAL_EXTRACTOR);
 	const StatisticalData&   costStatistics           = unitStatistics.GetUnitCostStatistics(EUnitCategory::METAL_EXTRACTOR);
 
-	for(auto extractorDefId = ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).begin(); extractorDefId != ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side).end(); ++extractorDefId)
+	for(auto extractorDefId : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::METAL_EXTRACTOR, side))
 	{
 		// check if under water or ground || water = true and building under water
-		if( IsBuildingSelectable(*extractorDefId, water, mustBeConstructable) )
+		if( IsBuildingSelectable(extractorDefId, water, mustBeConstructable) )
 		{
-			const float metalExtraction = ai->s_buildTree.GetMaxRange( *extractorDefId );
+			const float metalExtraction = ai->s_buildTree.GetMaxRange(extractorDefId);
+			const float isArmed         = GetUnitDef(extractorDefId.id).weapons.empty() ? 0.0f : 1.0f;
 
-			float myRating =   extractedMetal * extractedMetalStatistics.GetNormalizedDeviationFromMin(metalExtraction)
-						     + cost           * costStatistics.GetNormalizedDeviationFromMax(ai->s_buildTree.GetTotalCost(*extractorDefId));
-
-			if(armed && !GetUnitDef(extractorDefId->id).weapons.empty())
-				myRating += 0.2f;
+			const float myRating =   selectionCriteria.extractedMetal * extractedMetalStatistics.GetDeviationFromZero(metalExtraction)
+						           + selectionCriteria.cost           * costStatistics.GetDeviationFromMax(ai->s_buildTree.GetTotalCost(extractorDefId));
+								   + selectionCriteria.armed          * isArmed;
 
 			if(myRating > bestRating)
 			{
-				bestRating = myRating;
-				selectedExtractorDefId = *extractorDefId;
+				bestRating             = myRating;
+				selectedExtractorDefId = extractorDefId;
 			}
 		}
 	}
 
-	// 0 if no unit found (list was probably empty)
-	return selectedExtractorDefId.id;
+	return selectedExtractorDefId;
 }
 
 UnitDefId AAIBuildTable::SelectStorage(int side, const StorageSelectionCriteria& selectionCriteria, bool water)

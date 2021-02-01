@@ -32,17 +32,17 @@ class AAIMap;
 class AAIUnitTable;
 class AAISector;
 
-struct PossibleSpotForMetalExtractor
+struct AvailableMetalSpot
 {
-	PossibleSpotForMetalExtractor(AAIMetalSpot* metalSpot, AAIConstructor* builder, float rating) :
-		m_metalSpot(metalSpot),
-		m_builder(builder),
-		m_rating(rating)
+	AvailableMetalSpot(AAIMetalSpot* metalSpot, AAIConstructor* builder, UnitDefId extractor) :
+		metalSpot(metalSpot),
+		builder(builder),
+		extractor(extractor)
 		{}
 
-	AAIMetalSpot*   m_metalSpot;
-	AAIConstructor* m_builder;
-	float           m_rating;
+	AAIMetalSpot*   metalSpot;
+	AAIConstructor* builder;
+	UnitDefId       extractor;
 };
 
 class AAIExecute
@@ -79,7 +79,7 @@ public:
 	void CheckRessources();
 
 	// checks if buildings of that type could be replaced with more efficient one (e.g. mex -> moho)
-	void CheckMexUpgrade();
+	void CheckExtractorUpgrade();
 	void CheckRadarUpgrade();
 	void CheckJammerUpgrade();
 

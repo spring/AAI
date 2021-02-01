@@ -119,6 +119,9 @@ public:
 	//! @brief Determine the selection criteria for a storage
 	StorageSelectionCriteria DetermineStorageSelectionCriteria() const;
 
+	//! @brief Determine the selection criteria for a metal extractor
+	ExtractorSelectionCriteria DetermineExtractorSelectionCriteria() const;
+
 	//! @brief Determine the selection criteria for static defences for the given sector
 	void DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCriteria& selectionCriteria, const AAISector* sector) const;
 
