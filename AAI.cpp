@@ -454,6 +454,7 @@ void AAI::UnitFinished(int unit)
 		else if (category.IsPowerPlant())
 		{
 			ut->AddPowerPlant(UnitId(unit), unitDefId);
+			brain->PowerPlantFinished(unitDefId);
 		}
 		else if (category.IsMetalMaker())
 		{
@@ -873,7 +874,7 @@ void AAI::Update()
 	if (!(tick % 30))
 	{
 		AAI_SCOPED_TIMER("Update-Income")
-		brain->UpdateRessources(m_aiCallback);
+		brain->UpdateResources(m_aiCallback);
 	}
 
 	// building management

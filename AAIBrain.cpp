@@ -282,7 +282,7 @@ bool AAIBrain::ExpandBase(const AAIMapType& sectorType, bool preferSafeSector)
 	return false;
 }
 
-void AAIBrain::UpdateRessources(springLegacyAI::IAICallback* cb)
+void AAIBrain::UpdateResources(springLegacyAI::IAICallback* cb)
 {
 	const float energyIncome = cb->GetEnergyIncome();
 	const float metalIncome  = cb->GetMetalIncome();
@@ -305,6 +305,15 @@ void AAIBrain::UpdateRessources(springLegacyAI::IAICallback* cb)
 
 	m_energySurplus.AddValue(energySurplus);
 	m_metalSurplus.AddValue(metalSurplus);
+}
+
+void AAIBrain::PowerPlantFinished(UnitDefId powerPlant)
+{
+	const float energyIncome  = m_energyIncome.GetAverageValue()  + ai->s_buildTree.GetPrimaryAbility(powerPlant);
+	const float energySurplus = m_energySurplus.GetAverageValue() + 0.5f * ai->s_buildTree.GetPrimaryAbility(powerPlant);
+	
+	m_energyIncome.FillBuffer(energyIncome);
+	m_energySurplus.FillBuffer(energySurplus);
 }
 
 void AAIBrain::UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spottedCombatUnits)

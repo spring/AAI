@@ -48,7 +48,10 @@ public:
 	void AssignSectorToBase(AAISector *sector, bool addToBase);
 
 	//! @brief Updates the (smoothened) energy/metal income
-	void UpdateRessources(springLegacyAI::IAICallback* cb);
+	void UpdateResources(springLegacyAI::IAICallback* cb);
+
+	//! @brief Overwrites the smoothed energy income/surplus with the current values (called after power plant is finished)
+	void PowerPlantFinished(UnitDefId powerPlant);
 
 	//! @brief Updates the maximum number of spotted combat units for each category (old max values decrease over time)
 	void UpdateMaxCombatUnitsSpotted(const MobileTargetTypeValues& spottedCombatUnits);

@@ -253,6 +253,13 @@ public:
 			m_nextIndex = 0;
 	}
 
+	void FillBuffer(float value)
+	{
+		m_nextIndex = 0;
+		std::fill(m_values.begin(), m_values.end(), value);
+		m_averageValue = value;
+	}
+
 private:
 	//! The values to be averaged
 	std::vector<float> m_values;
