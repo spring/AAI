@@ -214,13 +214,13 @@ UnitDefId AAIBuildTable::SelectPowerPlant(int side, const PowerPlantSelectionCri
 
 UnitDefId AAIBuildTable::SelectExtractor(int side, const ExtractorSelectionCriteria& selectionCriteria, bool water)
 {
-	UnitDefId extractor = SelectExtractor(side, selectionCriteria, water, false);
+	UnitDefId extractor = SelectExtractor(side, selectionCriteria, water, true);
 
-	if(extractor.IsValid() && (units_dynamic[extractor.id].constructorsAvailable <= 0) && (units_dynamic[extractor.id].constructorsRequested <= 0) )
+	/*if(extractor.IsValid() && (units_dynamic[extractor.id].constructorsAvailable <= 0) && (units_dynamic[extractor.id].constructorsRequested <= 0) )
 	{
 		RequestBuilderFor(extractor);
 		extractor = SelectExtractor(side, selectionCriteria, water, true);
-	}
+	}*/
 
 	return extractor;
 }
@@ -977,11 +977,11 @@ UnitDefId AAIBuildTable::SelectConstructorFor(UnitDefId unitDefId) const
 	return selectedConstructor;
 }
 
-bool AAIBuildTable::RequestConstructionOfConstructor(UnitDefId constructor)
+bool AAIBuildTable::RequestMobileConstructor(UnitDefId constructor)
 {
 	if(GetTotalNumberOfConstructorsForUnit(constructor) <= 0)
 	{
-		//ai->Log("BuildFactoryFor(%s) is requesting factory for %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(constructor).m_name.c_str());
+		//ai->Log("RequestConstructor(%s) is requesting factory for %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(constructor).m_name.c_str());
 		RequestFactoryFor(constructor);
 	}
 	else
@@ -1028,10 +1028,12 @@ void AAIBuildTable::RequestFactoryFor(UnitDefId unitDefId)
 		// mobile constructor requested
 		else
 		{
-			const bool successful = RequestConstructionOfConstructor(selectedConstructor);
+			const bool successful = RequestMobileConstructor(selectedConstructor);
 
 			if(successful)
 				ai->Log("RequestFactoryFor(%s) requested %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedConstructor).m_name.c_str());
+			//else
+			//	ai->Log("RequestFactoryFor(%s) failed to request %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedConstructor).m_name.c_str());
 		}
 	}
 }
@@ -1042,10 +1044,12 @@ void AAIBuildTable::RequestBuilderFor(UnitDefId building)
 
 	if( selectedBuilder.IsValid() && (GetNumberOfFutureUnits(selectedBuilder) <= 0) )
 	{
-		const bool successful = RequestConstructionOfConstructor(selectedBuilder);
+		const bool successful = RequestMobileConstructor(selectedBuilder);
 
 		if(successful)
 			ai->Log("RequestBuilderFor(%s) requested %s\n", ai->s_buildTree.GetUnitTypeProperties(building).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedBuilder).m_name.c_str());
+		//else
+		//	ai->Log("RequestBuilderFor(%s) failed to request %s\n", ai->s_buildTree.GetUnitTypeProperties(building).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedBuilder).m_name.c_str());
 	}
 }
 

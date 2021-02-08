@@ -431,19 +431,11 @@ float AAIBrain::Affordable()
 
 void AAIBrain::BuildUnits()
 {
-	//-----------------------------------------------------------------------------------------------------------------
 	// Determine urgency to counter each of the different combat categories
-	//-----------------------------------------------------------------------------------------------------------------
+	const TargetTypeValues     combatPowerVsTargetType = DetermineCombatPowerVsTargetType();
 
-	TargetTypeValues combatPowerVsTargetType;
-	DetermineCombatPowerVsTargetType(combatPowerVsTargetType);
-
-	//-----------------------------------------------------------------------------------------------------------------
 	// Order construction of units according to determined threat/own defence capabilities
-	//-----------------------------------------------------------------------------------------------------------------
-
-	UnitSelectionCriteria unitSelectionCriteria;
-	DetermineCombatUnitSelectionCriteria(unitSelectionCriteria);
+	const UnitSelectionCriteria unitSelectionCriteria  = DetermineCombatUnitSelectionCriteria();
 
 	std::vector<float> factoryUtilization(ai->s_buildTree.GetNumberOfFactories(), 0.0f);
 	ai->Getexecute()->DetermineFactoryUtilization(factoryUtilization, true);
@@ -459,8 +451,10 @@ void AAIBrain::BuildUnits()
 	}
 }
 
-void AAIBrain::DetermineCombatPowerVsTargetType(TargetTypeValues& combatPowerVsTargetType) const
+TargetTypeValues AAIBrain::DetermineCombatPowerVsTargetType() const
 {
+	TargetTypeValues combatPowerVsTargetType;
+
 	//-----------------------------------------------------------------------------------------------------------------
 	// Calculate threat by and defence vs. the different combat categories
 	//-----------------------------------------------------------------------------------------------------------------
@@ -563,10 +557,11 @@ void AAIBrain::DetermineCombatPowerVsTargetType(TargetTypeValues& combatPowerVsT
 		}
 	}
 
-
 	// weight importance of combat power vs static units (i.e. enemy defences) based on current pressure
 	const float combatPowerVsStatic = (combatPowerVsTargetType.GetValue(ETargetType::SURFACE) + combatPowerVsTargetType.GetValue(ETargetType::FLOATER)) * 1.25f * (1.0f - m_estimatedPressureByEnemies);
 	combatPowerVsTargetType.SetValue(ETargetType::STATIC, combatPowerVsStatic);
+
+	return combatPowerVsTargetType;
 }
 
 bool IsRandomNumberBelow(float threshold)
@@ -617,20 +612,22 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 	return moveType;
 }
 
-void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitSelectionCriteria) const
+UnitSelectionCriteria AAIBrain::DetermineCombatUnitSelectionCriteria() const
 {
+	UnitSelectionCriteria unitSelectionCriteria;
+
 	// income factor ranges from 1.0 (no metal income) to 0.0 (high metal income)
-	const float metalIncome = m_metalIncome.GetAverageValue();
+	const float metalIncome  = m_metalIncome.GetAverageValue();
 	const float incomeFactor = 1.0f / (0.01f * metalIncome*metalIncome + 1.0f);
 
-	// cost ranges from 0.5 (excess metal, low threat level) to 2.0 (low metal)
+	// cost ranges from 0.5 (excess metal, low threat level) to 2 (low metal)
 	unitSelectionCriteria.cost       = 0.5f + 1.5f * incomeFactor;
 
-	// power ranges from 0.5 (low income) to 2.5 (high income, high enemy pressure)
-	unitSelectionCriteria.power      = 0.5f + 1.5f * (1.0f - incomeFactor) + 0.5f * m_estimatedPressureByEnemies;
+	// power ranges from 0.5 (low income) to 2.0 (high income, high enemy pressure)
+	unitSelectionCriteria.power      = 0.5f + 1.0f * (1.0f - incomeFactor) + 0.5f * m_estimatedPressureByEnemies;
 
-	// efficiency ranges form 0.25 (high income, low threat level) to 1 (low income, high threat level)
-	unitSelectionCriteria.efficiency = 0.25f + 0.5f * m_estimatedPressureByEnemies + 0.25f * incomeFactor;
+	// efficiency ranges form 0.25 (high income, low threat level) to 1.5 (low income, high threat level)
+	unitSelectionCriteria.efficiency = 0.25f + 0.5f * m_estimatedPressureByEnemies + 0.75f * incomeFactor;
 
 	unitSelectionCriteria.factoryUtilization = 1.5f;
 
@@ -670,6 +667,8 @@ void AAIBrain::DetermineCombatUnitSelectionCriteria(UnitSelectionCriteria& unitS
 			unitSelectionCriteria.range = 0.1f + 0.1f * range;
 		}
 	}
+
+	return unitSelectionCriteria;
 }
 
 float AAIBrain::GetAttacksBy(const AAITargetType& targetType, const GamePhase& gamePhase) const
@@ -849,12 +848,12 @@ StorageSelectionCriteria AAIBrain::DetermineStorageSelectionCriteria() const
 ExtractorSelectionCriteria AAIBrain::DetermineExtractorSelectionCriteria() const
 {
 	// income factor ranges from 1.0 (no metal income) to 0.0 (high metal income)
-	const float metalIncome = m_metalIncome.GetAverageValue();
+	const float metalIncome  = m_metalIncome.GetAverageValue();
 	const float incomeFactor = 1.0f / (0.01f * metalIncome*metalIncome + 1.0f);
 
 	// cost ranges from 0.5 (excess metal, high defence power) to 2.0 (low metal, low defence power)
 	const float cost           = 0.5f + 1.5f * incomeFactor;
-	const float extractedMetal = 0.5f + 1.5f * (1.0f - incomeFactor);
+	const float extractedMetal = 0.2f + 1.8f * (1.0f - incomeFactor);
 
 	return ExtractorSelectionCriteria(cost, extractedMetal, 0.0f);
 }
@@ -874,14 +873,14 @@ void AAIBrain::DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCri
 	// cost ranges from 0.5 (excess metal, high defence power) to 2.0 (low metal, low defence power)
 	selectionCriteria.cost        = 0.5f + incomeFactor + 0.5f * defenceFactor;
 
-	// power ranges from 0.5 (low income) to 3.0 (high income, low defence power & high enemy pressure)
-	selectionCriteria.combatPower = 0.5f + 0.5f * (1.0f - incomeFactor) + 1.5f * (1.0f - numberOfDefencesFactor) + 0.5f * m_estimatedPressureByEnemies;
+	// power ranges from 0.75 (low income) to 3.0 (high income, low defence power & high enemy pressure)
+	selectionCriteria.combatPower = 0.75f + 0.5f * (1.0f - incomeFactor) + 1.25f * (1.0f - numberOfDefencesFactor) + 0.5f * m_estimatedPressureByEnemies;
 
-	// buildtimes ranges form 0.25 (high income, low threat level) to 2 (low income, low defence power/high threat level)
-	selectionCriteria.buildtime = 0.25f + 0.5f * m_estimatedPressureByEnemies + 1.25f * defenceFactor;
+	// buildtimes ranges form 0.25 (high income, low threat level) to 1.5 (low income, low defence power/high threat level)
+	selectionCriteria.buildtime = 0.25f + 0.32f * m_estimatedPressureByEnemies + defenceFactor;
 
 	// range ranges from 0.1 to 1.5, depending on ratio of units with high ranges
-	if( IsRandomNumberBelow(cfg->HIGH_RANGE_UNITS_RATIO) )
+	if( IsRandomNumberBelow(cfg->HIGH_RANGE_UNITS_RATIO) && (sector->GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) > 1) )
 	{
 		// range in 0.5 to 1.5
 		const float range = static_cast<float>(rand()%6);

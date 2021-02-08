@@ -269,7 +269,7 @@ private:
 	UnitDefId SelectConstructorFor(UnitDefId unitDefId) const;
 
 	//! @brief Order construction of the given construction unit (factory or builder); returns whether construction unit has been added to buildqueue of a factory
-	bool RequestConstructionOfConstructor(UnitDefId constructor);
+	bool RequestMobileConstructor(UnitDefId constructor);
 
 	//! @brief Calculates the rating of the given factory for the given map type
 	void CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const;

@@ -35,6 +35,7 @@ AAIBuildTree::AAIBuildTree() :
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_ARTILLERY).GetArrayIndex()].append("Static Artillery");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STORAGE).GetArrayIndex()].append("Storage");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR).GetArrayIndex()].append("Static Constructor");
+	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_ASSISTANCE).GetArrayIndex()].append("Nano Turret");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_SUPPORT).GetArrayIndex()].append("Static Support");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::STATIC_SENSOR).GetArrayIndex()].append("Static Sensor");
 	m_unitCategoryNames[AAIUnitCategory(EUnitCategory::POWER_PLANT).GetArrayIndex()].append("Power Plant");
