@@ -13,6 +13,7 @@
 #include "AAIBrain.h"
 #include "AAIConfig.h"
 #include "AAISector.h"
+#include "AAIAirForceManager.h"
 
 #include "System/SafeUtil.h"
 #include "LegacyCpp/UnitDef.h"
@@ -1637,8 +1638,8 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 
 	for(int i = 0; i < numberOfEnemyUnits; ++i)
 	{
-		const float3   pos = ai->GetAICallback()->GetUnitPos(unitsInLOS[i]);
-		const UnitDef* def = ai->GetAICallback()->GetUnitDef(unitsInLOS[i]);
+		const float3                   pos = ai->GetAICallback()->GetUnitPos(unitsInLOS[i]);
+		const springLegacyAI::UnitDef* def = ai->GetAICallback()->GetUnitDef(unitsInLOS[i]);
 
 		if(def) // unit is within los
 		{
@@ -1655,6 +1656,9 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 				{
 					if(ai->GetAICallback()->UnitBeingBuilt(unitsInLOS[i]) == false)
 						m_scoutedEnemyUnitsMap.AddEnemyUnit(defId, tile);
+
+					if(category.IsBuilding())
+						const bool addedToTargets = ai->Getaf()->CheckStaticBombTarget(UnitId(unitsInLOS[i]), defId, pos);
 				}
 
 				if(category.IsCombatUnit())

@@ -20,24 +20,14 @@
 #include "AAISector.h"
 
 #include "LegacyCpp/UnitDef.h"
-using namespace springLegacyAI;
-
 
 AAIAirForceManager::AAIAirForceManager(AAI *ai)
 {
 	this->ai = ai;
-
-	num_of_targets = 0;
-
-	targets.resize(cfg->MAX_AIR_TARGETS);
-
-	for(int i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
-		targets[i].unit_id = -1;
 }
 
 AAIAirForceManager::~AAIAirForceManager(void)
 {
-
 }
 
 void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory& category, float health)
@@ -45,10 +35,10 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 	// do not attack own units
 	if(ai->GetAICallback()->GetUnitTeam(unitId.id) != ai->GetMyTeamId()) 
 	{
-		float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
+		float3 position = ai->GetAICallback()->GetUnitPos(unitId.id);
 
 		// calculate in which sector unit is located
-		AAISector* sector = ai->Getmap()->GetSectorOfPos(pos);
+		AAISector* sector = ai->Getmap()->GetSectorOfPos(position);
 
 		// check if unit is within the map
 		if(sector)
@@ -71,21 +61,21 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 			{
 				if(category.IsAirCombat() == true)
 				{
-					group = GetAirGroup(100.0, EUnitType::ANTI_AIR);
+					group = GetAirGroup(100.0f, EUnitType::ANTI_AIR);
 
 					if(group)
-						group->DefendAirSpace(&pos);
+						group->DefendAirSpace(&position);
 				}
 				else if(category.IsBuilding() == true)
 				{
-					group = GetAirGroup(100.0, EUnitType::ANTI_STATIC);
+					group = GetAirGroup(100.0f, EUnitType::ANTI_STATIC);
 
 					if(group)
-						group->BombTarget(unitId.id, &pos);
+						group->BombTarget(unitId, position);
 				}
 				else
 				{
-					group = GetAirGroup(100.0, EUnitType::ANTI_SURFACE);
+					group = GetAirGroup(100.0f, EUnitType::ANTI_SURFACE);
 
 					if(group)
 						group->AirRaidUnit(unitId.id);
@@ -95,70 +85,41 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 	}
 }
 
-void AAIAirForceManager::CheckBombTarget(int unit_id, int def_id)
+bool AAIAirForceManager::CheckStaticBombTarget(UnitId unitId, UnitDefId unitDefId, const float3& position)
 {
 	// dont continue if target list already full
-	if(num_of_targets >= cfg->MAX_AIR_TARGETS)
-		return;
+	if(m_targets.size() >= cfg->MAX_AIR_TARGETS)
+		return false;
 
-	// do not add own units or units that ar already on target list
-	if( (ai->GetAICallback()->GetUnitTeam(unit_id) != ai->GetMyTeamId()) && !IsTarget(unit_id))
+	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
+
+	if(category.IsStaticArtillery() || category.IsStaticSupport() || category.IsPowerPlant() || category.IsMetalExtractor() || category.IsMetalMaker())
 	{
-		const float3 pos = ai->GetAICallback()->GetUnitPos(unit_id);
-
-		// check if unit is within the map
-		if( ai->Getmap()->IsPositionWithinMap(pos) )
+		// do not add units that are already on target list
+		if( !IsTarget(unitId))
 		{
-			AddTarget(unit_id, def_id);
-		}
-	}
-}
+			AirRaidTarget* target = new AirRaidTarget(unitId, unitDefId, position);
+			m_targets.insert(target);
 
-void AAIAirForceManager::AddTarget(int unit_id, int def_id)
-{
-	for(int i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
-	{
-		if(targets[i].unit_id == -1)
-		{
-			ai->LogConsole("Target added...");
-
-			targets[i].pos = ai->GetAICallback()->GetUnitPos(unit_id);
-			targets[i].def_id = def_id;
-			targets[i].cost = ai->s_buildTree.GetTotalCost(UnitDefId(def_id));
-			targets[i].health = ai->GetAICallback()->GetUnitHealth(unit_id);
-
-			ai->Getut()->units[unit_id].status = BOMB_TARGET;
-
-			++num_of_targets;
-
-			return;
+			//ai->Log("Target added...\n");
+			ai->Getut()->units[unitId.id].status = BOMB_TARGET;
+			return true;
 		}
 	}
 
-	// could not add target, randomly overwrite one of the existing targets
-	/*i = rand()%cfg->MAX_AIR_TARGETS;
-	targets[i].pos.x = pos.x;
-	targets[i].pos.z = pos.z;
-	targets[i].def_id = def_id;
-	targets[i].cost = cost;
-	targets[i].health = health;
-	targets[i].category = category;*/
+	return false;
 }
 
-void AAIAirForceManager::RemoveTarget(int unit_id)
+void AAIAirForceManager::RemoveTarget(UnitId unitId)
 {
-	for(int i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
+	for(auto target : m_targets)
 	{
-		if(targets[i].unit_id == unit_id)
+		if(target->GetUnitId() == unitId)
 		{
-			ai->LogConsole("Target removed...");
+			m_targets.erase(target);
+			delete target;
 
-			targets[i].unit_id = -1;
-
-			ai->Getut()->units[unit_id].status = ENEMY_UNIT;
-
-			--num_of_targets;
-
+			//ai->Log("Target removed...\n");
 			return;
 		}
 	}
@@ -167,60 +128,60 @@ void AAIAirForceManager::RemoveTarget(int unit_id)
 void AAIAirForceManager::BombBestUnit(float cost, float danger)
 {
 	float highestRating(0.0f);
-	int   selectedTargetId(-1);
+	AirRaidTarget* selectedTarget(nullptr);
 
-	for(int i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
+	for(auto target : m_targets)
 	{
-		if(targets[i].unit_id != -1)
+		const UnitId&    unitId   = target->GetUnitId();
+		const AAISector* sector   = ai->Getmap()->GetSectorOfPos(target->GetPosition());
+
+		if(sector)
 		{
-			AAISector* sector = ai->Getmap()->GetSectorOfPos(targets[i].pos);
+			// favor already damaged targets
+			const float healthRating = ai->s_buildTree.GetHealth(target->GetUnitDefId()) / ai->GetAICallback()->GetUnitHealth(unitId.id);
 
-			if(sector)
+			const float rating = healthRating * ai->s_buildTree.GetTotalCost(target->GetUnitDefId()) / (1.0f + sector->GetEnemyCombatPower(ETargetType::AIR) * danger);
+
+			if(rating > highestRating)
 			{
-				const float healthRating = ai->Getbt()->GetUnitDef(targets[i].def_id).health / targets[i].health; // favor already damaged targets
-				//! @todo Check this formula
-				const float rating = pow(targets[i].cost, cost) / (1.0f + sector->GetEnemyCombatPower(ETargetType::AIR) * danger) * healthRating;
-
-				if(rating > highestRating)
-				{
-					highestRating = rating;
-					selectedTargetId = i;
-				}
+				highestRating  = rating;
+				selectedTarget = target;
 			}
 		}
+	
 	}
 
-	if(selectedTargetId != -1)
+	if(selectedTarget)
 	{
 		AAIGroup *group = GetAirGroup(100.0, EUnitType::ANTI_STATIC);
 
 		if(group)
 		{
-			//ai->LogConsole("Bombing...");
-			group->BombTarget(targets[selectedTargetId].unit_id, &targets[selectedTargetId].pos);
+			//ai->Log("Bombing...\n");
+			group->BombTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition());
 
-			targets[selectedTargetId].unit_id = -1;
-			--num_of_targets;
+			m_targets.erase(selectedTarget);
+			delete selectedTarget;
 		}
 	}
 }
 
 AAIGroup* AAIAirForceManager::GetAirGroup(float importance, EUnitType groupType) const
 {
-	for(auto group = ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT).begin(); group != ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT).end(); ++group)
+	for(auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
 	{
-		if( ((*group)->task_importance < importance) && (*group)->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) )
-			return *group;
+		if( (group->task_importance < importance) && group->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) )
+			return group;
 	}
 	
 	return nullptr;
 }
 
-bool AAIAirForceManager::IsTarget(int unit_id)
+bool AAIAirForceManager::IsTarget(UnitId unitId) const
 {
-	for(int i = 0; i < cfg->MAX_AIR_TARGETS; ++i)
+	for(auto target : m_targets)
 	{
-		if(targets[i].unit_id == unit_id)
+		if(target->GetUnitId() == unitId)
 			return true;
 	}
 

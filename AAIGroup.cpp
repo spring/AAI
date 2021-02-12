@@ -521,14 +521,14 @@ void AAIGroup::UnitIdle(int unit)
 	}
 }
 
-void AAIGroup::BombTarget(int target_id, float3 *target_pos)
+void AAIGroup::BombTarget(UnitId unitId, const float3& position)
 {
 	Command c(CMD_ATTACK);
-	c.PushPos(*target_pos);
+	c.PushPos(position);
 
 	GiveOrderToGroup(&c, 110, UNIT_ATTACKING, "Group::BombTarget");
 
-	ai->Getut()->AssignGroupToEnemy(target_id, this);
+	ai->Getut()->AssignGroupToEnemy(unitId.id, this);
 
 	task = GROUP_BOMBING;
 }

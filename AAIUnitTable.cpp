@@ -72,7 +72,9 @@ bool AAIUnitTable::AddUnit(int unit_id, int def_id, AAIGroup *group, AAIConstruc
 		}
 		else if(units[unit_id].status == BOMB_TARGET)
 		{
-			ai->Getaf()->RemoveTarget(unit_id);
+			ai->Getaf()->RemoveTarget(UnitId(unit_id));
+			
+			units[unit_id].status = ENEMY_UNIT;
 
 			if(units[unit_id].group)
 				units[unit_id].group->TargetUnitKilled();
@@ -354,8 +356,10 @@ AAIConstructor* AAIUnitTable::FindClosestAssistant(const float3& pos, int /*impo
 void AAIUnitTable::EnemyKilled(int unit)
 {
 	if(units[unit].status == BOMB_TARGET)
-		ai->Getaf()->RemoveTarget(unit);
-
+	{
+		ai->Getaf()->RemoveTarget(UnitId(unit));
+		units[unit].status = ENEMY_UNIT;
+	}
 
 	if(units[unit].group)
 		units[unit].group->TargetUnitKilled();

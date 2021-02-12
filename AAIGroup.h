@@ -61,8 +61,8 @@ public:
 	//! @brief Retreat units in group to given position
 	void Retreat(const float3& pos);
 
-	// bombs target (only for bomber groups)
-	void BombTarget(int target_id, float3 *target_pos);
+	//! @brief Bombs target (only for bomber groups)
+	void BombTarget(UnitId unitId, const float3& position);
 
 	// orders fighters to defend air space
 	void DefendAirSpace(float3 *pos);

@@ -808,7 +808,7 @@ void AAI::Update()
 	}
 
 	// scouting
-	if (!((tick + 2 * GetAAIInstance()) % 60))
+	if (!((tick + 2 * GetAAIInstance()) % 45))
 	{
 		AAI_SCOPED_TIMER("Scouting_1")
 		map->CheckUnitsInLOSUpdate();
@@ -830,7 +830,7 @@ void AAI::Update()
 	}
 
 	// unit management
-	if (!(tick % 649))
+	if (!(tick % 650))
 	{
 		AAI_SCOPED_TIMER("Unit-Management")
 		execute->CheckBuildqueues();
@@ -838,7 +838,7 @@ void AAI::Update()
 		execute->BuildScouts();
 	}
 
-	if (!(tick % 611))
+	if (!((tick+39) % 500))
 	{
 		AAI_SCOPED_TIMER("Check-Attack")
 		// check attack
