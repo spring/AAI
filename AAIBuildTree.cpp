@@ -244,8 +244,19 @@ void AAIBuildTree::UpdateUnitTypesOfCombatUnits()
 
 			if(m_combatPowerOfUnits[id].GetValue(ETargetType::SUBMERGED) > AAIConstants::minAntiTargetTypeCombatPower)
 				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_SUBMERGED);
+
+			const float maxCombatPowerVsMobile = std::max( 	std::max(m_combatPowerOfUnits[id].GetValue(ETargetType::SURFACE), m_combatPowerOfUnits[id].GetValue(ETargetType::AIR)), 
+															std::max(m_combatPowerOfUnits[id].GetValue(ETargetType::FLOATER), m_combatPowerOfUnits[id].GetValue(ETargetType::SUBMERGED)) );
+
+			if(m_combatPowerOfUnits[id].GetValue(ETargetType::STATIC) > 1.5f * maxCombatPowerVsMobile)
+				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_STATIC);
 		}
-	} 
+	}
+
+	for(auto id : cfg->m_bombers)
+	{
+		m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_STATIC);
+	}
 }
 
 float AAIBuildTree::CalculateCombatPowerChange(UnitDefId attackerUnitDefId, UnitDefId killedUnitDefId) const

@@ -59,7 +59,7 @@ public:
 
 private:
 	//! @brief Returns a group of air units of given type currently occupied with a task of lower priority (or idle) - nullptr if none found
-	AAIGroup* GetAirGroup(float importance, EUnitType groupType) const;
+	AAIGroup* GetAirGroup(EUnitType groupType, float importance, int minSize = 1) const;
 
 	//! @brief Returns true if given unit is already in target list
 	bool IsTarget(UnitId unitId) const;

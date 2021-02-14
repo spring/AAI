@@ -140,6 +140,8 @@ AAIConfig::AAIConfig(void)
 	MIN_AIR_SUPPORT_EFFICIENCY = 2.5f;
 	MAX_ATTACKS = 3;
 
+	HEALTH_PER_BOMBER = 600.0f;
+
 	NON_AMPHIB_MAX_WATERDEPTH = 15.0f;
 
 	MAX_COST_LIGHT_ASSAULT = 0.025f;
@@ -271,7 +273,10 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 		{
 			ReadUnitNames(ai, file, m_metalMakers, unknownUnits);
 		}
-
+		else if(!strcmp(keyword, "BOMBERS"))
+		{
+			ReadUnitNames(ai, file, m_bombers, unknownUnits);
+		}
 		else if(!strcmp(keyword, "DONT_BUILD")) 
 		{
 			ReadUnitNames(ai, file, m_ignoredUnits, unknownUnits);

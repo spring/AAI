@@ -61,21 +61,21 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 			{
 				if(category.IsAirCombat() == true)
 				{
-					group = GetAirGroup(100.0f, EUnitType::ANTI_AIR);
+					group = GetAirGroup(EUnitType::ANTI_AIR, 100.0f);
 
 					if(group)
 						group->DefendAirSpace(&position);
 				}
 				else if(category.IsBuilding() == true)
 				{
-					group = GetAirGroup(100.0f, EUnitType::ANTI_STATIC);
+					group = GetAirGroup(EUnitType::ANTI_STATIC, 100.0f);
 
 					if(group)
 						group->BombTarget(unitId, position);
 				}
 				else
 				{
-					group = GetAirGroup(100.0f, EUnitType::ANTI_SURFACE);
+					group = GetAirGroup(EUnitType::ANTI_SURFACE, 100.0f);
 
 					if(group)
 						group->AirRaidUnit(unitId.id);
@@ -153,7 +153,13 @@ void AAIAirForceManager::BombBestUnit(float cost, float danger)
 
 	if(selectedTarget)
 	{
-		AAIGroup *group = GetAirGroup(100.0, EUnitType::ANTI_STATIC);
+		const int minNumberOfBombers = std::max(static_cast<int>(ai->s_buildTree.GetHealth(selectedTarget->GetUnitDefId()) / cfg->HEALTH_PER_BOMBER), cfg->MAX_AIR_GROUP_SIZE);
+
+		const AAIUnitCategory& targetCategory = ai->s_buildTree.GetUnitCategory(selectedTarget->GetUnitDefId());
+		const bool  highPriorityTarget = targetCategory.IsStaticArtillery() || targetCategory.IsStaticSupport();
+		const float urgency            = highPriorityTarget ? 120.f : 90.0f;
+
+		AAIGroup *group = GetAirGroup(EUnitType::ANTI_STATIC, urgency, minNumberOfBombers);
 
 		if(group)
 		{
@@ -166,11 +172,11 @@ void AAIAirForceManager::BombBestUnit(float cost, float danger)
 	}
 }
 
-AAIGroup* AAIAirForceManager::GetAirGroup(float importance, EUnitType groupType) const
+AAIGroup* AAIAirForceManager::GetAirGroup(EUnitType groupType, float importance, int minSize) const
 {
 	for(auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
 	{
-		if( (group->task_importance < importance) && group->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) )
+		if( (group->task_importance < importance) && group->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) && (group->GetCurrentSize() >= minSize) )
 			return group;
 	}
 	

@@ -95,6 +95,9 @@ public:
 	//! A list of units that shall be considered to be metal makers
 	std::list<int> m_metalMakers;
 
+	//! A list of units that shall be considered to be bombers 
+	std::list<int> m_bombers;
+
 	//! A list of units that shall be ignored (i.e. not assigned to any category and thus not used)
 	std::list<int> m_ignoredUnits;
 
@@ -119,11 +122,15 @@ public:
 	float MAX_COST_HEAVY_ASSAULT;
 	int MAX_ATTACKS;
 
+	//! Used to determine minimum number of bombers send vs. a given target; i.e. minNumber = targetHealth  / HEALTH_PER_BOMBER
+	float HEALTH_PER_BOMBER;
+
 	// combat behaviour
 	float MIN_FALLBACK_TURNRATE; // units with lower turnrate will not try to fall back
 
 	// internal
 	float CLIFF_SLOPE;  // cells with greater slope will be considered to be cliffs
+
 	int MAX_SECTOR_IMPORTANCE;
 
 	// game specific
