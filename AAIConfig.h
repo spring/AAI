@@ -21,12 +21,6 @@ using std::list;
 using std::vector;
 
 class AAI;
-namespace springLegacyAI {
-	struct UnitDef;
-}
-
-using namespace springLegacyAI;
-
 
 /// Converts a string to one that can be used in a file name (eg. "Abc.123 $%^*" -> "Abc.123_____")
 std::string MakeFileSystemCompatible(const std::string& str);
@@ -73,9 +67,11 @@ public:
 	float HIGH_RANGE_UNITS_RATIO;
 	float FAST_UNITS_RATIO;
 
-	int MIN_ENERGY_STORAGE;
-	int MIN_METAL_STORAGE;
-	int MAX_AIR_TARGETS;
+	int   MIN_ENERGY_STORAGE;
+	int   MIN_METAL_STORAGE;
+	float MIN_METAL_MAKER_ENERGY;
+
+	int   MAX_AIR_TARGETS;
 
 	//! The number of different sides (side 0 = neutral will be added)
 	int numberOfSides;
@@ -106,21 +102,20 @@ public:
 	//float HOVER_MAX_SLOPE;
 	float NON_AMPHIB_MAX_WATERDEPTH;
 	float METAL_ENERGY_RATIO;
-	int MAX_DEFENCES;
-	int MAX_STAT_ARTY;
-	int MAX_AIR_BASE;
-	bool AIR_ONLY_MOD;
-	int MAX_STORAGE;
-	int MAX_MEX_DISTANCE;
-	int MAX_MEX_DEFENCE_DISTANCE;
-	float MIN_METAL_MAKER_ENERGY;
-	int MIN_FACTORIES_FOR_DEFENCES;
-	int MIN_FACTORIES_FOR_STORAGE;
+	int   MAX_DEFENCES;
+	int   MAX_STAT_ARTY;
+	int   MAX_AIR_BASE;
+	int   MAX_STORAGE;
+	int   MAX_MEX_DISTANCE;
+	int   MAX_MEX_DEFENCE_DISTANCE;
+
+	int   MIN_FACTORIES_FOR_DEFENCES;
+	int   MIN_FACTORIES_FOR_STORAGE;
 	float MIN_AIR_SUPPORT_EFFICIENCY;
 	float MAX_COST_LIGHT_ASSAULT;
 	float MAX_COST_MEDIUM_ASSAULT;
 	float MAX_COST_HEAVY_ASSAULT;
-	int MAX_ATTACKS;
+	int   MAX_ATTACKS;
 
 	//! Used to determine minimum number of bombers send vs. a given target; i.e. minNumber = targetHealth  / HEALTH_PER_BOMBER
 	float HEALTH_PER_BOMBER;
@@ -131,12 +126,10 @@ public:
 	// internal
 	float CLIFF_SLOPE;  // cells with greater slope will be considered to be cliffs
 
-	int MAX_SECTOR_IMPORTANCE;
-
 	// game specific
 	int   LEARN_RATE;
 
-	static constexpr int  INCOME_SAMPLE_POINTS = 16; //!< Number of data points used to calculate smoothed energy/metal income/surplus 
+	static constexpr int INCOME_SAMPLE_POINTS = 16; //!< Number of data points used to calculate smoothed energy/metal income/surplus 
 
 	/**
 	 * open a file in springs data directory
@@ -163,15 +156,10 @@ private:
 
 	float WATER_MAP_RATIO;
 	float LAND_WATER_MAP_RATIO;
-	float LIGHT_ASSAULT_RATIO;
+
 	int MIN_FACTORIES_FOR_RADAR_JAMMER;
 	int MAX_METAL_MAKERS;
-	int MIN_AIR_ATTACK_COST;
 	int MAX_BUILDERS;
-	int AIR_DEFENCE;
-	float MEDIUM_ASSAULT_RATIO;
-	float HEAVY_ASSAULT_RATIO;
-	float SUPER_HEAVY_ASSAULT_RATIO;
 };
 
 extern AAIConfig *cfg;

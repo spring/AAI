@@ -43,12 +43,8 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 	// set movement type of group (filter out add. movement info like underwater, floater, etc.)
 	m_moveType = ai->s_buildTree.GetMovementType( unitDefId );
 
-	// now we know type and category, determine max group size
-	if(cfg->AIR_ONLY_MOD)
-	{
-		m_maxSize = cfg->MAX_AIR_GROUP_SIZE;
-	}
-	else if(m_groupType.IsAntiAir() && !m_groupType.IsAntiSurface())
+	//determine max group size
+	if(m_groupType.IsAntiAir() && !m_groupType.IsAntiSurface())
 		m_maxSize = cfg->MAX_ANTI_AIR_GROUP_SIZE;
 	else
 	{
@@ -142,7 +138,7 @@ bool AAIGroup::RemoveUnit(UnitId unitId, UnitId attackerUnitId)
 			{
 				const UnitDefId attackerDefId = ai->GetUnitDefId(attackerUnitId);
 
-				if(attackerDefId.IsValid() && !cfg->AIR_ONLY_MOD)
+				if(attackerDefId.IsValid())
 				{
 					const AAIUnitCategory& category    = ai->s_buildTree.GetUnitCategory(attackerDefId);
 					const TargetTypeValues&  combatPower = ai->s_buildTree.GetCombatPower(attackerDefId);
@@ -295,17 +291,13 @@ float AAIGroup::GetDefenceRating(const AAITargetType& attackerTargetType, const 
 
 void AAIGroup::TargetUnitKilled()
 {
-	// behaviour of normal mods
-	if(!cfg->AIR_ONLY_MOD)
+	// air groups retreat to rally point
+	if(m_category.IsAirCombat())
 	{
-		// air groups retreat to rally point
-		if(m_category.IsAirCombat())
-		{
-			Command c(CMD_MOVE);
-			c.PushPos(m_rallyPoint);
+		Command c(CMD_MOVE);
+		c.PushPos(m_rallyPoint);
 
-			GiveOrderToGroup(&c, 90, MOVING, "Group::TargetUnitKilled");
-		}
+		GiveOrderToGroup(&c, 90, MOVING, "Group::TargetUnitKilled");
 	}
 }
 
@@ -439,7 +431,7 @@ void AAIGroup::UnitIdle(int unit)
 		return;
 
 	// special behaviour of aircraft in non air only mods
-	if(m_category.IsAirCombat() && (task != GROUP_IDLE) && !cfg->AIR_ONLY_MOD)
+	if(m_category.IsAirCombat() && (task != GROUP_IDLE))
 	{
 		Command c(CMD_MOVE);
 		c.PushPos(m_rallyPoint);

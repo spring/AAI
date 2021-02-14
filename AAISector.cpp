@@ -115,12 +115,9 @@ bool AAISector::AddToBase(bool addToBase)
 
 		m_distanceToBase = 0;
 
-		importance_this_game += 1;
+		importance_this_game = std::min(importance_this_game + 1.0f, AAIConstants::maxSectorImportance);
 
 		AAIMap::s_teamSectorMap.SetSectorAsOccupiedByTeam(x, y, ai->GetMyTeamId());
-
-		if(importance_this_game > cfg->MAX_SECTOR_IMPORTANCE)
-			importance_this_game = cfg->MAX_SECTOR_IMPORTANCE;
 
 		return true;
 	}

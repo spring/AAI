@@ -92,7 +92,6 @@ AAIConfig::AAIConfig(void)
 	MIN_ENERGY = 18;  // min energy make value to be considered beeing a power plant
 	MAX_UNITS = 5000;
 	MAX_SCOUTS = 4;
-	MAX_SECTOR_IMPORTANCE = 6;
 	MAX_XROW = 16;
 	MAX_YROW = 16;
 	X_SPACE = 12;
@@ -116,10 +115,8 @@ AAIConfig::AAIConfig(void)
 	SEA_ARTY_RANGE = 1300.0;
 	HOVER_ARTY_RANGE = 1000.0;
 	STATIONARY_ARTY_RANGE = 2000;
-	AIR_DEFENCE = 8;
 	MIN_ENERGY_STORAGE = 500;
 	MIN_METAL_STORAGE = 100;
-	MIN_AIR_ATTACK_COST = 150;
 	MAX_AIR_TARGETS = 20;
 	AIRCRAFT_RATIO = 0.2f;
 	HIGH_RANGE_UNITS_RATIO = 0.3f;
@@ -129,7 +126,6 @@ AAIConfig::AAIConfig(void)
 	MAX_STAT_ARTY = 3;
 	MAX_STORAGE = 6;
 	MAX_AIR_BASE = 1;
-	AIR_ONLY_MOD = false;
 	MAX_METAL_MAKERS = 20;
 	MIN_METAL_MAKER_ENERGY = 100;
 	MAX_MEX_DISTANCE = 7;
@@ -147,11 +143,6 @@ AAIConfig::AAIConfig(void)
 	MAX_COST_LIGHT_ASSAULT = 0.025f;
 	MAX_COST_MEDIUM_ASSAULT = 0.13f;
 	MAX_COST_HEAVY_ASSAULT = 0.55f;
-
-	LIGHT_ASSAULT_RATIO = 40.0f;
-	MEDIUM_ASSAULT_RATIO = 30.0f;
-	HEAVY_ASSAULT_RATIO = 25.0f;
-	SUPER_HEAVY_ASSAULT_RATIO = 5.0f;
 
 	MIN_FALLBACK_TURNRATE = 250.0f;
 
@@ -285,8 +276,6 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 			MIN_ENERGY = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "MAX_SCOUTS")) {
 			MAX_SCOUTS = ReadNextInteger(ai, file);
-		} else if(!strcmp(keyword, "MAX_SECTOR_IMPORTANCE")) {
-			MAX_SECTOR_IMPORTANCE = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "MAX_XROW")) {
 			MAX_XROW = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "MAX_YROW")) {
@@ -321,8 +310,6 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 			MAX_BASE_SIZE = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "MAX_AIR_TARGETS")) {
 			MAX_AIR_TARGETS = ReadNextInteger(ai, file);
-		} else if(!strcmp(keyword, "MIN_AIR_ATTACK_COST")) {
-			MIN_AIR_ATTACK_COST = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "SCOUT_SPEED")) {
 			SCOUT_SPEED = ReadNextFloat(ai, file);
 		} else if(!strcmp(keyword, "GROUND_ARTY_RANGE")) {
@@ -341,8 +328,6 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 			MAX_NANO_TURRETS_PER_SECTOR = ReadNextInteger(ai, file);	
 		} else if(!strcmp(keyword, "MIN_ASSISTANCE_BUILDTIME")) {
 			MIN_ASSISTANCE_BUILDTIME = ReadNextInteger(ai, file);
-		} else if(!strcmp(keyword, "AIR_DEFENCE")) {
-			AIR_DEFENCE = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "AIRCRAFT_RATIO")) {
 			AIRCRAFT_RATIO = ReadNextFloat(ai, file);
 		} else if(!strcmp(keyword, "HIGH_RANGE_UNITS_RATIO")) {
@@ -355,8 +340,6 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 			MAX_STAT_ARTY = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "MAX_AIR_BASE")) {
 			MAX_AIR_BASE = ReadNextInteger(ai, file);
-		} else if(!strcmp(keyword, "AIR_ONLY_MOD")) {
-			AIR_ONLY_MOD = (bool)ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "METAL_ENERGY_RATIO")) {
 			METAL_ENERGY_RATIO = ReadNextFloat(ai, file);
 		} else if(!strcmp(keyword, "NON_AMPHIB_MAX_WATERDEPTH")) {
@@ -365,8 +348,6 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 			MAX_METAL_MAKERS = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "MAX_STORAGE")) {
 			MAX_STORAGE = ReadNextInteger(ai, file);
-		} else if(!strcmp(keyword, "MIN_METAL_MAKER_ENERGY")) {
-			MIN_METAL_MAKER_ENERGY = ReadNextFloat(ai, file);
 		} else if(!strcmp(keyword, "MAX_MEX_DISTANCE")) {
 			MAX_MEX_DISTANCE = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "MAX_MEX_DEFENCE_DISTANCE")) {
