@@ -165,6 +165,12 @@ AAI::~AAI()
 	m_initialized = false;
 	fclose(m_logFile);
 	m_logFile = nullptr;
+
+	// last instance of AAI shall clean up config
+	if(s_aaiInstances == 0)
+	{
+		AAIConfig::Delete();
+	}
 }
 
 //void AAI::EnemyDamaged(int damaged,int attacker,float damage,float3 dir) {}
@@ -195,9 +201,12 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	m_aaiInstance = s_aaiInstances; //! @todo This might not be 100% thread safe (if multiple instances off AAI are initialized by several threads at the same time)
 	Log("AAI instance: %i\n", m_aaiInstance); 
 
-	// load config file first
-	bool gameConfigLoaded    = cfg->LoadGameConfig(this);
-	bool generalConfigLoaded = cfg->LoadGeneralConfig(*this);
+	// init config (if not already done by other instance of AAI) and load from file
+	AAIConfig::Init();
+	cfg = AAIConfig::GetConfig();
+
+	const bool gameConfigLoaded    = cfg->LoadGameConfig(this);
+	const bool generalConfigLoaded = cfg->LoadGeneralConfig(this);
 
 	m_configLoaded = gameConfigLoaded && generalConfigLoaded;
 

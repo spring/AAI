@@ -20,8 +20,8 @@
 
 
 #include "LegacyCpp/UnitDef.h"
-using namespace springLegacyAI;
 
+AAIConfig* AAIConfig::m_config = nullptr;
 
 static bool IsFSGoodChar(const char c) {
 
@@ -86,7 +86,26 @@ std::string AAIConfig::ReadNextString(AAI* ai, FILE* file)
 	return std::string(buffer);
 }
 
-AAIConfig::AAIConfig(void)
+void AAIConfig::Init()
+{
+	if(m_config == nullptr)
+	{
+		m_config = new AAIConfig();
+	}
+}
+
+void AAIConfig::Delete()
+{
+	if(m_config != nullptr)
+	{
+		delete m_config;
+		m_config = nullptr;
+	}
+}
+
+AAIConfig::AAIConfig() :
+	m_gameConfigurationLoaded(false),
+	m_generalConfigurationLoaded(false)
 {
 	numberOfSides = 2;
 	MIN_ENERGY = 18;  // min energy make value to be considered beeing a power plant
@@ -152,10 +171,6 @@ AAIConfig::AAIConfig(void)
 	LAND_WATER_MAP_RATIO = 0.3f;
 }
 
-AAIConfig::~AAIConfig(void)
-{
-}
-
 std::string AAIConfig::GetFileName(springLegacyAI::IAICallback* cb, const std::string& filename, const std::string& prefix, const std::string& suffix, bool write) const
 {
 	std::string name = prefix + MakeFileSystemCompatible(filename) + suffix;
@@ -202,6 +217,9 @@ void ReadUnitNames(AAI *ai, FILE* file, std::list<int>& unitList, std::list< std
 
 bool AAIConfig::LoadGameConfig(AAI *ai)
 {
+	if(m_gameConfigurationLoaded)
+		return true;
+
 	MAX_UNITS = ai->GetAICallback()->GetMaxUnits();
 
 	std::list<string> possibleConfigFilenames;
@@ -387,18 +405,22 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 
 	fclose(file);
 	ai->Log("Mod config file %s loaded\n", configfile.c_str());
+	m_gameConfigurationLoaded = true;
 	return true;
 }
 
-bool AAIConfig::LoadGeneralConfig(AAI& ai)
+bool AAIConfig::LoadGeneralConfig(AAI* ai)
 {
+	if(m_generalConfigurationLoaded)
+		return true;
+
 	// load general settings
-	const std::string filename = GetFileName(ai.GetAICallback(), GENERAL_CFG_FILE, CFG_PATH);
+	const std::string filename = GetFileName(ai->GetAICallback(), GENERAL_CFG_FILE, CFG_PATH);
 
 	FILE* file = fopen(filename.c_str(), "r");
 
 	if(file == NULL) {
-		ai.Log("ERROR: Couldn't load general config file %s\n", filename.c_str());
+		ai->Log("ERROR: Couldn't load general config file %s\n", filename.c_str());
 		return false;
 	}
 
@@ -408,11 +430,11 @@ bool AAIConfig::LoadGeneralConfig(AAI& ai)
 	while(EOF != fscanf(file, "%s", keyword))
 	{
 		if(!strcmp(keyword, "LEARN_RATE")) {
-			LEARN_RATE = ReadNextInteger(&ai, file);
+			LEARN_RATE = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "WATER_MAP_RATIO")) {
-			WATER_MAP_RATIO = ReadNextFloat(&ai, file);
+			WATER_MAP_RATIO = ReadNextFloat(ai, file);
 		} else if(!strcmp(keyword, "LAND_WATER_MAP_RATIO")) {
-			LAND_WATER_MAP_RATIO = ReadNextFloat(&ai, file);
+			LAND_WATER_MAP_RATIO = ReadNextFloat(ai, file);
 		}
 		else 
 		{
@@ -424,10 +446,11 @@ bool AAIConfig::LoadGeneralConfig(AAI& ai)
 	fclose(file);
 
 	if(errorOccurred) {
-		ai.Log("General config file contains erroneous keyword %s\n", keyword);
+		ai->Log("General config file contains erroneous keyword %s\n", keyword);
 		return false;
 	}
-	ai.Log("General config file loaded\n");
+	ai->Log("General config file loaded\n");
+	m_generalConfigurationLoaded = true;
 	return true;
 }
 
@@ -469,4 +492,5 @@ std::string AAIConfig::GetUniqueName(springLegacyAI::IAICallback* cb, bool game,
 	return res;
 }
 
-AAIConfig *cfg = new AAIConfig();
+//! global variable used for conveniece to easily access config
+AAIConfig *cfg;

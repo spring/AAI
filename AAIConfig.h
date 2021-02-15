@@ -28,13 +28,21 @@ std::string MakeFileSystemCompatible(const std::string& str);
 class AAIConfig
 {
 public:
-	AAIConfig(void);
+
+	//! @brief Return the configuration
+	static AAIConfig* GetConfig() { return m_config; }
+
+	//! @brief Initializes one instance of the configuration (if not already done - might be called multiple times)
+	static void Init();
+
+	//! @brief Deletes the configuration (if initialized)
+	static void Delete();
 
 	// @brief Load configuration for specific game/mod from config file
-	bool LoadGameConfig(AAI *ai);
+	bool LoadGameConfig(AAI* ai);
 
 	// @brief Load general AAI config
-	bool LoadGeneralConfig(AAI& ai);
+	bool LoadGeneralConfig(AAI* ai);
 
 	// mod specific
 	int MIN_ENERGY;  // min energy make value to be considered beeing a power plant
@@ -140,7 +148,16 @@ public:
 	std::string GetUniqueName(springLegacyAI::IAICallback* cb, bool game, bool gamehash, bool map, bool maphash) const;
 
 private:
-	~AAIConfig(void);
+	AAIConfig();
+
+	//! The configuration (shared by all AAI instances)
+	static AAIConfig* m_config;
+
+	//! Indicates whether the game configuration has been loaded
+	bool m_gameConfigurationLoaded;
+
+	//! Indicates whether the general configuration has been loaded
+	bool m_generalConfigurationLoaded;
 
 	//! @brief Returns the unit definition for the unit with the given name (nullptr if not found)
 	const springLegacyAI::UnitDef* GetUnitDef(AAI* ai, const std::string& name);
@@ -162,6 +179,7 @@ private:
 	int MAX_BUILDERS;
 };
 
+//! global variable used for conveniece to easily access config
 extern AAIConfig *cfg;
 
 
