@@ -13,7 +13,7 @@
 #include "AAIBrain.h"
 #include "AAIConfig.h"
 #include "AAISector.h"
-#include "AAIAirForceManager.h"
+#include "AAIUnitTable.h"
 
 #include "System/SafeUtil.h"
 #include "LegacyCpp/UnitDef.h"
@@ -1657,8 +1657,7 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 					if(ai->GetAICallback()->UnitBeingBuilt(unitsInLOS[i]) == false)
 						m_scoutedEnemyUnitsMap.AddEnemyUnit(defId, tile);
 
-					if(category.IsBuilding())
-						const bool addedToTargets = ai->Getaf()->CheckStaticBombTarget(UnitId(unitsInLOS[i]), defId, pos);
+					ai->Getut()->CheckBombTarget(UnitId(unitsInLOS[i]), defId, category, pos);
 				}
 
 				if(category.IsCombatUnit())

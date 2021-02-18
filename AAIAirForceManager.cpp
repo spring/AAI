@@ -87,24 +87,29 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 
 bool AAIAirForceManager::CheckStaticBombTarget(UnitId unitId, UnitDefId unitDefId, const float3& position)
 {
-	// dont continue if target list already full
-	if(m_targets.size() >= cfg->MAX_AIR_TARGETS)
-		return false;
+	std::set<AirRaidTarget*>* targets(nullptr);
+	const AAIUnitCategory&    category = ai->s_buildTree.GetUnitCategory(unitDefId);
 
-	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
-
-	if(category.IsStaticArtillery() || category.IsStaticSupport() || category.IsPowerPlant() || category.IsMetalExtractor() || category.IsMetalMaker())
+	if(category.IsStaticArtillery() || category.IsStaticSupport())
 	{
-		// do not add units that are already on target list
-		if( !IsTarget(unitId))
-		{
-			AirRaidTarget* target = new AirRaidTarget(unitId, unitDefId, position);
-			m_targets.insert(target);
+		targets = &m_militaryTargets;
+	}
+	else if(category.IsPowerPlant() || category.IsMetalExtractor() || category.IsMetalMaker())
+	{
+		targets = &m_economyTargets;
+	}
 
-			//ai->Log("Target added...\n");
-			ai->Getut()->units[unitId.id].status = BOMB_TARGET;
-			return true;
-		}
+	if(targets != nullptr)
+	{
+		// dont continue if target list already full
+		if(targets->size() >= cfg->MAX_AIR_TARGETS)
+			return false;
+
+		AirRaidTarget* target = new AirRaidTarget(unitId, unitDefId, position);
+		targets->insert(target);
+
+		//ai->Log("Target added...\n");
+		return true;
 	}
 
 	return false;
@@ -112,11 +117,13 @@ bool AAIAirForceManager::CheckStaticBombTarget(UnitId unitId, UnitDefId unitDefI
 
 void AAIAirForceManager::RemoveTarget(UnitId unitId)
 {
-	for(auto target : m_targets)
+	std::array< std::set<AirRaidTarget*>*, 2> targetLists = {&m_economyTargets, &m_militaryTargets};
+	for(auto targetList : targetLists)
+	for(auto target : *targetList)
 	{
 		if(target->GetUnitId() == unitId)
 		{
-			m_targets.erase(target);
+			targetList->erase(target);
 			delete target;
 
 			//ai->Log("Target removed...\n");
@@ -125,32 +132,20 @@ void AAIAirForceManager::RemoveTarget(UnitId unitId)
 	}
 }
 
-void AAIAirForceManager::BombBestUnit(float cost, float danger)
+void AAIAirForceManager::BombBestTarget(float danger)
 {
-	float highestRating(0.0f);
-	AirRaidTarget* selectedTarget(nullptr);
+	// try to select a military target first
+	AirRaidTarget* selectedTarget = SelectBestTarget(m_militaryTargets, danger);
+	bool highPriorityTarget(true);
 
-	for(auto target : m_targets)
+	// if no military traget found, try to select lower priority economy target
+	if(selectedTarget == nullptr)
 	{
-		const UnitId&    unitId   = target->GetUnitId();
-		const AAISector* sector   = ai->Getmap()->GetSectorOfPos(target->GetPosition());
-
-		if(sector)
-		{
-			// favor already damaged targets
-			const float healthRating = ai->s_buildTree.GetHealth(target->GetUnitDefId()) / ai->GetAICallback()->GetUnitHealth(unitId.id);
-
-			const float rating = healthRating * ai->s_buildTree.GetTotalCost(target->GetUnitDefId()) / (1.0f + sector->GetEnemyCombatPower(ETargetType::AIR) * danger);
-
-			if(rating > highestRating)
-			{
-				highestRating  = rating;
-				selectedTarget = target;
-			}
-		}
-	
+		selectedTarget = SelectBestTarget(m_economyTargets, danger);
+		highPriorityTarget = false;
 	}
 
+	// try to order bombardment of traget if traget & bombers available
 	if(selectedTarget)
 	{
 		const int minNumberOfBombers = std::min(static_cast<int>(ai->s_buildTree.GetHealth(selectedTarget->GetUnitDefId()) / cfg->HEALTH_PER_BOMBER), cfg->MAX_AIR_GROUP_SIZE);
@@ -166,10 +161,39 @@ void AAIAirForceManager::BombBestUnit(float cost, float danger)
 			//ai->Log("Bombing...\n");
 			group->BombTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition());
 
-			m_targets.erase(selectedTarget);
+			auto& targetList = highPriorityTarget ? m_militaryTargets : m_economyTargets;
+			targetList.erase(selectedTarget);
 			delete selectedTarget;
 		}
 	}
+}
+
+AirRaidTarget* AAIAirForceManager::SelectBestTarget(std::set<AirRaidTarget*>& targetList, float danger)
+{
+	float highestRating(0.0f);
+	AirRaidTarget* selectedTarget(nullptr);
+
+	for(auto target : targetList)
+	{
+		const UnitId&    unitId   = target->GetUnitId();
+		const AAISector* sector   = ai->Getmap()->GetSectorOfPos(target->GetPosition());
+
+		if(sector)
+		{
+			// favor already damaged targets
+			const float healthRating = ai->s_buildTree.GetHealth(target->GetUnitDefId()) / ai->GetAICallback()->GetUnitHealth(unitId.id);
+
+			const float rating = healthRating * ai->s_buildTree.GetTotalCost(target->GetUnitDefId()) / (1.0f + sector->GetEnemyCombatPower(ETargetType::AIR) * danger);
+
+			if( (rating > highestRating) && (sector->GetLostAirUnits() < 0.8f) )
+			{
+				highestRating  = rating;
+				selectedTarget = target;
+			}
+		}
+	}
+
+	return selectedTarget;
 }
 
 AAIGroup* AAIAirForceManager::GetAirGroup(EUnitType groupType, float importance, int minSize) const
@@ -181,15 +205,4 @@ AAIGroup* AAIAirForceManager::GetAirGroup(EUnitType groupType, float importance,
 	}
 	
 	return nullptr;
-}
-
-bool AAIAirForceManager::IsTarget(UnitId unitId) const
-{
-	for(auto target : m_targets)
-	{
-		if(target->GetUnitId() == unitId)
-			return true;
-	}
-
-	return false;
 }

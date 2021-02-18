@@ -140,6 +140,9 @@ public:
 	//! @brief Calls the update() fucntion for every active constructor (e.g. looks for assistants for constructions, checks if factories are idle, ...)
 	void UpdateConstructors();
 
+	//! @brief Checks if a given enemy unit may be added as target for bombers (only enemy buildings will be considered)
+	void CheckBombTarget(UnitId unitId, UnitDefId defId, const AAIUnitCategory& category, const float3& position);
+
 	AAIUnit& GetUnit(UnitId unitId) { return units[unitId.id]; }
 
 	// units[i].unitId = -1 -> not used , -2 -> enemy unit

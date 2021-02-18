@@ -852,7 +852,7 @@ void AAI::Update()
 		AAI_SCOPED_TIMER("Check-Attack")
 		// check attack
 		am->Update();
-		af->BombBestUnit(2, 2);
+		af->BombBestTarget(2.0f);
 		return;
 	}
 

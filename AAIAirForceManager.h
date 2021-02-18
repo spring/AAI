@@ -54,20 +54,23 @@ public:
 	//! @brief Removes unit if from list of possible bombing targets
 	void RemoveTarget(UnitId unitId);
 
-	// attacks the most promising target
-	void BombBestUnit(float cost, float danger);
+	//! @brief Tries to bomb the most promising target
+	void BombBestTarget(float danger);
 
 private:
+	//! @brief Selects the best target from the given list
+	AirRaidTarget* SelectBestTarget(std::set<AirRaidTarget*>& targetList, float danger);
+
 	//! @brief Returns a group of air units of given type currently occupied with a task of lower priority (or idle) - nullptr if none found
 	AAIGroup* GetAirGroup(EUnitType groupType, float importance, int minSize = 1) const;
 
-	//! @brief Returns true if given unit is already in target list
-	bool IsTarget(UnitId unitId) const;
-
 	AAI *ai;
 
-	//! Set of possible bombing targets
-	std::set<AirRaidTarget*> m_targets;
+	//! Set of possible bombing targets belonging to the enemies economy
+	std::set<AirRaidTarget*> m_economyTargets;
+
+	//! Set of possible bombing targets of high military value (static long range artillery, missile launchers)
+	std::set<AirRaidTarget*> m_militaryTargets;
 };
 
 #endif

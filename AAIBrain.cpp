@@ -28,12 +28,12 @@ AAIBrain::AAIBrain(AAI *ai, int maxSectorDistanceToBase) :
 	m_baseFlatLandRatio(0.0f),
 	m_baseWaterRatio(0.0f),
 	m_centerOfBase(0, 0),
-	m_metalAvailable(AAIConfig::INCOME_SAMPLE_POINTS),
-	m_energyAvailable(AAIConfig::INCOME_SAMPLE_POINTS),
-	m_metalIncome(AAIConfig::INCOME_SAMPLE_POINTS),
-	m_energyIncome(AAIConfig::INCOME_SAMPLE_POINTS),
-	m_metalSurplus(AAIConfig::INCOME_SAMPLE_POINTS),
-	m_energySurplus(AAIConfig::INCOME_SAMPLE_POINTS),
+	m_metalAvailable(AAIConstants::incomeSamplePoints),
+	m_energyAvailable(AAIConstants::incomeSamplePoints),
+	m_metalIncome(AAIConstants::incomeSamplePoints),
+	m_energyIncome(AAIConstants::incomeSamplePoints),
+	m_metalSurplus(AAIConstants::incomeSamplePoints),
+	m_energySurplus(AAIConstants::incomeSamplePoints),
 	m_estimatedPressureByEnemies(0.0f)
 {
 	this->ai = ai;

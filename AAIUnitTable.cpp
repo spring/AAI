@@ -418,3 +418,14 @@ void AAIUnitTable::UpdateConstructors()
 		units[constructor.id].cons->Update();
 	}
 }
+
+void AAIUnitTable::CheckBombTarget(UnitId unitId, UnitDefId defId, const AAIUnitCategory& category, const float3& position)
+{
+	if(category.IsBuilding() && (units[unitId.id].status != BOMB_TARGET) )
+	{
+		const bool addedToTargets = ai->Getaf()->CheckStaticBombTarget(unitId, defId, position);
+
+		if(addedToTargets)
+			units[unitId.id].status = BOMB_TARGET;
+	}
+}

@@ -31,6 +31,9 @@ class AAIConstants
 public:
 	// The length/width of sectors (in map tiles)
 	static constexpr float sectorSize = 80.0f;
+	
+	//! The relative importance of a sector will be capped at this value
+	static constexpr float maxSectorImportance = 5.0f;
 
 	//! @todo Make this changeable via optinal mod config file
     static constexpr float energyToMetalConversionFactor = 60.0f;
@@ -83,8 +86,8 @@ public:
 	//! The minimum number of frames between two updates of the units in current LOS (to avoid too heavy CPU load)
 	static constexpr int   minFramesBetweenLOSUpdates = 10;
 
-	//! The relative importance of a sector will be capped at this value
-	static constexpr float maxSectorImportance = 5.0f;
+	//! Number of data points used to calculate smoothed energy/metal income/surplus 
+	static constexpr int   incomeSamplePoints = 16;
 };
 
 enum UnitTask {UNIT_IDLE, UNIT_ATTACKING, DEFENDING, GUARDING, MOVING, BUILDING, SCOUTING, ASSISTING, RECLAIMING, HEADING_TO_RALLYPOINT, UNIT_KILLED, ENEMY_UNIT, BOMB_TARGET};

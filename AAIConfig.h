@@ -38,10 +38,10 @@ public:
 	//! @brief Deletes the configuration (if initialized)
 	static void Delete();
 
-	// @brief Load configuration for specific game/mod from config file
+	//! @brief Load configuration for specific game/mod from config file
 	bool LoadGameConfig(AAI* ai);
 
-	// @brief Load general AAI config
+	//! @brief Load general AAI config
 	bool LoadGeneralConfig(AAI* ai);
 
 	// mod specific
@@ -136,8 +136,6 @@ public:
 
 	// game specific
 	int   LEARN_RATE;
-
-	static constexpr int INCOME_SAMPLE_POINTS = 16; //!< Number of data points used to calculate smoothed energy/metal income/surplus 
 
 	/**
 	 * open a file in springs data directory
