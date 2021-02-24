@@ -150,7 +150,7 @@ public:
 	const std::list<UnitDefId>& GetFactoryBuildqueue() const { return m_factoryBuildqueue; }
 
 	//! @brief Calculates the rating of the given factory
-	float DetermineFactoryRating(UnitDefId factoryDefId) const;
+	float DetermineFactoryRating(UnitDefId factoryDefId, const TargetTypeValues& combatPowerVsTargetType) const;
 
 	//! @brief Returns the attackedByRates read from the mod learning file upon initialization
 	const AttackedByRatesPerGamePhase& GetAttackedByRates(const AAIMapType& mapType) const { return s_attackedByRates.GetAttackedByRates(mapType); }

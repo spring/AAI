@@ -132,6 +132,12 @@ void AAIAirForceManager::RemoveTarget(UnitId unitId)
 	}
 }
 
+float AAIAirForceManager::GetNumberOfBombTargets() const
+{
+	const float currentTargets = static_cast<float>( m_economyTargets.size() + m_militaryTargets.size());
+	return currentTargets / (2.0f * static_cast<float>(cfg->MAX_AIR_TARGETS)); 
+}
+
 void AAIAirForceManager::BombBestTarget(float danger)
 {
 	// try to select a military target first

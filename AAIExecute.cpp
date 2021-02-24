@@ -169,7 +169,8 @@ void AAIExecute::BuildCombatUnitOfCategory(const AAIMovementType& moveType, cons
 	const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
 
 	// select unit independently from available constructor from time to time (to make sure AAI will order factories for advanced units as the game progresses)
-	const bool constructorAvailable = (randomValue < 0.8f) && (ai->Getut()->activeFactories > 0);
+	const float contructorRequiredRate = moveType.IsAir() ? 0.5f : 0.85f;
+	const bool  constructorAvailable = (randomValue < contructorRequiredRate) && (ai->Getut()->activeFactories > 0);
 
 	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), moveType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6, constructorAvailable);
 
@@ -1233,13 +1234,25 @@ bool AAIExecute::BuildStaticConstructor()
 
 	//ai->Log("Building next factory:\n");
 
+	// Determine urgency to counter each of the different combat categories
+	TargetTypeValues combatPowerVsTargetType = ai->Getbrain()->DetermineCombatPowerVsTargetType();
+	const float sum = combatPowerVsTargetType.CalcuateSum();
+	combatPowerVsTargetType.MultiplyValues(1.0f /  sum);
+
 	for(auto factory : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()) )
 	{
 		if(ai->Getbt()->GetDynamicUnitTypeData(factory).requested > 0)
 		{
-			const float urgency = ai->Getbrain()->DetermineConstructionUrgencyOfFactory(factory);
-			requestedFactories.insert( std::pair<UnitDefId, float>(factory, urgency) );
-			//ai->Log("Added %s - %f\n", ai->s_buildTree.GetUnitTypeProperties(factory).m_name.c_str(), urgency);
+			if(ai->Getbt()->GetDynamicUnitTypeData(factory).constructorsAvailable > 0)
+			{
+				const float urgency = ai->Getbrain()->DetermineConstructionUrgencyOfFactory(factory, combatPowerVsTargetType);
+				requestedFactories.insert( std::pair<UnitDefId, float>(factory, urgency) );
+				//ai->Log("Added %s - %f\n", ai->s_buildTree.GetUnitTypeProperties(factory).m_name.c_str(), urgency);
+			}
+			else
+			{
+				ai->Getbt()->RequestBuilderFor(factory);
+			}
 		}
 	}
 	
@@ -1254,16 +1267,8 @@ bool AAIExecute::BuildStaticConstructor()
 	
 		if(builder == nullptr)
 		{
-			// try construction of next factory in queue if there is no active builder (i.e. potential builders not just currently busy)
-			if( ai->Getbt()->GetDynamicUnitTypeData(requestedFactory.first).constructorsAvailable <= 0) 
-			{
-				continue;
-			}
-			else
-			{
-				// keep factory at highest urgency if the construction failed due to (temporarily) unavailable builder
-				return false;
-			}
+			// keep factory at highest urgency if the construction failed due to (temporarily) unavailable builder
+			return false;
 		}
 
 		//-----------------------------------------------------------------------------------------------------------------

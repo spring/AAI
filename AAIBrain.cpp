@@ -12,6 +12,7 @@
 #include "AAIBuildTable.h"
 #include "AAIExecute.h"
 #include "AAIUnitTable.h"
+#include "AAIAirForceManager.h"
 #include "AAIConfig.h"
 #include "AAIMap.h"
 #include "AAIGroup.h"
@@ -429,13 +430,20 @@ float AAIBrain::Affordable()
 	return 25.0f / (ai->GetAICallback()->GetMetalIncome() + 5.0f);
 }
 
+bool IsRandomNumberBelow(float threshold)
+{
+	// determine random float in [0:1]
+	const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
+	return randomValue < threshold;
+}
+
 void AAIBrain::BuildUnits()
 {
 	// Determine urgency to counter each of the different combat categories
-	const TargetTypeValues     combatPowerVsTargetType = DetermineCombatPowerVsTargetType();
+	const TargetTypeValues      combatPowerVsTargetType = DetermineCombatPowerVsTargetType();
 
 	// Order construction of units according to determined threat/own defence capabilities
-	const UnitSelectionCriteria unitSelectionCriteria  = DetermineCombatUnitSelectionCriteria();
+	const UnitSelectionCriteria unitSelectionCriteria   = DetermineCombatUnitSelectionCriteria();
 
 	std::vector<float> factoryUtilization(ai->s_buildTree.GetNumberOfFactories(), 0.0f);
 	ai->Getexecute()->DetermineFactoryUtilization(factoryUtilization, true);
@@ -447,7 +455,26 @@ void AAIBrain::BuildUnits()
 		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
 		const bool urgent(false);
 
-		ai->Getexecute()->BuildCombatUnitOfCategory(moveType, combatPowerVsTargetType, unitSelectionCriteria, factoryUtilization, urgent);
+		TargetTypeValues finalCombatPower(combatPowerVsTargetType);
+
+		// special setting for air units: adjust combat power to prefer bombers if enemy pressure is low and many bombing run targets are available
+		if(moveType.IsAir())
+		{
+			finalCombatPower.SetValue(ETargetType::SUBMERGED, 0.0f);
+
+			// bomber preference ratio between 0 (no targets or high enemy pressure) and 0.9 (low enemy pressure and many possible targets for bombing run) 
+			const float bomberRatio = std::max(ai->Getaf()->GetNumberOfBombTargets() - m_estimatedPressureByEnemies - 0.1f, 0.0f);
+
+			if(IsRandomNumberBelow(bomberRatio))
+			{
+				finalCombatPower.SetValue(ETargetType::SURFACE, 0.0f);
+				finalCombatPower.SetValue(ETargetType::FLOATER, 0.0f);
+				finalCombatPower.SetValue(ETargetType::AIR,     0.0f);
+				finalCombatPower.SetValue(ETargetType::STATIC,  1.0f);
+			}
+		}
+
+		ai->Getexecute()->BuildCombatUnitOfCategory(moveType, finalCombatPower, unitSelectionCriteria, factoryUtilization, urgent);
 	}
 }
 
@@ -564,17 +591,14 @@ TargetTypeValues AAIBrain::DetermineCombatPowerVsTargetType() const
 	return combatPowerVsTargetType;
 }
 
-bool IsRandomNumberBelow(float threshold)
-{
-	// determine random float in [0:1]
-	const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
-	return randomValue < threshold;
-}
-
 AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const
 {
 	AAIMovementType moveType;
-	if( IsRandomNumberBelow(cfg->AIRCRAFT_RATIO) && !gamePhase.IsStartingPhase())
+
+	// boost air craft ratio if many possible targets for bombing run identified (boost factor between 0.75 and 1.5)
+	const float dynamicAirCraftRatio = cfg->AIRCRAFT_RATIO * (0.75f * (1.0f + ai->Getaf()->GetNumberOfBombTargets()));
+
+	if( IsRandomNumberBelow(dynamicAirCraftRatio) && !gamePhase.IsStartingPhase())
 	{
 		moveType.SetMovementType(EMovementType::MOVEMENT_TYPE_AIR);
 	}
@@ -785,14 +809,13 @@ bool AAIBrain::SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const
 	return false;
 }
 
-float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) const
+float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId, const TargetTypeValues& combatPowerVsTargetType) const
 {
 	const StatisticalData& costs  = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
-	
-	
-	float rating =    ai->Getbt()->DetermineFactoryRating(factoryDefId)
+
+	float rating =    ai->Getbt()->DetermineFactoryRating(factoryDefId, combatPowerVsTargetType)
 					+ costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(factoryDefId) );
-					+ static_cast<float>(ai->Getbt()->GetDynamicUnitTypeData(factoryDefId).active + 1);
+					+ 1.0f / static_cast<float>(ai->Getbt()->GetDynamicUnitTypeData(factoryDefId).active + 1);
 
 	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(factoryDefId);
 

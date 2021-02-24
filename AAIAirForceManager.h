@@ -54,6 +54,9 @@ public:
 	//! @brief Removes unit if from list of possible bombing targets
 	void RemoveTarget(UnitId unitId);
 
+	//! @brief Returns percentage of detected targets for bombing runs ranging form 0 (none) to 1 (maximum number of targets detected)
+	float GetNumberOfBombTargets() const;
+
 	//! @brief Tries to bomb the most promising target
 	void BombBestTarget(float danger);
 

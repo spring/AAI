@@ -114,7 +114,10 @@ public:
 	bool SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const;
 
 	//! @brief Determines the construction priority of the given factory
-	float DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId) const;
+	float DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId, const TargetTypeValues& combatPowerVsTargetType) const;
+
+	//! @brief Determines the combat efficiciency vs different target types for the selection of the next combat unit
+	TargetTypeValues  DetermineCombatPowerVsTargetType() const;
 
 	//! @brief Determines the selection criteria for a power plant
 	PowerPlantSelectionCriteria DeterminePowerPlantSelectionCriteria() const;
@@ -140,9 +143,6 @@ private:
 
 	// returns true if sufficient ressources to build unit are availbale
 	bool RessourcesForConstr(int unit, int workertime = 175);
-
-	//! @brief Determines the combat efficiciency vs different target types for the selection of the next combat unit
-	TargetTypeValues  DetermineCombatPowerVsTargetType() const;
 
 	//! @brief Returns the movement type of the next combat unit that shall be ordered
 	AAIMovementType DetermineMovementTypeForCombatUnitConstruction(const GamePhase& gamePhase) const;

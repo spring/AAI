@@ -328,27 +328,67 @@ void AAIBuildTable::DetermineCombatPowerWeights(MobileTargetTypeValues& combatPo
 	}
 }
 
-float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId) const
+float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId, const TargetTypeValues& combatPowerVsTargetType) const
 {
-	float rating(0.0f);
+	float moveTypeOfUnitsRating(0.0f);
+	float newConstructionOptionsRating(0.0f);
+	float combatPowerOfUnitsRating(0.0f);
 	int numberOfUnits(0);
+	int numberOfCombatUnits(0);
+	int numberOfRequestedConstructors(0);
 
-	for(auto unit : ai->s_buildTree.GetCanConstructList(factoryDefId))
+	for(auto unitDefId : ai->s_buildTree.GetCanConstructList(factoryDefId))
 	{
 		++numberOfUnits;
 
-		const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(unit);
+		const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(unitDefId);
 	
 		if(moveType.IsMobileSea())
-			rating += AAIMap::s_waterTilesRatio;
+		{
+			moveTypeOfUnitsRating        += AAIMap::s_waterTilesRatio;
+			newConstructionOptionsRating += AAIMap::s_waterTilesRatio;
+		}
 		else if(moveType.IsGround())
-			rating += AAIMap::s_landTilesRatio;
+		{
+			moveTypeOfUnitsRating        += AAIMap::s_landTilesRatio;
+			newConstructionOptionsRating += AAIMap::s_landTilesRatio;
+		}
 		else
-			rating += 1.0f;
+		{
+			moveTypeOfUnitsRating        += 1.0f;
+			newConstructionOptionsRating += 1.0f;
+		}
+
+		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
+		if(category.IsMobileConstructor() && units_dynamic[unitDefId.id].requested > 0)
+			++numberOfRequestedConstructors;
+
+		if(category.IsCombatUnit())
+		{
+			combatPowerOfUnitsRating += ai->s_buildTree.GetCombatPower(unitDefId).CalculateWeightedSum(combatPowerVsTargetType);
+			++numberOfCombatUnits;
+		}
 	}
 
-	return rating;
-	//return (numberOfUnits > 0) ? rating / static_cast<float>(numberOfUnits) : 0.0f;
+	if(numberOfUnits > 0)
+	{
+		moveTypeOfUnitsRating        /= static_cast<float>(numberOfUnits);
+		newConstructionOptionsRating /= static_cast<float>(numberOfUnits);
+	}
+	else
+	{
+		moveTypeOfUnitsRating = 0.0f;
+		newConstructionOptionsRating = 0.0f;
+	}
+
+	if(numberOfCombatUnits > 0)
+		combatPowerOfUnitsRating /= static_cast<float>(numberOfCombatUnits);
+	else
+		combatPowerOfUnitsRating = 0.0f;
+
+	//ai->Log("%s: %f %f %f %i\n", ai->s_buildTree.GetUnitTypeProperties(factoryDefId).m_name.c_str(), moveTypeOfUnitsRating, newConstructionOptionsRating, 0.2f * combatPowerOfUnitsRating, numberOfRequestedConstructors);
+
+	return ( moveTypeOfUnitsRating + newConstructionOptionsRating + 0.2f * combatPowerOfUnitsRating + 0.25f * static_cast<float>(numberOfRequestedConstructors) );
 }
 
 void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const
