@@ -35,16 +35,17 @@ class AAIMap
 	friend AAIScoutedUnitsMap;
 
 public:
-	AAIMap(AAI *ai);
+	AAIMap(AAI *ai, int xMapSize, int yMapSize, int losMapResolution);
 	~AAIMap(void);
-
-	void Init();
 
 	//! @brief Returns the map type
 	const AAIMapType& GetMapType() const { return s_mapType; }
 
 	//! @brief Returns max distance (in sectors) a sector can have to base
 	int GetMaxSectorDistanceToBase() const { return (xSectors + ySectors - 2); }
+
+	//! @brief Return the buffer storing unit ids of all units that are currently within line of sight
+	std::vector<int>& UnitsInLOS() { return m_unitsInLOS; }
 
 	//! @brief Returns the approximated map coordinates of the center of the enemy base (determined based on scouted enemy buildings)
 	const MapPos& GetCenterOfEnemyBase() const { return m_centerOfEnemyBase; }
@@ -152,9 +153,6 @@ public:
 	//! The sectors of the map
 	std::vector< std::vector<AAISector> > m_sector;
 
-	// used for scouting, used to get all friendly/enemy units in los
-	std::vector<int> unitsInLOS;
-
 	//! Maximum squared distance on map in unit coordinates (i.e. from one corner to the other, xSize*xSize+ySize*ySize)
 	static float maxSquaredMapDist; 
 
@@ -187,7 +185,7 @@ public:
 
 	//! Indicates if map is considered to be a metal map (i.e. exctractors can be built anywhere)
 	static bool metalMap;
-	
+
 	//! The map storing which sector has been occupied by what team
 	static AAITeamSectorMap s_teamSectorMap;
 
@@ -275,17 +273,20 @@ private:
 
 	AAI *ai;
 
+	//! Used for scouting, stores all friendly/enemy units with current line of sight
+	std::vector<int>   m_unitsInLOS;
+
 	//! Stores the defId of the building or combat unit placed on that cell (0 if none), same resolution as los map
 	AAIScoutedUnitsMap m_scoutedEnemyUnitsMap;
 
 	//! The number of scouted enemy units on the given continent
-	std::vector<int> m_buildingsOnContinent;
+	std::vector<int>   m_buildingsOnContinent;
 
 	//! Approximate center of enemy base in build map coordinates (not reliable if enemy buldings are spread over map)
-	MapPos m_centerOfEnemyBase;
+	MapPos             m_centerOfEnemyBase;
 
 	//! The frame in which the last update of the units in LOS has been performed
-	int m_lastLOSUpdateInFrame;
+	int                m_lastLOSUpdateInFrame;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// static (shared with other ai players)
@@ -303,7 +304,7 @@ private:
 	//! The map type
 	static AAIMapType s_mapType;
 
-	static int losMapRes;				// resolution of the LOS map
+	static int losMapResolution;				// resolution of the LOS map
 	static int xLOSMapSize, yLOSMapSize;		// x and y size of the LOS map
 	static int xDefMapSize, yDefMapSize;		// x and y size of the defence maps (1/4 resolution of map)
 	static std::list<AAIMetalSpot> metal_spots;

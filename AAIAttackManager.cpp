@@ -97,7 +97,7 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 	// determine attack sector
 	//////////////////////////////////////////////////////////////////////////////////////////////
 
-	const AAISector* targetSector = ai->Getmap()->DetermineSectorToAttack(combatPowerGlobal, combatPowerOnContinent, numberOfAssaultGroupsOfTargetType);			
+	const AAISector* targetSector = ai->Map()->DetermineSectorToAttack(combatPowerGlobal, combatPowerOnContinent, numberOfAssaultGroupsOfTargetType);			
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// order attack

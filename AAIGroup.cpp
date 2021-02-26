@@ -329,7 +329,7 @@ void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance
 		GiveOrderToGroup(&cmd, importance, DEFENDING, "Group::Defend");
 
 		m_targetPosition = enemyPosition;
-		m_targetSector   = ai->Getmap()->GetSectorOfPos(enemyPosition);
+		m_targetSector   = ai->Map()->GetSectorOfPos(enemyPosition);
 	}
 	else
 	{
@@ -340,7 +340,7 @@ void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance
 		const float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
 
 		m_targetPosition = pos;
-		m_targetSector   = ai->Getmap()->GetSectorOfPos(pos);
+		m_targetSector   = ai->Map()->GetSectorOfPos(pos);
 	}
 
 	task = GROUP_DEFENDING;
@@ -357,7 +357,7 @@ void AAIGroup::Retreat(const float3& pos)
 
 	// set new dest sector
 	m_targetPosition = pos;
-	m_targetSector   = ai->Getmap()->GetSectorOfPos(pos);
+	m_targetSector   = ai->Map()->GetSectorOfPos(pos);
 }
 
 UnitId AAIGroup::GetRandomUnit() const
@@ -445,7 +445,7 @@ void AAIGroup::UnitIdle(int unit)
 	{
 		//check if idle unit is in target sector
 		const float3 pos = ai->GetAICallback()->GetUnitPos(unit);
-		const AAISector *sector = ai->Getmap()->GetSectorOfPos(pos);
+		const AAISector *sector = ai->Map()->GetSectorOfPos(pos);
 
 		if( (sector == m_targetSector) || (m_targetSector == nullptr) )
 		{
@@ -496,7 +496,7 @@ void AAIGroup::UnitIdle(int unit)
 		//check if retreating units is in target sector
 		float3 pos = ai->GetAICallback()->GetUnitPos(unit);
 
-		AAISector *temp = ai->Getmap()->GetSectorOfPos(pos);
+		AAISector *temp = ai->Map()->GetSectorOfPos(pos);
 
 		if(temp == m_targetSector || !m_targetSector)
 			task = GROUP_IDLE;
@@ -506,7 +506,7 @@ void AAIGroup::UnitIdle(int unit)
 		//check if retreating units is in target sector
 		float3 pos = ai->GetAICallback()->GetUnitPos(unit);
 
-		AAISector *temp = ai->Getmap()->GetSectorOfPos(pos);
+		AAISector *temp = ai->Map()->GetSectorOfPos(pos);
 
 		if(temp == m_targetSector || !m_targetSector)
 			task = GROUP_IDLE;
@@ -549,7 +549,7 @@ void AAIGroup::AirRaidUnit(int unit_id)
 
 void AAIGroup::UpdateRallyPoint()
 {
-	AAISector *sector = ai->Getmap()->GetSectorOfPos(m_rallyPoint);
+	AAISector *sector = ai->Map()->GetSectorOfPos(m_rallyPoint);
 
 	// check if rally point lies within base (e.g. AAI has expanded its base after rally point had been set)
 	if(sector->GetDistanceToBase() <= 0)

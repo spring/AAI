@@ -109,7 +109,7 @@ class AAIScoutedUnitsMap
 {
 public:
 	//! @brief Initializes all tiles as empty
-	void Init(int xMapSize, int yMapSize, int losMapResolution);
+	AAIScoutedUnitsMap(int xMapSize, int yMapSize, int losMapResolution);
 
 	//! @brief Converts given build map coordinate to scout map coordinate
 	int BuildMapToScoutMapCoordinate(int buildMapCoordinate) const { return buildMapCoordinate/scoutMapResolution; }
@@ -142,12 +142,6 @@ public:
 	void UpdateSectorWithScoutedUnits(AAISector *sector, std::vector<int>& buildingsOnContinent, int currentFrame);
 
 private:
-	//! The map containing the unit definition id of a scouted unit on occupying this tile (or 0 if none)
-	std::vector<int> m_scoutedUnitsMap;
-
-	//! The map storing the frame of the last update of each tile
-	std::vector<int> m_lastUpdateInFrameMap;
-
 	//! Horizontal size of the scouted units map
 	int m_xScoutMapSize;
 	
@@ -159,6 +153,12 @@ private:
 
 	//! Lower resolution factor with respect to map resolution
 	static constexpr int scoutMapResolution = 2;
+
+	//! The map containing the unit definition id of a scouted unit on occupying this tile (or 0 if none)
+	std::vector<int> m_scoutedUnitsMap;
+
+	//! The map storing the frame of the last update of each tile
+	std::vector<int> m_lastUpdateInFrameMap;
 };
 
 //! This class stores the continent map

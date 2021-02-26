@@ -12,21 +12,20 @@
 #include <time.h>
 
 #include "AAI.h"
+#include "AAIMap.h"
+#include "AAIBrain.h"
 #include "AAIBuildTable.h"
 #include "AAIAirForceManager.h"
 #include "AAIExecute.h"
 #include "AAIUnitTable.h"
 #include "AAIBuildTask.h"
-#include "AAIBrain.h"
 #include "AAIConstructor.h"
 #include "AAIAttackManager.h"
 #include "AIExport.h"
 #include "AAIConfig.h"
-#include "AAIMap.h"
 #include "AAIGroup.h"
 #include "AAISector.h"
 #include "AAIUnitTypes.h"
-
 
 #include "System/SafeUtil.h"
 
@@ -57,11 +56,11 @@ AAI::AAI(int skirmishAIId, const struct SSkirmishAICallback* callback) :
 	m_aiCallback(nullptr),
 	m_skirmishAIId(skirmishAIId),
 	m_skirmishAICallbacks(callback),
-	brain(nullptr),
+	m_map(nullptr),
+	m_brain(nullptr),
 	execute(nullptr),
 	ut(nullptr),
 	bt(nullptr),
-	map(nullptr),
 	af(nullptr),
 	am(nullptr),
 	profiler(nullptr),
@@ -119,7 +118,7 @@ AAI::~AAI()
 		Log("%-30s: %i %i %i\n", s_buildTree.GetUnitTypeProperties(builder).m_name.c_str(), bt->units_dynamic[builder.id].active, bt->units_dynamic[builder.id].underConstruction, bt->units_dynamic[builder.id].requested);
 
 	GamePhase gamePhase(m_aiCallback->GetCurrentFrame());
-	const AttackedByRatesPerGamePhase& attackedByRates = brain->GetAttackedByRates();
+	const AttackedByRatesPerGamePhase& attackedByRates = m_brain->GetAttackedByRates();
 
 	Log("\nAttack frequencies (combat unit category / frequency) \n");
 	for(GamePhase gamePhaseIterator(0); gamePhaseIterator <= gamePhase; gamePhaseIterator.Next())
@@ -141,7 +140,7 @@ AAI::~AAI()
 
 	// save game learning data
 	if(GetAAIInstance() == 1)
-		bt->SaveModLearnData(gamePhase, brain->GetAttackedByRates(), map->GetMapType());
+		bt->SaveModLearnData(gamePhase, m_brain->GetAttackedByRates(), m_map->GetMapType());
 
 	spring::SafeDelete(am);
 	spring::SafeDelete(af);
@@ -155,10 +154,10 @@ AAI::~AAI()
 		groupList->clear();
 	}
 
-	spring::SafeDelete(brain);
+	spring::SafeDelete(m_brain);
 	spring::SafeDelete(execute);
 	spring::SafeDelete(ut);
-	spring::SafeDelete(map);
+	spring::SafeDelete(m_map);
 	spring::SafeDelete(bt);
 	spring::SafeDelete(profiler);
 
@@ -231,18 +230,17 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	ut = new AAIUnitTable(this);
 
 	// init map
-	map = new AAIMap(this);
-	map->Init();
+	m_map = new AAIMap(this, m_aiCallback->GetMapWidth(), m_aiCallback->GetMapHeight(), std::sqrt(m_aiCallback->GetLosMapResolution()) );
 
 	// init brain
-	brain = new AAIBrain(this, map->GetMaxSectorDistanceToBase());
+	m_brain = new AAIBrain(this, m_map->GetMaxSectorDistanceToBase());
 
 	if(GetAAIInstance() == 1)
 	{
 		std::string filename = cfg->GetFileName(m_aiCallback, cfg->GetUniqueName(m_aiCallback, true, true, false, false), AILOG_PATH, "_buildtree.txt", true);
 		s_buildTree.PrintSummaryToFile(filename, m_aiCallback);
 
-		brain->InitAttackedByRates( bt->GetAttackedByRates(map->GetMapType()) );
+		m_brain->InitAttackedByRates( bt->GetAttackedByRates(m_map->GetMapType()) );
 	}
 
 	// init executer
@@ -274,7 +272,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 
 	if(category.IsCommander())
-		brain->DefendCommander(attacker);
+		m_brain->DefendCommander(attacker);
 
 	const springLegacyAI::UnitDef* attackerDef = m_aiCallback->GetUnitDef(attacker);
 
@@ -381,7 +379,7 @@ void AAI::UnitCreated(int unit, int builder)
 		if (s_buildTree.GetMovementType(unitDefId).IsStatic())
 		{
 			const float3 pos = m_aiCallback->GetUnitPos(unit);
-			map->InitBuilding(def, pos);
+			m_map->InitBuilding(def, pos);
 		}
 	}
 	//-----------------------------------------------------------------------------------------------------------------
@@ -414,7 +412,7 @@ void AAI::ConstructionStarted(UnitId unitId, UnitDefId unitDefId, UnitId constru
 		// add extractor to the sector
 		if (category.IsMetalExtractor())
 		{
-			AAISector* sector = map->GetSectorOfPos(buildsite);
+			AAISector* sector = m_map->GetSectorOfPos(buildsite);
 
 			if(sector)
 				sector->AddExtractor(unitId, unitDefId, buildsite);
@@ -463,7 +461,7 @@ void AAI::UnitFinished(int unit)
 		else if (category.IsPowerPlant())
 		{
 			ut->AddPowerPlant(UnitId(unit), unitDefId);
-			brain->PowerPlantFinished(unitDefId);
+			m_brain->PowerPlantFinished(unitDefId);
 		}
 		else if (category.IsMetalMaker())
 		{
@@ -508,7 +506,7 @@ void AAI::UnitFinished(int unit)
 		{
 			execute->AddUnitToGroup(unit, unitDefId);
 
-			brain->AddDefenceCapabilities(unitDefId);
+			m_brain->AddDefenceCapabilities(unitDefId);
 
 			ut->SetUnitStatus(unit, HEADING_TO_RALLYPOINT);
 		}
@@ -546,7 +544,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 	float3 pos = m_aiCallback->GetUnitPos(unit);
 
-	AAISector* sector = map->GetSectorOfPos(pos);
+	AAISector* sector = m_map->GetSectorOfPos(pos);
 
 	// update threat map
 	if (attacker && sector)
@@ -618,7 +616,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 				const AAIUnitCategory& categoryAttacker = s_buildTree.GetUnitCategory(attackerDefId);
 				if(categoryAttacker.IsCombatUnit())
-						brain->AttackedBy( s_buildTree.GetTargetType(attackerDefId) );
+						m_brain->AttackedBy( s_buildTree.GetTargetType(attackerDefId) );
 			}
 		}
 
@@ -633,7 +631,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			if (category.IsStaticDefence())
 			{
 				// remove defence from map
-				map->AddOrRemoveStaticDefence(pos, unitDefId, false);
+				m_map->AddOrRemoveStaticDefence(pos, unitDefId, false);
 			}
 			else if (category.IsMetalExtractor())
 			{
@@ -671,7 +669,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			}
 			
 			// unblock cells in buildmap
-			map->UpdateBuildMap(pos, def, false);
+			m_map->UpdateBuildMap(pos, def, false);
 
 			// if no buildings left in that sector, remove from base sectors
 			/*if (map->sector[x][y].own_structures == 0 && brain->sectors[0].size() > 2)
@@ -686,7 +684,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			// scout
 			if (category.IsScout())
 			{
-				map->CheckUnitsInLOSUpdate(true);
+				m_map->CheckUnitsInLOSUpdate(true);
 
 				ut->RemoveScout(unit);
 			}
@@ -820,7 +818,7 @@ void AAI::Update()
 	if (!((tick + 2 * GetAAIInstance()) % 45))
 	{
 		AAI_SCOPED_TIMER("Scouting_1")
-		map->CheckUnitsInLOSUpdate();
+		m_map->CheckUnitsInLOSUpdate();
 	}
 
 	// update groups
@@ -843,7 +841,7 @@ void AAI::Update()
 	{
 		AAI_SCOPED_TIMER("Unit-Management")
 		execute->CheckBuildqueues();
-		brain->BuildUnits();
+		m_brain->BuildUnits();
 		execute->BuildScouts();
 	}
 
@@ -867,23 +865,23 @@ void AAI::Update()
 	if (!((tick+15) % 120))
 	{
 		AAI_SCOPED_TIMER("Update-Sectors")
-		brain->UpdateAttackedByValues();
-		map->UpdateSectors();
-		brain->UpdatePressureByEnemy();
+		m_brain->UpdateAttackedByValues();
+		m_map->UpdateSectors();
+		m_brain->UpdatePressureByEnemy();
 	}
 
 	// builder management
 	if (!(tick % 917))
 	{
 		AAI_SCOPED_TIMER("Builder-Management")
-		brain->UpdateDefenceCapabilities();
+		m_brain->UpdateDefenceCapabilities();
 	}
 
 	// update income
 	if (!(tick % 30))
 	{
 		AAI_SCOPED_TIMER("Update-Income")
-		brain->UpdateResources(m_aiCallback);
+		m_brain->UpdateResources(m_aiCallback);
 	}
 
 	// building management

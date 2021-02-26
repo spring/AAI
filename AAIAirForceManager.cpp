@@ -38,7 +38,7 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 		float3 position = ai->GetAICallback()->GetUnitPos(unitId.id);
 
 		// calculate in which sector unit is located
-		AAISector* sector = ai->Getmap()->GetSectorOfPos(position);
+		AAISector* sector = ai->Map()->GetSectorOfPos(position);
 
 		// check if unit is within the map
 		if(sector)
@@ -182,7 +182,7 @@ AirRaidTarget* AAIAirForceManager::SelectBestTarget(std::set<AirRaidTarget*>& ta
 	for(auto target : targetList)
 	{
 		const UnitId&    unitId   = target->GetUnitId();
-		const AAISector* sector   = ai->Getmap()->GetSectorOfPos(target->GetPosition());
+		const AAISector* sector   = ai->Map()->GetSectorOfPos(target->GetPosition());
 
 		if(sector)
 		{

@@ -260,7 +260,7 @@ void AAIConstructor::CheckAssistance()
 			&& (assistants.size() < cfg->MAX_ASSISTANTS))
 		{
 			// commander only allowed if buildpos is inside the base
-			const AAISector* sector = ai->Getmap()->GetSectorOfPos(m_buildPos);
+			const AAISector* sector = ai->Map()->GetSectorOfPos(m_buildPos);
 			const bool commanderAllowed = (sector && (sector->GetDistanceToBase() == 0) ) ? true : false;
 
 			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(m_buildPos, 5, commanderAllowed);
@@ -326,7 +326,7 @@ void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos
 	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(building.id);
 
 	// give order if building can be placed at the desired position (position lies within a valid sector)
-	const bool buildingInitializationSuccessful = ai->Getmap()->InitBuilding(def, pos);
+	const bool buildingInitializationSuccessful = ai->Map()->InitBuilding(def, pos);
 
 	if(buildingInitializationSuccessful)
 	{
@@ -475,7 +475,7 @@ void AAIConstructor::Killed()
 	else if(m_activity.IsConstructing() == true)
 	{
 		if(build_task)
-			build_task->BuilderDestroyed(ai->Getmap(), ai->Getut());
+			build_task->BuilderDestroyed(ai->Map(), ai->Getut());
 	}
 	else if(m_activity.IsAssisting() == true)
 	{
@@ -492,7 +492,7 @@ void AAIConstructor::CheckRetreatFromAttackBy(const AAIUnitCategory& attackedByC
 	{
 		const float3 unitPos = ai->GetAICallback()->GetUnitPos(m_myUnitId.id);
 
-		const AAISector* sector = ai->Getmap()->GetSectorOfPos(unitPos);
+		const AAISector* sector = ai->Map()->GetSectorOfPos(unitPos);
 
 		if(sector)
 		{

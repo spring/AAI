@@ -29,7 +29,7 @@ int AAIMap::xSize;
 int AAIMap::ySize;
 int AAIMap::xMapSize;
 int AAIMap::yMapSize;
-int AAIMap::losMapRes;
+int AAIMap::losMapResolution;
 int AAIMap::xLOSMapSize;
 int AAIMap::yLOSMapSize;
 int AAIMap::xDefMapSize;
@@ -68,63 +68,26 @@ int AAIMap::max_water_continent_size;
 int AAIMap::min_land_continent_size;
 int AAIMap::min_water_continent_size;
 
-AAIMap::AAIMap(AAI *ai) :
+AAIMap::AAIMap(AAI *ai, int xMapSize, int yMapSize, int losMapResolution) :
+	ai(ai),
+	m_unitsInLOS(cfg->MAX_UNITS, 0),
+	m_scoutedEnemyUnitsMap(xMapSize, yMapSize, losMapResolution),
+	m_centerOfEnemyBase(xMapSize/2 , yMapSize/2),
 	m_lastLOSUpdateInFrame(0)
-{
-	this->ai = ai;
-}
-
-AAIMap::~AAIMap(void)
-{
-	UpdateLearningData();
-
-	// delete common data only if last AAI instance is deleted
-	if(ai->GetNumberOfAAIInstances() == 0)
-	{
-		ai->Log("Saving map learn file\n");
-
-		const std::string mapLearningDataFilename = LocateMapLearnFile();
-
-		// save map data
-		FILE *file = fopen(mapLearningDataFilename.c_str(), "w+");
-
-		fprintf(file, "%s\n", MAP_LEARN_VERSION);
-
-		for(int y = 0; y < ySectors; ++y)
-		{
-			for(int x = 0; x < xSectors; ++x)
-				m_sector[x][y].SaveDataToFile(file);
-
-			fprintf(file, "\n");
-		}
-
-		fclose(file);
-
-		s_buildmap.clear();
-		blockmap.clear();
-		plateau_map.clear();
-	}
-
-	unitsInLOS.clear();
-}
-
-void AAIMap::Init()
 {
 	// all static vars are only initialized by the first AAI instance
 	if(ai->GetAAIInstance() == 1)
 	{
-		// get size
-		xMapSize = ai->GetAICallback()->GetMapWidth();
-		yMapSize = ai->GetAICallback()->GetMapHeight();
-
+		this->xMapSize = xMapSize;
+		this->yMapSize = yMapSize;
 		xSize = xMapSize * SQUARE_SIZE;
 		ySize = yMapSize * SQUARE_SIZE;
 
 		maxSquaredMapDist = xSize*xSize + ySize*ySize;
 
-		losMapRes = std::sqrt(ai->GetAICallback()->GetLosMapResolution());
-		xLOSMapSize = xMapSize / losMapRes;
-		yLOSMapSize = yMapSize / losMapRes;
+		this->losMapResolution = losMapResolution;
+		xLOSMapSize = xMapSize / losMapResolution;
+		yLOSMapSize = yMapSize / losMapResolution;
 
 		xDefMapSize = xMapSize / 4;
 		yDefMapSize = yMapSize / 4;
@@ -155,7 +118,7 @@ void AAIMap::Init()
 		ReadMapCacheFile();
 	}
 
-	ai->Log("Map size: %i x %i    LOS map size: %i x %i  (los res: %i)\n", xMapSize, yMapSize, xLOSMapSize, yLOSMapSize, losMapRes);
+	ai->Log("Map size: %i x %i    LOS map size: %i x %i  (los res: %i)\n", xMapSize, yMapSize, xLOSMapSize, yLOSMapSize, losMapResolution);
 
 	m_sector.resize(xSectors, std::vector<AAISector>(ySectors));
 
@@ -167,24 +130,18 @@ void AAIMap::Init()
 	}
 
 	// add metalspots to their sectors
-	for(auto spot = metal_spots.begin(); spot != metal_spots.end(); ++spot)
+	for(auto& spot : metal_spots)
 	{
-		AAISector* sector = GetSectorOfPos(spot->pos);
+		AAISector* sector = GetSectorOfPos(spot.pos);
 
 		if(sector)
-			sector->AddMetalSpot(&(*spot));
+			sector->AddMetalSpot(&spot);
 	}
 
 	ReadMapLearnFile();
 
 	// for scouting
-	m_scoutedEnemyUnitsMap.Init(xMapSize, yMapSize, losMapRes);
 	m_buildingsOnContinent.resize(s_continents.size(), 0);
-
-	unitsInLOS.resize(cfg->MAX_UNITS, 0);
-
-	m_centerOfEnemyBase.x = xMapSize/2;
-	m_centerOfEnemyBase.y = yMapSize/2;
 
 	// for log file
 	ai->Log("Map: %s\n",ai->GetAICallback()->GetMapName());
@@ -218,6 +175,40 @@ void AAIMap::Init()
 			}
 		}
 	}*/
+}
+
+AAIMap::~AAIMap(void)
+{
+	UpdateLearningData();
+
+	// delete common data only if last AAI instance is deleted
+	if(ai->GetNumberOfAAIInstances() == 0)
+	{
+		ai->Log("Saving map learn file\n");
+
+		const std::string mapLearningDataFilename = LocateMapLearnFile();
+
+		// save map data
+		FILE *file = fopen(mapLearningDataFilename.c_str(), "w+");
+
+		fprintf(file, "%s\n", MAP_LEARN_VERSION);
+
+		for(int y = 0; y < ySectors; ++y)
+		{
+			for(int x = 0; x < xSectors; ++x)
+				m_sector[x][y].SaveDataToFile(file);
+
+			fprintf(file, "\n");
+		}
+
+		fclose(file);
+
+		s_buildmap.clear();
+		blockmap.clear();
+		plateau_map.clear();
+	}
+
+	m_unitsInLOS.clear();
 }
 
 void AAIMap::ReadMapCacheFile()
@@ -1634,12 +1625,12 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 
 	// update enemy units
 	MobileTargetTypeValues spottedEnemyCombatUnitsByTargetType;
-	const int numberOfEnemyUnits = ai->GetAICallback()->GetEnemyUnitsInRadarAndLos(&(unitsInLOS.front()));
+	const int numberOfEnemyUnits = ai->GetAICallback()->GetEnemyUnitsInRadarAndLos(&(m_unitsInLOS.front()));
 
 	for(int i = 0; i < numberOfEnemyUnits; ++i)
 	{
-		const float3                   pos = ai->GetAICallback()->GetUnitPos(unitsInLOS[i]);
-		const springLegacyAI::UnitDef* def = ai->GetAICallback()->GetUnitDef(unitsInLOS[i]);
+		const float3                   pos = ai->GetAICallback()->GetUnitPos(m_unitsInLOS[i]);
+		const springLegacyAI::UnitDef* def = ai->GetAICallback()->GetUnitDef(m_unitsInLOS[i]);
 
 		if(def) // unit is within los
 		{
@@ -1654,10 +1645,10 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 				// add (finished) buildings/combat units to scout map
 				if( category.IsBuilding() || category.IsCombatUnit() )
 				{
-					if(ai->GetAICallback()->UnitBeingBuilt(unitsInLOS[i]) == false)
+					if(ai->GetAICallback()->UnitBeingBuilt(m_unitsInLOS[i]) == false)
 						m_scoutedEnemyUnitsMap.AddEnemyUnit(defId, tile);
 
-					ai->Getut()->CheckBombTarget(UnitId(unitsInLOS[i]), defId, category, pos);
+					ai->Getut()->CheckBombTarget(UnitId(m_unitsInLOS[i]), defId, category, pos);
 				}
 
 				if(category.IsCombatUnit())
@@ -1687,21 +1678,21 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 			m_sector[x][y].ResetLocalCombatPower();
 	}
 
-	const int numberOfFriendlyUnits = ai->GetAICallback()->GetFriendlyUnits(&(unitsInLOS.front()));
+	const int numberOfFriendlyUnits = ai->GetAICallback()->GetFriendlyUnits(&(m_unitsInLOS.front()));
 
 	for(int i = 0; i < numberOfFriendlyUnits; ++i)
 	{
 		// get unit def & category
-		const UnitDef* def = ai->GetAICallback()->GetUnitDef(unitsInLOS[i]);
+		const UnitDef* def = ai->GetAICallback()->GetUnitDef(m_unitsInLOS[i]);
 		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 		if( category.IsBuilding() || category.IsCombatUnit() )
 		{
-			AAISector* sector = GetSectorOfPos( ai->GetAICallback()->GetUnitPos(unitsInLOS[i]) );
+			AAISector* sector = GetSectorOfPos( ai->GetAICallback()->GetUnitPos(m_unitsInLOS[i]) );
 
 			if(sector)
 			{
-				const bool unitBelongsToAlly( ai->GetAICallback()->GetUnitTeam(unitsInLOS[i]) != ai->GetMyTeamId() );
+				const bool unitBelongsToAlly( ai->GetAICallback()->GetUnitTeam(m_unitsInLOS[i]) != ai->GetMyTeamId() );
 				sector->AddFriendlyUnitData(UnitDefId(def->id), unitBelongsToAlly);
 			}
 		}
@@ -1730,8 +1721,8 @@ bool AAIMap::IsPositionInLOS(const float3& position) const
 {
 	const int* losMap = ai->GetLosMap();
 
-	const int xPos = (int)position.x / (losMapRes * SQUARE_SIZE);
-	const int yPos = (int)position.z / (losMapRes * SQUARE_SIZE);
+	const int xPos = (int)position.x / (losMapResolution * SQUARE_SIZE);
+	const int yPos = (int)position.z / (losMapResolution * SQUARE_SIZE);
 
 	// make sure unit is within the map
 	if( (xPos >= 0) && (xPos < xLOSMapSize) && (yPos >= 0) && (yPos < yLOSMapSize) )
@@ -1906,7 +1897,7 @@ float3 AAIMap::GetNewScoutDest(UnitId scoutUnitId)
 	const AAIMovementType& scoutMoveType = ai->s_buildTree.GetMovementType( UnitDefId(def->id) );
 	
 	const float3 currentPositionOfScout  = ai->GetAICallback()->GetUnitPos(scoutUnitId.id);
-	const int    continentId             = scoutMoveType.CannotMoveToOtherContinents() ? ai->Getmap()->DetermineSmartContinentID(currentPositionOfScout, scoutMoveType) : AAIMap::ignoreContinentID;
+	const int    continentId             = scoutMoveType.CannotMoveToOtherContinents() ? ai->Map()->DetermineSmartContinentID(currentPositionOfScout, scoutMoveType) : AAIMap::ignoreContinentID;
 
 	float3     selectedScoutDestination(ZeroVector);
 	AAISector* selectedScoutSector(nullptr);
@@ -2104,11 +2095,11 @@ float AAIMap::GetMaximumNumberOfLostUnits() const
 {
 	float maxLostUnits(0.0f);
 
-	for(int x = 0; x < ai->Getmap()->xSectors; ++x)
+	for(int x = 0; x < AAIMap::xSectors; ++x)
 	{
-		for(int y = 0; y < ai->Getmap()->ySectors; ++y)
+		for(int y = 0; y < AAIMap::ySectors; ++y)
 		{
-			const float lostUnits = ai->Getmap()->m_sector[x][y].GetLostUnits();
+			const float lostUnits = ai->Map()->m_sector[x][y].GetLostUnits();
 
 			if(lostUnits > maxLostUnits)
 				maxLostUnits = lostUnits;

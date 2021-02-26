@@ -69,14 +69,13 @@ void AAIDefenceMaps::RemoveDefence(int tile, const TargetTypeValues& combatPower
 	}
 }
 
-void AAIScoutedUnitsMap::Init(int xMapSize, int yMapSize, int losMapResolution)
+AAIScoutedUnitsMap::AAIScoutedUnitsMap(int xMapSize, int yMapSize, int losMapResolution) :
+	m_xScoutMapSize(xMapSize / scoutMapResolution),
+	m_yScoutMapSize(yMapSize / scoutMapResolution),
+	m_losToScoutMapResolution(losMapResolution / scoutMapResolution),
+	m_scoutedUnitsMap(m_xScoutMapSize*m_yScoutMapSize, 0),
+	m_lastUpdateInFrameMap(m_xScoutMapSize*m_yScoutMapSize, 0)
 {
-	m_losToScoutMapResolution = losMapResolution / scoutMapResolution;
-	m_xScoutMapSize           = xMapSize/scoutMapResolution;
-	m_yScoutMapSize           = yMapSize/scoutMapResolution;
-
-	m_scoutedUnitsMap.resize(m_xScoutMapSize*m_yScoutMapSize, 0);
-	m_lastUpdateInFrameMap.resize(m_xScoutMapSize*m_yScoutMapSize, 0);
 }
 
 void AAIScoutedUnitsMap::ResetTiles(int xLosMap, int yLosMap, int frame)

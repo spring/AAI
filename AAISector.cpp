@@ -206,7 +206,7 @@ void AAISector::AddMetalSpot(AAIMetalSpot *spot)
 
 void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, float3 pos)
 {
-	ai->Getmap()->ConvertPositionToFinalBuildsite(pos, ai->s_buildTree.GetFootprint(unitDefId));
+	ai->Map()->ConvertPositionToFinalBuildsite(pos, ai->s_buildTree.GetFootprint(unitDefId));
 
 	for(auto spot : metalSpots)
 	{
@@ -221,7 +221,7 @@ void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, float3 pos)
 
 void AAISector::FreeMetalSpot(float3 pos, UnitDefId extractorDefId)
 {
-	ai->Getmap()->ConvertPositionToFinalBuildsite(pos, ai->s_buildTree.GetFootprint(extractorDefId));
+	ai->Map()->ConvertPositionToFinalBuildsite(pos, ai->s_buildTree.GetFootprint(extractorDefId));
 
 	// get metalspot according to position
 	for(auto spot : metalSpots)
@@ -302,7 +302,7 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 			// modify importance based on location of sector (higher importance for sectors "facing" the enemy)
 			if(highestImportance > 0.0f)
 			{
-				const MapPos& enemyBaseCenter = ai->Getmap()->GetCenterOfEnemyBase();
+				const MapPos& enemyBaseCenter = ai->Map()->GetCenterOfEnemyBase();
 				const MapPos& baseCenter      = ai->Getbrain()->GetCenterOfBase();
 
 				MapPos sectorCenter(x * AAIMap::xSectorSizeMap + AAIMap::xSectorSizeMap/2, y * AAIMap::ySectorSizeMap + AAIMap::ySectorSizeMap/2);
@@ -471,7 +471,7 @@ BuildSite AAISector::DetermineRandomBuildsite(UnitDefId buildingDefId, int tries
 {
 	int xStart, xEnd, yStart, yEnd;
 	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
-	return ai->Getmap()->DetermineRandomBuildsite(buildingDefId, xStart, xEnd, yStart, yEnd, tries);
+	return ai->Map()->DetermineRandomBuildsite(buildingDefId, xStart, xEnd, yStart, yEnd, tries);
 }
 
 BuildSite AAISector::DetermineElevatedBuildsite(UnitDefId buildingDefId, float range) const
@@ -480,7 +480,7 @@ BuildSite AAISector::DetermineElevatedBuildsite(UnitDefId buildingDefId, float r
 
 	DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
-	return ai->Getmap()->DetermineElevatedBuildsite(buildingDefId, xStart, xEnd, yStart, yEnd, range);
+	return ai->Map()->DetermineElevatedBuildsite(buildingDefId, xStart, xEnd, yStart, yEnd, range);
 }
 
 float3 AAISector::DetermineAttackPosition() const
@@ -493,7 +493,7 @@ float3 AAISector::DetermineAttackPosition() const
 		const int xEnd( (x+1) * AAIMap::xSectorSizeMap);
 		const int yStart( y   * AAIMap::ySectorSizeMap);
 		const int yEnd( (y+1) * AAIMap::ySectorSizeMap);
-		return ai->Getmap()->DeterminePositionOfEnemyBuildingInSector(xStart, xEnd, yStart, yEnd);
+		return ai->Map()->DeterminePositionOfEnemyBuildingInSector(xStart, xEnd, yStart, yEnd);
 	}
 }
 
@@ -568,16 +568,16 @@ float AAISector::GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, floa
 
 	// take neighbouring sectors into account (if possible)
 	if(x > 0)
-		result += neighbourImportance * ai->Getmap()->m_sector[x-1][y].GetEnemyCombatPower(targetType);
+		result += neighbourImportance * ai->Map()->m_sector[x-1][y].GetEnemyCombatPower(targetType);
 
-	if(x < ai->Getmap()->xSectors-1)
-		result += neighbourImportance * ai->Getmap()->m_sector[x+1][y].GetEnemyCombatPower(targetType);
+	if(x < ai->Map()->xSectors-1)
+		result += neighbourImportance * ai->Map()->m_sector[x+1][y].GetEnemyCombatPower(targetType);
 
 	if(y > 0)
-		result += neighbourImportance * ai->Getmap()->m_sector[x][y-1].GetEnemyCombatPower(targetType);
+		result += neighbourImportance * ai->Map()->m_sector[x][y-1].GetEnemyCombatPower(targetType);
 
-	if(y < ai->Getmap()->ySectors-1)
-		result += neighbourImportance * ai->Getmap()->m_sector[x][y+1].GetEnemyCombatPower(targetType);
+	if(y < ai->Map()->ySectors-1)
+		result += neighbourImportance * ai->Map()->m_sector[x][y+1].GetEnemyCombatPower(targetType);
 
 	return result;
 }
@@ -603,8 +603,8 @@ float AAISector::DetermineWaterRatio() const
 float AAISector::DetermineFlatRatio() const
 {
 	// get number of cliffy & flat cells
-	const int cliffyCells = ai->Getmap()->GetCliffyCells(x * AAIMap::xSectorSizeMap, y * AAIMap::ySectorSizeMap, AAIMap::xSectorSizeMap, AAIMap::ySectorSizeMap);
-	const int totalCells  = ai->Getmap()->xSectorSizeMap * ai->Getmap()->ySectorSizeMap;
+	const int cliffyCells = ai->Map()->GetCliffyCells(x * AAIMap::xSectorSizeMap, y * AAIMap::ySectorSizeMap, AAIMap::xSectorSizeMap, AAIMap::ySectorSizeMap);
+	const int totalCells  = ai->Map()->xSectorSizeMap * ai->Map()->ySectorSizeMap;
 	const int flatCells   = totalCells - cliffyCells;
 
 	return static_cast<float>(flatCells) / static_cast<float>(totalCells);
@@ -655,7 +655,7 @@ bool AAISector::ConnectedToOcean() const
 	const int yStart( y   * AAIMap::ySectorSizeMap);
 	const int yEnd( (y+1) * AAIMap::ySectorSizeMap);
 
-	return ai->Getmap()->IsConnectedToOcean(xStart, xEnd, yStart, yEnd);
+	return ai->Map()->IsConnectedToOcean(xStart, xEnd, yStart, yEnd);
 }
 
 float3 AAISector::DetermineUnitMovePos(AAIMovementType moveType, int continentId) const

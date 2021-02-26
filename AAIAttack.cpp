@@ -41,7 +41,7 @@ bool AAIAttack::CheckIfFailed()
 		{
 			// check if sufficient power to combat enemy units
 			const float3 pos = (*m_combatUnitGroups.begin())->GetGroupPos();
-			const AAISector* sector = ai->Getmap()->GetSectorOfPos(pos);
+			const AAISector* sector = ai->Map()->GetSectorOfPos(pos);
 
 			if(sector && SufficientCombatPowerAt(sector, AAIConstants::attackCombatPowerFactor))
 				return false;
@@ -63,10 +63,10 @@ bool AAIAttack::HasTargetBeenCleared()
 		// m_combatUnitGroups cannot be empty, otherwise attack would have been aborted before this function gets called
 		const float3& targetPosition = (*m_combatUnitGroups.begin())->GetTargetPosition();
 	
-		if( ai->Getmap()->IsPositionInLOS(targetPosition) )
+		if( ai->Map()->IsPositionInLOS(targetPosition) )
 		{
 			// if target is in LOS but no enemy units in LOS target is supposed to be cleared
-			const int numberOfEnemyUnits = ai->GetAICallback()->GetEnemyUnits(&(ai->Getmap()->unitsInLOS.front()), targetPosition, 128.0f);
+			const int numberOfEnemyUnits = ai->GetAICallback()->GetEnemyUnits(&(ai->Map()->UnitsInLOS().front()), targetPosition, 128.0f);
 			return (numberOfEnemyUnits == 0);
 		}
 		
@@ -81,7 +81,7 @@ const AAISector* AAIAttack::DetermineSectorToContinueAttack()
 	MobileTargetTypeValues targetTypesOfUnits;
 	DetermineTargetTypeOfInvolvedUnits(targetTypesOfUnits);
 
-	const AAISector *dest = ai->Getmap()->DetermineSectorToContinueAttack(m_attackDestination, targetTypesOfUnits, moveType);
+	const AAISector *dest = ai->Map()->DetermineSectorToContinueAttack(m_attackDestination, targetTypesOfUnits, moveType);
 
 	if(dest && SufficientCombatPowerToAttackSector(dest, AAIConstants::attackCombatPowerFactor))
 		return dest;

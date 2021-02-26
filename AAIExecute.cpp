@@ -68,17 +68,17 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 
 	// tell the brain about the starting sector
 	const float3 pos = ai->GetAICallback()->GetUnitPos(commanderUnitId.id);
-	int x = pos.x/ai->Getmap()->xSectorSize;
-	int y = pos.z/ai->Getmap()->ySectorSize;
+	int x = pos.x/AAIMap::xSectorSize;
+	int y = pos.z/AAIMap::ySectorSize;
 
 	if(x < 0)
 		x = 0;
 	if(y < 0 )
 		y = 0;
-	if(x >= ai->Getmap()->xSectors)
-		x = ai->Getmap()->xSectors-1;
-	if(y >= ai->Getmap()->ySectors)
-		y = ai->Getmap()->ySectors-1;
+	if(x >= AAIMap::xSectors)
+		x = AAIMap::xSectors-1;
+	if(y >= AAIMap::ySectors)
+		y = AAIMap::ySectors-1;
 
 	// set sector as part of the base
 	if(AAIMap::s_teamSectorMap.IsSectorOccupied(x,y) )
@@ -88,7 +88,7 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 		ChooseDifferentStartingSector(x, y);
 	}
 	else
-		ai->Getbrain()->AssignSectorToBase(&ai->Getmap()->m_sector[x][y], true);
+		ai->Getbrain()->AssignSectorToBase(&ai->Map()->m_sector[x][y], true);
 	
 	ai->Getbrain()->ExpandBaseAtStartup();
 
@@ -239,7 +239,7 @@ void AAIExecute::BuildScouts()
 		}
 
 		// determine movement type of scout based on map
-		const uint32_t suitableMovementTypes = ai->Getmap()->GetSuitableMovementTypesForMap();
+		const uint32_t suitableMovementTypes = ai->Map()->GetSuitableMovementTypesForMap();
 
 		// request cloakable scouts from time to time
 		const float cloaked = (rand()%5 == 1) ? 1.0f : 0.25f;
@@ -257,7 +257,7 @@ void AAIExecute::BuildScouts()
 
 void AAIExecute::SendScoutToNewDest(int scout)
 {
-	float3 nextScoutDestination = ai->Getmap()->GetNewScoutDest(UnitId(scout));
+	float3 nextScoutDestination = ai->Map()->GetNewScoutDest(UnitId(scout));
 
 	if(nextScoutDestination.x > 0.0f)
 		MoveUnitTo(scout, &nextScoutDestination);
@@ -269,11 +269,11 @@ BuildSite AAIExecute::DetermineBuildsite(UnitId builder, UnitDefId buildingDefId
 	// check the sector of the builder first
 	//-----------------------------------------------------------------------------------------------------------------
 	const float3 builderPosition = ai->GetAICallback()->GetUnitPos(builder.id);
-	const AAISector* sector = ai->Getmap()->GetSectorOfPos(builderPosition);
+	const AAISector* sector = ai->Map()->GetSectorOfPos(builderPosition);
 
 	if(sector && (sector->GetDistanceToBase() == 0) )
 	{
-		const BuildSite buildSite = ai->Getmap()->DetermineBuildsiteInSector(buildingDefId, sector);
+		const BuildSite buildSite = ai->Map()->DetermineBuildsiteInSector(buildingDefId, sector);
 
 		if(buildSite.IsValid())
 			return buildSite;
@@ -284,7 +284,7 @@ BuildSite AAIExecute::DetermineBuildsite(UnitId builder, UnitDefId buildingDefId
 	//-----------------------------------------------------------------------------------------------------------------
 	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
 	{
-		const BuildSite buildSite = ai->Getmap()->DetermineBuildsiteInSector(buildingDefId, sector);
+		const BuildSite buildSite = ai->Map()->DetermineBuildsiteInSector(buildingDefId, sector);
 
 		if(buildSite.IsValid())
 			return buildSite;
@@ -303,7 +303,7 @@ BuildSite AAIExecute::DetermineBuildsiteInSector(UnitDefId building, const AAISe
 	else
 	{
 		// search systematically for buildpos (i.e. search returns a buildpos if one is available in the sector)
-		return ai->Getmap()->DetermineBuildsiteInSector(building, sector);
+		return ai->Map()->DetermineBuildsiteInSector(building, sector);
 	}
 }
 
@@ -316,7 +316,7 @@ BuildSite AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId un
 
 	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[1])
 	{
-		const BuildSite buildSite = ai->Getmap()->DetermineBuildsiteInSector(unitDefId, sector);
+		const BuildSite buildSite = ai->Map()->DetermineBuildsiteInSector(unitDefId, sector);
 
 		if(buildSite.IsValid())
 		{
@@ -445,7 +445,7 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 {
 	if(building.IsValid())
 	{
-		const BuildSite buildSite = ai->Getmap()->DetermineBuildsiteInSector(building, sector);
+		const BuildSite buildSite = ai->Map()->DetermineBuildsiteInSector(building, sector);
 
 		if(buildSite.IsValid())
 		{
@@ -493,7 +493,7 @@ bool AAIExecute::BuildExtractor()
 	//-----------------------------------------------------------------------------------------------------------------
 	// metal map
 	//-----------------------------------------------------------------------------------------------------------------
-	if(ai->Getmap()->metalMap)
+	if(AAIMap::metalMap)
 	{
 		// get id of an extractor and look for suitable builder
 		const UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, false);
@@ -552,7 +552,7 @@ bool AAIExecute::BuildExtractor()
 
 						const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(extractor, spot->pos, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector));
 
-						const float rating = (1.0f + ai->Getmap()->GetDistanceToCenterOfEnemyBase(spot->pos)) / (1.0f + selectedConstructor.TravelTimeToBuildSite());
+						const float rating = (1.0f + ai->Map()->GetDistanceToCenterOfEnemyBase(spot->pos)) / (1.0f + selectedConstructor.TravelTimeToBuildSite());
 
 						if(selectedConstructor.IsValid())
 							extractorSpots.insert( std::pair<AvailableMetalSpot, float>(AvailableMetalSpot(spot, selectedConstructor.Constructor(), extractor), rating) );
@@ -578,7 +578,7 @@ bool AAIExecute::BuildExtractor()
 		metalSpot.builder->GiveConstructionOrder(metalSpot.extractor, metalSpot.metalSpot->pos);
 		metalSpot.metalSpot->occupied = true;
 
-		AAISector* sector = ai->Getmap()->GetSectorOfPos(metalSpot.metalSpot->pos);
+		AAISector* sector = ai->Map()->GetSectorOfPos(metalSpot.metalSpot->pos);
 
 		if(sector)
 			sector->UpdateFreeMetalSpots();
@@ -640,7 +640,7 @@ bool AAIExecute::BuildPowerPlant()
 		if(constructor == nullptr)
 			return false; // no builder currently available -> check again next update
 
-		BuildSite buildSite = ai->Getmap()->FindBuildsiteCloseToUnit(landPowerPlant, constructor->m_myUnitId);
+		BuildSite buildSite = ai->Map()->FindBuildsiteCloseToUnit(landPowerPlant, constructor->m_myUnitId);
 
 		if(buildSite.IsValid())
 		{
@@ -648,7 +648,7 @@ bool AAIExecute::BuildPowerPlant()
 		}
 		else
 		{
-			buildSite = ai->Getmap()->FindBuildsiteCloseToUnit(seaPowerPlant, constructor->m_myUnitId);
+			buildSite = ai->Map()->FindBuildsiteCloseToUnit(seaPowerPlant, constructor->m_myUnitId);
 
 			if(buildSite.IsValid())	
 				constructor->GiveConstructionOrder(seaPowerPlant, buildSite.Position());
@@ -742,7 +742,7 @@ BuildOrderStatus AAIExecute::ConstructBuildingInSectors(UnitDefId building, std:
 
 BuildOrderStatus AAIExecute::TryConstructionOfBuilding(UnitDefId building, AAISector* sector)
 {
-	const BuildSite buildSite = ai->Getmap()->DetermineBuildsiteInSector(building, sector);
+	const BuildSite buildSite = ai->Map()->DetermineBuildsiteInSector(building, sector);
 
 	if(buildSite.IsValid())
 	{
@@ -820,7 +820,7 @@ bool AAIExecute::BuildMetalMaker()
 
 			if(maker.IsValid())
 			{
-				const BuildSite buildSite = ai->Getmap()->DetermineBuildsiteInSector(maker, *sector);
+				const BuildSite buildSite = ai->Map()->DetermineBuildsiteInSector(maker, *sector);
 
 				if(buildSite.IsValid())
 				{
@@ -860,7 +860,7 @@ bool AAIExecute::BuildMetalMaker()
 
 			if(maker.IsValid())
 			{
-				const BuildSite buildSite = ai->Getmap()->DetermineBuildsiteInSector(maker, *sector);
+				const BuildSite buildSite = ai->Map()->DetermineBuildsiteInSector(maker, *sector);
 
 				if(buildSite.IsValid())
 				{
@@ -1122,7 +1122,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 
 	if(selectedDefence.IsValid())
 	{
-		const float3 buildsite = ai->Getmap()->DetermineBuildsiteForStaticDefence(selectedDefence, sector, selectionCriteria.targetType, selectionCriteria.terrain);
+		const float3 buildsite = ai->Map()->DetermineBuildsiteForStaticDefence(selectedDefence, sector, selectionCriteria.targetType, selectionCriteria.terrain);
 
 		if(buildsite.x > 0.0f)
 		{
@@ -1131,7 +1131,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 			if(selectedConstructor.IsValid())
 			{
 				selectedConstructor.Constructor()->GiveConstructionOrder(selectedDefence, buildsite);
-				ai->Getmap()->AddOrRemoveStaticDefence(buildsite, selectedDefence, true);
+				ai->Map()->AddOrRemoveStaticDefence(buildsite, selectedDefence, true);
 				return BuildOrderStatus::SUCCESSFUL;
 			}
 			else
@@ -1478,10 +1478,10 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 	const float3 base_pos(centerOfBase.x * SQUARE_SIZE, 0.0f, centerOfBase.y * SQUARE_SIZE);
 	
 	// check if mex is located in a small pond/on a little island
-	if(ai->Getmap()->LocatedOnSmallContinent(extractorPos))
+	if(ai->Map()->LocatedOnSmallContinent(extractorPos))
 		return;
 
-	const AAISector *sector = ai->Getmap()->GetSectorOfPos(extractorPos); 
+	const AAISector *sector = ai->Map()->GetSectorOfPos(extractorPos); 
 
 	if(sector) 
 	{
@@ -1498,7 +1498,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 			// find closest builder
 			if(defence.IsValid())
 			{
-				const MapPos& enemyBase = ai->Getmap()->GetCenterOfEnemyBase();
+				const MapPos& enemyBase = ai->Map()->GetCenterOfEnemyBase();
 
 				float xDir = static_cast<float>(SQUARE_SIZE*enemyBase.x) - extractorPos.x;
 				float yDir = static_cast<float>(SQUARE_SIZE*enemyBase.y) - extractorPos.z;
@@ -1520,7 +1520,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 
 				if(finalDefenceBuildPos.x > 0.0f)
 				{
-					const AAISector* sector = ai->Getmap()->GetSectorOfPos(finalDefenceBuildPos);
+					const AAISector* sector = ai->Map()->GetSectorOfPos(finalDefenceBuildPos);
 
 					const bool commanderAllowed = sector ? (sector->GetDistanceToBase() < 3) : false;
 
@@ -1667,18 +1667,18 @@ void AAIExecute::CheckConstructionOfNanoTurret()
 
 			if(landNanoTurretDefId.IsValid())
 			{
-				BuildSite buildSite = ai->Getmap()->FindBuildsiteCloseToUnit(landNanoTurretDefId, constructorUnitId);
+				BuildSite buildSite = ai->Map()->FindBuildsiteCloseToUnit(landNanoTurretDefId, constructorUnitId);
 				UnitDefId nanoTurretDefId = landNanoTurretDefId;
 
 				if( (buildSite.IsValid() == false) && seaNanoTurretDefId.IsValid())
 				{
-					buildSite = ai->Getmap()->FindBuildsiteCloseToUnit(seaNanoTurretDefId, constructorUnitId);
+					buildSite = ai->Map()->FindBuildsiteCloseToUnit(seaNanoTurretDefId, constructorUnitId);
 					nanoTurretDefId = seaNanoTurretDefId;
 				}
 
 				if(buildSite.IsValid())
 				{
-					const AAISector* sector = ai->Getmap()->GetSectorOfPos(buildSite.Position());
+					const AAISector* sector = ai->Map()->GetSectorOfPos(buildSite.Position());
 
 					if(sector->GetNumberOfBuildings(EUnitCategory::STATIC_ASSISTANCE) < cfg->MAX_NANO_TURRETS_PER_SECTOR)
 					{
@@ -2085,7 +2085,7 @@ bool AAIExecute::defend_vs_submarine(const AAISector *left, const AAISector *rig
 void AAIExecute::ConstructionFailed(const float3& buildsite, UnitDefId unitDefId)
 {
 	const AAIUnitCategory category = ai->s_buildTree.GetUnitCategory(unitDefId);
-	AAISector* sector = ai->Getmap()->GetSectorOfPos(buildsite);
+	AAISector* sector = ai->Map()->GetSectorOfPos(buildsite);
 
 	// decrease number of units of that category in the target sector
 	if(sector)
@@ -2099,7 +2099,7 @@ void AAIExecute::ConstructionFailed(const float3& buildsite, UnitDefId unitDefId
 	}
 	else if(category.IsStaticDefence())
 	{
-		ai->Getmap()->AddOrRemoveStaticDefence(buildsite, unitDefId, false);
+		ai->Map()->AddOrRemoveStaticDefence(buildsite, unitDefId, false);
 	}
 	else if(category.IsStaticConstructor())
 	{
@@ -2110,7 +2110,7 @@ void AAIExecute::ConstructionFailed(const float3& buildsite, UnitDefId unitDefId
 
 	// update buildmap of sector
 	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(unitDefId.id);
-	ai->Getmap()->UpdateBuildMap(buildsite, def, false);
+	ai->Map()->UpdateBuildMap(buildsite, def, false);
 }
 
 AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTargetType, const float3& pos, int importance) const
@@ -2139,11 +2139,11 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTar
 
 void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const
 {
-	AAISector* sector = ai->Getmap()->GetSectorOfPos(attackerPosition);
+	AAISector* sector = ai->Map()->GetSectorOfPos(attackerPosition);
 
 	if(sector)
 	{
-		ai->Getmap()->CheckUnitsInLOSUpdate();
+		ai->Map()->CheckUnitsInLOSUpdate();
 
 		if(sector->IsSupportNeededToDefenceVs(attackerTargetType))
 		{
@@ -2207,31 +2207,31 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 
 	if(x >= 1)
 	{
-		sectors.push_back( &ai->Getmap()->m_sector[x-1][y] );
+		sectors.push_back( &ai->Map()->m_sector[x-1][y] );
 
 		if(y >= 1)
-			sectors.push_back( &ai->Getmap()->m_sector[x-1][y-1] );
+			sectors.push_back( &ai->Map()->m_sector[x-1][y-1] );
 
-		if(y < ai->Getmap()->ySectors-1)
-			sectors.push_back( &ai->Getmap()->m_sector[x-1][y+1] );
+		if(y < ai->Map()->ySectors-1)
+			sectors.push_back( &ai->Map()->m_sector[x-1][y+1] );
 	}
 
-	if(x < ai->Getmap()->xSectors-1)
+	if(x < ai->Map()->xSectors-1)
 	{
-		sectors.push_back( &ai->Getmap()->m_sector[x+1][y] );
+		sectors.push_back( &ai->Map()->m_sector[x+1][y] );
 
 		if(y >= 1)
-			sectors.push_back( &ai->Getmap()->m_sector[x+1][y-1] );
+			sectors.push_back( &ai->Map()->m_sector[x+1][y-1] );
 
-		if(y < ai->Getmap()->ySectors-1)
-			sectors.push_back( &ai->Getmap()->m_sector[x+1][y+1] );
+		if(y < ai->Map()->ySectors-1)
+			sectors.push_back( &ai->Map()->m_sector[x+1][y+1] );
 	}
 
 	if(y >= 1)
-		sectors.push_back( &ai->Getmap()->m_sector[x][y-1] );
+		sectors.push_back( &ai->Map()->m_sector[x][y-1] );
 
-	if(y < ai->Getmap()->ySectors-1)
-		sectors.push_back( &ai->Getmap()->m_sector[x][y+1] );
+	if(y < ai->Map()->ySectors-1)
+		sectors.push_back( &ai->Map()->m_sector[x][y+1] );
 
 	// choose best
 	AAISector *selectedSector(nullptr);
@@ -2292,7 +2292,7 @@ float3 AAIExecute::GetFallBackPos(const float3& pos, float maxFallbackDist) cons
 	assert(maxFallbackDist != 0.0f);
 
 	// get list of enemies within weapons range
-	const int numberOfEnemies = ai->GetAICallback()->GetEnemyUnits(&(ai->Getmap()->unitsInLOS.front()), pos, maxFallbackDist);
+	const int numberOfEnemies = ai->GetAICallback()->GetEnemyUnits(&(ai->Map()->UnitsInLOS().front()), pos, maxFallbackDist);
 
 	if(numberOfEnemies > 0)
 	{
@@ -2300,7 +2300,7 @@ float3 AAIExecute::GetFallBackPos(const float3& pos, float maxFallbackDist) cons
 
 		for(int k = 0; k < numberOfEnemies; ++k)
 		{
-			float3 enemy_pos = ai->GetAICallback()->GetUnitPos(ai->Getmap()->unitsInLOS[k]);
+			float3 enemy_pos = ai->GetAICallback()->GetUnitPos(ai->Map()->UnitsInLOS()[k]);
 
 			// get distance to enemy
 			float dx   = enemy_pos.x - pos.x;

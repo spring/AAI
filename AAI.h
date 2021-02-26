@@ -10,10 +10,12 @@
 #ifndef AAI_H
 #define AAI_H
 
-#include "ExternalAI/Interface/SSkirmishAICallback.h"
-#include "LegacyCpp/IGlobalAI.h"
 #include <list>
 #include <vector>
+
+#include "ExternalAI/Interface/SSkirmishAICallback.h"
+#include "LegacyCpp/IGlobalAI.h"
+
 #include "aidef.h"
 #include "AAIBuildTree.h"
 
@@ -106,10 +108,10 @@ public:
 		return m_unitGroupsOfCategoryLists[category.GetArrayIndex()]; 
 	}
 
-	AAIBrain*           Getbrain() { return brain; }
+	AAIMap*             Map() { return m_map; }
+	AAIBrain*           Getbrain() { return m_brain; }
 	AAIExecute*         Getexecute() { return execute; }
 	AAIUnitTable*       Getut() { return ut; }
-	AAIMap*             Getmap() { return map; }
 	AAIAirForceManager* Getaf() { return af; }
 	AAIAttackManager*   Getam() { return am; }
 	AAIBuildTable*      Getbt() { return bt; }
@@ -135,11 +137,17 @@ private:
 	// list of buildtasks
 	std::list<AAIBuildTask*> build_tasks;
 
-	AAIBrain *brain;			// makes decisions
+	//! Stores information about the map (shared between all AAI instances) and AI specific map related data (e.g. build map, threat map, defence maps, sectors, ...)
+	AAIMap *m_map;
+
+	//! AAI's brain is responsible for analyzing the current situation of the game and making the appropriate decisions
+	AAIBrain *m_brain;
+
+
 	AAIExecute *execute;		// executes all kinds of tasks
 	AAIUnitTable *ut;			// unit table
 	AAIBuildTable *bt;			// buildtable for the different units
-	AAIMap *map;				// keeps track of all constructed buildings and searches new constr. sites
+	
 	AAIAirForceManager *af;		// coordinates the airforce
 	AAIAttackManager *am;		// coordinates combat forces
 

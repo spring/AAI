@@ -87,7 +87,7 @@ void AAIBrain::AssignSectorToBase(AAISector *sector, bool addToBase)
 		m_baseWaterRatio    /= static_cast<float>(m_sectorsInDistToBase[0].size());
 	}
 
-	ai->Getmap()->UpdateNeighbouringSectors(m_sectorsInDistToBase);
+	ai->Map()->UpdateNeighbouringSectors(m_sectorsInDistToBase);
 
 	UpdateCenterOfBase();
 }
@@ -178,7 +178,7 @@ void AAIBrain::ExpandBaseAtStartup()
 
 	const bool preferSafeSector = (sector->GetEdgeDistance() > 0) ? true : false;
 
-	ai->Getbrain()->ExpandBase( ai->Getmap()->GetMapType(), preferSafeSector);
+	ExpandBase( ai->Map()->GetMapType(), preferSafeSector);
 }
 
 bool AAIBrain::ExpandBase(const AAIMapType& sectorType, bool preferSafeSector)
@@ -607,7 +607,7 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 		moveType.AddMovementType(EMovementType::MOVEMENT_TYPE_HOVER);
 
 		int enemyBuildingsOnLand, enemyBuildingsOnSea;
-		ai->Getmap()->DetermineSpottedEnemyBuildingsOnContinentType(enemyBuildingsOnLand, enemyBuildingsOnSea);
+		ai->Map()->DetermineSpottedEnemyBuildingsOnContinentType(enemyBuildingsOnLand, enemyBuildingsOnSea);
 
 		const float totalBuildings = static_cast<float>( std::max(enemyBuildingsOnLand+enemyBuildingsOnSea, 1) );
 
@@ -706,7 +706,7 @@ void AAIBrain::UpdatePressureByEnemy()
 	int sectorsOccupiedByEnemies(0);
 	int sectorsNearBaseOccupiedByEnemies(0);
 
-	const auto sectors = ai->Getmap()->m_sector;
+	const auto sectors = ai->Map()->m_sector;
 
 	for(int x = 0; x < AAIMap::xSectors; ++x)
 	{
