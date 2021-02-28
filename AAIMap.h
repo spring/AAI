@@ -69,7 +69,10 @@ public:
 	bool IsSectorOnWaterContinent(const AAISector* sector) const { return s_continents[sector->GetContinentID()].water; }
 
 	//! @brief Returns whether the position is located on a small continent (meant to detect "ponds" or "small islands")
-	bool LocatedOnSmallContinent(const float3& pos) const { return (s_continents[s_continentMap.GetContinentID(pos)].size < (avg_land_continent_size + avg_water_continent_size)/4); }
+	bool LocatedOnSmallContinent(const float3& pos) const 
+	{ 
+		return static_cast<float>(s_continents[s_continentMap.GetContinentID(pos)].size) < 0.25f * (s_landContinentSizeStatistics.GetAvgValue() + s_seaContinentSizeStatistics.GetAvgValue());
+	}
 
 	//! @brief Returns the id of continent the given position belongs to
 	static int GetContinentID(const float3& pos) { return s_continentMap.GetContinentID(pos); }
@@ -154,7 +157,7 @@ public:
 	std::vector< std::vector<AAISector> > m_sector;
 
 	//! Maximum squared distance on map in unit coordinates (i.e. from one corner to the other, xSize*xSize+ySize*ySize)
-	static float maxSquaredMapDist; 
+	static float s_maxSquaredMapDist; 
 
 	//! x and y size of the map (unit coordinates)
 	static int xSize, ySize;
@@ -178,21 +181,19 @@ public:
 	static float s_waterTilesRatio;
 
 	//! Number of metal spots in sea
-	static int water_metal_spots;
+	static int s_metalSpotsInSea;
 
 	//! Number of metal spots on land
-	static int land_metal_spots;
+	static int s_metalSpotsOnLand;
 
 	//! Indicates if map is considered to be a metal map (i.e. exctractors can be built anywhere)
-	static bool metalMap;
+	static bool s_isMetalMap;
 
 	//! The map storing which sector has been occupied by what team
 	static AAITeamSectorMap s_teamSectorMap;
 
 	//! The buildmap stores the type/occupation status of every cell;
 	static std::vector<BuildMapTileType> s_buildmap;
-
-	static int avg_water_continent_size;
 
 	static constexpr int ignoreContinentID = -1;
 
@@ -233,8 +234,11 @@ private:
 	//! @brief Read the learning data for this map (or initialize with defualt data if none are available)
 	void ReadMapLearnFile();
 
-	// reads continent cache file (and creates new one if necessary)
-	void ReadContinentFile();
+	//! 
+	void InitContinents();
+
+	//! @brief Reads continent data from given cache file (returns whether successful)
+	bool ReadContinentFile(const std::string& filename);
 
 	// reads map cache file (and creates new one if necessary)
 	// loads mex spots, cliffs etc. from file or creates new one
@@ -308,22 +312,19 @@ private:
 	static int xLOSMapSize, yLOSMapSize;		// x and y size of the LOS map
 	static int xDefMapSize, yDefMapSize;		// x and y size of the defence maps (1/4 resolution of map)
 	static std::list<AAIMetalSpot> metal_spots;
-	static float flat_land_ratio;
-	static vector<int> blockmap;		// number of buildings which ordered a cell to blocked
-	static vector<float> plateau_map;	// positive values indicate plateaus, same resolution as continent map 1/4 of resolution of blockmap/buildmap
 
-	static vector<int> ship_movement_map;	// movement maps for different categories, 1/4 of resolution of blockmap/buildmap
-	static vector<int> kbot_movement_map;
-	static vector<int> vehicle_movement_map;
-	static vector<int> hover_movement_map;
-	static int land_continents;
-	static int water_continents;
+	static std::vector<int>   blockmap;		// number of buildings which ordered a cell to blocked
+	static std::vector<float> plateau_map;	// positive values indicate plateaus, same resolution as continent map 1/4 of resolution of blockmap/buildmap
+	static std::vector<int>   ship_movement_map;	// movement maps for different categories, 1/4 of resolution of blockmap/buildmap
+	static std::vector<int>   kbot_movement_map;
+	static std::vector<int>   vehicle_movement_map;
+	static std::vector<int>   hover_movement_map;
 
-	static int avg_land_continent_size;
-	static int max_land_continent_size;
-	static int max_water_continent_size;
-	static int min_land_continent_size;
-	static int min_water_continent_size;
+	//! Minimum, maximum, and average size (in tiles) of land continents
+	static StatisticalData s_landContinentSizeStatistics;
+
+	//! Minimum, maximum, and average size (in tiles) of land continents
+	static StatisticalData s_seaContinentSizeStatistics;
 };
 
 #endif

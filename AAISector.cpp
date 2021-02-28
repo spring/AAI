@@ -391,7 +391,7 @@ float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMov
 		const float dy = currentPositionOfScout.z - center.z;
 
 		// factor between 0.1 (max dist from one corner of the map tpo the other) and 1.0 
-		const float distanceToCurrentLocationFactor = 0.1f + 0.9f * (1.0f - (dx*dx+dy*dy) / AAIMap::maxSquaredMapDist);
+		const float distanceToCurrentLocationFactor = 0.1f + 0.9f * (1.0f - (dx*dx+dy*dy) / AAIMap::s_maxSquaredMapDist);
 
 		// factor between 1 and 0.4 (depending on number of recently lost units)
 		const float lostUnits = scoutMoveType.IsAir() ? m_lostAirUnits : m_lostUnits;

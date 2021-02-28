@@ -312,7 +312,7 @@ BuildSite AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId un
 	const float3 constructorPosition = ai->GetAICallback()->GetUnitPos(constructor.id);
 	
 	BuildSite selectedBuildsite;
-	float minDist = AAIMap::maxSquaredMapDist;
+	float minDist = AAIMap::s_maxSquaredMapDist;
 
 	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[1])
 	{
@@ -493,7 +493,7 @@ bool AAIExecute::BuildExtractor()
 	//-----------------------------------------------------------------------------------------------------------------
 	// metal map
 	//-----------------------------------------------------------------------------------------------------------------
-	if(AAIMap::metalMap)
+	if(AAIMap::s_isMetalMap)
 	{
 		// get id of an extractor and look for suitable builder
 		const UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, false);

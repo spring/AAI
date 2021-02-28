@@ -127,9 +127,10 @@ public:
 	}
 
 	// getter functions
-	float GetMinValue() const { return m_minValue; }
-	float GetMaxValue() const { return m_maxValue; }
-	float GetAvgValue() const { return m_avgValue; }
+	float        GetMinValue()   const { return m_minValue; }
+	float        GetMaxValue()   const { return m_maxValue; }
+	float        GetAvgValue()   const { return m_avgValue; }
+	unsigned int GetSampleSize() const { return m_dataPoints; }
 
 	//! @brief Returns the normalized (interval [0:1]) deviation from max value (value must be between min and max)
 	float GetNormalizedDeviationFromMax(float value) const
