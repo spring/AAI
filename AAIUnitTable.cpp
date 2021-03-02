@@ -72,7 +72,7 @@ bool AAIUnitTable::AddUnit(int unit_id, int def_id, AAIGroup *group, AAIConstruc
 		}
 		else if(units[unit_id].status == BOMB_TARGET)
 		{
-			ai->Getaf()->RemoveTarget(UnitId(unit_id));
+			ai->AirForceMgr()->RemoveTarget(UnitId(unit_id));
 			
 			units[unit_id].status = ENEMY_UNIT;
 
@@ -114,7 +114,7 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 {
 	const AAIUnitType& unitType = ai->s_buildTree.GetUnitType(unitDefId);
 
-	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, unitType.IsFactory(), unitType.IsBuilder(), unitType.IsConstructionAssist(), ai->Getexecute()->GetBuildqueueOfFactory(unitDefId));
+	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, unitType.IsFactory(), unitType.IsBuilder(), unitType.IsConstructionAssist(), ai->Execute()->GetBuildqueueOfFactory(unitDefId));
 
 	m_constructors.insert(unitId);
 	units[unitId.id].cons = cons;
@@ -123,9 +123,9 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 	const bool commander = ai->s_buildTree.GetUnitCategory(unitDefId).IsCommander();
 
 	if(commander)
-		ai->Getbt()->ConstructorRequested(unitDefId);
+		ai->BuildTable()->ConstructorRequested(unitDefId);
 
-	ai->Getbt()->ConstructorFinished(unitDefId);
+	ai->BuildTable()->ConstructorFinished(unitDefId);
 
 	if( unitType.IsFactory() && ai->s_buildTree.GetMovementType(unitDefId).IsStatic() )
 	{
@@ -142,7 +142,7 @@ void AAIUnitTable::RemoveConstructor(UnitId unitId, UnitDefId unitDefId)
 		activeFactories -= 1;
 
 	// decrease number of available builders for all buildoptions of the builder
-	ai->Getbt()->ConstructorKilled(unitDefId);
+	ai->BuildTable()->ConstructorKilled(unitDefId);
 
 	// erase from builders list
 	m_constructors.erase(unitId);
@@ -357,7 +357,7 @@ void AAIUnitTable::EnemyKilled(int unit)
 {
 	if(units[unit].status == BOMB_TARGET)
 	{
-		ai->Getaf()->RemoveTarget(UnitId(unit));
+		ai->AirForceMgr()->RemoveTarget(UnitId(unit));
 		units[unit].status = ENEMY_UNIT;
 	}
 
@@ -423,7 +423,7 @@ void AAIUnitTable::CheckBombTarget(UnitId unitId, UnitDefId defId, const AAIUnit
 {
 	if(category.IsBuilding() && (units[unitId.id].status != BOMB_TARGET) )
 	{
-		const bool addedToTargets = ai->Getaf()->CheckStaticBombTarget(unitId, defId, position);
+		const bool addedToTargets = ai->AirForceMgr()->CheckStaticBombTarget(unitId, defId, position);
 
 		if(addedToTargets)
 			units[unitId.id].status = BOMB_TARGET;

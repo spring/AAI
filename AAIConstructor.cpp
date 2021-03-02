@@ -67,11 +67,11 @@ void AAIConstructor::Idle()
 			{
 				//ai->Getbt()->units_dynamic[construction_def_id].active -= 1;
 				//assert(ai->Getbt()->units_dynamic[construction_def_id].active >= 0);
-				ai->Getut()->UnitRequestFailed(ai->s_buildTree.GetUnitCategory(m_constructedDefId));
+				ai->UnitTable()->UnitRequestFailed(ai->s_buildTree.GetUnitCategory(m_constructedDefId));
 
 				// clear up buildmap etc. (make sure conctructor wanted to build a building and not a unit)
 				if( ai->s_buildTree.GetMovementType(m_constructedDefId).IsStatic() == true )
-					ai->Getexecute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
+					ai->Execute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
 
 				// free builder
 				ConstructionFinished();
@@ -120,7 +120,7 @@ void AAIConstructor::Update()
 			else
 			{
 				// find buildpos for the unit
-				const BuildSite buildSite = ai->Getexecute()->DetermineBuildsiteForUnit(m_myUnitId, constructedUnitDefId);
+				const BuildSite buildSite = ai->Execute()->DetermineBuildsiteForUnit(m_myUnitId, constructedUnitDefId);
 
 				if(buildSite.IsValid())
 				{
@@ -132,7 +132,7 @@ void AAIConstructor::Update()
 					m_constructedDefId = constructedUnitDefId.id;
 					m_activity.SetActivity(EConstructorActivity::CONSTRUCTING); //! @todo Should be HEADING_TO_BUILDSITE
 
-					ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(constructedUnitDefId)); // request must be called before create to keep unit counters correct
+					ai->UnitTable()->UnitRequested(ai->s_buildTree.GetUnitCategory(constructedUnitDefId)); // request must be called before create to keep unit counters correct
 					//ai->Getut()->UnitCreated(ai->s_buildTree.GetUnitCategory(constructedUnitDefId));
 
 					m_buildqueue->pop_front();
@@ -220,11 +220,11 @@ void AAIConstructor::CheckAssistance()
 		// check if another factory of that type needed
 		if( (m_buildqueue->size() >= cfg->MAX_BUILDQUE_SIZE - 1) && (assistants.size() > 1) )
 		{
-			if(ai->Getbt()->GetTotalNumberOfUnits(m_myDefId.id) < cfg->MAX_FACTORIES_PER_TYPE)
+			if(ai->BuildTable()->GetTotalNumberOfUnits(m_myDefId.id) < cfg->MAX_FACTORIES_PER_TYPE)
 			{
-				ai->Getbt()->units_dynamic[m_myDefId.id].requested += 1;
+				ai->BuildTable()->units_dynamic[m_myDefId.id].requested += 1;
 
-				ai->Getbt()->ConstructorRequested(m_myDefId);
+				ai->BuildTable()->ConstructorRequested(m_myDefId);
 			}
 		}
 
@@ -233,7 +233,7 @@ void AAIConstructor::CheckAssistance()
 
 		if(assistanceNeeded)
 		{
-			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(m_myUnitId.id), 5, true);
+			AAIConstructor* assistant = ai->UnitTable()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(m_myUnitId.id), 5, true);
 
 			if(assistant)
 			{
@@ -255,7 +255,7 @@ void AAIConstructor::CheckAssistance()
 	if(m_isBuilder && build_task)
 	{
 		// prevent assisting when low on ressources
-		if(    ai->Getbrain()->SufficientResourcesToAssistsConstructionOf(m_constructedDefId)
+		if(    ai->Brain()->SufficientResourcesToAssistsConstructionOf(m_constructedDefId)
 			&& (GetBuildtimeOfUnit(m_constructedDefId) > static_cast<float>(cfg->MIN_ASSISTANCE_BUILDTIME) ) 
 			&& (assistants.size() < cfg->MAX_ASSISTANTS))
 		{
@@ -263,7 +263,7 @@ void AAIConstructor::CheckAssistance()
 			const AAISector* sector = ai->Map()->GetSectorOfPos(m_buildPos);
 			const bool commanderAllowed = (sector && (sector->GetDistanceToBase() == 0) ) ? true : false;
 
-			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(m_buildPos, 5, commanderAllowed);
+			AAIConstructor* assistant = ai->UnitTable()->FindClosestAssistant(m_buildPos, 5, commanderAllowed);
 
 			if(assistant)
 			{
@@ -307,7 +307,7 @@ void AAIConstructor::GiveReclaimOrder(UnitId unitId)
 {
 	if(m_assistUnitId.IsValid())
 	{
-		ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
+		ai->UnitTable()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
 		m_assistUnitId.Invalidate();
 	}
 
@@ -316,14 +316,14 @@ void AAIConstructor::GiveReclaimOrder(UnitId unitId)
 	Command c(CMD_RECLAIM);
 	c.PushParam(unitId.id);
 	//ai->Getcb()->GiveOrder(this->unit_id, &c);
-	ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "Builder::GiveRelaimOrder");
+	ai->Execute()->GiveOrder(&c, m_myUnitId.id, "Builder::GiveRelaimOrder");
 }
 
 
 void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos)
 {
 	// get def and final position
-	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(building.id);
+	const springLegacyAI::UnitDef *def = &ai->BuildTable()->GetUnitDef(building.id);
 
 	// give order if building can be placed at the desired position (position lies within a valid sector)
 	const bool buildingInitializationSuccessful = ai->Map()->InitBuilding(def, pos);
@@ -333,7 +333,7 @@ void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos
 		// check if builder was previously assisting other builders/factories
 		if(m_assistUnitId.IsValid())
 		{
-			ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
+			ai->UnitTable()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
 			m_assistUnitId.Invalidate();
 		}
 
@@ -350,12 +350,12 @@ void AAIConstructor::GiveConstructionOrder(UnitDefId building, const float3& pos
 		ai->GetAICallback()->GiveOrder(m_myUnitId.id, &c);
 
 		// increase number of active units of that type/category
-		ai->Getbt()->units_dynamic[def->id].requested += 1;
+		ai->BuildTable()->units_dynamic[def->id].requested += 1;
 
-		ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(building));
+		ai->UnitTable()->UnitRequested(ai->s_buildTree.GetUnitCategory(building));
 
 		if(ai->s_buildTree.GetUnitType(building).IsFactory())
-			ai->Getut()->futureFactories += 1;
+			ai->UnitTable()->futureFactories += 1;
 	}
 }
 
@@ -366,7 +366,7 @@ void AAIConstructor::AssistConstruction(UnitId constructorUnitId, bool factory)
 	c.PushParam(constructorUnitId.id);
 
 	//ai->Getcb()->GiveOrder(unit_id, &c);
-	ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "Builder::Assist");
+	ai->Execute()->GiveOrder(&c, m_myUnitId.id, "Builder::Assist");
 
 	m_activity.SetActivity(EConstructorActivity::ASSISTING);
 	m_assistUnitId = UnitId(constructorUnitId.id);
@@ -376,7 +376,7 @@ void AAIConstructor::TakeOverConstruction(AAIBuildTask *build_task)
 {
 	if(m_assistUnitId.IsValid())
 	{
-		ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
+		ai->UnitTable()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
 		m_assistUnitId.Invalidate();
 	}
 
@@ -404,12 +404,12 @@ void AAIConstructor::CheckIfConstructionFailed()
 
 void AAIConstructor::ConstructionFailed()
 {
-	--ai->Getbt()->units_dynamic[m_constructedDefId.id].requested;
-	ai->Getut()->UnitRequestFailed(ai->s_buildTree.GetUnitCategory(m_constructedDefId));
+	--ai->BuildTable()->units_dynamic[m_constructedDefId.id].requested;
+	ai->UnitTable()->UnitRequestFailed(ai->s_buildTree.GetUnitCategory(m_constructedDefId));
 
 	// clear up buildmap etc.
 	if(ai->s_buildTree.GetMovementType(m_constructedDefId).IsStatic() == true)
-		ai->Getexecute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
+		ai->Execute()->ConstructionFailed(m_buildPos, m_constructedDefId.id);
 
 	// tells the builder construction has finished
 	ConstructionFinished();
@@ -443,8 +443,8 @@ void AAIConstructor::ReleaseAllAssistants()
 	// release assisters
 	for(set<int>::iterator i = assistants.begin(); i != assistants.end(); ++i)
 	{
-		 if(ai->Getut()->units[*i].cons)
-			 ai->Getut()->units[*i].cons->StopAssisting();
+		 if(ai->UnitTable()->units[*i].cons)
+			 ai->UnitTable()->units[*i].cons->StopAssisting();
 	}
 
 	assistants.clear();
@@ -457,7 +457,7 @@ void AAIConstructor::StopAssisting()
 
 	Command c(CMD_STOP);
 	//ai->Getcb()->GiveOrder(unit_id, &c);
-	ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "Builder::StopAssisting");
+	ai->Execute()->GiveOrder(&c, m_myUnitId.id, "Builder::StopAssisting");
 }
 void AAIConstructor::RemoveAssitant(int unit_id)
 {
@@ -475,11 +475,11 @@ void AAIConstructor::Killed()
 	else if(m_activity.IsConstructing() == true)
 	{
 		if(build_task)
-			build_task->BuilderDestroyed(ai->Map(), ai->Getut());
+			build_task->BuilderDestroyed(ai->Map(), ai->UnitTable());
 	}
 	else if(m_activity.IsAssisting() == true)
 	{
-			ai->Getut()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
+			ai->UnitTable()->units[m_assistUnitId.id].cons->RemoveAssitant(m_myUnitId.id);
 	}
 
 	ReleaseAllAssistants();
@@ -508,7 +508,7 @@ void AAIConstructor::CheckRetreatFromAttackBy(const AAIUnitCategory& attackedByC
 			}
 		}
 
-		const float3 retreatPos = ai->Getexecute()->DetermineSafePos(m_myDefId, unitPos);
+		const float3 retreatPos = ai->Execute()->DetermineSafePos(m_myDefId, unitPos);
 
 		if(retreatPos.x > 0.0f)
 		{
@@ -517,7 +517,7 @@ void AAIConstructor::CheckRetreatFromAttackBy(const AAIUnitCategory& attackedByC
 			c.PushParam(ai->GetAICallback()->GetElevation(retreatPos.x, retreatPos.z));
 			c.PushParam(retreatPos.z);
 
-			ai->Getexecute()->GiveOrder(&c, m_myUnitId.id, "BuilderRetreat");
+			ai->Execute()->GiveOrder(&c, m_myUnitId.id, "BuilderRetreat");
 			//ai->Getcb()->GiveOrder(unit_id, &c);
 		}
 	}

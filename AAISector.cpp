@@ -267,24 +267,24 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 			std::vector<float> importanceVsTargetType(AAITargetType::numberOfMobileTargetTypes, 0.0f);
 
 			importanceVsTargetType[AAITargetType::airIndex] = baseProximity +
-						  (0.1f + GetLocalAttacksBy(ETargetType::AIR, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::AIR, gamePhase)) 
+						  (0.1f + GetLocalAttacksBy(ETargetType::AIR, previousGames, currentGame) + ai->Brain()->GetAttacksBy(ETargetType::AIR, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::AIR));
 
 			if(m_waterTilesRatio < 0.7f)
 			{
 				importanceVsTargetType[AAITargetType::surfaceIndex] = baseProximity +
-						  (0.1f + GetLocalAttacksBy(ETargetType::SURFACE, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::SURFACE, gamePhase)) 
+						  (0.1f + GetLocalAttacksBy(ETargetType::SURFACE, previousGames, currentGame) + ai->Brain()->GetAttacksBy(ETargetType::SURFACE, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::SURFACE));
 			}
 
 			if(m_waterTilesRatio > 0.3f)
 			{
 				importanceVsTargetType[AAITargetType::floaterIndex] = baseProximity +
-						  (0.1f + GetLocalAttacksBy(ETargetType::FLOATER, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::FLOATER, gamePhase)) 
+						  (0.1f + GetLocalAttacksBy(ETargetType::FLOATER, previousGames, currentGame) + ai->Brain()->GetAttacksBy(ETargetType::FLOATER, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::FLOATER));
 
 				importanceVsTargetType[AAITargetType::submergedIndex] = baseProximity +
-						  (0.1f + GetLocalAttacksBy(ETargetType::SUBMERGED, previousGames, currentGame) + ai->Getbrain()->GetAttacksBy(ETargetType::SUBMERGED, gamePhase)) 
+						  (0.1f + GetLocalAttacksBy(ETargetType::SUBMERGED, previousGames, currentGame) + ai->Brain()->GetAttacksBy(ETargetType::SUBMERGED, gamePhase)) 
 						/ (1.0f + GetFriendlyStaticDefencePower(ETargetType::SUBMERGED));
 			}
 
@@ -303,7 +303,7 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 			if(highestImportance > 0.0f)
 			{
 				const MapPos& enemyBaseCenter = ai->Map()->GetCenterOfEnemyBase();
-				const MapPos& baseCenter      = ai->Getbrain()->GetCenterOfBase();
+				const MapPos& baseCenter      = ai->Brain()->GetCenterOfBase();
 
 				MapPos sectorCenter(x * AAIMap::xSectorSizeMap + AAIMap::xSectorSizeMap/2, y * AAIMap::ySectorSizeMap + AAIMap::ySectorSizeMap/2);
 

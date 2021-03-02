@@ -117,9 +117,6 @@ public:
 	AAIBuildTable(AAI* ai);
 	~AAIBuildTable(void);
 
-	//! @brief Loads data from a file or initializes fresh combat unit related learning data.
-	void Init();
-
 	//! @brief Updates the stored combat efficiencies and attack frequencies by enemy target types for the given map type
 	void SaveModLearnData(const GamePhase& gamePhase, const AttackedByRatesPerGamePhase& atackedByRates, const AAIMapType& mapType) const;
 

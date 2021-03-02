@@ -31,6 +31,7 @@ class AAI;
 class AAIBuildTable;
 class AAIAttack;
 class AAISector;
+class AAIAttackManager;
 
 class AAIGroup
 {
@@ -83,7 +84,8 @@ public:
 	//! @brief Determines a new rally point and orders units to get there
 	void GetNewRallyPoint();
 
-	void UnitIdle(int unit);
+	//! @brief 
+	void UnitIdle(UnitId unitId, AAIAttackManager* attackManager);
 
 	//! @brief Returns combat power of the group vs given target type
 	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const;

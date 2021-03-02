@@ -25,15 +25,7 @@ AttackedByRatesPerGamePhaseAndMapType AAIBuildTable::s_attackedByRates;
 AAIBuildTable::AAIBuildTable(AAI* ai)
 {
 	this->ai = ai;
-}
 
-AAIBuildTable::~AAIBuildTable(void)
-{
-	unitList.clear();
-}
-
-void AAIBuildTable::Init()
-{
 	// get number of units and alloc memory for unit list
 	const int numOfUnits = ai->GetAICallback()->GetNumUnitDefs();
 
@@ -74,6 +66,11 @@ void AAIBuildTable::Init()
 			ai->LogConsole("New BuildTable has been created");
 		}
 	}
+}
+
+AAIBuildTable::~AAIBuildTable(void)
+{
+	unitList.clear();
 }
 
 void AAIBuildTable::ConstructorRequested(UnitDefId constructor)
@@ -1029,7 +1026,7 @@ bool AAIBuildTable::RequestMobileConstructor(UnitDefId constructor)
 		// only mark as urgent (unit gets added to front of buildqueue) if no constructor of that type already exists
 		const BuildQueuePosition queuePosition = (units_dynamic[constructor.id].active > 1) ? BuildQueuePosition::SECOND : BuildQueuePosition::FRONT;
 
-		if(ai->Getexecute()->AddUnitToBuildqueue(constructor, 1, queuePosition, true))
+		if(ai->Execute()->AddUnitToBuildqueue(constructor, 1, queuePosition, true))
 		{
 			ConstructorRequested(constructor);
 			return true;

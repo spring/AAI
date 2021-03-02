@@ -446,11 +446,11 @@ void AAIBrain::BuildUnits()
 	const UnitSelectionCriteria unitSelectionCriteria   = DetermineCombatUnitSelectionCriteria();
 
 	std::vector<float> factoryUtilization(ai->s_buildTree.GetNumberOfFactories(), 0.0f);
-	ai->Getexecute()->DetermineFactoryUtilization(factoryUtilization, true);
+	ai->Execute()->DetermineFactoryUtilization(factoryUtilization, true);
 
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 
-	for(int i = 0; i < ai->Getexecute()->GetUnitProductionRate(); ++i)
+	for(int i = 0; i < ai->Execute()->GetUnitProductionRate(); ++i)
 	{
 		const AAIMovementType moveType = DetermineMovementTypeForCombatUnitConstruction(gamePhase);
 		const bool urgent(false);
@@ -463,7 +463,7 @@ void AAIBrain::BuildUnits()
 			finalCombatPower.SetValue(ETargetType::SUBMERGED, 0.0f);
 
 			// bomber preference ratio between 0 (no targets or high enemy pressure) and 0.9 (low enemy pressure and many possible targets for bombing run) 
-			const float bomberRatio = std::max(ai->Getaf()->GetNumberOfBombTargets() - m_estimatedPressureByEnemies - 0.1f, 0.0f);
+			const float bomberRatio = std::max(ai->AirForceMgr()->GetNumberOfBombTargets() - m_estimatedPressureByEnemies - 0.1f, 0.0f);
 
 			if(IsRandomNumberBelow(bomberRatio))
 			{
@@ -474,7 +474,7 @@ void AAIBrain::BuildUnits()
 			}
 		}
 
-		ai->Getexecute()->BuildCombatUnitOfCategory(moveType, finalCombatPower, unitSelectionCriteria, factoryUtilization, urgent);
+		ai->Execute()->BuildCombatUnitOfCategory(moveType, finalCombatPower, unitSelectionCriteria, factoryUtilization, urgent);
 	}
 }
 
@@ -596,7 +596,7 @@ AAIMovementType AAIBrain::DetermineMovementTypeForCombatUnitConstruction(const G
 	AAIMovementType moveType;
 
 	// boost air craft ratio if many possible targets for bombing run identified (boost factor between 0.75 and 1.5)
-	const float dynamicAirCraftRatio = cfg->AIRCRAFT_RATIO * (0.75f * (1.0f + ai->Getaf()->GetNumberOfBombTargets()));
+	const float dynamicAirCraftRatio = cfg->AIRCRAFT_RATIO * (0.75f * (1.0f + ai->AirForceMgr()->GetNumberOfBombTargets()));
 
 	if( IsRandomNumberBelow(dynamicAirCraftRatio) && !gamePhase.IsStartingPhase())
 	{
@@ -756,7 +756,7 @@ float AAIBrain::GetEnergyUrgency() const
 
 float AAIBrain::GetMetalUrgency() const
 {
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR)) > 0)
+	if(ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::METAL_EXTRACTOR)) > 0)
 		return 4.0f / (2.0f * m_metalSurplus.GetAverageValue() + 0.5f);
 	else
 		return 8.0f;
@@ -764,9 +764,9 @@ float AAIBrain::GetMetalUrgency() const
 
 float AAIBrain::GetEnergyStorageUrgency() const
 {
-	if(    (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STORAGE) < cfg->MAX_STORAGE)
-		&& (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0)
-		&& (ai->Getut()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE) )
+	if(    (ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STORAGE) < cfg->MAX_STORAGE)
+		&& (ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0)
+		&& (ai->UnitTable()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE) )
 	{
 		const float energyStorage = std::max(ai->GetAICallback()->GetEnergyStorage(), 1.0f);
 		
@@ -781,9 +781,9 @@ float AAIBrain::GetMetalStorageUrgency() const
 {
 	const float unusedMetalStorage = ai->GetAICallback()->GetMetalStorage() - ai->GetAICallback()->GetMetal();
 
-	if(    (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STORAGE) < cfg->MAX_STORAGE)
-		&& (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0)
-		&& (ai->Getut()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE) )
+	if(    (ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STORAGE) < cfg->MAX_STORAGE)
+		&& (ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STORAGE) <= 0)
+		&& (ai->UnitTable()->activeFactories >= cfg->MIN_FACTORIES_FOR_STORAGE) )
 	{
 		const float metalStorage = std::max(ai->GetAICallback()->GetMetalStorage(), 1.0f);
 
@@ -813,9 +813,9 @@ float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId, co
 {
 	const StatisticalData& costs  = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
 
-	float rating =    ai->Getbt()->DetermineFactoryRating(factoryDefId, combatPowerVsTargetType)
+	float rating =    ai->BuildTable()->DetermineFactoryRating(factoryDefId, combatPowerVsTargetType)
 					+ costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(factoryDefId) );
-					+ 1.0f / static_cast<float>(ai->Getbt()->GetDynamicUnitTypeData(factoryDefId).active + 1);
+					+ 1.0f / static_cast<float>(ai->BuildTable()->GetDynamicUnitTypeData(factoryDefId).active + 1);
 
 	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(factoryDefId);
 
@@ -829,7 +829,7 @@ float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId, co
 
 PowerPlantSelectionCriteria AAIBrain::DeterminePowerPlantSelectionCriteria() const
 {
-	const float numberOfBuildingsFactor = std::tanh(0.2f * static_cast<float>(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::POWER_PLANT)) - 2.0f);
+	const float numberOfBuildingsFactor = std::tanh(0.2f * static_cast<float>(ai->UnitTable()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::POWER_PLANT)) - 2.0f);
 
 	// importance of buildtime ranges between 3 (no excess energy and no plants) to close to 0.25 (sufficient excess energy)
 	const float urgency   = (0.04f * m_energyIncome.GetAverageValue() + 0.1f) / GetAveragePowerSurplus();
@@ -849,7 +849,7 @@ PowerPlantSelectionCriteria AAIBrain::DeterminePowerPlantSelectionCriteria() con
 
 StorageSelectionCriteria AAIBrain::DetermineStorageSelectionCriteria() const
 {
-	const float numberOfBuildingsFactor = std::tanh(static_cast<float>(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::STORAGE)) - 2.0f);
+	const float numberOfBuildingsFactor = std::tanh(static_cast<float>(ai->UnitTable()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::STORAGE)) - 2.0f);
 
 	const float metalStorage = std::max(ai->GetAICallback()->GetMetalStorage(), 1.0f);
 	const float usedMetalStorageCapacity = std::min(1.1f * m_metalAvailable.GetAverageValue() / metalStorage, 1.0f);

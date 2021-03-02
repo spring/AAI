@@ -88,14 +88,14 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 		ChooseDifferentStartingSector(x, y);
 	}
 	else
-		ai->Getbrain()->AssignSectorToBase(&ai->Map()->m_sector[x][y], true);
+		ai->Brain()->AssignSectorToBase(&ai->Map()->m_sector[x][y], true);
 	
-	ai->Getbrain()->ExpandBaseAtStartup();
+	ai->Brain()->ExpandBaseAtStartup();
 
 	// now that we know the side, init buildques
 	InitBuildques();
 
-	ai->Getut()->AddConstructor(commanderUnitId, commanderDefId);
+	ai->UnitTable()->AddConstructor(commanderUnitId, commanderDefId);
 
 	// get economy working
 	CheckRessources();
@@ -108,7 +108,7 @@ void AAIExecute::MoveUnitTo(int unit, float3 *position)
 
 	//ai->Getcb()->GiveOrder(unit, &c);
 	GiveOrder(&c, unit, "MoveUnitTo");
-	ai->Getut()->SetUnitStatus(unit, MOVING);
+	ai->UnitTable()->SetUnitStatus(unit, MOVING);
 }
 
 void AAIExecute::stopUnit(int unit)
@@ -117,7 +117,7 @@ void AAIExecute::stopUnit(int unit)
 
 	//ai->Getcb()->GiveOrder(unit, &c);
 	GiveOrder(&c, unit, "StopUnit");
-	ai->Getut()->SetUnitStatus(unit, UNIT_IDLE);
+	ai->UnitTable()->SetUnitStatus(unit, UNIT_IDLE);
 }
 
 // returns true if unit is busy
@@ -149,7 +149,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	{
 		if((*group)->AddUnit(unitId, unitDefId, continentId))
 		{
-			ai->Getut()->units[unitId.id].group = *group;
+			ai->UnitTable()->units[unitId.id].group = *group;
 			return;
 		}
 	}
@@ -158,7 +158,7 @@ void AAIExecute::AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId
 	// -> create new one
 	AAIGroup *new_group = new AAIGroup(ai, unitDefId, continentId);
 	new_group->AddUnit(unitId, unitDefId, continentId);
-	ai->Getut()->units[unitId.id].group = new_group;
+	ai->UnitTable()->units[unitId.id].group = new_group;
 
 	ai->GetUnitGroupsList(category).push_back(new_group);
 }
@@ -170,9 +170,9 @@ void AAIExecute::BuildCombatUnitOfCategory(const AAIMovementType& moveType, cons
 
 	// select unit independently from available constructor from time to time (to make sure AAI will order factories for advanced units as the game progresses)
 	const float contructorRequiredRate = moveType.IsAir() ? 0.5f : 0.85f;
-	const bool  constructorAvailable = (randomValue < contructorRequiredRate) && (ai->Getut()->activeFactories > 0);
+	const bool  constructorAvailable = (randomValue < contructorRequiredRate) && (ai->UnitTable()->activeFactories > 0);
 
-	const UnitDefId unitDefId = ai->Getbt()->SelectCombatUnit(ai->GetSide(), moveType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6, constructorAvailable);
+	const UnitDefId unitDefId = ai->BuildTable()->SelectCombatUnit(ai->GetSide(), moveType, combatPowerCriteria, unitSelectionCriteria, factoryUtilization, 6, constructorAvailable);
 
 	// Order construction of selected unit
 	if(unitDefId.IsValid())
@@ -187,8 +187,8 @@ void AAIExecute::BuildCombatUnitOfCategory(const AAIMovementType& moveType, cons
 		else if(ai->s_buildTree.GetTotalCost(unitDefId) < cfg->MAX_COST_MEDIUM_ASSAULT * costStatistics.GetMaxValue())
 			numberOfUnits = 2;
 		
-		if( ai->Getbt()->units_dynamic[unitDefId.id].constructorsAvailable <= 0 )
-			ai->Getbt()->RequestFactoryFor(unitDefId);
+		if( ai->BuildTable()->units_dynamic[unitDefId.id].constructorsAvailable <= 0 )
+			ai->BuildTable()->RequestFactoryFor(unitDefId);
 		else
 			AddUnitToBuildqueue(unitDefId, numberOfUnits, BuildQueuePosition::END);
 	}
@@ -196,7 +196,7 @@ void AAIExecute::BuildCombatUnitOfCategory(const AAIMovementType& moveType, cons
 
 void AAIExecute::BuildScouts()
 {
-	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::SCOUT) < cfg->MAX_SCOUTS)
+	if(ai->UnitTable()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::SCOUT) < cfg->MAX_SCOUTS)
 	{
 		bool availableFactoryNeeded = true;
 		float cost;
@@ -216,7 +216,7 @@ void AAIExecute::BuildScouts()
 		}
 		else
 		{
-			if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) == 0)
+			if(ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) == 0)
 			{
 				cost = 2.0f;
 				sightRange = 0.5f;
@@ -244,11 +244,11 @@ void AAIExecute::BuildScouts()
 		// request cloakable scouts from time to time
 		const float cloaked = (rand()%5 == 1) ? 1.0f : 0.25f;
 		
-		const UnitDefId scoutId = ai->Getbt()->SelectScout(ai->GetSide(), sightRange, cost, cloaked, suitableMovementTypes, 10, availableFactoryNeeded);
+		const UnitDefId scoutId = ai->BuildTable()->SelectScout(ai->GetSide(), sightRange, cost, cloaked, suitableMovementTypes, 10, availableFactoryNeeded);
 
 		if(scoutId.IsValid())
 		{
-			const BuildQueuePosition queuePosition = (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) > 1) ? BuildQueuePosition::END : BuildQueuePosition::FRONT;
+			const BuildQueuePosition queuePosition = (ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) > 1) ? BuildQueuePosition::END : BuildQueuePosition::FRONT;
 
 			AddUnitToBuildqueue(scoutId.id, 1, queuePosition);
 		}
@@ -282,7 +282,7 @@ BuildSite AAIExecute::DetermineBuildsite(UnitId builder, UnitDefId buildingDefId
 	//-----------------------------------------------------------------------------------------------------------------
 	// look in any of the base sectors
 	//-----------------------------------------------------------------------------------------------------------------
-	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
+	for(auto sector : ai->Brain()->m_sectorsInDistToBase[0])
 	{
 		const BuildSite buildSite = ai->Map()->DetermineBuildsiteInSector(buildingDefId, sector);
 
@@ -314,7 +314,7 @@ BuildSite AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId un
 	BuildSite selectedBuildsite;
 	float minDist = AAIMap::s_maxSquaredMapDist;
 
-	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[1])
+	for(auto sector : ai->Brain()->m_sectorsInDistToBase[1])
 	{
 		const BuildSite buildSite = ai->Map()->DetermineBuildsiteInSector(unitDefId, sector);
 
@@ -342,13 +342,13 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueue
 
 	for(auto constructor : ai->s_buildTree.GetConstructedByList(unitDefId))
 	{
-		if(ai->Getbt()->units_dynamic[constructor.id].active > 0)
+		if(ai->BuildTable()->units_dynamic[constructor.id].active > 0)
 		{
 			std::list<UnitDefId>* buildqueue = GetBuildqueueOfFactory(constructor);
 
 			if(buildqueue)
 			{
-				const float rating = (1.0f + 2.0f * (float) ai->Getbt()->units_dynamic[constructor.id].active) / static_cast<float>(buildqueue->size() + 2);
+				const float rating = (1.0f + 2.0f * (float) ai->BuildTable()->units_dynamic[constructor.id].active) / static_cast<float>(buildqueue->size() + 2);
 
 				if(rating > highestRating)
 				{
@@ -372,8 +372,8 @@ bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueue
 				insertPosition = selectedBuildqueue->end();
 	
 			selectedBuildqueue->insert(insertPosition, number, unitDefId);
-			ai->Getbt()->units_dynamic[unitDefId.id].requested += number;
-			ai->Getut()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), number);
+			ai->BuildTable()->units_dynamic[unitDefId.id].requested += number;
+			ai->UnitTable()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), number);
 			return true;
 		}
 	}
@@ -397,7 +397,7 @@ void AAIExecute::DetermineFactoryUtilization(std::vector<float>& factoryUtilizat
 
 	for(int factoryId = 0; factoryId < ai->s_buildTree.GetNumberOfFactories(); ++factoryId)
 	{
-		const UnitTypeDynamic& unitTypeData = ai->Getbt()->GetDynamicUnitTypeData(factoryTable[factoryId]);
+		const UnitTypeDynamic& unitTypeData = ai->BuildTable()->GetDynamicUnitTypeData(factoryTable[factoryId]);
 
 		if(    (considerOnlyActiveFactoryTypes == false)
 			|| (unitTypeData.active > 0) )
@@ -449,7 +449,7 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 
 		if(buildSite.IsValid())
 		{
-			const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(building, buildSite.Position(), true);
+			const AvailableConstructor selectedConstructor = ai->UnitTable()->FindClosestBuilder(building, buildSite.Position(), true);
 
 			if(selectedConstructor.IsValid())
 			{
@@ -458,16 +458,16 @@ BuildOrderStatus AAIExecute::TryConstructionOf(UnitDefId building, const AAISect
 			}
 			else
 			{
-				ai->Getbt()->RequestBuilderFor(building);
+				ai->BuildTable()->RequestBuilderFor(building);
 				return BuildOrderStatus::NO_BUILDER_AVAILABLE;
 			}
 		}
 		else
 		{
 			if(ai->s_buildTree.GetMovementType(building).IsStaticLand() )
-				ai->Getbrain()->ExpandBase(EMapType::LAND);
+				ai->Brain()->ExpandBase(EMapType::LAND);
 			else
-				ai->Getbrain()->ExpandBase(EMapType::WATER);
+				ai->Brain()->ExpandBase(EMapType::WATER);
 
 			ai->Log("Base expanded when looking for buildsite for %s\n", ai->s_buildTree.GetUnitTypeProperties(building).m_name.c_str());
 			return BuildOrderStatus::NO_BUILDSITE_FOUND;
@@ -488,7 +488,7 @@ struct InsertByRatingComparator
 
 bool AAIExecute::BuildExtractor()
 {
-	ExtractorSelectionCriteria selectionCriteria = ai->Getbrain()->DetermineExtractorSelectionCriteria();
+	ExtractorSelectionCriteria selectionCriteria = ai->Brain()->DetermineExtractorSelectionCriteria();
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// metal map
@@ -496,11 +496,11 @@ bool AAIExecute::BuildExtractor()
 	if(AAIMap::s_isMetalMap)
 	{
 		// get id of an extractor and look for suitable builder
-		const UnitDefId landExtractor = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, false);
+		const UnitDefId landExtractor = ai->BuildTable()->SelectExtractor(ai->GetSide(), selectionCriteria, false);
 
 		if(landExtractor.IsValid())
 		{
-			AAIConstructor* land_builder  = ai->Getut()->FindBuilder(landExtractor, true);
+			AAIConstructor* land_builder  = ai->UnitTable()->FindBuilder(landExtractor, true);
 
 			if(land_builder)
 			{
@@ -513,7 +513,7 @@ bool AAIExecute::BuildExtractor()
 			}
 			else
 			{
-				ai->Getbt()->RequestBuilderFor(landExtractor);
+				ai->BuildTable()->RequestBuilderFor(landExtractor);
 				return false;
 			}
 		}
@@ -528,7 +528,7 @@ bool AAIExecute::BuildExtractor()
 	std::set< std::pair<AvailableMetalSpot, float>, InsertByRatingComparator<AvailableMetalSpot> > extractorSpots;
 
 	// determine max search dist - prevent crashes on smaller maps
-	const int maxSearchDist = std::min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Getbrain()->m_sectorsInDistToBase.size()) );
+	const int maxSearchDist = std::min(cfg->MAX_MEX_DISTANCE, static_cast<int>(ai->Brain()->m_sectorsInDistToBase.size()) );
 
 	bool freeMetalSpotFound = false;
 
@@ -537,7 +537,7 @@ bool AAIExecute::BuildExtractor()
 		if(distanceFromBase > 0)
 			selectionCriteria.armed = 0.5f;
 
-		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[distanceFromBase])
+		for(auto sector : ai->Brain()->m_sectorsInDistToBase[distanceFromBase])
 		{
 			if( sector->ShallBeConsideredForExtractorConstruction() )
 			{
@@ -548,9 +548,9 @@ bool AAIExecute::BuildExtractor()
 						freeMetalSpotFound = true;
 
 						const bool      water     = (spot->pos.y >= 0.0f) ? false : true;
-						const UnitDefId extractor = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, water);
+						const UnitDefId extractor = ai->BuildTable()->SelectExtractor(ai->GetSide(), selectionCriteria, water);
 
-						const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(extractor, spot->pos, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector));
+						const AvailableConstructor selectedConstructor = ai->UnitTable()->FindClosestBuilder(extractor, spot->pos, ai->Brain()->IsCommanderAllowedForConstructionInSector(sector));
 
 						const float rating = (1.0f + ai->Map()->GetDistanceToCenterOfEnemyBase(spot->pos)) / (1.0f + selectedConstructor.TravelTimeToBuildSite());
 
@@ -595,20 +595,20 @@ bool AAIExecute::BuildExtractor()
 
 bool AAIExecute::BuildPowerPlant()
 {
-	const bool minimumNumberOfFactoriesNotMet =    (ai->Getut()->activeFactories < 1) 
-												&& (ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2);
+	const bool minimumNumberOfFactoriesNotMet =    (ai->UnitTable()->activeFactories < 1) 
+												&& (ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::POWER_PLANT) >= 2);
 
 	// stop building power plants if 
 	// - if construction of power plant ordered but not yet started
 	// - already to much available energy
 	// - minimum number of factories not constructed
-	if(    (ai->Getut()->GetNumberOfRequestedUnitsOfCategory(EUnitCategory::POWER_PLANT) > 0) 
-		|| (ai->Getbrain()->GetAveragePowerSurplus() > AAIConstants::powerSurplusToStopPowerPlantConstructionThreshold)
+	if(    (ai->UnitTable()->GetNumberOfRequestedUnitsOfCategory(EUnitCategory::POWER_PLANT) > 0) 
+		|| (ai->Brain()->GetAveragePowerSurplus() > AAIConstants::powerSurplusToStopPowerPlantConstructionThreshold)
 		|| minimumNumberOfFactoriesNotMet)
 		return true;
 
 	// if power plant is already under construction try to assist construction of other power plants first
-	if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(EUnitCategory::POWER_PLANT) > 0)
+	if(ai->UnitTable()->GetNumberOfUnitsUnderConstructionOfCategory(EUnitCategory::POWER_PLANT) > 0)
 		return AssistConstructionOfCategory(EUnitCategory::POWER_PLANT);
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -621,21 +621,21 @@ bool AAIExecute::BuildPowerPlant()
 	//-----------------------------------------------------------------------------------------------------------------
 	// try to build power plant (start with highest rated sector)
 	//-----------------------------------------------------------------------------------------------------------------
-	PowerPlantSelectionCriteria selectionCriteria = ai->Getbrain()->DeterminePowerPlantSelectionCriteria();
+	PowerPlantSelectionCriteria selectionCriteria = ai->Brain()->DeterminePowerPlantSelectionCriteria();
 
 	// do not try offshore construction if base edoes not contain water
-	bool offshoreConstructionAttempted( (ai->Getbrain()->GetBaseWaterRatio() < 0.05f) ); 
+	bool offshoreConstructionAttempted( (ai->Brain()->GetBaseWaterRatio() < 0.05f) ); 
 	BuildOrderStatus buildOrderStatus(BuildOrderStatus::BUILDING_INVALID);
 
-	if(ai->Getut()->GetNumberOfActiveBuilders() == 1)
+	if(ai->UnitTable()->GetNumberOfActiveBuilders() == 1)
 	{
-		UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, false);
-		UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
+		UnitDefId landPowerPlant = ai->BuildTable()->SelectPowerPlant(ai->GetSide(), selectionCriteria, false);
+		UnitDefId seaPowerPlant  = ai->BuildTable()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
 
-		AAIConstructor* constructor = ai->Getut()->FindBuilder(landPowerPlant, true);
+		AAIConstructor* constructor = ai->UnitTable()->FindBuilder(landPowerPlant, true);
 
 		if(constructor == nullptr)
-			constructor = ai->Getut()->FindBuilder(seaPowerPlant, true);
+			constructor = ai->UnitTable()->FindBuilder(seaPowerPlant, true);
 
 		if(constructor == nullptr)
 			return false; // no builder currently available -> check again next update
@@ -660,9 +660,9 @@ bool AAIExecute::BuildPowerPlant()
 		// determine random float in [0:1]
 		const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
 
-		if( randomValue < ai->Getbrain()->GetBaseWaterRatio() )
+		if( randomValue < ai->Brain()->GetBaseWaterRatio() )
 		{
-			UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
+			UnitDefId seaPowerPlant  = ai->BuildTable()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
 			buildOrderStatus = ConstructBuildingInSectors(seaPowerPlant, sectors);
 			offshoreConstructionAttempted = true;
 		}
@@ -670,14 +670,14 @@ bool AAIExecute::BuildPowerPlant()
 		// try construction on land (if not already successful on water)
 		if(buildOrderStatus != BuildOrderStatus::SUCCESSFUL)
 		{
-			UnitDefId landPowerPlant = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, false);
+			UnitDefId landPowerPlant = ai->BuildTable()->SelectPowerPlant(ai->GetSide(), selectionCriteria, false);
 			buildOrderStatus = ConstructBuildingInSectors(landPowerPlant, sectors);
 		}
 
 		// try construction on water (if not already tried and construction on land has not been successful)
 		if(!offshoreConstructionAttempted && (buildOrderStatus != BuildOrderStatus::SUCCESSFUL) )
 		{
-			UnitDefId seaPowerPlant  = ai->Getbt()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
+			UnitDefId seaPowerPlant  = ai->BuildTable()->SelectPowerPlant(ai->GetSide(), selectionCriteria, true);
 			buildOrderStatus = ConstructBuildingInSectors(seaPowerPlant, sectors);
 		}
 
@@ -700,7 +700,7 @@ void AAIExecute::DetermineSectorsToConstructEco(std::list<AAISector*>& sectors) 
 
 	std::set< std::pair<AAISector*, float>, InsertByRatingComparator<AAISector*> > availableSectors; 
 
-	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
+	for(auto sector : ai->Brain()->m_sectorsInDistToBase[0])
 	{
 		const float rating = sector->GetRatingForPowerPlant(previousGamesWeight, currentGameWeight);
 
@@ -731,7 +731,7 @@ BuildOrderStatus AAIExecute::ConstructBuildingInSectors(UnitDefId building, std:
 				return buildOrderStatus;
 			else if(buildOrderStatus == BuildOrderStatus::NO_BUILDER_AVAILABLE)
 			{
-				ai->Getbt()->RequestBuilderFor(building);
+				ai->BuildTable()->RequestBuilderFor(building);
 				return buildOrderStatus;
 			}
 		}
@@ -746,7 +746,7 @@ BuildOrderStatus AAIExecute::TryConstructionOfBuilding(UnitDefId building, AAISe
 
 	if(buildSite.IsValid())
 	{
-		const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(building, buildSite.Position(), true);
+		const AvailableConstructor selectedConstructor = ai->UnitTable()->FindClosestBuilder(building, buildSite.Position(), true);
 
 		if(selectedConstructor.IsValid())
 		{
@@ -763,21 +763,21 @@ BuildOrderStatus AAIExecute::TryConstructionOfBuilding(UnitDefId building, AAISe
 bool AAIExecute::BuildMetalMaker()
 {
 	const AAIUnitCategory metalMaker(EUnitCategory::METAL_EXTRACTOR);
-	if( (ai->Getut()->activeFactories < 1) && (ai->Getut()->GetNumberOfActiveUnitsOfCategory(metalMaker) >= 2) )
+	if( (ai->UnitTable()->activeFactories < 1) && (ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(metalMaker) >= 2) )
 		return true;
 
-	if( ai->Getut()->GetNumberOfFutureUnitsOfCategory(metalMaker) > 0)
+	if( ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(metalMaker) > 0)
 		return true;
 
 	bool checkWater, checkGround;
 	AAIConstructor *builder;
 	// urgency < 4
 
-	float urgency = ai->Getbrain()->GetMetalUrgency() / 2.0f;
+	float urgency = ai->Brain()->GetMetalUrgency() / 2.0f;
 
-	float cost = 0.25f + ai->Getbrain()->Affordable() / 2.0f;
+	float cost = 0.25f + ai->Brain()->Affordable() / 2.0f;
 
-	float efficiency = 0.25f + ai->Getut()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::METAL_MAKER)) / 4.0f ;
+	float efficiency = 0.25f + ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(AAIUnitCategory(EUnitCategory::METAL_MAKER)) / 4.0f ;
 	float metal = efficiency;
 
 
@@ -785,9 +785,9 @@ bool AAIExecute::BuildMetalMaker()
 	learned = 70000.0 / (ai->GetAICallback()->GetCurrentFrame() + 35000) + 1;
 	current = 2.5 - learned;
 
-	ai->Getbrain()->m_sectorsInDistToBase[0].sort(least_dangerous);
+	ai->Brain()->m_sectorsInDistToBase[0].sort(least_dangerous);
 
-	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
+	for(auto sector = ai->Brain()->m_sectorsInDistToBase[0].begin(); sector != ai->Brain()->m_sectorsInDistToBase[0].end(); ++sector)
 	{
 		if((*sector)->GetWaterTilesRatio() < 0.15f)
 		{
@@ -807,15 +807,15 @@ bool AAIExecute::BuildMetalMaker()
 
 		if(checkGround)
 		{
-			UnitDefId maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), cost,  efficiency, metal, urgency, false, false);
+			UnitDefId maker = ai->BuildTable()->GetMetalMaker(ai->GetSide(), cost,  efficiency, metal, urgency, false, false);
 
 			// currently aai cannot build this building
-			if(maker.IsValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
+			if(maker.IsValid() && ai->BuildTable()->units_dynamic[maker.id].constructorsAvailable <= 0)
 			{
-				if(ai->Getbt()->units_dynamic[maker.id].constructorsRequested <= 0)
-					ai->Getbt()->RequestBuilderFor(maker);
+				if(ai->BuildTable()->units_dynamic[maker.id].constructorsRequested <= 0)
+					ai->BuildTable()->RequestBuilderFor(maker);
 
-				maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), cost, efficiency, metal, urgency, false, true);
+				maker = ai->BuildTable()->GetMetalMaker(ai->GetSide(), cost, efficiency, metal, urgency, false, true);
 			}
 
 			if(maker.IsValid())
@@ -824,7 +824,7 @@ bool AAIExecute::BuildMetalMaker()
 
 				if(buildSite.IsValid())
 				{
-					const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(maker, buildSite.Position(), true);
+					const AvailableConstructor selectedConstructor = ai->UnitTable()->FindClosestBuilder(maker, buildSite.Position(), true);
 
 					if(selectedConstructor.IsValid())
 					{
@@ -833,13 +833,13 @@ bool AAIExecute::BuildMetalMaker()
 					}
 					else
 					{
-						ai->Getbt()->RequestBuilderFor(maker);
+						ai->BuildTable()->RequestBuilderFor(maker);
 						return false;
 					}
 				}
 				else
 				{
-					ai->Getbrain()->ExpandBase(EMapType::LAND);
+					ai->Brain()->ExpandBase(EMapType::LAND);
 					ai->Log("Base expanded by BuildMetalMaker()\n");
 				}
 			}
@@ -847,15 +847,15 @@ bool AAIExecute::BuildMetalMaker()
 
 		if(checkWater)
 		{
-			UnitDefId maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), ai->Getbrain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, false);
+			UnitDefId maker = ai->BuildTable()->GetMetalMaker(ai->GetSide(), ai->Brain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, false);
 
 			// currently aai cannot build this building
-			if(maker.IsValid() && ai->Getbt()->units_dynamic[maker.id].constructorsAvailable <= 0)
+			if(maker.IsValid() && ai->BuildTable()->units_dynamic[maker.id].constructorsAvailable <= 0)
 			{
-				if(ai->Getbt()->units_dynamic[maker.id].constructorsRequested <= 0)
-					ai->Getbt()->RequestBuilderFor(maker);
+				if(ai->BuildTable()->units_dynamic[maker.id].constructorsRequested <= 0)
+					ai->BuildTable()->RequestBuilderFor(maker);
 
-				maker = ai->Getbt()->GetMetalMaker(ai->GetSide(), ai->Getbrain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, true);
+				maker = ai->BuildTable()->GetMetalMaker(ai->GetSide(), ai->Brain()->Affordable(),  8.0/(urgency+2.0), 64.0/(16*urgency+2.0), urgency, true, true);
 			}
 
 			if(maker.IsValid())
@@ -864,7 +864,7 @@ bool AAIExecute::BuildMetalMaker()
 
 				if(buildSite.IsValid())
 				{
-					const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(maker, buildSite.Position(), true);
+					const AvailableConstructor selectedConstructor = ai->UnitTable()->FindClosestBuilder(maker, buildSite.Position(), true);
 
 					if(selectedConstructor.IsValid())
 					{
@@ -873,13 +873,13 @@ bool AAIExecute::BuildMetalMaker()
 					}
 					else
 					{
-						ai->Getbt()->RequestBuilderFor(maker);
+						ai->BuildTable()->RequestBuilderFor(maker);
 						return false;
 					}
 				}
 				else
 				{
-					ai->Getbrain()->ExpandBase(EMapType::WATER);
+					ai->Brain()->ExpandBase(EMapType::WATER);
 					ai->Log("Base expanded by BuildMetalMaker() (water sector)\n");
 				}
 			}
@@ -892,9 +892,9 @@ bool AAIExecute::BuildMetalMaker()
 bool AAIExecute::BuildStorage()
 {
 	const AAIUnitCategory storage(EUnitCategory::STORAGE);
-	if(	   (ai->Getut()->GetNumberOfFutureUnitsOfCategory(storage) > 0) 
-		|| (ai->Getut()->GetNumberOfActiveUnitsOfCategory(storage) >= cfg->MAX_STORAGE)
-		|| (ai->Getut()->activeFactories < 1) )
+	if(	   (ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(storage) > 0) 
+		|| (ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(storage) >= cfg->MAX_STORAGE)
+		|| (ai->UnitTable()->activeFactories < 1) )
 		return true;
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -908,19 +908,19 @@ bool AAIExecute::BuildStorage()
 	// try to build storage (start with highest rated sector)
 	//-----------------------------------------------------------------------------------------------------------------
 	
-	StorageSelectionCriteria selectionCriteria = ai->Getbrain()->DetermineStorageSelectionCriteria();
+	StorageSelectionCriteria selectionCriteria = ai->Brain()->DetermineStorageSelectionCriteria();
 
 	// do not try offshore construction if base edoes not contain water
-	bool offshoreConstructionAttempted( (ai->Getbrain()->GetBaseWaterRatio() < 0.05f) ); 
+	bool offshoreConstructionAttempted( (ai->Brain()->GetBaseWaterRatio() < 0.05f) ); 
 	BuildOrderStatus buildOrderStatus(BuildOrderStatus::BUILDING_INVALID);
 
 	// probability of trying to build sea power plant first is related to current water ratio of the base
 	// determine random float in [0:1]
 	const float randomValue = 0.01f * static_cast<float>(std::rand()%101);
 
-	if( randomValue < ai->Getbrain()->GetBaseWaterRatio() )
+	if( randomValue < ai->Brain()->GetBaseWaterRatio() )
 	{
-		UnitDefId seaStorage  = ai->Getbt()->SelectStorage(ai->GetSide(), selectionCriteria, true);
+		UnitDefId seaStorage  = ai->BuildTable()->SelectStorage(ai->GetSide(), selectionCriteria, true);
 		buildOrderStatus = ConstructBuildingInSectors(seaStorage, sectors);
 		offshoreConstructionAttempted = true;
 	}
@@ -928,14 +928,14 @@ bool AAIExecute::BuildStorage()
 	// try construction on land (if not already successful on water)
 	if(buildOrderStatus != BuildOrderStatus::SUCCESSFUL)
 	{
-		UnitDefId landStorage = ai->Getbt()->SelectStorage(ai->GetSide(), selectionCriteria, false);
+		UnitDefId landStorage = ai->BuildTable()->SelectStorage(ai->GetSide(), selectionCriteria, false);
 		buildOrderStatus = ConstructBuildingInSectors(landStorage, sectors);
 	}
 
 	// try construction on water (if not already tried and construction on land has not been successful)
 	if(!offshoreConstructionAttempted && (buildOrderStatus != BuildOrderStatus::SUCCESSFUL) )
 	{
-		UnitDefId seaStorage  = ai->Getbt()->SelectStorage(ai->GetSide(), selectionCriteria, true);
+		UnitDefId seaStorage  = ai->BuildTable()->SelectStorage(ai->GetSide(), selectionCriteria, true);
 		buildOrderStatus = ConstructBuildingInSectors(seaStorage, sectors);
 	}
 
@@ -1065,7 +1065,7 @@ bool AAIExecute::BuildAirBase()
 
 bool AAIExecute::BuildDefences()
 {
-	if(    (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_DEFENCE) > 2) 
+	if(    (ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_DEFENCE) > 2) 
 		|| (m_sectorToBuildNextDefence == nullptr) )
 		return true;
 
@@ -1100,7 +1100,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 	// determine criteria for selection of static defence and its buildsite
 	//-----------------------------------------------------------------------------------------------------------------
 	StaticDefenceSelectionCriteria selectionCriteria(targetType);
-	ai->Getbrain()->DetermineStaticDefenceSelectionCriteria(selectionCriteria, dest);
+	ai->Brain()->DetermineStaticDefenceSelectionCriteria(selectionCriteria, dest);
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// try construction of static defence according to determined criteria
@@ -1118,7 +1118,7 @@ BuildOrderStatus AAIExecute::BuildStationaryDefenceVS(const AAITargetType& targe
 
 BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const StaticDefenceSelectionCriteria& selectionCriteria, bool water) const
 {
-	const UnitDefId selectedDefence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water);
+	const UnitDefId selectedDefence = ai->BuildTable()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water);
 
 	if(selectedDefence.IsValid())
 	{
@@ -1126,7 +1126,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 
 		if(buildsite.x > 0.0f)
 		{
-			const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(selectedDefence, buildsite, ai->Getbrain()->IsCommanderAllowedForConstructionInSector(sector));
+			const AvailableConstructor selectedConstructor = ai->UnitTable()->FindClosestBuilder(selectedDefence, buildsite, ai->Brain()->IsCommanderAllowedForConstructionInSector(sector));
 
 			if(selectedConstructor.IsValid())
 			{
@@ -1136,7 +1136,7 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 			}
 			else
 			{
-				ai->Getbt()->RequestBuilderFor(selectedDefence);
+				ai->BuildTable()->RequestBuilderFor(selectedDefence);
 				return BuildOrderStatus::NO_BUILDER_AVAILABLE;
 			}
 		}
@@ -1152,32 +1152,32 @@ BuildOrderStatus AAIExecute::BuildStaticDefence(const AAISector* sector, const S
 
 bool AAIExecute::BuildArty()
 {
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_ARTILLERY) > 0)
+	if(ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_ARTILLERY) > 0)
 		return true;
 
 	const float cost(1.0f);
 	const float range(1.5f);
 
-	UnitDefId landArtillery = ai->Getbt()->SelectStaticArtillery(ai->GetSide(), cost, range, false);
-	UnitDefId seaArtillery  = ai->Getbt()->SelectStaticArtillery(ai->GetSide(), cost, range, true);
+	UnitDefId landArtillery = ai->BuildTable()->SelectStaticArtillery(ai->GetSide(), cost, range, false);
+	UnitDefId seaArtillery  = ai->BuildTable()->SelectStaticArtillery(ai->GetSide(), cost, range, true);
 
-	if(landArtillery.IsValid() && (ai->Getbt()->units_dynamic[landArtillery.id].constructorsAvailable <= 0))
+	if(landArtillery.IsValid() && (ai->BuildTable()->units_dynamic[landArtillery.id].constructorsAvailable <= 0))
 	{
-		if(ai->Getbt()->units_dynamic[landArtillery.id].constructorsRequested <= 0)
-			ai->Getbt()->RequestBuilderFor(landArtillery);
+		if(ai->BuildTable()->units_dynamic[landArtillery.id].constructorsRequested <= 0)
+			ai->BuildTable()->RequestBuilderFor(landArtillery);
 	}
 
-	if(seaArtillery.IsValid() && (ai->Getbt()->units_dynamic[seaArtillery.id].constructorsAvailable <= 0))
+	if(seaArtillery.IsValid() && (ai->BuildTable()->units_dynamic[seaArtillery.id].constructorsAvailable <= 0))
 	{
-		if(ai->Getbt()->units_dynamic[seaArtillery.id].constructorsRequested <= 0)
-			ai->Getbt()->RequestBuilderFor(seaArtillery);
+		if(ai->BuildTable()->units_dynamic[seaArtillery.id].constructorsRequested <= 0)
+			ai->BuildTable()->RequestBuilderFor(seaArtillery);
 	}
 
 	//ai->Log("Selected artillery (land/sea): %s / %s\n", ai->s_buildTree.GetUnitTypeProperties(landArtillery).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(seaArtillery).m_name.c_str());
 
 	BuildSite bestBuildSite;
 
-	for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
+	for(auto sector = ai->Brain()->m_sectorsInDistToBase[0].begin(); sector != ai->Brain()->m_sectorsInDistToBase[0].end(); ++sector)
 	{
 		if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_ARTILLERY) < 2)
 		{
@@ -1204,7 +1204,7 @@ bool AAIExecute::BuildArty()
 	{
 		const UnitDefId artillery = (bestBuildSite.Position().y > 0.0f) ? landArtillery : seaArtillery;
 
-		const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(artillery, bestBuildSite.Position(), true);
+		const AvailableConstructor selectedConstructor = ai->UnitTable()->FindClosestBuilder(artillery, bestBuildSite.Position(), true);
 
 		if(selectedConstructor.IsValid())
 		{
@@ -1213,7 +1213,7 @@ bool AAIExecute::BuildArty()
 		}
 		else
 		{
-			ai->Getbt()->RequestBuilderFor(artillery);
+			ai->BuildTable()->RequestBuilderFor(artillery);
 			return false;
 		}
 	}
@@ -1223,7 +1223,7 @@ bool AAIExecute::BuildArty()
 
 bool AAIExecute::BuildStaticConstructor()
 {
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_CONSTRUCTOR) > 0)
+	if(ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_CONSTRUCTOR) > 0)
 		return true;
 
 	//-----------------------------------------------------------------------------------------------------------------
@@ -1235,23 +1235,23 @@ bool AAIExecute::BuildStaticConstructor()
 	//ai->Log("Building next factory:\n");
 
 	// Determine urgency to counter each of the different combat categories
-	TargetTypeValues combatPowerVsTargetType = ai->Getbrain()->DetermineCombatPowerVsTargetType();
+	TargetTypeValues combatPowerVsTargetType = ai->Brain()->DetermineCombatPowerVsTargetType();
 	const float sum = combatPowerVsTargetType.CalcuateSum();
 	combatPowerVsTargetType.MultiplyValues(1.0f /  sum);
 
 	for(auto factory : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()) )
 	{
-		if(ai->Getbt()->GetDynamicUnitTypeData(factory).requested > 0)
+		if(ai->BuildTable()->GetDynamicUnitTypeData(factory).requested > 0)
 		{
-			if(ai->Getbt()->GetDynamicUnitTypeData(factory).constructorsAvailable > 0)
+			if(ai->BuildTable()->GetDynamicUnitTypeData(factory).constructorsAvailable > 0)
 			{
-				const float urgency = ai->Getbrain()->DetermineConstructionUrgencyOfFactory(factory, combatPowerVsTargetType);
+				const float urgency = ai->Brain()->DetermineConstructionUrgencyOfFactory(factory, combatPowerVsTargetType);
 				requestedFactories.insert( std::pair<UnitDefId, float>(factory, urgency) );
 				//ai->Log("Added %s - %f\n", ai->s_buildTree.GetUnitTypeProperties(factory).m_name.c_str(), urgency);
 			}
 			else
 			{
-				ai->Getbt()->RequestBuilderFor(factory);
+				ai->BuildTable()->RequestBuilderFor(factory);
 			}
 		}
 	}
@@ -1263,7 +1263,7 @@ bool AAIExecute::BuildStaticConstructor()
 	for(auto requestedFactory : requestedFactories)
 	{
 		// find suitable builder
-		AAIConstructor* builder = ai->Getut()->FindBuilder(requestedFactory.first, true);
+		AAIConstructor* builder = ai->UnitTable()->FindBuilder(requestedFactory.first, true);
 	
 		if(builder == nullptr)
 		{
@@ -1276,27 +1276,27 @@ bool AAIExecute::BuildStaticConstructor()
 		//-----------------------------------------------------------------------------------------------------------------
 		const bool isSeaFactory( ai->s_buildTree.GetMovementType(requestedFactory.first).IsStaticSea() );
 
-		ai->Getbrain()->m_sectorsInDistToBase[0].sort(isSeaFactory ? suitable_for_sea_factory : suitable_for_ground_factory);
+		ai->Brain()->m_sectorsInDistToBase[0].sort(isSeaFactory ? suitable_for_sea_factory : suitable_for_ground_factory);
 
-		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
+		for(auto sector : ai->Brain()->m_sectorsInDistToBase[0])
 		{
 			const BuildSite buildsite = DetermineBuildsiteInSector(requestedFactory.first, sector);
 
 			if(buildsite.IsValid())
 			{
-				const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(requestedFactory.first, buildsite.Position(), true);
+				const AvailableConstructor selectedConstructor = ai->UnitTable()->FindClosestBuilder(requestedFactory.first, buildsite.Position(), true);
 
 				if(selectedConstructor.IsValid())
 				{
 					selectedConstructor.Constructor()->GiveConstructionOrder(requestedFactory.first, buildsite.Position());
 
-					ai->Getbt()->ConstructionOrderForFactoryGiven(requestedFactory.first);
+					ai->BuildTable()->ConstructionOrderForFactoryGiven(requestedFactory.first);
 					return true;
 				}
 				else 
 				{
-					if(ai->Getbt()->GetTotalNumberOfConstructorsForUnit(requestedFactory.first) <= 0)
-						ai->Getbt()->RequestBuilderFor(requestedFactory.first);
+					if(ai->BuildTable()->GetTotalNumberOfConstructorsForUnit(requestedFactory.first) <= 0)
+						ai->BuildTable()->RequestBuilderFor(requestedFactory.first);
 
 					return false;
 				}
@@ -1309,12 +1309,12 @@ bool AAIExecute::BuildStaticConstructor()
 		// no suitable buildsite found
 		if(isSeaFactory)
 		{
-			ai->Getbrain()->ExpandBase(EMapType::WATER, false);
+			ai->Brain()->ExpandBase(EMapType::WATER, false);
 			ai->Log("Base expanded by BuildFactory() (water sector)\n");
 		}
 		else
 		{
-			expanded = ai->Getbrain()->ExpandBase(EMapType::LAND, false);
+			expanded = ai->Brain()->ExpandBase(EMapType::LAND, false);
 			ai->Log("Base expanded by BuildFactory()\n");
 		}
 
@@ -1327,21 +1327,21 @@ bool AAIExecute::BuildStaticConstructor()
 bool AAIExecute::BuildRadar()
 {
 	const AAIUnitCategory sensor(EUnitCategory::STATIC_SENSOR);
-	if(ai->Getut()->GetTotalNumberOfUnitsOfCategory(sensor) > ai->Getbrain()->m_sectorsInDistToBase[0].size())
+	if(ai->UnitTable()->GetTotalNumberOfUnitsOfCategory(sensor) > ai->Brain()->m_sectorsInDistToBase[0].size())
 		return true;
 
-	const float cost = ai->Getbrain()->Affordable();
+	const float cost = ai->Brain()->Affordable();
 	const float range = 10.0 / (cost + 1);
 
-	const UnitDefId	landRadar = ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, false);
-	const UnitDefId	seaRadar  = ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, true);
+	const UnitDefId	landRadar = ai->BuildTable()->SelectRadar(ai->GetSide(), cost, range, false);
+	const UnitDefId	seaRadar  = ai->BuildTable()->SelectRadar(ai->GetSide(), cost, range, true);
 
 	UnitDefId selectedRadar;
 	BuildSite bestBuildSite;
 	
 	for(int dist = 0; dist < 2; ++dist)
 	{
-		for(auto sector = ai->Getbrain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[dist].end(); ++sector)
+		for(auto sector = ai->Brain()->m_sectorsInDistToBase[dist].begin(); sector != ai->Brain()->m_sectorsInDistToBase[dist].end(); ++sector)
 		{
 			if((*sector)->GetNumberOfBuildings(EUnitCategory::STATIC_SENSOR) <= 0)
 			{
@@ -1371,7 +1371,7 @@ bool AAIExecute::BuildRadar()
 
 	if(selectedRadar.IsValid())
 	{
-		const AvailableConstructor selectedBuilder = ai->Getut()->FindClosestBuilder(selectedRadar, bestBuildSite.Position(), true);
+		const AvailableConstructor selectedBuilder = ai->UnitTable()->FindClosestBuilder(selectedRadar, bestBuildSite.Position(), true);
 
 		if(selectedBuilder.IsValid())
 		{
@@ -1380,7 +1380,7 @@ bool AAIExecute::BuildRadar()
 		}
 		else
 		{
-			ai->Getbt()->RequestBuilderFor(selectedRadar);
+			ai->BuildTable()->RequestBuilderFor(selectedRadar);
 			return false;
 		}
 	}
@@ -1469,12 +1469,12 @@ bool AAIExecute::BuildJammer()
 
 void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId extractorDefId) const
 {
-	if(ai->Getut()->activeFactories < cfg->MIN_FACTORIES_FOR_DEFENCES)
+	if(ai->UnitTable()->activeFactories < cfg->MIN_FACTORIES_FOR_DEFENCES)
 		return;
 
 	const float3 extractorPos = ai->GetAICallback()->GetUnitPos(extractorId.id);
 
-	const MapPos& centerOfBase = ai->Getbrain()->GetCenterOfBase(); 
+	const MapPos& centerOfBase = ai->Brain()->GetCenterOfBase(); 
 	const float3 base_pos(centerOfBase.x * SQUARE_SIZE, 0.0f, centerOfBase.y * SQUARE_SIZE);
 	
 	// check if mex is located in a small pond/on a little island
@@ -1493,7 +1493,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 			const AAITargetType targetType( water ? ETargetType::FLOATER : ETargetType::SURFACE);
 
 			const StaticDefenceSelectionCriteria selectionCriteria(targetType, 1.0f, 0.1f, 2.0f, 3.0f, 1.0f, 0);
-			const UnitDefId defence = ai->Getbt()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water); 
+			const UnitDefId defence = ai->BuildTable()->SelectStaticDefence(ai->GetSide(), selectionCriteria, water); 
 
 			// find closest builder
 			if(defence.IsValid())
@@ -1516,7 +1516,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 				defenceBuildPos.z = extractorPos.z + distToExtratcor * yDir;
 
 				// find final buildsite (close to previously determined location)
-				const float3 finalDefenceBuildPos = ai->GetAICallback()->ClosestBuildSite(&ai->Getbt()->GetUnitDef(defence.id), defenceBuildPos, 1400.0f, 2);
+				const float3 finalDefenceBuildPos = ai->GetAICallback()->ClosestBuildSite(&ai->BuildTable()->GetUnitDef(defence.id), defenceBuildPos, 1400.0f, 2);
 
 				if(finalDefenceBuildPos.x > 0.0f)
 				{
@@ -1524,7 +1524,7 @@ void AAIExecute::BuildStaticDefenceForExtractor(UnitId extractorId, UnitDefId ex
 
 					const bool commanderAllowed = sector ? (sector->GetDistanceToBase() < 3) : false;
 
-					const AvailableConstructor selectedConstructor = ai->Getut()->FindClosestBuilder(defence, finalDefenceBuildPos, commanderAllowed);
+					const AvailableConstructor selectedConstructor = ai->UnitTable()->FindClosestBuilder(defence, finalDefenceBuildPos, commanderAllowed);
 
 					if(selectedConstructor.IsValid())
 						selectedConstructor.Constructor()->GiveConstructionOrder(defence, finalDefenceBuildPos);
@@ -1543,10 +1543,10 @@ void AAIExecute::CheckStationaryArty()
 
 	const AAIUnitCategory staticArtillery(EUnitCategory::STATIC_ARTILLERY);
 
-	if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(staticArtillery) +  ai->Getut()->GetNumberOfRequestedUnitsOfCategory(staticArtillery) > 0)
+	if(ai->UnitTable()->GetNumberOfUnitsUnderConstructionOfCategory(staticArtillery) +  ai->UnitTable()->GetNumberOfRequestedUnitsOfCategory(staticArtillery) > 0)
 		return;
 
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(staticArtillery) >= cfg->MAX_STAT_ARTY)
+	if(ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(staticArtillery) >= cfg->MAX_STAT_ARTY)
 		return;
 
 	const float temp = 0.05f;
@@ -1563,7 +1563,7 @@ void AAIExecute::CheckBuildqueues()
 
 	for(int factoryId = 0; factoryId < factoryTable.size(); ++factoryId)
 	{
-		if(ai->Getbt()->units_dynamic[ factoryTable[factoryId].id ].active > 0)
+		if(ai->BuildTable()->units_dynamic[ factoryTable[factoryId].id ].active > 0)
 		{
 			totalQueuedUnits += static_cast<int>(m_buildqueues[factoryId].size());
 			++numberOfActiveFactoryTypes;
@@ -1594,8 +1594,8 @@ void AAIExecute::CheckBuildqueues()
 
 void AAIExecute::CheckDefences()
 {
-	if(    (ai->Getut()->activeFactories < cfg->MIN_FACTORIES_FOR_DEFENCES)
-		|| (ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_DEFENCE) > 2) )
+	if(    (ai->UnitTable()->activeFactories < cfg->MIN_FACTORIES_FOR_DEFENCES)
+		|| (ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_DEFENCE) > 2) )
 		return;
 
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
@@ -1608,7 +1608,7 @@ void AAIExecute::CheckDefences()
 
 	for(int dist = 1; dist <= maxSectorDistToBase; ++dist)
 	{
-		for(const auto sector : ai->Getbrain()->m_sectorsInDistToBase[dist])
+		for(const auto sector : ai->Brain()->m_sectorsInDistToBase[dist])
 		{
 			// stop building further defences if maximum has been reached / sector contains allied buildings / is occupied by another aai instance
 			AAITargetType targetType;		
@@ -1651,19 +1651,19 @@ void AAIExecute::CheckDefences()
 
 void AAIExecute::CheckConstructionOfNanoTurret()
 {
-	const bool insufficientResources       = (ai->Getbrain()->GetAverageMetalSurplus() < 0.5f) && (ai->Getbrain()->GetAverageAvailableMetal() > 50.0f);
-	const bool nanoTurretUnderConstruction = ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_ASSISTANCE) > 0;
+	const bool insufficientResources       = (ai->Brain()->GetAverageMetalSurplus() < 0.5f) && (ai->Brain()->GetAverageAvailableMetal() > 50.0f);
+	const bool nanoTurretUnderConstruction = ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::STATIC_ASSISTANCE) > 0;
 	if( insufficientResources || nanoTurretUnderConstruction )
 		return;
 
-	for(auto constructorUnitId : ai->Getut()->GetConstructors())
+	for(auto constructorUnitId : ai->UnitTable()->GetConstructors())
 	{
-		const AAIConstructor* constructor = ai->Getut()->GetUnit(constructorUnitId).cons;
+		const AAIConstructor* constructor = ai->UnitTable()->GetUnit(constructorUnitId).cons;
 
 		if( constructor->IsAssitanceByNanoTurretDesired() )
 		{
-			UnitDefId landNanoTurretDefId = ai->Getbt()->SelectNanoTurret(ai->GetSide(), false);
-			UnitDefId seaNanoTurretDefId  = ai->Getbt()->SelectNanoTurret(ai->GetSide(), true);
+			UnitDefId landNanoTurretDefId = ai->BuildTable()->SelectNanoTurret(ai->GetSide(), false);
+			UnitDefId seaNanoTurretDefId  = ai->BuildTable()->SelectNanoTurret(ai->GetSide(), true);
 
 			if(landNanoTurretDefId.IsValid())
 			{
@@ -1682,7 +1682,7 @@ void AAIExecute::CheckConstructionOfNanoTurret()
 
 					if(sector->GetNumberOfBuildings(EUnitCategory::STATIC_ASSISTANCE) < cfg->MAX_NANO_TURRETS_PER_SECTOR)
 					{
-						const AvailableConstructor constructor = ai->Getut()->FindClosestBuilder(nanoTurretDefId, buildSite.Position(), true);
+						const AvailableConstructor constructor = ai->UnitTable()->FindClosestBuilder(nanoTurretDefId, buildSite.Position(), true);
 
 						if(constructor.IsValid())
 							constructor.Constructor()->GiveConstructionOrder(nanoTurretDefId, buildSite.Position());
@@ -1695,32 +1695,32 @@ void AAIExecute::CheckConstructionOfNanoTurret()
 
 void AAIExecute::CheckRessources()
 {
-	SetConstructionUrgencyIfHigher(EUnitCategory::METAL_EXTRACTOR, ai->Getbrain()->GetMetalUrgency());
-	SetConstructionUrgencyIfHigher(EUnitCategory::POWER_PLANT,     ai->Getbrain()->GetEnergyUrgency());
+	SetConstructionUrgencyIfHigher(EUnitCategory::METAL_EXTRACTOR, ai->Brain()->GetMetalUrgency());
+	SetConstructionUrgencyIfHigher(EUnitCategory::POWER_PLANT,     ai->Brain()->GetEnergyUrgency());
 
-	const float storageUrgency = max(ai->Getbrain()->GetMetalStorageUrgency(), ai->Getbrain()->GetEnergyStorageUrgency());
+	const float storageUrgency = max(ai->Brain()->GetMetalStorageUrgency(), ai->Brain()->GetEnergyStorageUrgency());
 	SetConstructionUrgencyIfHigher(EUnitCategory::STORAGE, storageUrgency);
 
 	// energy low
-	if(ai->Getbrain()->GetAveragEnergySurplus() < 0.1f * ai->GetAICallback()->GetEnergyIncome())
+	if(ai->Brain()->GetAveragEnergySurplus() < 0.1f * ai->GetAICallback()->GetEnergyIncome())
 	{
 		// try to accelerate power plant construction
 		const AAIUnitCategory plant(EUnitCategory::POWER_PLANT);
-		if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(plant) > 0)
+		if(ai->UnitTable()->GetNumberOfUnitsUnderConstructionOfCategory(plant) > 0)
 			AssistConstructionOfCategory(plant);
 	}
 
 	// metal low
-	if(ai->Getbrain()->GetAverageMetalSurplus() < AAIConstants::minMetalSurplusForConstructionAssist)
+	if(ai->Brain()->GetAverageMetalSurplus() < AAIConstants::minMetalSurplusForConstructionAssist)
 	{
 		// try to accelerate mex construction
 		const AAIUnitCategory extractor(EUnitCategory::METAL_EXTRACTOR);
-		if(ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(extractor) > 0)
+		if(ai->UnitTable()->GetNumberOfUnitsUnderConstructionOfCategory(extractor) > 0)
 			AssistConstructionOfCategory(extractor);
 
 		// try to accelerate mex construction
 		const AAIUnitCategory metalMaker(EUnitCategory::METAL_MAKER);
-		if( (ai->Getut()->GetNumberOfUnitsUnderConstructionOfCategory(metalMaker) > 0) && (ai->Getbrain()->GetAveragEnergySurplus() > cfg->MIN_METAL_MAKER_ENERGY) )
+		if( (ai->UnitTable()->GetNumberOfUnitsUnderConstructionOfCategory(metalMaker) > 0) && (ai->Brain()->GetAveragEnergySurplus() > cfg->MIN_METAL_MAKER_ENERGY) )
 			AssistConstructionOfCategory(metalMaker);
 	}
 }
@@ -1730,7 +1730,7 @@ void AAIExecute::CheckExtractorUpgrade()
 	//-----------------------------------------------------------------------------------------------------------------
 	// skip check for extractor upgrade if there are empty metal spots or extractors under construction
 	//-----------------------------------------------------------------------------------------------------------------
-	for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[0])
+	for(auto sector : ai->Brain()->m_sectorsInDistToBase[0])
 	{
 		for(auto spot : sector->metalSpots)
 		{
@@ -1739,20 +1739,20 @@ void AAIExecute::CheckExtractorUpgrade()
 		}
 	}
 
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::METAL_EXTRACTOR) > 0)
+	if(ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::METAL_EXTRACTOR) > 0)
 		return;
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// determine which type of extractor could be build on land/sea
 	//-----------------------------------------------------------------------------------------------------------------
 
-	ExtractorSelectionCriteria selectionCriteria = ai->Getbrain()->DetermineExtractorSelectionCriteria();
+	ExtractorSelectionCriteria selectionCriteria = ai->Brain()->DetermineExtractorSelectionCriteria();
 
-	const UnitDefId landExtractor  = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, false);
-	const UnitDefId seaExtractor   = ai->Getbt()->SelectExtractor(ai->GetSide(), selectionCriteria, true);
+	const UnitDefId landExtractor  = ai->BuildTable()->SelectExtractor(ai->GetSide(), selectionCriteria, false);
+	const UnitDefId seaExtractor   = ai->BuildTable()->SelectExtractor(ai->GetSide(), selectionCriteria, true);
 
-	const bool constructorForLandExtractorAvailable = landExtractor.IsValid() && (ai->Getbt()->GetNumberOfAvailableConstructorsForUnit(landExtractor) > 0);
-	const bool constructorForSeaExtractorAvailable  = seaExtractor.IsValid()  && (ai->Getbt()->GetNumberOfAvailableConstructorsForUnit(seaExtractor)  > 0);
+	const bool constructorForLandExtractorAvailable = landExtractor.IsValid() && (ai->BuildTable()->GetNumberOfAvailableConstructorsForUnit(landExtractor) > 0);
+	const bool constructorForSeaExtractorAvailable  = seaExtractor.IsValid()  && (ai->BuildTable()->GetNumberOfAvailableConstructorsForUnit(seaExtractor)  > 0);
 
 	if( (constructorForLandExtractorAvailable == false) && (constructorForSeaExtractorAvailable == false) )
 		return;
@@ -1768,7 +1768,7 @@ void AAIExecute::CheckExtractorUpgrade()
 
 	for(int dist = 0; dist < 2; ++dist)
 	{
-		for(auto sector : ai->Getbrain()->m_sectorsInDistToBase[dist])
+		for(auto sector : ai->Brain()->m_sectorsInDistToBase[dist])
 		{
 			for(auto spot : sector->metalSpots)
 			{
@@ -1800,7 +1800,7 @@ void AAIExecute::CheckExtractorUpgrade()
 	//-----------------------------------------------------------------------------------------------------------------
 	if(selectedMetalSpot)
 	{
-		AAIConstructor *builder = ai->Getut()->FindClosestAssistant(selectedMetalSpot->pos, 10, true);
+		AAIConstructor *builder = ai->UnitTable()->FindClosestAssistant(selectedMetalSpot->pos, 10, true);
 
 		if(builder)
 			builder->GiveReclaimOrder(selectedMetalSpot->extractorUnitId);
@@ -1810,26 +1810,26 @@ void AAIExecute::CheckExtractorUpgrade()
 
 void AAIExecute::CheckRadarUpgrade()
 {
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_SENSOR))  > 0)
+	if(ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_SENSOR))  > 0)
 		return;
 
-	const float cost = ai->Getbrain()->Affordable();
+	const float cost = ai->Brain()->Affordable();
 	const float range = 10.0f / (cost + 1.0f);
 
 	// check all existing sensors for upgrades
-	for(auto sensor : ai->Getut()->GetStaticSensors())
+	for(auto sensor : ai->UnitTable()->GetStaticSensors())
 	{
-		const UnitDefId sensorDefId = ai->Getut()->GetUnitDefId(sensor);
+		const UnitDefId sensorDefId = ai->UnitTable()->GetUnitDefId(sensor);
 		const bool water = ai->s_buildTree.GetMovementType(sensorDefId).IsStaticSea();
 
-		const UnitDefId upgradedSensor = ai->Getbt()->SelectRadar(ai->GetSide(), cost, range, water);
+		const UnitDefId upgradedSensor = ai->BuildTable()->SelectRadar(ai->GetSide(), cost, range, water);
 		
 		const bool upgrade = upgradedSensor.IsValid() && (ai->s_buildTree.GetMaxRange(sensorDefId) < ai->s_buildTree.GetMaxRange(upgradedSensor));
 
 		if(upgrade)
 		{
 			// better radar found, clear buildpos
-			AAIConstructor *builder = ai->Getut()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(sensor.id), 10, true);
+			AAIConstructor *builder = ai->UnitTable()->FindClosestAssistant(ai->GetAICallback()->GetUnitPos(sensor.id), 10, true);
 
 			if(builder)
 			{
@@ -1902,15 +1902,15 @@ void AAIExecute::CheckJammerUpgrade()
 
 void AAIExecute::CheckFactories()
 {
-	if(ai->Getut()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR)) > 0)
+	if(ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(AAIUnitCategory(EUnitCategory::STATIC_CONSTRUCTOR)) > 0)
 		return;
 
 	for(auto factory : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()) )
 	{
-		if(ai->Getbt()->units_dynamic[factory.id].requested > 0)
+		if(ai->BuildTable()->units_dynamic[factory.id].requested > 0)
 		{
 			// at least one requested factory has not been built yet
-			const float urgency = (ai->Getut()->activeFactories > 0) ? 0.5f : 3.5f;
+			const float urgency = (ai->UnitTable()->activeFactories > 0) ? 0.5f : 3.5f;
 
 			SetConstructionUrgencyIfHigher(EUnitCategory::STATIC_CONSTRUCTOR, urgency);
 
@@ -1924,8 +1924,8 @@ void AAIExecute::CheckRecon()
 	float radarUrgency(0.0f);
 	
 	// do not build radar before at least one factory is finished.
-	if(ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STATIC_CONSTRUCTOR) > 0)
-		radarUrgency = 0.02f + 0.5f / ((float)(2 * ai->Getut()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STATIC_SENSOR) + 1));
+	if(ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STATIC_CONSTRUCTOR) > 0)
+		radarUrgency = 0.02f + 0.5f / ((float)(2 * ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::STATIC_SENSOR) + 1));
 
 	SetConstructionUrgencyIfHigher(EUnitCategory::STATIC_SENSOR, radarUrgency);
 }
@@ -2001,13 +2001,13 @@ bool AAIExecute::AssistConstructionOfCategory(const AAIUnitCategory& category)
 {
 	for(auto task : ai->GetBuildTasks())
 	{
-		AAIConstructor *builder = task->GetConstructor(ai->Getut());
+		AAIConstructor *builder = task->GetConstructor(ai->UnitTable());
 
 		if(   (builder != nullptr) 
 		   && (builder->GetCategoryOfConstructedUnit() == category)
 		   && (builder->assistants.size() < cfg->MAX_ASSISTANTS) )
 		{
-			AAIConstructor* assistant = ai->Getut()->FindClosestAssistant(builder->GetBuildPos(), 5, true);
+			AAIConstructor* assistant = ai->UnitTable()->FindClosestAssistant(builder->GetBuildPos(), 5, true);
 
 			if(assistant)
 			{
@@ -2103,13 +2103,13 @@ void AAIExecute::ConstructionFailed(const float3& buildsite, UnitDefId unitDefId
 	}
 	else if(category.IsStaticConstructor())
 	{
-		ai->Getut()->futureFactories -= 1;
+		ai->UnitTable()->futureFactories -= 1;
 
-		ai->Getbt()->UnfinishedConstructorKilled(unitDefId);
+		ai->BuildTable()->UnfinishedConstructorKilled(unitDefId);
 	}
 
 	// update buildmap of sector
-	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(unitDefId.id);
+	const springLegacyAI::UnitDef *def = &ai->BuildTable()->GetUnitDef(unitDefId.id);
 	ai->Map()->UpdateBuildMap(buildsite, def, false);
 }
 
@@ -2166,7 +2166,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 		// get continent id of the unit pos
 		const int continentId = AAIMap::GetContinentID(unit_pos);
 
-		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = ai->Brain()->m_sectorsInDistToBase[0].begin(); sector != ai->Brain()->m_sectorsInDistToBase[0].end(); ++sector)
 		{
 			//! @todo Implement more refined selection
 			const float3 pos = (*sector)->DetermineUnitMovePos(moveType, continentId);
@@ -2185,7 +2185,7 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 	}
 	else // non continent bound movement types (air, hover, amphibious)
 	{
-		for(std::list<AAISector*>::iterator sector = ai->Getbrain()->m_sectorsInDistToBase[0].begin(); sector != ai->Getbrain()->m_sectorsInDistToBase[0].end(); ++sector)
+		for(std::list<AAISector*>::iterator sector = ai->Brain()->m_sectorsInDistToBase[0].begin(); sector != ai->Brain()->m_sectorsInDistToBase[0].end(); ++sector)
 		{
 			const float rating = static_cast<float>( (*sector)->GetEdgeDistance() ) - (*sector)->GetEnemyCombatPower(ai->s_buildTree.GetTargetType(unitDefId));
 
@@ -2251,7 +2251,7 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 	// add best sector to base
 	if(selectedSector)
 	{
-		ai->Getbrain()->AssignSectorToBase(selectedSector, true);
+		ai->Brain()->AssignSectorToBase(selectedSector, true);
 	}
 }
 
@@ -2261,7 +2261,7 @@ void AAIExecute::CheckKeepDistanceToEnemy(UnitId unit, UnitDefId unitDefId, Unit
 	const float enemyWeaponRange = ai->s_buildTree.GetMaxRange(enemyDefId);
 
 	const bool rangeOk    = (weaponRange > enemyWeaponRange + AAIConstants::minWeaponRangeDiffToKeepDistance);
-	const bool turnrateOk = (ai->Getbt()->GetUnitDef(unitDefId.id).turnRate >= cfg->MIN_FALLBACK_TURNRATE);
+	const bool turnrateOk = (ai->BuildTable()->GetUnitDef(unitDefId.id).turnRate >= cfg->MIN_FALLBACK_TURNRATE);
 
 	if(rangeOk && turnrateOk)
 	{
@@ -2337,7 +2337,7 @@ void AAIExecute::GiveOrder(Command *c, int unit, const char *owner)
 	//if(m_numberOfIssuedOrders%500 == 0)
 	//	ai->Log("%i th order has been given by %s in frame %i\n", m_numberOfIssuedOrders, owner,  ai->GetAICallback()->GetCurrentFrame());
 
-	ai->Getut()->units[unit].last_order = ai->GetAICallback()->GetCurrentFrame();
+	ai->UnitTable()->units[unit].last_order = ai->GetAICallback()->GetCurrentFrame();
 
 	ai->GetAICallback()->GiveOrder(unit, c);
 }

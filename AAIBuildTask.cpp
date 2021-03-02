@@ -57,9 +57,9 @@ bool AAIBuildTask::CheckIfConstructionFailed(AAI* ai, UnitId unitId)
 	{
 		// cleanup buildmap etc.
 		if(ai->s_buildTree.GetMovementType(m_defId).IsStatic())
-			ai->Getexecute()->ConstructionFailed(m_buildsite, m_defId);
+			ai->Execute()->ConstructionFailed(m_buildsite, m_defId);
 
-		AAIConstructor* constructor = GetConstructor(ai->Getut());
+		AAIConstructor* constructor = GetConstructor(ai->UnitTable());
 
 		if(constructor)
 			constructor->ConstructionFinished();

@@ -113,8 +113,8 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 		AddGroupsToAttack(attack, availableAssaultGroupsGlobal);
 
 		// add anti air units if necessary
-		if(    (ai->Getbrain()->m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(ETargetType::AIR) > 0.2f)
-			|| (ai->Getbrain()->GetRecentAttacksBy(ETargetType::AIR) > 0.9f) )
+		if(    (ai->Brain()->m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(ETargetType::AIR) > 0.2f)
+			|| (ai->Brain()->GetRecentAttacksBy(ETargetType::AIR) > 0.9f) )
 		{
 			std::list<AAIGroup*> antiAirGroups;
 			SelectNumberOfGroups(antiAirGroups, 1, availableAAGroupsOnContinent[targetSector->GetContinentID()], availableAAGroupsGlobal);

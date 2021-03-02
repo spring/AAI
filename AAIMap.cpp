@@ -700,7 +700,7 @@ BuildSite AAIMap::DetermineRandomBuildsite(UnitDefId unitDefId, int xStart, int 
 			ConvertMapPosToUnitPos(mapPos, position, footprint);
 			ConvertPositionToFinalBuildsite(position, footprint);
 
-			const springLegacyAI::UnitDef* unitDef  = &ai->Getbt()->GetUnitDef(unitDefId.id);
+			const springLegacyAI::UnitDef* unitDef  = &ai->BuildTable()->GetUnitDef(unitDefId.id);
 			if(ai->GetAICallback()->CanBuildAt(unitDef, position))
 			{
 				const int x = position.x/xSectorSize;
@@ -721,7 +721,7 @@ BuildSite AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitI
 	const float3 unitPosition = ai->GetAICallback()->GetUnitPos(unitId.id);
 
 	const UnitFootprint            footprint = DetermineRequiredFreeBuildspace(buildingDefId);
-	const springLegacyAI::UnitDef* unitDef   = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+	const springLegacyAI::UnitDef* unitDef   = &ai->BuildTable()->GetUnitDef(buildingDefId.id);
 
 	// check rect
 	const int xStart = unitPosition.x / SQUARE_SIZE;
@@ -758,7 +758,7 @@ BuildSite AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAIS
 	sector->DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
 	const UnitFootprint            footprint = DetermineRequiredFreeBuildspace(buildingDefId);
-	const springLegacyAI::UnitDef* def       = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+	const springLegacyAI::UnitDef* def       = &ai->BuildTable()->GetUnitDef(buildingDefId.id);
 
 	// check rect
 	for(int yPos = yStart; yPos < yEnd; yPos += 2)
@@ -828,7 +828,7 @@ BuildSite AAIMap::DetermineElevatedBuildsite(UnitDefId buildingDefId, int xStart
 					ConvertMapPosToUnitPos(mapPos, position, footprint);
 					ConvertPositionToFinalBuildsite(position, footprint);
 
-					const springLegacyAI::UnitDef* unitDef = &ai->Getbt()->GetUnitDef(buildingDefId.id);
+					const springLegacyAI::UnitDef* unitDef = &ai->BuildTable()->GetUnitDef(buildingDefId.id);
 
 					if(ai->GetAICallback()->CanBuildAt(unitDef, position))
 					{
@@ -844,7 +844,7 @@ BuildSite AAIMap::DetermineElevatedBuildsite(UnitDefId buildingDefId, int xStart
 
 float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const AAISector* sector, const AAITargetType& targetType, float terrainModifier) const
 {
-	const springLegacyAI::UnitDef *def = &ai->Getbt()->GetUnitDef(staticDefence.id);
+	const springLegacyAI::UnitDef *def = &ai->BuildTable()->GetUnitDef(staticDefence.id);
 
 	const int           range     = static_cast<int>(ai->s_buildTree.GetMaxRange(staticDefence)) / SQUARE_SIZE;
 	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(staticDefence);
@@ -865,7 +865,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	StatisticalData distanceStatistics;
 
 	int index(0);
-	const MapPos& baseCenter = ai->Getbrain()->GetCenterOfBase();
+	const MapPos& baseCenter = ai->Brain()->GetCenterOfBase();
 
 	for(int yPos = yStart; yPos < yEnd; yPos += 4)
 	{
@@ -1369,7 +1369,7 @@ void AAIMap::DetectMetalSpots()
 		return;
 	}
 
-	const springLegacyAI::UnitDef* def = &ai->Getbt()->GetUnitDef(largestExtractor.id);
+	const springLegacyAI::UnitDef* def = &ai->BuildTable()->GetUnitDef(largestExtractor.id);
 	const UnitFootprint largestExtractorFootprint = ai->s_buildTree.GetFootprint(largestExtractor);
 
 	s_isMetalMap = false;
@@ -1614,7 +1614,7 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 					if(ai->GetAICallback()->UnitBeingBuilt(m_unitsInLOS[i]) == false)
 						m_scoutedEnemyUnitsMap.AddEnemyUnit(defId, tile);
 
-					ai->Getut()->CheckBombTarget(UnitId(m_unitsInLOS[i]), defId, category, pos);
+					ai->UnitTable()->CheckBombTarget(UnitId(m_unitsInLOS[i]), defId, category, pos);
 				}
 
 				if(category.IsCombatUnit())
@@ -1633,7 +1633,7 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 		}
 	}
 
-	ai->Getbrain()->UpdateMaxCombatUnitsSpotted(spottedEnemyCombatUnitsByTargetType);
+	ai->Brain()->UpdateMaxCombatUnitsSpotted(spottedEnemyCombatUnitsByTargetType);
 }
 
 void AAIMap::UpdateFriendlyUnitsInLos()

@@ -108,13 +108,12 @@ public:
 		return m_unitGroupsOfCategoryLists[category.GetArrayIndex()]; 
 	}
 
-	AAIMap*             Map() { return m_map; }
-	AAIBrain*           Getbrain() { return m_brain; }
-	AAIExecute*         Getexecute() { return execute; }
-	AAIUnitTable*       Getut() { return ut; }
-	AAIAirForceManager* Getaf() { return af; }
-	AAIAttackManager*   Getam() { return am; }
-	AAIBuildTable*      Getbt() { return bt; }
+	AAIMap* const             Map() { return m_map; }
+	AAIBrain* const           Brain() { return m_brain; }
+	AAIExecute* const         Execute() { return m_execute; }
+	AAIUnitTable* const       UnitTable() { return m_unitTable; }
+	AAIBuildTable* const      BuildTable() { return m_buildTable; }
+	AAIAirForceManager* const AirForceMgr() { return m_airForceManager; }
 
 	//! The buildtree (who builds what, which unit belongs to which side, ...)
 	static AAIBuildTree s_buildTree;
@@ -143,13 +142,20 @@ private:
 	//! AAI's brain is responsible for analyzing the current situation of the game and making the appropriate decisions
 	AAIBrain *m_brain;
 
+	//! Collection of functions to execute all kinds of typical tasks (typically relying on data/decisions by other AAI components)
+	AAIExecute *m_execute;
 
-	AAIExecute *execute;		// executes all kinds of tasks
-	AAIUnitTable *ut;			// unit table
-	AAIBuildTable *bt;			// buildtable for the different units
+	//! The unit table stores information about the active units (both own and enemy/allied ones)
+	AAIUnitTable *m_unitTable;
+
+	//! The build table stores information about unit types and selects units from the available types according to given criteria
+	AAIBuildTable *m_buildTable;
 	
-	AAIAirForceManager *af;		// coordinates the airforce
-	AAIAttackManager *am;		// coordinates combat forces
+	//! The air force manager coordinates combat air units
+	AAIAirForceManager *m_airForceManager;
+	
+	//! The attack manager coordinates attakcs by ground and sea units
+	AAIAttackManager *m_attackManager;
 
 	//! List of groups of unit of the different categories
 	std::vector< std::list<AAIGroup*> > m_unitGroupsOfCategoryLists;
