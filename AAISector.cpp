@@ -412,21 +412,30 @@ float AAISector::GetRatingForRallyPoint(const AAIMovementType& moveType, int con
 	const float edgeDistance = static_cast<float>( GetEdgeDistance() );
 	const float totalAttacks = GetLostUnits() + GetTotalAttacksInThisGame();
 
-	float rating = std::min(totalAttacks, 5.0f)
-				 + std::min(2.0f * edgeDistance, 6.0f)
-				 + 3.0f * GetNumberOfBuildings(EUnitCategory::METAL_EXTRACTOR); 
-	
-	if( moveType.IsGround() )
+	float rating(0.0f);
+
+	if(moveType.IsAir())
 	{
-		rating += 3.0f * GetFlatTilesRatio();
-	}
-	else if( moveType.IsAir() || moveType.IsAmphibious() || moveType.IsHover())
-	{
-		rating += 3.0f * (GetFlatTilesRatio() + GetWaterTilesRatio());
+		rating = (GetFlatTilesRatio() + GetWaterTilesRatio()) / (1.0f + std::min(totalAttacks, 3.0f));
 	}
 	else
 	{
-		rating += 3.0f * GetWaterTilesRatio();
+		rating =  std::min(totalAttacks, 6.0f)
+				+ std::min(2.0f * edgeDistance, 6.0f)
+				+ 3.0f * GetNumberOfBuildings(EUnitCategory::METAL_EXTRACTOR); 
+	
+		if( moveType.IsGround() )
+		{
+			rating += 3.0f * GetFlatTilesRatio();
+		}
+		else if( moveType.IsAmphibious() || moveType.IsHover())
+		{
+			rating += 3.0f * (GetFlatTilesRatio() + GetWaterTilesRatio());
+		}
+		else
+		{
+			rating += 3.0f * GetWaterTilesRatio();
+		}
 	}
 
 	return rating;
