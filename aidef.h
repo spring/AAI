@@ -88,6 +88,18 @@ public:
 
 	//! Number of data points used to calculate smoothed energy/metal income/surplus 
 	static constexpr int   incomeSamplePoints = 16;
+
+	//! Urgency of bombing run
+	static constexpr float bombingRunUrgency = 100.0f;
+
+	//! Urgency of defending combat units
+	static constexpr float defendUnitsUrgency = 105.0f;
+
+	//! Urgency of defending base
+	static constexpr float defendBaseUrgency = 110.0f;
+
+	//! Maximum number of (recently) lost air units in a sector for air support to be sent
+	static constexpr float maxLostAirUnitsForAirSupport = 2.5f;
 };
 
 enum UnitTask {UNIT_IDLE, UNIT_ATTACKING, DEFENDING, GUARDING, MOVING, BUILDING, SCOUTING, ASSISTING, RECLAIMING, HEADING_TO_RALLYPOINT, UNIT_KILLED, ENEMY_UNIT, BOMB_TARGET};
@@ -281,7 +293,6 @@ class AAIGroup;
 class AAIConstructor;
 struct AAIUnit
 {
-	int unit_id;
 	int def_id;
 	AAIGroup *group;
 	AAIConstructor *cons;

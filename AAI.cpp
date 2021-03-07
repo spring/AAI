@@ -821,14 +821,14 @@ void AAI::Update()
 	}
 
 	// update groups
-	if (!(tick % 169))
+	if (!((tick+7) % 150))
 	{
 		AAI_SCOPED_TIMER("Groups")
-		for (auto category = s_buildTree.GetCombatUnitCatgegories().begin();  category != s_buildTree.GetCombatUnitCatgegories().end(); ++category)
+		for (const auto& category : s_buildTree.GetCombatUnitCatgegories())
 		{
-			for (auto group = GetUnitGroupsList(*category).begin(); group != GetUnitGroupsList(*category).end(); ++group)
+			for (auto group : GetUnitGroupsList(category))
 			{
-				(*group)->Update();
+				group->Update();
 			}
 		}
 

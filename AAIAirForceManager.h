@@ -60,12 +60,18 @@ public:
 	//! @brief Tries to bomb the most promising target
 	void BombBestTarget(float danger);
 
+	//! @brief Searches for next suitable target for the given group to attack
+	void CheckNextBombTarget(AAIGroup* group);
+
 private:
 	//! @brief Selects the best target from the given list
-	AirRaidTarget* SelectBestTarget(std::set<AirRaidTarget*>& targetList, float danger);
+	AirRaidTarget* SelectBestTarget(std::set<AirRaidTarget*>& targetList, float danger, int availableBombers, const float3& position);
 
 	//! @brief Returns a group of air units of given type currently occupied with a task of lower priority (or idle) - nullptr if none found
-	AAIGroup* GetAirGroup(EUnitType groupType, float importance, int minSize = 1) const;
+	AAIGroup* GetAirGroup(EUnitType groupType, float importance) const;
+
+	//! @brief Determines the maximum number of bombers currently available
+	int DetermineMaximumNumberOfAvailableBombers(float importance) const;
 
 	AAI *ai;
 

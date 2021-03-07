@@ -2126,7 +2126,7 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTar
 		{
 			const float rating = (*group)->GetDefenceRating(attackerTargetType, pos, importance, continentId);
 			
-			if(rating > highestRating)
+			if( (rating > highestRating) && ((*group)->GetUnitCategoryOfGroup().IsAirCombat() == false))
 			{
 				selectedGroup = *group;
 				highestRating = rating;

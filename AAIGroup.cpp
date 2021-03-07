@@ -140,17 +140,16 @@ bool AAIGroup::RemoveUnit(UnitId unitId, UnitId attackerUnitId)
 
 				if(attackerDefId.IsValid())
 				{
-					const AAIUnitCategory& category    = ai->s_buildTree.GetUnitCategory(attackerDefId);
-					const TargetTypeValues&  combatPower = ai->s_buildTree.GetCombatPower(attackerDefId);
+					const AAIUnitCategory&  category    = ai->s_buildTree.GetUnitCategory(attackerDefId);
+					const TargetTypeValues& combatPower = ai->s_buildTree.GetCombatPower(attackerDefId);
 
-					if(category.IsStaticDefence())
+					if(     category.IsStaticDefence()
+						|| (category.IsGroundCombat() && (combatPower.GetValue(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+						|| (category.IsSeaCombat()    && (combatPower.GetValue(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
+						|| (category.IsHoverCombat()  && (combatPower.GetValue(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) ) )
+					{
 						ai->AirForceMgr()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
-					else if( category.IsGroundCombat() && (combatPower.GetValue(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
-						ai->AirForceMgr()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
-					else if( category.IsSeaCombat()    && (combatPower.GetValue(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
-						ai->AirForceMgr()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
-					else if( category.IsHoverCombat()  && (combatPower.GetValue(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
-						ai->AirForceMgr()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
+					}
 				}
 			}
 
@@ -184,7 +183,7 @@ void AAIGroup::GiveOrderToGroup(Command *c, float importance, UnitTask task, con
 
 void AAIGroup::Update()
 {
-	task_importance *= 0.97f;
+	task_importance *= 0.98f;
 
 	// attacking groups recheck target
 	/*if(task == GROUP_ATTACKING && m_targetSector)
@@ -297,7 +296,7 @@ void AAIGroup::TargetUnitKilled()
 		Command c(CMD_MOVE);
 		c.PushPos(m_rallyPoint);
 
-		GiveOrderToGroup(&c, 90, MOVING, "Group::TargetUnitKilled");
+		GiveOrderToGroup(&c, 10.0f, MOVING, "Group::TargetUnitKilled");
 	}
 }
 
@@ -508,31 +507,31 @@ void AAIGroup::BombTarget(UnitId unitId, const float3& position)
 	Command c(CMD_ATTACK);
 	c.PushPos(position);
 
-	GiveOrderToGroup(&c, 110, UNIT_ATTACKING, "Group::BombTarget");
+	GiveOrderToGroup(&c, 110.0f, UNIT_ATTACKING, "Group::BombTarget");
 
-	ai->UnitTable()->AssignGroupToEnemy(unitId.id, this);
+	ai->UnitTable()->SetEnemyUnitAsTargetOfGroup(unitId, this);
 
 	task = GROUP_BOMBING;
 }
 
-void AAIGroup::DefendAirSpace(float3 *pos)
+void AAIGroup::DefendAirSpace(const float3& position)
 {
 	Command c(CMD_PATROL);
-	c.PushPos(*pos);
+	c.PushPos(position);
 
-	GiveOrderToGroup(&c, 110, UNIT_ATTACKING, "Group::DefendAirSpace");
+	GiveOrderToGroup(&c, 110.0f, UNIT_ATTACKING, "Group::DefendAirSpace");
 
 	task = GROUP_PATROLING;
 }
 
-void AAIGroup::AirRaidUnit(int unit_id)
+void AAIGroup::AirRaidUnit(UnitId unitId)
 {
 	Command c(CMD_ATTACK);
-	c.PushParam(unit_id);
+	c.PushParam(unitId.id);
 
-	GiveOrderToGroup(&c, 110, UNIT_ATTACKING, "Group::AirRaidUnit");
+	GiveOrderToGroup(&c, 110.0f, UNIT_ATTACKING, "Group::AirRaidUnit");
 
-	ai->UnitTable()->AssignGroupToEnemy(unit_id, this);
+	ai->UnitTable()->SetEnemyUnitAsTargetOfGroup(unitId, this);
 
 	task = GROUP_ATTACKING;
 }

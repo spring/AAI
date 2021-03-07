@@ -31,7 +31,6 @@ AAIUnitTable::AAIUnitTable(AAI *ai)
 	// fill buildtable
 	for(int i = 0; i < cfg->MAX_UNITS; ++i)
 	{
-		units[i].unit_id = -1;
 		units[i].def_id = 0;
 		units[i].group = nullptr;
 		units[i].cons = nullptr;
@@ -73,17 +72,17 @@ bool AAIUnitTable::AddUnit(int unit_id, int def_id, AAIGroup *group, AAIConstruc
 		else if(units[unit_id].status == BOMB_TARGET)
 		{
 			ai->AirForceMgr()->RemoveTarget(UnitId(unit_id));
-			
-			units[unit_id].status = ENEMY_UNIT;
 
 			if(units[unit_id].group)
-				units[unit_id].group->TargetUnitKilled();
+				ai->AirForceMgr()->CheckNextBombTarget(units[unit_id].group);
+
+			//if(units[unit_id].group)
+			//	units[unit_id].group->TargetUnitKilled();
 		}
 
-		units[unit_id].unit_id = unit_id;
 		units[unit_id].def_id = def_id;
-		units[unit_id].group = group;
-		units[unit_id].cons = cons;
+		units[unit_id].group  = group;
+		units[unit_id].cons   = cons;
 		units[unit_id].status = UNIT_IDLE;
 		return true;
 	}
@@ -98,7 +97,6 @@ void AAIUnitTable::RemoveUnit(int unit_id)
 {
 	if(unit_id < cfg->MAX_UNITS)
 	{
-		units[unit_id].unit_id = -1;
 		units[unit_id].def_id = 0;
 		units[unit_id].group = 0;
 		units[unit_id].cons = nullptr;
@@ -359,19 +357,26 @@ void AAIUnitTable::EnemyKilled(int unit)
 	{
 		ai->AirForceMgr()->RemoveTarget(UnitId(unit));
 		units[unit].status = ENEMY_UNIT;
-	}
 
-	if(units[unit].group)
-		units[unit].group->TargetUnitKilled();
+		if(units[unit].group)
+			ai->AirForceMgr()->CheckNextBombTarget(units[unit].group);	
+	}
+	else
+	{
+		if(units[unit].group)
+			units[unit].group->TargetUnitKilled();
+	}
 
 	RemoveUnit(unit);
 }
 
-void AAIUnitTable::AssignGroupToEnemy(int unit, AAIGroup *group)
+void AAIUnitTable::SetEnemyUnitAsTargetOfGroup(UnitId unitId, AAIGroup *group)
 {
-	units[unit].unit_id = unit;
-	units[unit].group = group;
-	units[unit].status = ENEMY_UNIT;
+	units[unitId.id].group   = group;
+
+	// only mark units as enemy if they are not already marked as potential bomb target (and thus on corresponding list of airforce manager)
+	if(units[unitId.id].status != BOMB_TARGET)
+		units[unitId.id].status  = ENEMY_UNIT;
 }
 
 void AAIUnitTable::SetUnitStatus(int unit, UnitTask status)

@@ -117,7 +117,8 @@ public:
 
 	void SetUnitStatus(int unit, UnitTask status);
 
-	void AssignGroupToEnemy(int unit, AAIGroup *group);
+	//! @brief Sets the given (enemy) unit as target for the given group (to allow targeting of next unit when enemy is destroyed)
+	void SetEnemyUnitAsTargetOfGroup(UnitId unitId, AAIGroup *group);
 
 	//! @brief Shall be called when unit have been requested (i.e. added to buildqueue)
 	void UnitRequested(const AAIUnitCategory& category, int number = 1);
