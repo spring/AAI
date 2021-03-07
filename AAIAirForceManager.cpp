@@ -71,20 +71,23 @@ bool AAIAirForceManager::CheckStaticBombTarget(UnitId unitId, UnitDefId unitDefI
 {
 	std::set<AirRaidTarget*>* targets(nullptr);
 	const AAIUnitCategory&    category = ai->s_buildTree.GetUnitCategory(unitDefId);
+	int maximumNumberOfTargets;
 
 	if(category.IsStaticArtillery() || category.IsStaticSupport())
 	{
 		targets = &m_militaryTargets;
+		maximumNumberOfTargets = cfg->MAX_MILITARY_TARGETS;
 	}
 	else if(category.IsPowerPlant() || category.IsMetalExtractor() || category.IsMetalMaker())
 	{
 		targets = &m_economyTargets;
+		maximumNumberOfTargets = cfg->MAX_ECONOMY_TARGETS;
 	}
 
 	if(targets != nullptr)
 	{
 		// dont continue if target list already full
-		if(targets->size() >= cfg->MAX_AIR_TARGETS)
+		if(targets->size() >= maximumNumberOfTargets)
 			return false;
 
 		AirRaidTarget* target = new AirRaidTarget(unitId, unitDefId, position);
@@ -118,7 +121,7 @@ void AAIAirForceManager::RemoveTarget(UnitId unitId)
 float AAIAirForceManager::GetNumberOfBombTargets() const
 {
 	const float currentTargets = static_cast<float>( m_economyTargets.size() + m_militaryTargets.size());
-	return currentTargets / (2.0f * static_cast<float>(cfg->MAX_AIR_TARGETS)); 
+	return currentTargets / (static_cast<float>(cfg->MAX_ECONOMY_TARGETS + cfg->MAX_MILITARY_TARGETS)); 
 }
 
 void AAIAirForceManager::BombBestTarget(float danger)

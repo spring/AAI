@@ -79,7 +79,11 @@ public:
 	int   MIN_METAL_STORAGE;
 	float MIN_METAL_MAKER_ENERGY;
 
-	int   MAX_AIR_TARGETS;
+	//! Maximum number of economic targets (extractors, metal makers, storages)
+	int   MAX_ECONOMY_TARGETS;
+
+	//! Maximum number of military targets (long range artillery, missile launchers)
+	int   MAX_MILITARY_TARGETS;
 
 	//! The number of different sides (side 0 = neutral will be added)
 	int numberOfSides;
