@@ -31,7 +31,7 @@ AAIAirForceManager::~AAIAirForceManager(void)
 {
 }
 
-void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory& category, float health)
+void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAITargetType& targetType, float health)
 {
 	// do not attack own units
 	if(ai->GetAICallback()->GetUnitTeam(unitId.id) != ai->GetMyTeamId()) 
@@ -42,27 +42,17 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAIUnitCategory
 		// check if unit is within the map
 		if(sector && (sector->GetLostAirUnits() < AAIConstants::maxLostAirUnitsForAirSupport) )
 		{
-			if(category.IsAirCombat())
-			{
-				AAIGroup *group = GetAirGroup(EUnitType::ANTI_AIR, AAIConstants::defendUnitsUrgency);
+			AAIGroup *group = GetAirGroup(targetType, AAIConstants::minAirSupportCombatPower, AAIConstants::defendUnitsUrgency);
 
-				if(group)
-					group->DefendAirSpace(position);
+			if(group)
+			{
+				const AAIUnitType& groupType = group->GetUnitTypeOfGroup();
+
+				if(groupType.IsAntiStatic())
+					group->AirRaidUnit(unitId, AAIConstants::defendUnitsUrgency);
+				else
+					group->DefendAirSpace(position, AAIConstants::defendUnitsUrgency);
 			}
-			else if(category.IsBuilding())
-			{
-				AAIGroup *group = GetAirGroup(EUnitType::ANTI_STATIC, AAIConstants::defendUnitsUrgency);
-
-				if(group)
-					group->BombTarget(unitId, position);
-			}
-			else
-			{
-				/*AAIGroup *group = GetAirGroup(EUnitType::ANTI_SURFACE, AAIConstants::defendUnitsUrgency);
-
-				if(group)
-					group->AirRaidUnit(unitId);*/
-			}	
 		}
 	}
 }
@@ -160,12 +150,12 @@ void AAIAirForceManager::BombBestTarget(float danger)
 		int bombersSent(0);
 		while(bombersSent < minNumberOfBombers)
 		{
-			AAIGroup *group = GetAirGroup(EUnitType::ANTI_STATIC, 0.9f * AAIConstants::bombingRunUrgency);
+			AAIGroup *group = GetAirGroup(ETargetType::STATIC, 1.0f, 0.9f * AAIConstants::bombingRunUrgency);
 
 			if(group)
 			{
 				//ai->Log("- bombers sent.\n");
-				group->BombTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition());
+				group->BombTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition(), AAIConstants::bombingRunUrgency);
 				bombersSent += group->GetCurrentSize();
 			}
 			else
@@ -200,7 +190,7 @@ void AAIAirForceManager::CheckNextBombTarget(AAIGroup* group)
 
 	if(selectedTarget)
 	{
-		group->BombTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition());
+		group->BombTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition(), AAIConstants::bombingRunUrgency);
 		//ai->Log(" - Continuing bombing run with target %s\n", ai->s_buildTree.GetUnitTypeProperties(selectedTarget->GetUnitDefId()).m_name.c_str() );
 	}		
 	else
@@ -252,15 +242,26 @@ AirRaidTarget* AAIAirForceManager::SelectBestTarget(std::set<AirRaidTarget*>& ta
 	return selectedTarget;
 }
 
-AAIGroup* AAIAirForceManager::GetAirGroup(EUnitType groupType, float importance) const
+AAIGroup* AAIAirForceManager::GetAirGroup(const AAITargetType& targetType, float minCombatPower, float importance) const
 {
+	AAIGroup* selectedGroup(nullptr);
+	float maxCombatPower(minCombatPower);
+
 	for(auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
 	{
-		if( (group->task_importance < importance) && group->GetUnitTypeOfGroup().IsUnitTypeSet(groupType) )
-			return group;
+		if(group->task_importance < importance )
+		{
+			const float combatPower = group->GetCombatPowerVsTargetType(targetType);
+
+			if(combatPower > maxCombatPower)
+			{
+				selectedGroup  = group;
+				maxCombatPower = combatPower;
+			}
+		}
 	}
 	
-	return nullptr;
+	return selectedGroup;
 }
 
 int AAIAirForceManager::DetermineMaximumNumberOfAvailableBombers(float importance) const

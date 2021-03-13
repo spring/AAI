@@ -46,7 +46,7 @@ public:
 	~AAIAirForceManager(void);
 
 	//! @brief Checks if a certain unit is worth attacking it and tries to order air units to do it
-	void CheckTarget(const UnitId& unitId, const AAIUnitCategory& category, float health);
+	void CheckTarget(const UnitId& unitId, const AAITargetType& targetType, float health);
 
 	//! @brief Checks if target is possible bombing target and adds to list of bomb targets (used for buildings e.g. stationary arty, nuke launchers..)
 	bool CheckStaticBombTarget(UnitId unitId, UnitDefId unitDefId, const float3& position);	
@@ -68,7 +68,7 @@ private:
 	AirRaidTarget* SelectBestTarget(std::set<AirRaidTarget*>& targetList, float danger, int availableBombers, const float3& position);
 
 	//! @brief Returns a group of air units of given type currently occupied with a task of lower priority (or idle) - nullptr if none found
-	AAIGroup* GetAirGroup(EUnitType groupType, float importance) const;
+	AAIGroup* GetAirGroup(const AAITargetType& targetType, float minCombatPower, float importance) const;
 
 	//! @brief Determines the maximum number of bombers currently available
 	int DetermineMaximumNumberOfAvailableBombers(float importance) const;

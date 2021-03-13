@@ -116,7 +116,7 @@ AAIConfig::AAIConfig() :
 	X_SPACE = 12;
 	Y_SPACE = 12;
 	MAX_GROUP_SIZE = 12;
-	MAX_AIR_GROUP_SIZE = 4;
+	MAX_AIR_GROUP_SIZE = 6;
 	MAX_ANTI_AIR_GROUP_SIZE = 4;
 	MAX_SUBMARINE_GROUP_SIZE = 4;
 	MAX_NAVAL_GROUP_SIZE = 4;
@@ -327,8 +327,6 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 			MAX_ASSISTANTS = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "MAX_BASE_SIZE")) {
 			MAX_BASE_SIZE = ReadNextInteger(ai, file);
-		} else if(!strcmp(keyword, "MAX_AIR_TARGETS")) {
-			MAX_AIR_TARGETS = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "SCOUT_SPEED")) {
 			SCOUT_SPEED = ReadNextFloat(ai, file);
 		} else if(!strcmp(keyword, "GROUND_ARTY_RANGE")) {

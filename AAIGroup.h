@@ -63,13 +63,13 @@ public:
 	void Retreat(const float3& pos);
 
 	//! @brief Bombs target (only for bomber groups)
-	void BombTarget(UnitId unitId, const float3& position);
+	void BombTarget(UnitId unitId, const float3& position, float importance);
 
 	//! @brief Orders fighters to defend air space (patrol to given position)
-	void DefendAirSpace(const float3& pos);
+	void DefendAirSpace(const float3& pos, float importance);
 
 	//! @brief Orders the units of the (air) group to attack the given enemy unit
-	void AirRaidUnit(UnitId unitId);
+	void AirRaidUnit(UnitId unitId, float importance);
 
 	//! @brief Returns a random unit from the group (or invalid unitId if group is empty)
 	UnitId GetRandomUnit() const;

@@ -100,6 +100,9 @@ public:
 
 	//! Maximum number of (recently) lost air units in a sector for air support to be sent
 	static constexpr float maxLostAirUnitsForAirSupport = 2.5f;
+
+	//! Minimum combat power a group must have vs given target type to be taken into account as air support
+	static constexpr float minAirSupportCombatPower = 1.0f;
 };
 
 enum UnitTask {UNIT_IDLE, UNIT_ATTACKING, DEFENDING, GUARDING, MOVING, BUILDING, SCOUTING, ASSISTING, RECLAIMING, HEADING_TO_RALLYPOINT, UNIT_KILLED, ENEMY_UNIT, BOMB_TARGET};

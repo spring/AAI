@@ -142,13 +142,14 @@ bool AAIGroup::RemoveUnit(UnitId unitId, UnitId attackerUnitId)
 				{
 					const AAIUnitCategory&  category    = ai->s_buildTree.GetUnitCategory(attackerDefId);
 					const TargetTypeValues& combatPower = ai->s_buildTree.GetCombatPower(attackerDefId);
+					const AAITargetType&    targetType  = ai->s_buildTree.GetTargetType(attackerDefId);
 
 					if(     category.IsStaticDefence()
 						|| (category.IsGroundCombat() && (combatPower.GetValue(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						|| (category.IsSeaCombat()    && (combatPower.GetValue(ETargetType::FLOATER) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) )
 						|| (category.IsHoverCombat()  && (combatPower.GetValue(ETargetType::SURFACE) > cfg->MIN_AIR_SUPPORT_EFFICIENCY) ) )
 					{
-						ai->AirForceMgr()->CheckTarget( attackerUnitId, category, ai->s_buildTree.GetHealth(attackerDefId));
+						ai->AirForceMgr()->CheckTarget( attackerUnitId, targetType, ai->s_buildTree.GetHealth(attackerDefId));
 					}
 				}
 			}
@@ -502,34 +503,34 @@ void AAIGroup::UnitIdle(UnitId unitId, AAIAttackManager* attackManager)
 	}
 }
 
-void AAIGroup::BombTarget(UnitId unitId, const float3& position)
+void AAIGroup::BombTarget(UnitId unitId, const float3& position, float importance)
 {
 	Command c(CMD_ATTACK);
 	c.PushPos(position);
 
-	GiveOrderToGroup(&c, 110.0f, UNIT_ATTACKING, "Group::BombTarget");
+	GiveOrderToGroup(&c, importance, UNIT_ATTACKING, "Group::BombTarget");
 
 	ai->UnitTable()->SetEnemyUnitAsTargetOfGroup(unitId, this);
 
 	task = GROUP_BOMBING;
 }
 
-void AAIGroup::DefendAirSpace(const float3& position)
+void AAIGroup::DefendAirSpace(const float3& position, float importance)
 {
 	Command c(CMD_PATROL);
 	c.PushPos(position);
 
-	GiveOrderToGroup(&c, 110.0f, UNIT_ATTACKING, "Group::DefendAirSpace");
+	GiveOrderToGroup(&c, importance, UNIT_ATTACKING, "Group::DefendAirSpace");
 
 	task = GROUP_PATROLING;
 }
 
-void AAIGroup::AirRaidUnit(UnitId unitId)
+void AAIGroup::AirRaidUnit(UnitId unitId, float importance)
 {
 	Command c(CMD_ATTACK);
 	c.PushParam(unitId.id);
 
-	GiveOrderToGroup(&c, 110.0f, UNIT_ATTACKING, "Group::AirRaidUnit");
+	GiveOrderToGroup(&c, importance, UNIT_ATTACKING, "Group::AirRaidUnit");
 
 	ai->UnitTable()->SetEnemyUnitAsTargetOfGroup(unitId, this);
 
