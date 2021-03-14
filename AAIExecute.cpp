@@ -101,14 +101,14 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 	CheckRessources();
 }
 
-void AAIExecute::MoveUnitTo(int unit, float3 *position)
+void AAIExecute::SendUnitToPosition(UnitId unitId, const float3& position) const
 {
 	Command c(CMD_MOVE);
-	c.PushPos(*position);
+	c.PushPos(position);
 
 	//ai->Getcb()->GiveOrder(unit, &c);
-	GiveOrder(&c, unit, "MoveUnitTo");
-	ai->UnitTable()->SetUnitStatus(unit, MOVING);
+	GiveOrder(&c, unitId.id, "SendUnitToPosition");
+	ai->UnitTable()->SetUnitStatus(unitId.id, MOVING);
 }
 
 void AAIExecute::stopUnit(int unit)
@@ -255,12 +255,12 @@ void AAIExecute::BuildScouts()
 	}
 }
 
-void AAIExecute::SendScoutToNewDest(int scout)
+void AAIExecute::SendScoutToNewDest(UnitId scoutId) const
 {
-	float3 nextScoutDestination = ai->Map()->GetNewScoutDest(UnitId(scout));
+	const float3 nextScoutDestination = ai->Map()->GetNewScoutDest(scoutId);
 
 	if(nextScoutDestination.x > 0.0f)
-		MoveUnitTo(scout, &nextScoutDestination);
+		SendUnitToPosition(scoutId, nextScoutDestination);
 }
 
 BuildSite AAIExecute::DetermineBuildsite(UnitId builder, UnitDefId buildingDefId) const
@@ -2330,7 +2330,7 @@ float3 AAIExecute::GetFallBackPos(const float3& pos, float maxFallbackDist) cons
 	return fallbackPosition;
 }
 
-void AAIExecute::GiveOrder(Command *c, int unit, const char *owner)
+void AAIExecute::GiveOrder(Command *c, int unit, const char *owner) const
 {
 	++m_numberOfIssuedOrders;
 

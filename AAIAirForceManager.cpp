@@ -128,13 +128,11 @@ void AAIAirForceManager::BombBestTarget(float danger)
 
 	// try to select a military target first
 	AirRaidTarget* selectedTarget = SelectBestTarget(m_militaryTargets, danger, maxNumberOfAvailableBombers, position);
-	bool highPriorityTarget(true);
 
 	// if no military target found, try to select lower priority economy target
 	if(selectedTarget == nullptr)
 	{
 		selectedTarget = SelectBestTarget(m_economyTargets, danger, maxNumberOfAvailableBombers, position);
-		highPriorityTarget = false;
 	}
 
 	// try to order bombardment if target & bombers available
@@ -145,12 +143,11 @@ void AAIAirForceManager::BombBestTarget(float danger)
 		const int minNumberOfBombers = std::max(static_cast<int>(ai->s_buildTree.GetHealth(selectedTarget->GetUnitDefId()) / cfg->HEALTH_PER_BOMBER), 1);
 
 		const AAIUnitCategory& targetCategory = ai->s_buildTree.GetUnitCategory(selectedTarget->GetUnitDefId());
-		const bool  highPriorityTarget = targetCategory.IsStaticArtillery() || targetCategory.IsStaticSupport();
 
 		int bombersSent(0);
 		while(bombersSent < minNumberOfBombers)
 		{
-			AAIGroup *group = GetAirGroup(ETargetType::STATIC, 1.0f, 0.9f * AAIConstants::bombingRunUrgency);
+			AAIGroup *group = GetAirGroup(ETargetType::STATIC, 1.0f, 0.85f * AAIConstants::bombingRunUrgency);
 
 			if(group)
 			{

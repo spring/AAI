@@ -54,7 +54,8 @@ public:
 	//! @brief Determines starting sector, adds another sector to base and initializes buildqueues
 	void InitAI(UnitId commanderUnitId, UnitDefId commanderDefId);
 
-	void MoveUnitTo(int unit, float3 *position);
+	//! @brief Orders the unit to move to the given position
+	void SendUnitToPosition(UnitId unitId, const float3& position) const;
 
 	//! @brief Add the given unit to an existing group (or create new one if necessary)
 	void AddUnitToGroup(const UnitId& unitId, const UnitDefId& unitDefId);
@@ -64,7 +65,8 @@ public:
 
 	void BuildScouts();
 
-	void SendScoutToNewDest(int scout);
+	//! @brief Looks for the next suitable destination for the given scout and orders it to move there
+	void SendScoutToNewDest(UnitId scoutId) const;
 
 	//! @brief Returns the current unit production rate (i.e. how many unit AAI tries to order per unit production update step)
 	int GetUnitProductionRate() const { return m_unitProductionRate; }
@@ -138,7 +140,7 @@ public:
 	}
 
 	// debug
-	void GiveOrder(Command *c, int unit, const char *owner);
+	void GiveOrder(Command *c, int unit, const char *owner) const;
 
 private:
 	// custom relations
@@ -232,7 +234,7 @@ private:
 	int m_unitProductionRate;
 
 	//! The total number of issued orders (primarily for debug purposes)
-	int m_numberOfIssuedOrders;
+	mutable int m_numberOfIssuedOrders;
 
 	//! Number of times a building was created but no suitable builder could be identfied (should be zero - just for debug purposes)
 	unsigned int m_linkingBuildTaskToBuilderFailed;

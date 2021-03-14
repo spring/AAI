@@ -335,7 +335,7 @@ void AAI::UnitCreated(int unit, int builder)
 
 	// get unit's id
 	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
-	UnitDefId unitDefId(def->id);
+	const UnitDefId unitDefId(def->id);
 	
 	m_unitTable->AddUnit(unit, unitDefId.id);
 
@@ -364,7 +364,7 @@ void AAI::UnitCreated(int unit, int builder)
 	//-----------------------------------------------------------------------------------------------------------------
 	if ( !m_aiCallback->UnitBeingBuilt(unit))
 	{
-		//Log("Ressurected %s\n", s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
+		//Log("Ressurected/gifted %s\n", s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str() );
 
 		const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 		m_unitTable->UnitRequested(category);
@@ -427,7 +427,8 @@ void AAI::UnitFinished(int unit)
 
 	// get unit's id
 	const springLegacyAI::UnitDef* def = m_aiCallback->GetUnitDef(unit);
-	UnitDefId unitDefId(def->id);
+	const UnitDefId unitDefId(def->id);
+	const UnitId    unitId(unit);
 
 	const AAIUnitCategory& category = s_buildTree.GetUnitCategory(unitDefId);
 
@@ -440,7 +441,7 @@ void AAI::UnitFinished(int unit)
 		// delete buildtask
 		for(auto task = build_tasks.begin(); task != build_tasks.end(); ++task)
 		{
-			if( (*task)->CheckIfConstructionFinished(m_unitTable, UnitId(unit)) )
+			if( (*task)->CheckIfConstructionFinished(m_unitTable, unitId) )
 			{
 				AAIBuildTask *build_task = *task;
 				build_tasks.erase(task);
@@ -455,11 +456,11 @@ void AAI::UnitFinished(int unit)
 			m_unitTable->AddExtractor(unit);
 
 			// order defence if necessary
-			m_execute->BuildStaticDefenceForExtractor(UnitId(unit), unitDefId);
+			m_execute->BuildStaticDefenceForExtractor(unitId, unitDefId);
 		}
 		else if (category.IsPowerPlant())
 		{
-			m_unitTable->AddPowerPlant(UnitId(unit), unitDefId);
+			m_unitTable->AddPowerPlant(unitId, unitDefId);
 			m_brain->PowerPlantFinished(unitDefId);
 		}
 		else if (category.IsMetalMaker())
@@ -468,7 +469,7 @@ void AAI::UnitFinished(int unit)
 		}
 		else if (category.IsStaticSensor())
 		{
-			m_unitTable->AddStaticSensor(UnitId(unit));
+			m_unitTable->AddStaticSensor(unitId);
 		}
 		else if (category.IsStaticSupport())
 		{
@@ -482,7 +483,7 @@ void AAI::UnitFinished(int unit)
 		}
 		else if (category.IsStaticConstructor())
 		{
-			m_unitTable->AddConstructor(UnitId(unit), unitDefId);
+			m_unitTable->AddConstructor(unitId, unitDefId);
 
 			m_unitTable->units[unit].cons->Update();
 		}
@@ -512,6 +513,7 @@ void AAI::UnitFinished(int unit)
 		// scout
 		else if(category.IsScout())
 		{
+			Log("Scout added\n");
 			m_unitTable->AddScout(unit);
 
 			// cloak scout if cloakable
@@ -523,11 +525,13 @@ void AAI::UnitFinished(int unit)
 
 				m_aiCallback->GiveOrder(unit, &c);
 			}
+
+			m_execute->SendScoutToNewDest(unitId);
 		}
 		// builder
 		else if(category.IsMobileConstructor() )
 		{
-			m_unitTable->AddConstructor(UnitId(unit), unitDefId);
+			m_unitTable->AddConstructor(unitId, unitDefId);
 
 			m_unitTable->units[unit].cons->Update();
 		}
@@ -709,6 +713,8 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 void AAI::UnitIdle(int unit)
 {
+	const UnitId unitId(unit);
+
 	AAI_SCOPED_TIMER("UnitIdle")
 	// if factory is idle, start construction of further units
 	if (m_unitTable->units[unit].cons)
@@ -727,11 +733,11 @@ void AAI::UnitIdle(int unit)
 	else if (m_unitTable->units[unit].group)
 	{
 		//ut->SetUnitStatus(unit, UNIT_IDLE);
-		m_unitTable->units[unit].group->UnitIdle(UnitId(unit), m_attackManager);
+		m_unitTable->units[unit].group->UnitIdle(unitId, m_attackManager);
 	}
 	else if(s_buildTree.GetUnitCategory(UnitDefId(m_unitTable->units[unit].def_id)).IsScout())
 	{
-		m_execute->SendScoutToNewDest(unit);
+		m_execute->SendScoutToNewDest(unitId);
 	}
 	else
 		m_unitTable->SetUnitStatus(unit, UNIT_IDLE);
@@ -760,7 +766,7 @@ void AAI::UnitMoveFailed(int unit)
 	if (m_aiCallback->GetCurrentFrame() - m_unitTable->units[unit].last_order < 5)
 		return;
 	else
-		m_execute->MoveUnitTo(unit, &pos);
+		m_execute->SendUnitToPosition(UnitId(unit), pos);
 }
 
 void AAI::EnemyEnterLOS(int /*enemy*/) {}
