@@ -68,7 +68,7 @@ private:
 class AAIConstructor
 {
 public:
-	AAIConstructor(AAI *ai, UnitId unitId, UnitDefId defId, bool factory, bool builder, bool assistant, std::list<UnitDefId>* buildqueue);
+	AAIConstructor(AAI *ai, UnitId unitId, UnitDefId defId, bool factory, bool builder, bool assistant, Buildqueue buildqueue);
 
 	~AAIConstructor(void);
 
@@ -188,7 +188,7 @@ private:
 	AAIConstructorActivity m_activity;
 
 	//! Pointer to buildqueue (if it is a factory or constructor)
-	std::list<UnitDefId> *m_buildqueue;
+	Buildqueue m_buildqueue;
 };
 
 #endif

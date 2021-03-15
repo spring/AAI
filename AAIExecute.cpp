@@ -92,9 +92,6 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 	
 	ai->Brain()->ExpandBaseAtStartup();
 
-	// now that we know the side, init buildques
-	InitBuildques();
-
 	ai->UnitTable()->AddConstructor(commanderUnitId, commanderDefId);
 
 	// get economy working
@@ -190,7 +187,7 @@ void AAIExecute::BuildCombatUnitOfCategory(const AAIMovementType& moveType, cons
 		if( ai->BuildTable()->units_dynamic[unitDefId.id].constructorsAvailable <= 0 )
 			ai->BuildTable()->RequestFactoryFor(unitDefId);
 		else
-			AddUnitToBuildqueue(unitDefId, numberOfUnits, BuildQueuePosition::END);
+			TryAddingUnitsToBuildqueue(unitDefId, numberOfUnits, BuildQueuePosition::END);
 	}
 }
 
@@ -250,7 +247,7 @@ void AAIExecute::BuildScouts()
 		{
 			const BuildQueuePosition queuePosition = (ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) > 1) ? BuildQueuePosition::END : BuildQueuePosition::FRONT;
 
-			AddUnitToBuildqueue(scoutId.id, 1, queuePosition);
+			TryAddingUnitsToBuildqueue(scoutId.id, 1, queuePosition);
 		}
 	}
 }
@@ -335,82 +332,30 @@ BuildSite AAIExecute::DetermineBuildsiteForUnit(UnitId constructor, UnitDefId un
 	return selectedBuildsite;
 }
 
-bool AAIExecute::AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength)
+bool AAIExecute::TryAddingUnitsToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength)
 {
-	std::list<UnitDefId>* selectedBuildqueue(nullptr);
-	float highestRating(0.0f);
-
-	for(auto constructor : ai->s_buildTree.GetConstructedByList(unitDefId))
-	{
-		if(ai->BuildTable()->units_dynamic[constructor.id].active > 0)
-		{
-			std::list<UnitDefId>* buildqueue = GetBuildqueueOfFactory(constructor);
-
-			if(buildqueue)
-			{
-				const float rating = (1.0f + 2.0f * (float) ai->BuildTable()->units_dynamic[constructor.id].active) / static_cast<float>(buildqueue->size() + 2);
-
-				if(rating > highestRating)
-				{
-					highestRating      = rating;
-					selectedBuildqueue = buildqueue;
-				}
-			}	
-		}
-	}
+	Buildqueue selectedBuildqueue = ai->BuildTable()->DetermineBuildqueue(unitDefId);
 
 	// determine position
-	if(selectedBuildqueue)
-	{
-		if( ignoreMaxQueueLength || (selectedBuildqueue->size() < cfg->MAX_BUILDQUE_SIZE))
-		{
-			auto insertPosition = selectedBuildqueue->begin();
+	if(selectedBuildqueue.IsValid())
+		return AddUnitsToBuildqueue(unitDefId, number, selectedBuildqueue, queuePosition, ignoreMaxQueueLength);
+	else
+		return false;
+}
 
-			if( (queuePosition == BuildQueuePosition::SECOND) && (selectedBuildqueue->size() > 0))
-				++insertPosition;
-			else if(queuePosition == BuildQueuePosition::END)
-				insertPosition = selectedBuildqueue->end();
-	
-			selectedBuildqueue->insert(insertPosition, number, unitDefId);
-			ai->BuildTable()->units_dynamic[unitDefId.id].requested += number;
-			ai->UnitTable()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), number);
-			return true;
-		}
+bool AAIExecute::AddUnitsToBuildqueue(UnitDefId unitDefId, int number, Buildqueue buildqueue, BuildQueuePosition position, bool ignoreMaxQueueLength)
+{
+	if( ignoreMaxQueueLength || (buildqueue.GetLength() < cfg->MAX_BUILDQUE_SIZE))
+	{
+		buildqueue.AddUnits(unitDefId, number, position);
+
+		ai->BuildTable()->units_dynamic[unitDefId.id].requested += number;
+		ai->UnitTable()->UnitRequested(ai->s_buildTree.GetUnitCategory(unitDefId), number);
+
+		return true;
 	}
 
 	return false;
-}
-
-std::list<UnitDefId>* AAIExecute::GetBuildqueueOfFactory(UnitDefId constructorDefId)
-{
-	const FactoryId& factoryId = ai->s_buildTree.GetUnitTypeProperties(constructorDefId).m_factoryId;
-
-	if( factoryId.IsValid() )
-		return &m_buildqueues[factoryId.id];
-	else
-		return nullptr;
-}
-
-void AAIExecute::DetermineFactoryUtilization(std::vector<float>& factoryUtilization, bool considerOnlyActiveFactoryTypes) const
-{
-	const std::vector<UnitDefId>& factoryTable = ai->s_buildTree.GetFactoryDefIdLookupTable();
-
-	for(int factoryId = 0; factoryId < ai->s_buildTree.GetNumberOfFactories(); ++factoryId)
-	{
-		const UnitTypeDynamic& unitTypeData = ai->BuildTable()->GetDynamicUnitTypeData(factoryTable[factoryId]);
-
-		if(    (considerOnlyActiveFactoryTypes == false)
-			|| (unitTypeData.active > 0) )
-		{
-			const float queueLength = static_cast<float>(m_buildqueues[factoryId].size());
-			factoryUtilization[factoryId] = 1.0f - ( queueLength / static_cast<float>(cfg->MAX_BUILDQUE_SIZE+1) );
-		}
-	}
-}
-
-void AAIExecute::InitBuildques()
-{
-	m_buildqueues.resize( ai->s_buildTree.GetNumberOfFactories() );
 }
 
 // ****************************************************************************************************
@@ -1543,7 +1488,7 @@ void AAIExecute::CheckStationaryArty()
 
 	const AAIUnitCategory staticArtillery(EUnitCategory::STATIC_ARTILLERY);
 
-	if(ai->UnitTable()->GetNumberOfUnitsUnderConstructionOfCategory(staticArtillery) +  ai->UnitTable()->GetNumberOfRequestedUnitsOfCategory(staticArtillery) > 0)
+	if(ai->UnitTable()->GetNumberOfUnitsUnderConstructionOfCategory(staticArtillery) + ai->UnitTable()->GetNumberOfRequestedUnitsOfCategory(staticArtillery) > 0)
 		return;
 
 	if(ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(staticArtillery) >= cfg->MAX_STAT_ARTY)
@@ -1552,44 +1497,6 @@ void AAIExecute::CheckStationaryArty()
 	const float temp = 0.05f;
 
 	SetConstructionUrgencyIfHigher(EUnitCategory::STATIC_ARTILLERY, temp);
-}
-
-void AAIExecute::CheckBuildqueues()
-{
-	int totalQueuedUnits(0);
-	int numberOfActiveFactoryTypes(0);
-
-	const auto& factoryTable = ai->s_buildTree.GetFactoryDefIdLookupTable();
-
-	for(int factoryId = 0; factoryId < factoryTable.size(); ++factoryId)
-	{
-		if(ai->BuildTable()->units_dynamic[ factoryTable[factoryId].id ].active > 0)
-		{
-			totalQueuedUnits += static_cast<int>(m_buildqueues[factoryId].size());
-			++numberOfActiveFactoryTypes;
-		}
-	}
-
-	if(numberOfActiveFactoryTypes > 0)
-	{
-		const float queuedUnitsPerFactoryType = static_cast<float>(totalQueuedUnits) / static_cast<float>(numberOfActiveFactoryTypes);
-
-		if(queuedUnitsPerFactoryType < 0.3f * static_cast<float>(cfg->MAX_BUILDQUE_SIZE) )
-		{
-			if(m_unitProductionRate < 25)
-				++m_unitProductionRate;
-
-			//ai->Log("Increasing unit production rate to %i\n", unitProductionRate);
-		}
-		else if( queuedUnitsPerFactoryType >  0.75f * static_cast<float>(cfg->MAX_BUILDQUE_SIZE) )
-		{
-			if(m_unitProductionRate > 1)
-			{
-				--m_unitProductionRate;
-				//ai->Log("Decreasing unit production rate to %i\n", unitProductionRate);
-			}
-		}
-	}
 }
 
 void AAIExecute::CheckDefences()
@@ -2151,6 +2058,27 @@ void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attacke
 
 			if(support)
 				support->Defend(unitId, attackerPosition, importance);
+		}
+	}
+}
+
+void AAIExecute::AdjustUnitProductionRate()
+{
+	const float averageBuildqueueLength = ai->BuildTable()->CalculateAverageBuildqueueLength();
+
+	if(averageBuildqueueLength < 0.3f * static_cast<float>(cfg->MAX_BUILDQUE_SIZE) )
+	{
+		if(m_unitProductionRate < 25)
+			++m_unitProductionRate;
+
+		//ai->Log("Increasing unit production rate to %i\n", unitProductionRate);
+	}
+	else if( averageBuildqueueLength >  0.75f * static_cast<float>(cfg->MAX_BUILDQUE_SIZE) )
+	{
+		if(m_unitProductionRate > 1)
+		{
+			--m_unitProductionRate;
+			//ai->Log("Decreasing unit production rate to %i\n", unitProductionRate);
 		}
 	}
 }

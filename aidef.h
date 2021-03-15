@@ -14,6 +14,7 @@
 #include "Sim/Misc/GlobalConstants.h"
 #include <vector>
 #include <string>
+#include <list>
 
 #define AAI_VERSION aiexport_getVersion()
 #define MAP_CACHE_VERSION "MAP_DATA_0_92b"
@@ -156,6 +157,40 @@ public:
 	void Set(int factoryId) { id = factoryId; }
 
 	int id;
+};
+
+enum class BuildQueuePosition : int {FRONT, SECOND, END};
+
+//! @brief Helper class to handle buildqueues associated with each type of construction unit 
+class Buildqueue
+{
+public:
+	Buildqueue(std::list<UnitDefId>* queue) : m_buildqueue(queue) {}
+
+	Buildqueue() : Buildqueue(nullptr) {}
+
+	bool      IsValid()      const { return (m_buildqueue != nullptr); }
+
+	size_t    GetLength()    const { return m_buildqueue->size(); }
+
+	UnitDefId GetFirstUnit() const { return *(m_buildqueue->begin()); }
+
+	void      RemoveFirstUnit()    { m_buildqueue->pop_front(); }
+
+	void AddUnits(UnitDefId unitDefId, int number, BuildQueuePosition position)
+	{
+		auto insertPosition = m_buildqueue->begin();
+
+		if( (position == BuildQueuePosition::SECOND) && (m_buildqueue->size() > 0))
+			++insertPosition;
+		else if(position == BuildQueuePosition::END)
+			insertPosition = m_buildqueue->end();
+
+		m_buildqueue->insert(insertPosition, number, unitDefId);
+	}
+
+private:
+	std::list<UnitDefId>* m_buildqueue;
 };
 
 //! This class stores the information required for placing/upgrading metal extractors

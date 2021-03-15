@@ -446,7 +446,7 @@ void AAIBrain::BuildUnits()
 	const UnitSelectionCriteria unitSelectionCriteria   = DetermineCombatUnitSelectionCriteria();
 
 	std::vector<float> factoryUtilization(ai->s_buildTree.GetNumberOfFactories(), 0.0f);
-	ai->Execute()->DetermineFactoryUtilization(factoryUtilization, true);
+	ai->BuildTable()->DetermineFactoryUtilization(factoryUtilization, true);
 
 	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
 

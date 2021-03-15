@@ -112,7 +112,7 @@ void AAIUnitTable::AddConstructor(UnitId unitId, UnitDefId unitDefId)
 {
 	const AAIUnitType& unitType = ai->s_buildTree.GetUnitType(unitDefId);
 
-	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, unitType.IsFactory(), unitType.IsBuilder(), unitType.IsConstructionAssist(), ai->Execute()->GetBuildqueueOfFactory(unitDefId));
+	AAIConstructor *cons = new AAIConstructor(ai, unitId, unitDefId, unitType.IsFactory(), unitType.IsBuilder(), unitType.IsConstructionAssist(), ai->BuildTable()->GetBuildqueueOfFactory(unitDefId));
 
 	m_constructors.insert(unitId);
 	units[unitId.id].cons = cons;

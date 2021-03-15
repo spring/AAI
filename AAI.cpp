@@ -483,9 +483,11 @@ void AAI::UnitFinished(int unit)
 		}
 		else if (category.IsStaticConstructor())
 		{
-			m_unitTable->AddConstructor(unitId, unitDefId);
+			if (m_unitTable->GetConstructors().size() < 2)
+				m_execute->CheckConstruction();
 
-			m_unitTable->units[unit].cons->Update();
+			m_unitTable->AddConstructor(unitId, unitDefId);
+			m_unitTable->units[unit].cons->Idle();
 		}
 		else if(category.IsStaticAssistance())
 		{
@@ -721,12 +723,12 @@ void AAI::UnitIdle(int unit)
 	{
 		if (m_unitTable->units[unit].cons->isBusy() == false)
 		{
+			if (m_unitTable->GetConstructors().size() < 4)
+				m_execute->CheckConstruction();
+
 			m_unitTable->SetUnitStatus(unit, UNIT_IDLE);
 
 			m_unitTable->units[unit].cons->Idle();
-
-			if (m_unitTable->GetConstructors().size() < 4)
-				m_execute->CheckConstruction();
 		}
 	}
 	// idle combat units will report to their groups
@@ -845,7 +847,7 @@ void AAI::Update()
 	if (!(tick % 650))
 	{
 		AAI_SCOPED_TIMER("Unit-Management")
-		m_execute->CheckBuildqueues();
+		m_execute->AdjustUnitProductionRate();
 		m_brain->BuildUnits();
 		m_execute->BuildScouts();
 	}

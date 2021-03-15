@@ -26,7 +26,7 @@
 using namespace springLegacyAI;
 
 
-AAIConstructor::AAIConstructor(AAI *ai, UnitId unitId, UnitDefId defId, bool factory, bool builder, bool assistant, std::list<UnitDefId>* buildqueue) :
+AAIConstructor::AAIConstructor(AAI *ai, UnitId unitId, UnitDefId defId, bool factory, bool builder, bool assistant, Buildqueue buildqueue) :
 	m_myUnitId(unitId),
 	m_myDefId(defId),
 	m_constructedUnitId(),
@@ -96,11 +96,11 @@ void AAIConstructor::Idle()
 
 void AAIConstructor::Update()
 {
-	if(m_isFactory && m_buildqueue != nullptr)
+	if(m_isFactory && m_buildqueue.IsValid() )
 	{
-		if( (m_activity.IsConstructing() == false) && (m_buildqueue->empty() == false) )
+		if( (m_activity.IsConstructing() == false) && (m_buildqueue.GetLength() > 0) )
 		{
-			UnitDefId constructedUnitDefId(*m_buildqueue->begin());
+			const UnitDefId constructedUnitDefId( m_buildqueue.GetFirstUnit() );
 
 			// check if mobile or stationary builder
 			if(ai->s_buildTree.GetMovementType(m_myDefId).IsStatic() == true )  
@@ -115,7 +115,7 @@ void AAIConstructor::Update()
 				//if(ai->Getbt()->IsFactory(def_id))
 				//	++ai->futureFactories;
 
-				m_buildqueue->pop_front();
+				m_buildqueue.RemoveFirstUnit();
 			}
 			else
 			{
@@ -135,7 +135,7 @@ void AAIConstructor::Update()
 					ai->UnitTable()->UnitRequested(ai->s_buildTree.GetUnitCategory(constructedUnitDefId)); // request must be called before create to keep unit counters correct
 					//ai->Getut()->UnitCreated(ai->s_buildTree.GetUnitCategory(constructedUnitDefId));
 
-					m_buildqueue->pop_front();
+					m_buildqueue.RemoveFirstUnit();
 				}
 			}
 
@@ -207,7 +207,7 @@ void AAIConstructor::Update()
 bool AAIConstructor::IsAssitanceByNanoTurretDesired() const
 {
 	//! @todo Take production time of units into account
-	return ai->s_buildTree.GetMovementType(m_myDefId).IsStatic() && (m_buildqueue->size() >= cfg->MAX_BUILDQUE_SIZE - 2);
+	return ai->s_buildTree.GetMovementType(m_myDefId).IsStatic() && (m_buildqueue.GetLength()  >= cfg->MAX_BUILDQUE_SIZE - 2);
 }
 
 void AAIConstructor::CheckAssistance()
@@ -215,10 +215,10 @@ void AAIConstructor::CheckAssistance()
 	//-----------------------------------------------------------------------------------------------------------------
 	// Check construction assistance for factories
 	//-----------------------------------------------------------------------------------------------------------------
-	if(m_isFactory && (m_buildqueue != nullptr))
+	if(m_isFactory && m_buildqueue.IsValid())
 	{
 		// check if another factory of that type needed
-		if( (m_buildqueue->size() >= cfg->MAX_BUILDQUE_SIZE - 1) && (assistants.size() > 1) )
+		if( (m_buildqueue.GetLength() >= cfg->MAX_BUILDQUE_SIZE - 1) && (assistants.size() > 1) )
 		{
 			if(ai->BuildTable()->GetTotalNumberOfUnits(m_myDefId.id) < cfg->MAX_FACTORIES_PER_TYPE)
 			{
@@ -242,7 +242,7 @@ void AAIConstructor::CheckAssistance()
 			}
 		}
 		// check if assistants are needed anymore
-		else if(!assistants.empty() && m_buildqueue->empty() && (m_constructedDefId.IsValid() == false))
+		else if(!assistants.empty() && (m_buildqueue.GetLength() == 0) && (m_constructedDefId.IsValid() == false))
 		{
 			//ai->LogConsole("factory releasing assistants");
 			ReleaseAllAssistants();
@@ -278,7 +278,7 @@ bool AAIConstructor::DoesFactoryNeedAssistance() const
 {
 	if(assistants.size() < cfg->MAX_ASSISTANTS)
 	{
-		if(m_buildqueue->size() > 2)
+		if(m_buildqueue.GetLength() > 2)
 			return true;
 
 		if(m_constructedDefId.IsValid() ) 

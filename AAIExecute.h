@@ -10,7 +10,6 @@
 #ifndef AAI_EXECUTE_H
 #define AAI_EXECUTE_H
 
-#include <list>
 #include "aidef.h"
 #include "AAITypes.h"
 #include "AAIUnitTypes.h"
@@ -22,8 +21,6 @@ namespace springLegacyAI {
 using namespace springLegacyAI;
 
 enum class BuildOrderStatus : int {BUILDING_INVALID, NO_BUILDSITE_FOUND, NO_BUILDER_AVAILABLE, SUCCESSFUL};
-
-enum class BuildQueuePosition : int {FRONT, SECOND, END};
 
 class AAI;
 class AAIBuildTable;
@@ -71,6 +68,9 @@ public:
 	//! @brief Returns the current unit production rate (i.e. how many unit AAI tries to order per unit production update step)
 	int GetUnitProductionRate() const { return m_unitProductionRate; }
 
+	//! @brief Adjusts the unit production rate based on the current average length of the buildqueues of active factories
+	void AdjustUnitProductionRate();
+
 	//! @brief Returns the number of Build Tasks that could not be linked to a construction unit (for debugging only - should be zero)
 	unsigned int GetLinkingBuildTaskToBuilderFailedCounter() const { return m_linkingBuildTaskToBuilderFailed; };
 
@@ -95,9 +95,6 @@ public:
 
 	void CheckStationaryArty();
 
-	// checks length of buildqueues and adjusts rate of unit production
-	void CheckBuildqueues();
-
 	//
 	void CheckDefences();
 
@@ -120,14 +117,11 @@ public:
 	//! @brief Tries to call support against specific attacker (e.g. air)
 	void DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const;
 
-	//! @brief Adds the given number of units to the most suitable buildqueue
-	bool AddUnitToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength = false);
+	//! @brief Tries to add the given number of units to the most suitable buildqueue (returns whether units have been successfully added)
+	bool TryAddingUnitsToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength = false);
 
-	//! @brief Returns buildque for a certain constructor
-	std::list<UnitDefId>* GetBuildqueueOfFactory(UnitDefId constructorDefId);
-
-	//! @brief Determines the utilization (i.e. how long is the buildqueue) of the different factories
-	void DetermineFactoryUtilization(std::vector<float>& factoryUtilization, bool considerOnlyActiveFactoryTypes) const;
+	//! @brief Adds the given number of units to the given buildqueue
+	bool AddUnitsToBuildqueue(UnitDefId unitDefId, int number, Buildqueue buildqueue, BuildQueuePosition position, bool ignoreMaxQueueLength);
 
 	//! @brief Determines buildsite for a unit (not building) that shall be constructed by the given construction unit
 	BuildSite DetermineBuildsiteForUnit(UnitId constructor, UnitDefId unitDefId) const;
@@ -183,8 +177,6 @@ private:
 
 	//! @brief Determines buildiste for the given building in the given sector, returns ZeroVector if none found
 	BuildSite DetermineBuildsiteInSector(UnitDefId building, const AAISector* sector) const;
-	
-	void InitBuildques();
 
 	void stopUnit(int unit);
 	void ConstructBuildingAt(int building, int builder, float3 position);
@@ -214,9 +206,6 @@ private:
 	bool BuildPowerPlant();
 	bool BuildArty();
 	bool BuildAirBase();
-
-	//! Buildqueues for the factories
-	std::vector< std::list<UnitDefId> > m_buildqueues;
 
 	//! Urgency of construction of building of the different categories
 	std::vector<float> m_constructionUrgency;

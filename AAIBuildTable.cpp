@@ -56,6 +56,8 @@ AAIBuildTable::AAIBuildTable(AAI* ai)
 		#endif
 	}
 
+	m_buildqueues.resize( ai->s_buildTree.GetNumberOfFactories() );
+
 	// If first instance of AAI: Try to load combat power&attacked by rates; if no stored data availble init with default values
 	// (combat power and attacked by rates are both static)
 	if(ai->GetAAIInstance() == 1)
@@ -317,11 +319,87 @@ void AAIBuildTable::DetermineCombatPowerWeights(MobileTargetTypeValues& combatPo
 {
 	combatPowerWeights.SetValueForTargetType(ETargetType::AIR,     0.1f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::AIR));
 	combatPowerWeights.SetValueForTargetType(ETargetType::SURFACE, 1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SURFACE));
-	
+
 	if(!mapType.IsLand())
 	{
 		combatPowerWeights.SetValueForTargetType(ETargetType::FLOATER,   1.0f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::FLOATER));
 		combatPowerWeights.SetValueForTargetType(ETargetType::SUBMERGED, 0.75f + s_attackedByRates.GetAttackedByRateUntilEarlyPhase(mapType, ETargetType::SUBMERGED));
+	}
+}
+
+Buildqueue AAIBuildTable::DetermineBuildqueue(UnitDefId unitDefId)
+{
+	Buildqueue selectedBuildqueue;
+	float highestRating(0.0f);
+
+	for(auto constructor : ai->s_buildTree.GetConstructedByList(unitDefId))
+	{
+		if(units_dynamic[constructor.id].active > 0)
+		{
+			Buildqueue buildqueue = GetBuildqueueOfFactory(constructor);
+
+			if(buildqueue.IsValid())
+			{
+				const float rating = (1.0f + 2.0f * static_cast<float>(units_dynamic[constructor.id].active)) / static_cast<float>(buildqueue.GetLength() + 2);
+
+				if(rating > highestRating)
+				{
+					highestRating      = rating;
+					selectedBuildqueue = buildqueue;
+				}
+			}	
+		}
+	}
+
+	return selectedBuildqueue;
+}
+
+Buildqueue AAIBuildTable::GetBuildqueueOfFactory(UnitDefId constructorDefId)
+{
+	const FactoryId& factoryId = ai->s_buildTree.GetUnitTypeProperties(constructorDefId).m_factoryId;
+
+	if( factoryId.IsValid() )
+		return Buildqueue(&m_buildqueues[factoryId.id]);
+	else
+		return Buildqueue();
+}
+
+float AAIBuildTable::CalculateAverageBuildqueueLength() const
+{
+	int totalQueuedUnits(0);
+	int numberOfActiveFactoryTypes(0);
+
+	const auto& factoryTable = ai->s_buildTree.GetFactoryDefIdLookupTable();
+
+	for(int factoryId = 0; factoryId < factoryTable.size(); ++factoryId)
+	{
+		if(ai->BuildTable()->units_dynamic[ factoryTable[factoryId].id ].active > 0)
+		{
+			totalQueuedUnits += static_cast<int>(m_buildqueues[factoryId].size());
+			++numberOfActiveFactoryTypes;
+		}
+	}
+
+	if(numberOfActiveFactoryTypes > 0)
+		return static_cast<float>(totalQueuedUnits) / static_cast<float>(numberOfActiveFactoryTypes);
+	else
+		return 0.0f;
+}
+
+void AAIBuildTable::DetermineFactoryUtilization(std::vector<float>& factoryUtilization, bool considerOnlyActiveFactoryTypes) const
+{
+	const std::vector<UnitDefId>& factoryTable = ai->s_buildTree.GetFactoryDefIdLookupTable();
+
+	for(int factoryId = 0; factoryId < ai->s_buildTree.GetNumberOfFactories(); ++factoryId)
+	{
+		const UnitTypeDynamic& unitTypeData = GetDynamicUnitTypeData(factoryTable[factoryId]);
+
+		if(    (considerOnlyActiveFactoryTypes == false)
+			|| (unitTypeData.active > 0) )
+		{
+			const float queueLength = static_cast<float>(m_buildqueues[factoryId].size());
+			factoryUtilization[factoryId] = 1.0f - ( queueLength / static_cast<float>(cfg->MAX_BUILDQUE_SIZE+1) );
+		}
 	}
 }
 
@@ -1016,17 +1094,31 @@ UnitDefId AAIBuildTable::SelectConstructorFor(UnitDefId unitDefId) const
 
 bool AAIBuildTable::RequestMobileConstructor(UnitDefId constructor)
 {
+	// only mark as urgent (unit gets added to front of buildqueue) if no constructor of that type already exists
+	const BuildQueuePosition queuePosition = (  units_dynamic[constructor.id].active > 1) ? BuildQueuePosition::SECOND : BuildQueuePosition::FRONT;
+
 	if(GetTotalNumberOfConstructorsForUnit(constructor) <= 0)
 	{
 		//ai->Log("RequestConstructor(%s) is requesting factory for %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(constructor).m_name.c_str());
-		RequestFactoryFor(constructor);
+		const UnitDefId requestedFactory = RequestFactoryFor(constructor);
+
+		if(requestedFactory.IsValid())
+		{
+			Buildqueue buildqueue = GetBuildqueueOfFactory(requestedFactory);
+
+			if(buildqueue.IsValid())
+			{
+				if(ai->Execute()->AddUnitsToBuildqueue(constructor, 1, buildqueue, queuePosition, true))
+				{
+					ConstructorRequested(constructor);
+					return true;	
+				}
+			}
+		}
 	}
 	else
 	{	
-		// only mark as urgent (unit gets added to front of buildqueue) if no constructor of that type already exists
-		const BuildQueuePosition queuePosition = (units_dynamic[constructor.id].active > 1) ? BuildQueuePosition::SECOND : BuildQueuePosition::FRONT;
-
-		if(ai->Execute()->AddUnitToBuildqueue(constructor, 1, queuePosition, true))
+		if(ai->Execute()->TryAddingUnitsToBuildqueue(constructor, 1, queuePosition, true))
 		{
 			ConstructorRequested(constructor);
 			return true;
@@ -1036,7 +1128,7 @@ bool AAIBuildTable::RequestMobileConstructor(UnitDefId constructor)
 	return false;
 }
 
-void AAIBuildTable::RequestFactoryFor(UnitDefId unitDefId)
+UnitDefId AAIBuildTable::RequestFactoryFor(UnitDefId unitDefId)
 {
 	const UnitDefId selectedConstructor = SelectConstructorFor(unitDefId);
 	
@@ -1073,6 +1165,8 @@ void AAIBuildTable::RequestFactoryFor(UnitDefId unitDefId)
 			//	ai->Log("RequestFactoryFor(%s) failed to request %s\n", ai->s_buildTree.GetUnitTypeProperties(unitDefId).m_name.c_str(), ai->s_buildTree.GetUnitTypeProperties(selectedConstructor).m_name.c_str());
 		}
 	}
+
+	return selectedConstructor;
 }
 
 void AAIBuildTable::RequestBuilderFor(UnitDefId building)

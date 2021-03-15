@@ -12,12 +12,6 @@
 
 class AAI;
 
-namespace springLegacyAI {
-	struct UnitDef;
-}
-using namespace springLegacyAI;
-
-
 #include "aidef.h"
 #include "AAIBuildTree.h"
 #include "AAIUnitTypes.h"
@@ -142,9 +136,21 @@ public:
 		units_dynamic[factoryDefId.id].requested -= 1;
 		m_factoryBuildqueue.remove(factoryDefId);
 	}
+
+	//! @brief Determines a suitable buildqueue to add the given unit (returned queue is invalid if none found)
+	Buildqueue DetermineBuildqueue(UnitDefId unitDefId);
+
+	//! @brief Returns the buildqueue for a given constructor
+	Buildqueue GetBuildqueueOfFactory(UnitDefId constructorDefId);
 	
 	//! @brief Returns the list containing which factories shall be built next
 	const std::list<UnitDefId>& GetFactoryBuildqueue() const { return m_factoryBuildqueue; }
+
+	//! @brief Calculates the average buildqueue length
+	float CalculateAverageBuildqueueLength() const;
+
+	//! @brief Determines the utilization (i.e. how long is the buildqueue) of the different factories
+	void DetermineFactoryUtilization(std::vector<float>& factoryUtilization, bool considerOnlyActiveFactoryTypes) const;
 
 	//! @brief Calculates the rating of the given factory
 	float DetermineFactoryRating(UnitDefId factoryDefId, const TargetTypeValues& combatPowerVsTargetType) const;
@@ -218,8 +224,8 @@ public:
 
 	int GetJammer(int side, float cost, float range, bool water, bool canBuild);
 
-	//! @brief Determines most suitable factory to construct given unit and requests its construnction
-	void RequestFactoryFor(UnitDefId unitDefId);
+	//! @brief Determines most suitable factory to construct given unit and requests its construnction (returns the requested type)
+	UnitDefId RequestFactoryFor(UnitDefId unitDefId);
 
 	//! @brief Looks for most suitable construction unit for given building and places buildorder if such a unit is not already under construction/requested
 	void RequestBuilderFor(UnitDefId building);
@@ -274,13 +280,16 @@ private:
 	//! A list containing the next factories that shall be built
 	std::list<UnitDefId> m_factoryBuildqueue;
 
+	//! Buildqueues of the different factories
+	std::vector< std::list<UnitDefId> > m_buildqueues;
+
 	//! Rates of attacks by different combat categories per map and game phase
 	static AttackedByRatesPerGamePhaseAndMapType s_attackedByRates;
 
 	AAI *ai;
 
 	// all the unit defs, FIXME: this can't be made static as spring seems to free the memory returned by GetUnitDefList()
-	std::vector<const UnitDef*> unitList;
+	std::vector<const springLegacyAI::UnitDef*> unitList;
 };
 
 #endif
