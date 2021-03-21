@@ -1683,6 +1683,18 @@ void AAIMap::UpdateEnemyScoutingData()
 	}
 }
 
+bool AAIMap::CheckPositionForScoutedUnit(const float3& position, UnitId unitId)
+{
+	const ScoutMapTile tile = m_scoutedEnemyUnitsMap.GetScoutMapTile(position);
+
+	if(tile.IsValid())
+	{
+		return (unitId.id == m_scoutedEnemyUnitsMap.GetUnitAt(tile));
+	}
+	else
+		return false;
+}
+
 bool AAIMap::IsPositionInLOS(const float3& position) const
 {
 	const int* losMap = ai->GetLosMap();

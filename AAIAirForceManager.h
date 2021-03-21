@@ -49,7 +49,10 @@ public:
 	void CheckTarget(const UnitId& unitId, const AAITargetType& targetType, float health);
 
 	//! @brief Checks if target is possible bombing target and adds to list of bomb targets (used for buildings e.g. stationary arty, nuke launchers..)
-	bool CheckStaticBombTarget(UnitId unitId, UnitDefId unitDefId, const float3& position);	
+	bool CheckIfStaticBombTarget(UnitId unitId, UnitDefId unitDefId, const float3& position);
+
+	//! @brief Checks all current bomb targets if they are still valid
+	void CheckStaticBombTargets();
 
 	//! @brief Removes unit if from list of possible bombing targets
 	void RemoveTarget(UnitId unitId);
@@ -61,7 +64,7 @@ public:
 	void BombBestTarget(float danger);
 
 	//! @brief Searches for next suitable target for the given group to attack
-	void CheckNextBombTarget(AAIGroup* group);
+	void FindNextBombTarget(AAIGroup* group);
 
 private:
 	//! @brief Selects the best target from the given list

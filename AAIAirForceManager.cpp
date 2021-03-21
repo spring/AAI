@@ -57,7 +57,7 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAITargetType& 
 	}
 }
 
-bool AAIAirForceManager::CheckStaticBombTarget(UnitId unitId, UnitDefId unitDefId, const float3& position)
+bool AAIAirForceManager::CheckIfStaticBombTarget(UnitId unitId, UnitDefId unitDefId, const float3& position)
 {
 	std::set<AirRaidTarget*>* targets(nullptr);
 	const AAIUnitCategory&    category = ai->s_buildTree.GetUnitCategory(unitDefId);
@@ -88,6 +88,27 @@ bool AAIAirForceManager::CheckStaticBombTarget(UnitId unitId, UnitDefId unitDefI
 	}
 
 	return false;
+}
+
+void AAIAirForceManager::CheckStaticBombTargets()
+{
+	std::array< std::set<AirRaidTarget*>*, 2> targetLists = {&m_economyTargets, &m_militaryTargets};
+	for(auto targetList : targetLists)
+	{
+		for(auto target : *targetList)
+		{
+			const bool targetAlive = ai->Map()->CheckPositionForScoutedUnit(target->GetPosition(), target->GetUnitId());
+
+			if(!targetAlive)
+			{
+				//ai->Log("Deleting no longer existing target\n");
+				targetList->erase(target);
+				delete target;
+
+				return;
+			}
+		}
+	}
 }
 
 void AAIAirForceManager::RemoveTarget(UnitId unitId)
@@ -168,7 +189,7 @@ void AAIAirForceManager::BombBestTarget(float danger)
 	//ai->Log("\n");
 }
 
-void AAIAirForceManager::CheckNextBombTarget(AAIGroup* group)
+void AAIAirForceManager::FindNextBombTarget(AAIGroup* group)
 {
 	//ai->Log("Checking for new bomb target for %i bombers", group->GetCurrentSize() );
 

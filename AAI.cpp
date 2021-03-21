@@ -515,7 +515,6 @@ void AAI::UnitFinished(int unit)
 		// scout
 		else if(category.IsScout())
 		{
-			Log("Scout added\n");
 			m_unitTable->AddScout(unit);
 
 			// cloak scout if cloakable
@@ -857,6 +856,7 @@ void AAI::Update()
 		AAI_SCOPED_TIMER("Check-Attack")
 		// check attack
 		m_attackManager->Update();
+		m_airForceManager->CheckStaticBombTargets();
 		m_airForceManager->BombBestTarget(2.0f);
 		return;
 	}

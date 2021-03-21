@@ -74,7 +74,7 @@ bool AAIUnitTable::AddUnit(int unit_id, int def_id, AAIGroup *group, AAIConstruc
 			ai->AirForceMgr()->RemoveTarget(UnitId(unit_id));
 
 			if(units[unit_id].group)
-				ai->AirForceMgr()->CheckNextBombTarget(units[unit_id].group);
+				ai->AirForceMgr()->FindNextBombTarget(units[unit_id].group);
 
 			//if(units[unit_id].group)
 			//	units[unit_id].group->TargetUnitKilled();
@@ -359,7 +359,7 @@ void AAIUnitTable::EnemyKilled(int unit)
 		units[unit].status = ENEMY_UNIT;
 
 		if(units[unit].group)
-			ai->AirForceMgr()->CheckNextBombTarget(units[unit].group);	
+			ai->AirForceMgr()->FindNextBombTarget(units[unit].group);	
 	}
 	else
 	{
@@ -428,7 +428,7 @@ void AAIUnitTable::CheckBombTarget(UnitId unitId, UnitDefId defId, const AAIUnit
 {
 	if(category.IsBuilding() && (units[unitId.id].status != BOMB_TARGET) )
 	{
-		const bool addedToTargets = ai->AirForceMgr()->CheckStaticBombTarget(unitId, defId, position);
+		const bool addedToTargets = ai->AirForceMgr()->CheckIfStaticBombTarget(unitId, defId, position);
 
 		if(addedToTargets)
 			units[unitId.id].status = BOMB_TARGET;

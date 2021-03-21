@@ -118,7 +118,8 @@ public:
 	int ScoutMapToBuildMapCoordinate(int scoutMapCoordinate) const { return scoutMapCoordinate*scoutMapResolution; }
 
 	//! @brief Returns id of unit at given tile
-	int GetUnitAt(int x, int y) const { return m_scoutedUnitsMap[x + y * m_xScoutMapSize]; }
+	int GetUnitAt(int x, int y)             const { return m_scoutedUnitsMap[x + y * m_xScoutMapSize]; }
+	int GetUnitAt(const ScoutMapTile& tile) const { return m_scoutedUnitsMap[tile.m_tileIndex]; }
 
 	//! @brief Adds unit to tile
 	void AddEnemyUnit(UnitDefId defId, ScoutMapTile tile) { m_scoutedUnitsMap[tile.m_tileIndex] = defId.id; }

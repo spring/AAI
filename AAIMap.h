@@ -122,6 +122,9 @@ public:
 
 	//! @brief Triggers an update of the current units in LOS if there are enough frames since the last update or it is enforced
 	void CheckUnitsInLOSUpdate(bool forceUpdate = false);
+	
+	//! @brief Returns whether given unit is still known to be at given position (used to detect buildings that have been destroyed while not within LOS)
+	bool CheckPositionForScoutedUnit(const float3& position, UnitId unitId);
 
 	//! @brief Returns whether given position lies within current LOS
 	bool IsPositionInLOS(const float3& position) const;
