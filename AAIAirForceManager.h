@@ -61,20 +61,20 @@ public:
 	float GetNumberOfBombTargets() const;
 
 	//! @brief Tries to bomb the most promising target
-	void BombBestTarget(float danger);
+	void AirRaidBestTarget(float danger);
 
 	//! @brief Searches for next suitable target for the given group to attack
 	void FindNextBombTarget(AAIGroup* group);
 
 private:
 	//! @brief Selects the best target from the given list
-	AirRaidTarget* SelectBestTarget(std::set<AirRaidTarget*>& targetList, float danger, int availableBombers, const float3& position);
+	AirRaidTarget* SelectBestTarget(std::set<AirRaidTarget*>& targetList, float danger, const std::pair<int, int>& availableAttackAircraft, const float3& position);
 
-	//! @brief Returns a group of air units of given type currently occupied with a task of lower priority (or idle) - nullptr if none found
+	//! @brief Returns a group of air units that is most effective to counter given target type and currently occupied with a task of lower priority (or idle) - nullptr if none found
 	AAIGroup* GetAirGroup(const AAITargetType& targetType, float minCombatPower, float importance) const;
 
-	//! @brief Determines the maximum number of bombers currently available
-	int DetermineMaximumNumberOfAvailableBombers(float importance) const;
+	//! @brief Determines the maximum number of bombers (stored in first) and gunships (stored in second) currently available
+	std::pair<int, int> DetermineMaximumNumberOfAvailableAttackAircraft(float importance) const;
 
 	AAI *ai;
 

@@ -248,7 +248,7 @@ void AAIBuildTree::UpdateUnitTypesOfCombatUnits()
 			const float maxCombatPowerVsMobile = std::max( 	std::max(m_combatPowerOfUnits[id].GetValue(ETargetType::SURFACE), m_combatPowerOfUnits[id].GetValue(ETargetType::AIR)), 
 															std::max(m_combatPowerOfUnits[id].GetValue(ETargetType::FLOATER), m_combatPowerOfUnits[id].GetValue(ETargetType::SUBMERGED)) );
 
-			if(m_combatPowerOfUnits[id].GetValue(ETargetType::STATIC) > 1.5f * maxCombatPowerVsMobile)
+			if(m_combatPowerOfUnits[id].GetValue(ETargetType::STATIC) > 2.0f * maxCombatPowerVsMobile)
 				m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_STATIC);
 		}
 	}
@@ -324,9 +324,9 @@ bool AAIBuildTree::Generate(springLegacyAI::IAICallback* cb)
 	for(int id = 1; id <= numberOfUnitTypes; ++id)
 	{
 		// determine which unit types can be constructed by the current unit type
-		for(std::map<int, std::string>::const_iterator j = unitDefs[id]->buildOptions.begin(); j != unitDefs[id]->buildOptions.end(); ++j)
+		for(const auto& constructableUnit : unitDefs[id]->buildOptions)
 		{
-			int canConstructId = cb->GetUnitDef(j->second.c_str())->id;
+			const int canConstructId = cb->GetUnitDef(constructableUnit.second.c_str())->id;
 
 			m_unitTypeCanConstructLists[id].push_back( UnitDefId(canConstructId) );
 			m_unitTypeCanBeConstructedtByLists[canConstructId].push_back( UnitDefId(id) );

@@ -236,7 +236,7 @@ enum class EUnitType : int
 	ANTI_AIR             = 0x0008, //! Anti air combat units/static defences
 	ANTI_SHIP            = 0x0010, //! Anti ship combat units/static defences
 	ANTI_SUBMERGED       = 0x0020, //! Anti submarine combat units/static defences
-	ANTI_STATIC          = 0x0040, //! Anti building (bombers)
+	ANTI_STATIC          = 0x0040, //! Anti building
 	RADAR                = 0x0080, //! Radar
 	SONAR                = 0x0100, //! Sonar
 	SEISMIC              = 0x0200, //! Seismic detector

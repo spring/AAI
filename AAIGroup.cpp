@@ -503,16 +503,25 @@ void AAIGroup::UnitIdle(UnitId unitId, AAIAttackManager* attackManager)
 	}
 }
 
-void AAIGroup::BombTarget(UnitId unitId, const float3& position, float importance)
+void AAIGroup::AirRaidTarget(UnitId unitId, const float3& position, float importance)
 {
-	Command c(CMD_ATTACK);
+	int commandId;
+
+	if(m_groupType.IsAntiStatic() )
+	{
+		commandId = CMD_ATTACK;
+		task = GROUP_BOMBING;
+	}
+	else
+	{
+		commandId = CMD_FIGHT;
+		task = GROUP_ATTACKING;
+	}
+
+	Command c(commandId);
 	c.PushPos(position);
-
 	GiveOrderToGroup(&c, importance, UNIT_ATTACKING, "Group::BombTarget");
-
 	ai->UnitTable()->SetEnemyUnitAsTargetOfGroup(unitId, this);
-
-	task = GROUP_BOMBING;
 }
 
 void AAIGroup::DefendAirSpace(const float3& position, float importance)

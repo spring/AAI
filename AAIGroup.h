@@ -62,8 +62,8 @@ public:
 	//! @brief Retreat units in group to given position
 	void Retreat(const float3& pos);
 
-	//! @brief Bombs target (only for bomber groups)
-	void BombTarget(UnitId unitId, const float3& position, float importance);
+	//! @brief Orders units to attack given target (either directly attack the position for bombers or fight command for gun ships)
+	void AirRaidTarget(UnitId unitId, const float3& position, float importance);
 
 	//! @brief Orders fighters to defend air space (patrol to given position)
 	void DefendAirSpace(const float3& pos, float importance);

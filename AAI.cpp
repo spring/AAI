@@ -857,7 +857,7 @@ void AAI::Update()
 		// check attack
 		m_attackManager->Update();
 		m_airForceManager->CheckStaticBombTargets();
-		m_airForceManager->BombBestTarget(2.0f);
+		m_airForceManager->AirRaidBestTarget(2.0f);
 		return;
 	}
 

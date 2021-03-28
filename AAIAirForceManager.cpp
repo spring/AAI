@@ -135,25 +135,25 @@ float AAIAirForceManager::GetNumberOfBombTargets() const
 	return currentTargets / (static_cast<float>(cfg->MAX_ECONOMY_TARGETS + cfg->MAX_MILITARY_TARGETS)); 
 }
 
-void AAIAirForceManager::BombBestTarget(float danger)
+void AAIAirForceManager::AirRaidBestTarget(float danger)
 {
-	const int maxNumberOfAvailableBombers = DetermineMaximumNumberOfAvailableBombers(AAIConstants::bombingRunUrgency);
+	const std::pair<int, int> availableAttackAircraft = DetermineMaximumNumberOfAvailableAttackAircraft(AAIConstants::bombingRunUrgency);
 
 	//ai->Log("Checking bombing run: %i bombers available for %i military and %i economic targets", maxNumberOfAvailableBombers, m_militaryTargets.size(), m_economyTargets.size());
 
-	if(maxNumberOfAvailableBombers <= 0)
+	if( (availableAttackAircraft.first + availableAttackAircraft.second) <= 0)
 		return;
 
 	const MapPos& baseCenter = ai->Brain()->GetCenterOfBase();
 	const float3  position( static_cast<float>(baseCenter.x * SQUARE_SIZE), 0.0f, static_cast<float>(baseCenter.y * SQUARE_SIZE) );
 
 	// try to select a military target first
-	AirRaidTarget* selectedTarget = SelectBestTarget(m_militaryTargets, danger, maxNumberOfAvailableBombers, position);
+	AirRaidTarget* selectedTarget = SelectBestTarget(m_militaryTargets, danger, availableAttackAircraft, position);
 
 	// if no military target found, try to select lower priority economy target
 	if(selectedTarget == nullptr)
 	{
-		selectedTarget = SelectBestTarget(m_economyTargets, danger, maxNumberOfAvailableBombers, position);
+		selectedTarget = SelectBestTarget(m_economyTargets, danger, availableAttackAircraft, position);
 	}
 
 	// try to order bombardment if target & bombers available
@@ -165,16 +165,16 @@ void AAIAirForceManager::BombBestTarget(float danger)
 
 		const AAIUnitCategory& targetCategory = ai->s_buildTree.GetUnitCategory(selectedTarget->GetUnitDefId());
 
-		int bombersSent(0);
-		while(bombersSent < minNumberOfBombers)
+		int aircraftSent(0);
+		while(aircraftSent < minNumberOfBombers)
 		{
 			AAIGroup *group = GetAirGroup(ETargetType::STATIC, 1.0f, 0.85f * AAIConstants::bombingRunUrgency);
 
 			if(group)
 			{
 				//ai->Log("- bombers sent.\n");
-				group->BombTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition(), AAIConstants::bombingRunUrgency);
-				bombersSent += group->GetCurrentSize();
+				group->AirRaidTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition(), AAIConstants::bombingRunUrgency);
+				aircraftSent += group->GetCurrentSize();
 			}
 			else
 			{
@@ -182,7 +182,7 @@ void AAIAirForceManager::BombBestTarget(float danger)
 			}
 		}
 
-		if(bombersSent > 0)
+		if(aircraftSent > 0)
 			RemoveTarget(selectedTarget->GetUnitId());
 	}
 
@@ -194,21 +194,22 @@ void AAIAirForceManager::FindNextBombTarget(AAIGroup* group)
 	//ai->Log("Checking for new bomb target for %i bombers", group->GetCurrentSize() );
 
 	const float3 position = group->GetGroupPos();
+	const std::pair<int, int> availableAttackAircraft(group->GetCurrentSize(), 0);
 
 	// try to select a military target first
-	AirRaidTarget* selectedTarget = SelectBestTarget(m_militaryTargets, 1.5f, group->GetCurrentSize(), position);
+	AirRaidTarget* selectedTarget = SelectBestTarget(m_militaryTargets, 1.5f, availableAttackAircraft, position);
 	bool highPriorityTarget(true);
 
 	// if no military target found, try to select lower priority economy target
 	if(selectedTarget == nullptr)
 	{
-		selectedTarget = SelectBestTarget(m_economyTargets, 1.5f, group->GetCurrentSize(), position);
+		selectedTarget = SelectBestTarget(m_economyTargets, 1.5f, availableAttackAircraft, position);
 		highPriorityTarget = false;
 	}
 
 	if(selectedTarget)
 	{
-		group->BombTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition(), AAIConstants::bombingRunUrgency);
+		group->AirRaidTarget(selectedTarget->GetUnitId(), selectedTarget->GetPosition(), AAIConstants::bombingRunUrgency);
 		//ai->Log(" - Continuing bombing run with target %s\n", ai->s_buildTree.GetUnitTypeProperties(selectedTarget->GetUnitDefId()).m_name.c_str() );
 	}		
 	else
@@ -217,7 +218,7 @@ void AAIAirForceManager::FindNextBombTarget(AAIGroup* group)
 	}
 }
 
-AirRaidTarget* AAIAirForceManager::SelectBestTarget(std::set<AirRaidTarget*>& targetList, float danger, int availableBombers, const float3& position)
+AirRaidTarget* AAIAirForceManager::SelectBestTarget(std::set<AirRaidTarget*>& targetList, float danger, const std::pair<int, int>& availableAttackAircraft, const float3& position)
 {
 	float bestRating(4.0f);	// rating should be between 0 (best) and 3 (worst)
 	AirRaidTarget* selectedTarget(nullptr);
@@ -229,10 +230,16 @@ AirRaidTarget* AAIAirForceManager::SelectBestTarget(std::set<AirRaidTarget*>& ta
 
 		if(sector)
 		{
-			// check if sufficient number of bombers is available
-			const int minNumberOfBombers = std::min(static_cast<int>(ai->s_buildTree.GetHealth(target->GetUnitDefId()) / cfg->HEALTH_PER_BOMBER), cfg->MAX_AIR_GROUP_SIZE);
+			// check if sufficient number of aircrafts to attack target is available
+			bool sufficientAttackersAvailable = (availableAttackAircraft.second > 0);
 
-			if( (availableBombers >= minNumberOfBombers) && (sector->GetLostAirUnits() < 0.8f) )
+			if(sufficientAttackersAvailable == false)
+			{
+				const int minNumberOfBombers = std::min(static_cast<int>(ai->s_buildTree.GetHealth(target->GetUnitDefId()) / cfg->HEALTH_PER_BOMBER), cfg->MAX_AIR_GROUP_SIZE);
+				sufficientAttackersAvailable = (availableAttackAircraft.first >= minNumberOfBombers);
+			}
+
+			if( sufficientAttackersAvailable && (sector->GetLostAirUnits() < 0.8f) )
 			{
 				const float dx = position.x - target->GetPosition().x;
 				const float dy = position.z - target->GetPosition().z;
@@ -267,7 +274,7 @@ AAIGroup* AAIAirForceManager::GetAirGroup(const AAITargetType& targetType, float
 
 	for(auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
 	{
-		if(group->task_importance < importance )
+		if(group->task_importance < importance)
 		{
 			const float combatPower = group->GetCombatPowerVsTargetType(targetType);
 
@@ -278,21 +285,24 @@ AAIGroup* AAIAirForceManager::GetAirGroup(const AAITargetType& targetType, float
 			}
 		}
 	}
-	
+
 	return selectedGroup;
 }
 
-int AAIAirForceManager::DetermineMaximumNumberOfAvailableBombers(float importance) const
+std::pair<int, int> AAIAirForceManager::DetermineMaximumNumberOfAvailableAttackAircraft(float importance) const
 {
-	int numberOfAvailableBombers(0);
+	std::pair<int, int> numberOfAvailableAttackAircraft = {0, 0};
 
 	for(auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
 	{
-		if( (group->task_importance < importance) && group->GetUnitTypeOfGroup().IsUnitTypeSet(EUnitType::ANTI_STATIC) )
+		if(group->task_importance < importance)
 		{
-			numberOfAvailableBombers += group->GetCurrentSize();
+			if(group->GetUnitTypeOfGroup().IsUnitTypeSet(EUnitType::ANTI_STATIC))
+				numberOfAvailableAttackAircraft.first += group->GetCurrentSize();
+			else if(group->GetUnitTypeOfGroup().IsUnitTypeSet(EUnitType::ANTI_SURFACE))
+				numberOfAvailableAttackAircraft.second += group->GetCurrentSize();
 		}
 	}
-	
-	return numberOfAvailableBombers;
+
+	return numberOfAvailableAttackAircraft;
 }
