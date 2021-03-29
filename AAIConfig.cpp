@@ -154,7 +154,6 @@ AAIConfig::AAIConfig() :
 	MIN_FACTORIES_FOR_STORAGE = 1;
 	MIN_FACTORIES_FOR_RADAR_JAMMER = 2;
 	MIN_AIR_SUPPORT_EFFICIENCY = 2.5f;
-	MAX_ATTACKS = 3;
 
 	HEALTH_PER_BOMBER = 750.0f;
 
@@ -375,8 +374,6 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 			MIN_FACTORIES_FOR_STORAGE = ReadNextInteger(ai, file);
 		} else if(!strcmp(keyword, "MIN_FACTORIES_FOR_RADAR_JAMMER")) {
 			MIN_FACTORIES_FOR_RADAR_JAMMER = ReadNextInteger(ai, file);
-		} else if(!strcmp(keyword, "MAX_ATTACKS")) {
-			MAX_ATTACKS = ReadNextInteger(ai, file);
 		} else {
 			errorOccurred = true;
 			break;

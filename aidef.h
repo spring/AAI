@@ -90,6 +90,9 @@ public:
 	//! Number of data points used to calculate smoothed energy/metal income/surplus 
 	static constexpr int   incomeSamplePoints = 16;
 
+	//! Maximum number of parallel attacks
+	static constexpr int   maxNumberOfAttacks = 3;
+
 	//! Urgency of bombing run
 	static constexpr float bombingRunUrgency = 100.0f;
 

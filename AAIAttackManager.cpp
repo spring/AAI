@@ -20,7 +20,7 @@ AAIAttackManager::AAIAttackManager(AAI *ai)
 {
 	this->ai = ai;
 
-	m_activeAttacks.resize(cfg->MAX_ATTACKS, nullptr);
+	m_activeAttacks.resize(AAIConstants::maxNumberOfAttacks, nullptr);
 }
 
 AAIAttackManager::~AAIAttackManager(void)

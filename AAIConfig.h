@@ -127,7 +127,6 @@ public:
 	float MAX_COST_LIGHT_ASSAULT;
 	float MAX_COST_MEDIUM_ASSAULT;
 	float MAX_COST_HEAVY_ASSAULT;
-	int   MAX_ATTACKS;
 
 	//! Used to determine minimum number of bombers send vs. a given target; i.e. minNumber = targetHealth  / HEALTH_PER_BOMBER
 	float HEALTH_PER_BOMBER;
