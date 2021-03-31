@@ -761,13 +761,16 @@ int AAIBuildTable::GetJammer(int side, float cost, float range, bool water, bool
 	return best_jammer;
 }
 
-UnitDefId AAIBuildTable::SelectScout(int side, float sightRange, float cost, float cloakable, uint32_t movementType, int randomness, bool factoryAvailable)
+UnitDefId AAIBuildTable::SelectScout(int side, const ScoutSelectionCriteria& scoutSelectionCriteria, uint32_t movementType, bool factoryAvailable)
 {
+	const int randomness(10);
+
 	float highestRating(0.0f);
 	UnitDefId selectedScout;
 
 	const StatisticalData& costs       = ai->s_buildTree.GetUnitStatistics(side).GetUnitCostStatistics(EUnitCategory::SCOUT);
 	const StatisticalData& sightRanges = ai->s_buildTree.GetUnitStatistics(side).GetUnitPrimaryAbilityStatistics(EUnitCategory::SCOUT);
+	const StatisticalData& speeds      = ai->s_buildTree.GetUnitStatistics(side).GetUnitSecondaryAbilityStatistics(EUnitCategory::SCOUT);
 
 	for(auto scoutUnitDefId : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::SCOUT, side))
 	{
@@ -776,13 +779,14 @@ UnitDefId AAIBuildTable::SelectScout(int side, float sightRange, float cost, flo
 
 		if( moveType.IsIncludedIn(movementType) && factoryPrerequisitesMet )
 		{
-			float rating =     sightRange * sightRanges.GetDeviationFromZero(ai->s_buildTree.GetMaxRange(scoutUnitDefId))
-							+  cost       * costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(scoutUnitDefId) )
-							+ (0.1f * ((float)(rand()%randomness)));
+			const float cloakable = GetUnitDef(scoutUnitDefId.id).canCloak ? 1.0f : 0.0f;
 
-			if(GetUnitDef(scoutUnitDefId.id).canCloak)
-				rating += cloakable;
-
+			float rating =    scoutSelectionCriteria.sightRange * sightRanges.GetDeviationFromZero(ai->s_buildTree.GetMaxRange(scoutUnitDefId))
+							+ scoutSelectionCriteria.cost       * costs.GetDeviationFromMax(ai->s_buildTree.GetTotalCost(scoutUnitDefId))
+							+ scoutSelectionCriteria.speed      * speeds.GetDeviationFromZero(ai->s_buildTree.GetMaxSpeed(scoutUnitDefId))
+							+ scoutSelectionCriteria.cloakable  * cloakable
+							+ (0.03f * ((float)(rand()%randomness)));
+			
 			if(moveType.IsMobileSea())
 				rating *= (0.2f + 0.8f * AAIMap::s_waterTilesRatio);
 			else if(moveType.IsGround())

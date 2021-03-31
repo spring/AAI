@@ -195,59 +195,17 @@ void AAIExecute::BuildScouts()
 {
 	if(ai->UnitTable()->GetTotalNumberOfUnitsOfCategory(EUnitCategory::SCOUT) < cfg->MAX_SCOUTS)
 	{
-		bool availableFactoryNeeded = true;
-		float cost;
-		float sightRange;
-
-		const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
-
-		if(gamePhase.IsStartingPhase())
-		{
-			cost = 2.0f;
-			sightRange = 0.5f;
-		}
-		else if(gamePhase.IsEarlyPhase())
-		{
-			cost = 1.0f;
-			sightRange = 1.0f;
-		}
-		else
-		{
-			if(ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) == 0)
-			{
-				cost = 2.0f;
-				sightRange = 0.5f;
-			}
-			else
-			{
-				// sometimes prefer scouts with large los in late game
-				if(rand()%3 == 1)
-				{
-					cost = 0.5f;
-					sightRange = 4.0f;
-					availableFactoryNeeded = false;
-				}
-				else
-				{
-					cost = 1.0f;
-					sightRange = 1.0f;
-				}
-			}
-		}
-
-		// determine movement type of scout based on map
-		const uint32_t suitableMovementTypes = ai->Map()->GetSuitableMovementTypesForMap();
-
-		// request cloakable scouts from time to time
-		const float cloaked = (rand()%5 == 1) ? 1.0f : 0.25f;
+		const ScoutSelectionCriteria scoutSelectionCriteria = ai->Brain()->DetermineScoutSelectionCriteria();
+		const uint32_t               suitableMovementTypes  = ai->Map()->GetSuitableMovementTypesForMap();
+		const bool                   availableFactoryNeeded = (rand()%5 == 1) ? false : true;
 		
-		const UnitDefId scoutId = ai->BuildTable()->SelectScout(ai->GetSide(), sightRange, cost, cloaked, suitableMovementTypes, 10, availableFactoryNeeded);
+		const UnitDefId scoutId = ai->BuildTable()->SelectScout(ai->GetSide(), scoutSelectionCriteria, suitableMovementTypes, availableFactoryNeeded);
 
 		if(scoutId.IsValid())
 		{
 			const BuildQueuePosition queuePosition = (ai->UnitTable()->GetNumberOfActiveUnitsOfCategory(EUnitCategory::SCOUT) > 1) ? BuildQueuePosition::END : BuildQueuePosition::FRONT;
 
-			TryAddingUnitsToBuildqueue(scoutId.id, 1, queuePosition);
+			TryAddingUnitsToBuildqueue(scoutId.id, 1, queuePosition, true);
 		}
 	}
 }

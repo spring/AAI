@@ -119,14 +119,17 @@ public:
 	//! @brief Determines the combat efficiciency vs different target types for the selection of the next combat unit
 	TargetTypeValues  DetermineCombatPowerVsTargetType() const;
 
+	//! @brief Determines the selection criteria for a scout
+	ScoutSelectionCriteria      DetermineScoutSelectionCriteria() const;
+
 	//! @brief Determines the selection criteria for a power plant
 	PowerPlantSelectionCriteria DeterminePowerPlantSelectionCriteria() const;
 
 	//! @brief Determine the selection criteria for a storage
-	StorageSelectionCriteria DetermineStorageSelectionCriteria() const;
+	StorageSelectionCriteria    DetermineStorageSelectionCriteria() const;
 
 	//! @brief Determine the selection criteria for a metal extractor
-	ExtractorSelectionCriteria DetermineExtractorSelectionCriteria() const;
+	ExtractorSelectionCriteria  DetermineExtractorSelectionCriteria() const;
 
 	//! @brief Determine the selection criteria for static defences for the given sector
 	void DetermineStaticDefenceSelectionCriteria(StaticDefenceSelectionCriteria& selectionCriteria, const AAISector* sector) const;

@@ -42,6 +42,15 @@ struct UnitSelectionCriteria
 	float factoryUtilization; //!< the current utilization of the factories that can construct the unit
 };
 
+//! Criteria used for selection of scouts
+struct ScoutSelectionCriteria
+{
+	float cost;       //!< Unit cost
+	float speed;	  //!< Speed of unit
+	float sightRange; //!< LOS
+	float cloakable;  //!< Bonus for cloakable units
+};
+
 //! Criteria used for selection of static defences
 struct StaticDefenceSelectionCriteria
 {
@@ -220,7 +229,7 @@ public:
 	UnitDefId SelectStaticArtillery(int side, float cost, float range, bool water) const;
 
 	//! @brief Determines a scout unit with given properties
-	UnitDefId SelectScout(int side, float sightRange, float cloakable, float cost, uint32_t movementType, int randomness, bool factoryAvailable);
+	UnitDefId SelectScout(int side, const ScoutSelectionCriteria& scoutSelectionCriteria, uint32_t movementType, bool factoryAvailable);
 
 	int GetJammer(int side, float cost, float range, bool water, bool canBuild);
 

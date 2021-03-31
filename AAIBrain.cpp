@@ -676,7 +676,6 @@ UnitSelectionCriteria AAIBrain::DetermineCombatUnitSelectionCriteria() const
 			const float speed = static_cast<float>(rand()%5);
 			unitSelectionCriteria.speed = 0.1f + 0.1f * speed;
 		}
-		
 
 		if( IsRandomNumberBelow(cfg->HIGH_RANGE_UNITS_RATIO) )
 		{
@@ -825,6 +824,39 @@ float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId, co
 		rating *= (0.3f + 0.35f * (AAIMap::s_landTilesRatio  + m_baseFlatLandRatio) );
 
 	return rating;
+}
+
+ScoutSelectionCriteria AAIBrain::DetermineScoutSelectionCriteria() const
+{
+	ScoutSelectionCriteria selectionCriteria;
+	// income factor ranges from 1.0 (no metal income) to 0.0 (high metal income)
+	const float metalIncome  = m_metalIncome.GetAverageValue();
+	const float incomeFactor = 1.0f / (0.01f * metalIncome*metalIncome + 1.0f);
+
+	// cost ranges from 0.5 (excess metal, low threat level) to 3 (low metal)
+	selectionCriteria.cost   = 0.5f + 2.5f * incomeFactor;
+
+	const GamePhase gamePhase(ai->GetAICallback()->GetCurrentFrame());
+
+	if(gamePhase.IsStartingPhase())
+	{
+		selectionCriteria.speed      = 1.0f;
+		selectionCriteria.sightRange = 0.6f;
+		selectionCriteria.cloakable  = 0.0f;
+	}
+	else
+	{
+		// speed in 0.5 to 1.5
+		selectionCriteria.speed      = 0.5f + 0.2f * static_cast<float>(rand()%6);
+
+		// range in 0.5 to 2.0
+		selectionCriteria.sightRange = 0.5f + 0.3f * static_cast<float>(rand()%6);
+
+		// cloakable in 0 to 1
+		selectionCriteria.cloakable  = 0.0f + 0.25f * static_cast<float>(rand()%4);
+	}
+
+	return selectionCriteria;
 }
 
 PowerPlantSelectionCriteria AAIBrain::DeterminePowerPlantSelectionCriteria() const
