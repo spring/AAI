@@ -257,6 +257,11 @@ void AAIBuildTree::UpdateUnitTypesOfCombatUnits()
 	{
 		m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::ANTI_STATIC);
 	}
+
+	for(auto id : cfg->m_meleeUnits)
+	{
+		m_unitTypeProperties[id].m_unitType.AddUnitType(EUnitType::MELEE_UNIT);
+	}
 }
 
 float AAIBuildTree::CalculateCombatPowerChange(UnitDefId attackerUnitDefId, UnitDefId killedUnitDefId) const
@@ -490,7 +495,8 @@ void AAIBuildTree::PrintSummaryToFile(const std::string& filename, springLegacyA
 			{EUnitType::SONAR_JAMMER, "sonar jammer"},
 			{EUnitType::BUILDER, "builder"},
 			{EUnitType::FACTORY, "factory"},
-			{EUnitType::CONSTRUCTION_ASSIST, "construction assist"}};
+			{EUnitType::CONSTRUCTION_ASSIST, "construction assist"},
+			{EUnitType::MELEE_UNIT, "melee unit"}};
 
 	FILE* file = fopen(filename.c_str(), "w+");
 

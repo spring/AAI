@@ -245,6 +245,7 @@ enum class EUnitType : int
 	BUILDER              = 0x1000, //! Can construct buildings
 	FACTORY              = 0x2000, //! Can construct units
 	CONSTRUCTION_ASSIST  = 0x4000, //! Can assists with construction of units/buildings
+	MELEE_UNIT    = 0x8000, //! Combat units that directly charge for enemy and do not try to keep it at distance
 };
 
 //! @brief Unit type with convenience functions (works as bitmask)
@@ -307,7 +308,10 @@ public:
 	bool IsFactory()         const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::FACTORY)); }
 
 	//! @brief Returns true if unit can help with costruction of other units/buildings
-	bool IsConstructionAssist()     const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::CONSTRUCTION_ASSIST)); }
+	bool IsConstructionAssist()  const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::CONSTRUCTION_ASSIST)); }
+
+	//! @brief Returns true if unit is considered to be melee (suitable to engage in close quarters combat)
+	bool IsMeleeCombatUnit() const { return static_cast<bool>(m_unitType & static_cast<int>(EUnitType::MELEE_UNIT)); }
 
 	//! @brief Returns whether unit is considered to be able to fight against surface or submerged units (not anti air)
 	bool IsAssaultUnit()     const { return static_cast<bool>(m_unitType & (static_cast<int>(EUnitType::ANTI_SURFACE) + static_cast<int>(EUnitType::ANTI_SHIP) + static_cast<int>(EUnitType::ANTI_SUBMERGED) )); }

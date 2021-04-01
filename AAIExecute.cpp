@@ -2143,6 +2143,9 @@ void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 
 void AAIExecute::CheckKeepDistanceToEnemy(UnitId unit, UnitDefId unitDefId, UnitDefId enemyDefId)
 {
+	if(ai->s_buildTree.GetUnitType(unitDefId).IsMeleeCombatUnit())
+		return;
+
 	const float weaponRange      = ai->s_buildTree.GetMaxRange(unitDefId);
 	const float enemyWeaponRange = ai->s_buildTree.GetMaxRange(enemyDefId);
 

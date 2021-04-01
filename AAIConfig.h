@@ -106,6 +106,9 @@ public:
 	//! A list of units that shall be considered to be bombers 
 	std::list<int> m_bombers;
 
+	//! A list of units that shall be considered to be melee combat units 
+	std::list<int> m_meleeUnits;
+
 	//! A list of units that shall be ignored (i.e. not assigned to any category and thus not used)
 	std::list<int> m_ignoredUnits;
 

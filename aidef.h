@@ -102,6 +102,9 @@ public:
 	//! Urgency of defending base
 	static constexpr float defendBaseUrgency = 110.0f;
 
+	//! Importance of attacking enemy base
+	static constexpr float attackEnemyBaseUrgency = 110.0f;
+
 	//! Maximum number of (recently) lost air units in a sector for air support to be sent
 	static constexpr float maxLostAirUnitsForAirSupport = 2.5f;
 

@@ -286,6 +286,10 @@ bool AAIConfig::LoadGameConfig(AAI *ai)
 		{
 			ReadUnitNames(ai, file, m_bombers, unknownUnits);
 		}
+		else if(!strcmp(keyword, "MELEE"))
+		{
+			ReadUnitNames(ai, file, m_meleeUnits, unknownUnits);
+		}
 		else if(!strcmp(keyword, "DONT_BUILD")) 
 		{
 			ReadUnitNames(ai, file, m_ignoredUnits, unknownUnits);

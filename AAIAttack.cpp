@@ -166,31 +166,28 @@ bool AAIAttack::SufficientCombatPowerToAttackSector(const AAISector *sector, flo
 
 void AAIAttack::AttackSector(const AAISector *sector)
 {
-	int unit;
-	float importance = 110;
-
 	m_attackDestination = sector;
 
 	m_lastAttackOrderInFrame = ai->GetAICallback()->GetCurrentFrame();
 
-	for(std::set<AAIGroup*>::iterator group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
+	for(auto group : m_combatUnitGroups)
 	{
-		(*group)->AttackSector(m_attackDestination, importance);
+		group->AttackSector(m_attackDestination, AAIConstants::attackEnemyBaseUrgency);
 	}
 
 	// order aa groups to guard combat units
 	if(!m_combatUnitGroups.empty())
 	{
-		for(std::set<AAIGroup*>::iterator group = m_antiAirUnitGroups.begin(); group != m_antiAirUnitGroups.end(); ++group)
+		for(auto group : m_antiAirUnitGroups)
 		{
-			UnitId unitId = (*m_combatUnitGroups.begin())->GetRandomUnit();
+			const UnitId unitId = (*m_combatUnitGroups.begin())->GetRandomUnit();
 
 			if(unitId.IsValid())
 			{
 				Command c(CMD_GUARD);
 				c.PushParam(unitId.id);
 
-				(*group)->GiveOrderToGroup(&c, 110, GUARDING, "Group::AttackSector");
+				group->GiveOrderToGroup(&c, AAIConstants::defendUnitsUrgency, GUARDING, "Group::AttackSector");
 			}
 		}
 	}

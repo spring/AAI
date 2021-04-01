@@ -126,14 +126,18 @@ public:
 	//! @brief Checks if the group may participate in an attack (= idle, sufficient combat power, etc.)
 	bool IsAvailableForAttack();
 
-	float task_importance;	// importance of current task
-
-	GroupTask task;
+	//! importance of current task
+	float m_urgencyOfCurrentTask;	
 
 	// attack the group takes part in
 	AAIAttack *attack;
 
 private:
+	AAI* ai;
+
+	//! @brief Returns a position in certain distance to target in direction of group position (e.g. in front of given enemy position)
+	float3 DeterminePositionInFrontOfTarget(const float3& targetPosition, float distanceToTarget) const;
+
 	//! @brief Returns whether unit group is considered to be strong enough to attack
 	bool SufficientAttackPower() const;
 
@@ -141,36 +145,37 @@ private:
 	Command lastCommand;
 
 	//! The maximum number of units the group may consist of
-	int m_maxSize;
+	int               m_maxSize;
 
 	//! The units that belong to this group
 	std::list<UnitId> m_units;
 
 	//! The type of units in this group
-	UnitDefId m_groupDefId;
+	UnitDefId         m_groupDefId;
 
 	//! The unit category of the units in this group
-	AAIUnitCategory m_category;
+	AAIUnitCategory   m_category;
 
 	//! The unit type of the units in this group
-	AAIUnitType m_groupType;
+	AAIUnitType       m_groupType;
 
 	//! The movement type of the units of the group
-	AAIMovementType m_moveType;
+	AAIMovementType   m_moveType;
 
-	AAI* ai;
+	//! The current task of this group
+	GroupTask         m_task;
 
 	//! The current position the group shall move to (or ZeroVector if none)
-	float3 m_targetPosition;
+	float3            m_targetPosition;
 
 	//! The current sector in which the destination to move is located(or nullptr if none)
-	const AAISector *m_targetSector;
+	const AAISector*  m_targetSector;
 
 	//! Rally point of the group, ZeroVector if none.
-	float3 m_rallyPoint;
+	float3            m_rallyPoint;
 
 	//! Id of the continent the units of this group are stationed on (only matters if units of group cannot move to another continent)
-	int m_continentId;
+	int               m_continentId;
 };
 
 #endif

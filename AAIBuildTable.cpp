@@ -440,7 +440,10 @@ float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId, const Target
 
 		if(category.IsCombatUnit())
 		{
-			combatPowerOfUnitsRating += ai->s_buildTree.GetCombatPower(unitDefId).CalculateWeightedSum(combatPowerVsTargetType);
+			// combat power normalized to 0 to 1 where 1 is equal to 0.5 * AAIConstants::maxCombatPower
+			const float combatPower = std::max(ai->s_buildTree.GetCombatPower(unitDefId).CalculateWeightedSum(combatPowerVsTargetType), 0.5f * AAIConstants::maxCombatPower) / (0.5f * AAIConstants::maxCombatPower);
+
+			combatPowerOfUnitsRating += combatPower*combatPower;
 			++numberOfCombatUnits;
 		}
 	}
@@ -463,7 +466,7 @@ float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId, const Target
 
 	//ai->Log("%s: %f %f %f %i\n", ai->s_buildTree.GetUnitTypeProperties(factoryDefId).m_name.c_str(), moveTypeOfUnitsRating, newConstructionOptionsRating, 0.2f * combatPowerOfUnitsRating, numberOfRequestedConstructors);
 
-	return ( moveTypeOfUnitsRating + newConstructionOptionsRating + 0.2f * combatPowerOfUnitsRating + 0.25f * static_cast<float>(numberOfRequestedConstructors) );
+	return ( moveTypeOfUnitsRating + newConstructionOptionsRating + combatPowerOfUnitsRating + 0.25f * static_cast<float>(numberOfRequestedConstructors) );
 }
 
 void AAIBuildTable::CalculateFactoryRating(FactoryRatingInputData& ratingData, const UnitDefId factoryDefId, const MobileTargetTypeValues& combatPowerWeights, const AAIMapType& mapType) const

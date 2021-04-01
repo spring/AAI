@@ -814,7 +814,7 @@ float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId, co
 
 	float rating =    ai->BuildTable()->DetermineFactoryRating(factoryDefId, combatPowerVsTargetType)
 					+ costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(factoryDefId) );
-					+ 1.0f / static_cast<float>(ai->BuildTable()->GetDynamicUnitTypeData(factoryDefId).active + 1);
+					+ 2.0f / static_cast<float>(ai->BuildTable()->GetDynamicUnitTypeData(factoryDefId).active + 1);
 
 	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(factoryDefId);
 

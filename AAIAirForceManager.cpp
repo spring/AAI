@@ -274,7 +274,7 @@ AAIGroup* AAIAirForceManager::GetAirGroup(const AAITargetType& targetType, float
 
 	for(auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
 	{
-		if(group->task_importance < importance)
+		if(group->m_urgencyOfCurrentTask < importance)
 		{
 			const float combatPower = group->GetCombatPowerVsTargetType(targetType);
 
@@ -295,7 +295,7 @@ std::pair<int, int> AAIAirForceManager::DetermineMaximumNumberOfAvailableAttackA
 
 	for(auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
 	{
-		if(group->task_importance < importance)
+		if(group->m_urgencyOfCurrentTask < importance)
 		{
 			if(group->GetUnitTypeOfGroup().IsUnitTypeSet(EUnitType::ANTI_STATIC))
 				numberOfAvailableAttackAircraft.first += group->GetCurrentSize();
