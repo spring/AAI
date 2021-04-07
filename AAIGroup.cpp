@@ -172,11 +172,32 @@ void AAIGroup::GiveOrderToGroup(Command *c, float importance, UnitTask task, con
 
 	m_urgencyOfCurrentTask = importance;
 
-	for(auto unit = m_units.begin(); unit != m_units.end(); ++unit)
+	for(auto unit : m_units)
 	{
-		//ai->Getcb()->GiveOrder(i->x, c);
-		ai->Execute()->GiveOrder(c, (*unit).id, owner);
-		ai->UnitTable()->SetUnitStatus( (*unit).id, task);
+		ai->Execute()->GiveOrder(c, unit.id, owner);
+		ai->UnitTable()->SetUnitStatus( unit.id, task);
+	}
+}
+
+
+void AAIGroup::GiveMoveOrderToGroup(int commandId, UnitTask task, const float3& targetPositionCenter, const float3& distanceBetweenUnitsVector)
+{
+	lastCommandFrame = ai->GetAICallback()->GetCurrentFrame();
+
+	float3 nextPosition( targetPositionCenter.x - distanceBetweenUnitsVector.x * 0.5f * static_cast<float>(GetCurrentSize()-1),
+						 targetPositionCenter.y,
+						 targetPositionCenter.z - distanceBetweenUnitsVector.z * 0.5f * static_cast<float>(GetCurrentSize()-1));
+
+	for(auto unit : m_units)
+	{
+		Command c(commandId);
+		c.PushPos(nextPosition);
+
+		ai->Execute()->GiveOrder(&c, unit.id, "Group::MoveFight");
+		ai->UnitTable()->SetUnitStatus( unit.id, task);
+
+		nextPosition.x += distanceBetweenUnitsVector.x;
+		nextPosition.z += distanceBetweenUnitsVector.z;
 	}
 }
 
@@ -301,20 +322,25 @@ void AAIGroup::TargetUnitKilled()
 
 void AAIGroup::AttackSector(const AAISector *sector, float importance)
 {
+	const float3 targetPosition  = sector->DetermineAttackPosition();
+	const float3 attackDirection = DetermineDirectionToPosition(targetPosition);
+
+	const float  distanceToTarget = static_cast<float>(8 * SQUARE_SIZE);
+	const float3 attackPositionCenter( 	targetPosition.x - distanceToTarget * attackDirection.x, 
+										targetPosition.y, 
+										targetPosition.z - distanceToTarget * attackDirection.z);
+	const float3 distanceBetweenUnitsVector(  4.0f * static_cast<float>(SQUARE_SIZE) * attackDirection.z,
+											  0.0f,
+											- 4.0f * static_cast<float>(SQUARE_SIZE) * attackDirection.x);
+
 	const int commandId = m_groupType.IsMeleeCombatUnit() ? CMD_MOVE : CMD_FIGHT;
 
-	const float3 targetPosition = sector->DetermineAttackPosition();
-	const float3 attackPosition = DeterminePositionInFrontOfTarget(targetPosition, 8.0f * SQUARE_SIZE);
+	GiveMoveOrderToGroup(commandId, UnitTask::UNIT_ATTACKING, attackPositionCenter, distanceBetweenUnitsVector);
 
-	Command c(commandId);
-	c.PushPos(attackPosition);
-
-	// move group to that sector
-	GiveOrderToGroup(&c, importance + 8.0f, UNIT_ATTACKING, "Group::AttackSector");
-
-	m_targetPosition = targetPosition;
-	m_targetSector   = sector;
-	m_task = GROUP_ATTACKING;
+	m_urgencyOfCurrentTask = importance;
+	m_targetPosition       = targetPosition;
+	m_targetSector         = sector;
+	m_task                 = GROUP_ATTACKING;
 }
 
 void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance)
@@ -378,18 +404,14 @@ UnitId AAIGroup::GetRandomUnit() const
 	}
 }
 
-float3 AAIGroup::DeterminePositionInFrontOfTarget(const float3& targetPosition, float distanceToTarget) const
+float3 AAIGroup::DetermineDirectionToPosition(const float3& position) const
 {
-	float3 position( GetGroupPos() );
-
-	const float dx = position.x - targetPosition.x;
-	const float dz = position.z - targetPosition.z;
+	const float3 groupPosition = GetGroupPos();
+	const float dx = groupPosition.x - position.x;
+	const float dz = groupPosition.z - position.z;
 	const float invNorm = fastmath::isqrt_nosse(dx*dx+dz*dz);
 
-	position.x = targetPosition.x + distanceToTarget * invNorm * dx;
-	position.y = targetPosition.y;
-	position.z = targetPosition.z + distanceToTarget * invNorm * dz;
-	return position;
+	return float3(invNorm * dx, 0.0f, invNorm * dz);
 }
 
 bool AAIGroup::SufficientAttackPower() const

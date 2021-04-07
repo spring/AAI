@@ -50,6 +50,9 @@ public:
 
 	void GiveOrderToGroup(Command *c, float importance, UnitTask task, const char *owner);
 
+	//! @brief Orders unit to move/patrol/fight to given position where given distance between individual target positions is maintained
+	void GiveMoveOrderToGroup(int commandId, UnitTask unitTask, const float3& targetPositionCenter, const float3& distanceBetweenUnitsVector);
+
 	//! @brief Determines the position of an enemy building in the given sector and orders all units to attack it
 	void AttackSector(const AAISector *sector, float importance);
 
@@ -135,8 +138,8 @@ public:
 private:
 	AAI* ai;
 
-	//! @brief Returns a position in certain distance to target in direction of group position (e.g. in front of given enemy position)
-	float3 DeterminePositionInFrontOfTarget(const float3& targetPosition, float distanceToTarget) const;
+	//! @brief Determines direction (i.e. normalized vector) pointing from group to given position
+	float3 DetermineDirectionToPosition(const float3& position) const;
 
 	//! @brief Returns whether unit group is considered to be strong enough to attack
 	bool SufficientAttackPower() const;
