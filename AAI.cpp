@@ -306,13 +306,13 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 		
 		// building has been attacked
 		if (category.IsBuilding() )
-			m_execute->DefendUnitVS(unit, enemyTargetType, pos, 115);
+			m_execute->DefendUnitVS(unit, enemyTargetType, pos, AAIConstants::defendBaseUrgency);
 		// builder
 		else if ( category.IsMobileConstructor() )
 		{
 			const AAIUnitCategory&  enemyCategory = s_buildTree.GetUnitCategory(enemyDefId);
 
-			m_execute->DefendUnitVS(unit, enemyTargetType, pos, 110);
+			m_execute->DefendUnitVS(unit, enemyTargetType, pos, AAIConstants::defendConstructorsUrgency);
 
 			if(m_unitTable->units[damaged].cons)
 				m_unitTable->units[damaged].cons->CheckRetreatFromAttackBy(enemyCategory);
@@ -321,7 +321,7 @@ void AAI::UnitDamaged(int damaged, int attacker, float /*damage*/, float3 /*dir*
 		else
 		{
 			if(enemyTargetType.IsAir() && (s_buildTree.GetUnitType(unitDefId).CanFightTargetType(enemyTargetType) == false) ) 
-				m_execute->DefendUnitVS(unit, enemyTargetType, pos, 105);
+				m_execute->DefendUnitVS(unit, enemyTargetType, pos, AAIConstants::defendUnitsUrgency);
 		}	
 		
 	}

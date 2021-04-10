@@ -78,6 +78,12 @@ public:
 	//! Maximum distance to rally points for units to be considered to have reached it
 	static constexpr float maxSquaredDistToRallyPoint = static_cast<float>( (16*SQUARE_SIZE)*(16*SQUARE_SIZE) );
 
+	//! Distance between individual combat units of the same group that is kept between move/fight/patrol target positions (to avoid blocking line of fire when sending all units to the same position)
+	static constexpr float distanceBetweenUnitsInGroup = 5.0f * static_cast<float>(SQUARE_SIZE);
+
+	//! Distance between individual combat units of the same group that is kept between target positions when units are send to rally points (increase chance of intercepting enemy scouts/raiders)
+	static constexpr float rallyDistanceBetweenUnitsInGroup = 8.0f * static_cast<float>(SQUARE_SIZE);
+
 	//! The factor applied to the combat power of the own units (when deciding whether to attack)
 	static constexpr float attackCombatPowerFactor = 2.5f;
 
@@ -100,7 +106,10 @@ public:
 	static constexpr float defendUnitsUrgency = 105.0f;
 
 	//! Urgency of defending base
-	static constexpr float defendBaseUrgency = 110.0f;
+	static constexpr float defendBaseUrgency = 115.0f;
+
+	//! Urgency of defending construction unit
+	static constexpr float defendConstructorsUrgency = 110.0f;
 
 	//! Importance of attacking enemy base
 	static constexpr float attackEnemyBaseUrgency = 110.0f;

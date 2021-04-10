@@ -179,28 +179,6 @@ void AAIGroup::GiveOrderToGroup(Command *c, float importance, UnitTask task, con
 	}
 }
 
-
-void AAIGroup::GiveMoveOrderToGroup(int commandId, UnitTask task, const float3& targetPositionCenter, const float3& distanceBetweenUnitsVector)
-{
-	lastCommandFrame = ai->GetAICallback()->GetCurrentFrame();
-
-	float3 nextPosition( targetPositionCenter.x - distanceBetweenUnitsVector.x * 0.5f * static_cast<float>(GetCurrentSize()-1),
-						 targetPositionCenter.y,
-						 targetPositionCenter.z - distanceBetweenUnitsVector.z * 0.5f * static_cast<float>(GetCurrentSize()-1));
-
-	for(auto unit : m_units)
-	{
-		Command c(commandId);
-		c.PushPos(nextPosition);
-
-		ai->Execute()->GiveOrder(&c, unit.id, "Group::MoveFight");
-		ai->UnitTable()->SetUnitStatus( unit.id, task);
-
-		nextPosition.x += distanceBetweenUnitsVector.x;
-		nextPosition.z += distanceBetweenUnitsVector.z;
-	}
-}
-
 void AAIGroup::Update()
 {
 	m_urgencyOfCurrentTask *= 0.98f;
@@ -313,10 +291,12 @@ void AAIGroup::TargetUnitKilled()
 	// air groups retreat to rally point
 	if(m_category.IsAirCombat())
 	{
-		Command c(CMD_MOVE);
-		c.PushPos(m_rallyPoint);
+		GiveMoveOrderToGroup(CMD_MOVE, UnitTask::HEADING_TO_RALLYPOINT, m_rallyPoint, AAIConstants::distanceBetweenUnitsInGroup);
 
-		GiveOrderToGroup(&c, 10.0f, MOVING, "Group::TargetUnitKilled");
+		m_urgencyOfCurrentTask = 0.0f;
+		m_task                 = GROUP_RETREATING;
+		//m_targetPosition = m_rallyPoint;
+		//m_targetSector   = ai->Map()->GetSectorOfPos(m_rallyPoint);
 	}
 }
 
@@ -329,21 +309,18 @@ void AAIGroup::AttackSector(const AAISector *sector, float importance)
 	const float3 attackPositionCenter( 	targetPosition.x - distanceToTarget * attackDirection.x, 
 										targetPosition.y, 
 										targetPosition.z - distanceToTarget * attackDirection.z);
-	const float3 distanceBetweenUnitsVector(  4.0f * static_cast<float>(SQUARE_SIZE) * attackDirection.z,
-											  0.0f,
-											- 4.0f * static_cast<float>(SQUARE_SIZE) * attackDirection.x);
 
 	const int commandId = m_groupType.IsMeleeCombatUnit() ? CMD_MOVE : CMD_FIGHT;
 
-	GiveMoveOrderToGroup(commandId, UnitTask::UNIT_ATTACKING, attackPositionCenter, distanceBetweenUnitsVector);
+	GiveMoveOrderToGroup(commandId, UnitTask::UNIT_ATTACKING, attackPositionCenter, AAIConstants::distanceBetweenUnitsInGroup);
 
 	m_urgencyOfCurrentTask = importance;
+	m_task                 = GROUP_ATTACKING;
 	m_targetPosition       = targetPosition;
 	m_targetSector         = sector;
-	m_task                 = GROUP_ATTACKING;
 }
 
-void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance)
+void AAIGroup::DefendUnit(UnitId unitId, const float3& enemyPosition, float urgency)
 {
 	const bool enemyPositionKnown = (enemyPosition.x > 0.0f);
 
@@ -353,7 +330,7 @@ void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance
 	{
 		cmd.PushPos(enemyPosition);
 
-		GiveOrderToGroup(&cmd, importance, DEFENDING, "Group::Defend");
+		GiveOrderToGroup(&cmd, urgency, DEFENDING, "Group::Defend");
 
 		m_targetPosition = enemyPosition;
 		m_targetSector   = ai->Map()->GetSectorOfPos(enemyPosition);
@@ -362,7 +339,7 @@ void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance
 	{
 		cmd.PushParam(unitId.id);
 
-		GiveOrderToGroup(&cmd, importance, GUARDING, "Group::Defend");
+		GiveOrderToGroup(&cmd, urgency, GUARDING, "Group::Defend");
 
 		const float3 defendedUnitPosition = ai->GetAICallback()->GetUnitPos(unitId.id);
 
@@ -373,18 +350,15 @@ void AAIGroup::Defend(UnitId unitId, const float3& enemyPosition, int importance
 	m_task = GROUP_DEFENDING;
 }
 
-void AAIGroup::Retreat(const float3& pos)
+void AAIGroup::RetreatToRallyPoint()
 {
-	this->m_task = GROUP_RETREATING;
+	GiveMoveOrderToGroup(CMD_MOVE, UnitTask::MOVING, m_rallyPoint, AAIConstants::rallyDistanceBetweenUnitsInGroup);
 
-	Command c(CMD_MOVE);
-	c.PushPos(pos);
-
-	GiveOrderToGroup(&c, 105, MOVING, "Group::Retreat");
-
-	// set new dest sector
-	m_targetPosition = pos;
-	m_targetSector   = ai->Map()->GetSectorOfPos(pos);
+	attack                 = nullptr;
+	m_urgencyOfCurrentTask = 0.0f;
+	m_task                 = GROUP_RETREATING;
+	m_targetPosition       = m_rallyPoint;
+	m_targetSector         = ai->Map()->GetSectorOfPos(m_rallyPoint);
 }
 
 UnitId AAIGroup::GetRandomUnit() const
@@ -404,11 +378,38 @@ UnitId AAIGroup::GetRandomUnit() const
 	}
 }
 
+void AAIGroup::GiveMoveOrderToGroup(int commandId, UnitTask task, const float3& targetPositionCenter, float distanceBetweenUnits)
+{
+	lastCommandFrame = ai->GetAICallback()->GetCurrentFrame();
+
+	const float3 moveDirection = DetermineDirectionToPosition(targetPositionCenter);
+
+	const float3 distanceBetweenUnitsVector(  distanceBetweenUnits * moveDirection.z,
+											  0.0f,
+											- distanceBetweenUnits * moveDirection.x);
+
+	float3 nextPosition( targetPositionCenter.x - distanceBetweenUnitsVector.x * 0.5f * static_cast<float>(GetCurrentSize()-1),
+						 targetPositionCenter.y,
+						 targetPositionCenter.z - distanceBetweenUnitsVector.z * 0.5f * static_cast<float>(GetCurrentSize()-1));
+
+	for(auto unit : m_units)
+	{
+		Command c(commandId);
+		c.PushPos(nextPosition);
+
+		ai->Execute()->GiveOrder(&c, unit.id, "Group::MoveFight");
+		ai->UnitTable()->SetUnitStatus( unit.id, task);
+
+		nextPosition.x += distanceBetweenUnitsVector.x;
+		nextPosition.z += distanceBetweenUnitsVector.z;
+	}
+}
+
 float3 AAIGroup::DetermineDirectionToPosition(const float3& position) const
 {
 	const float3 groupPosition = GetGroupPos();
-	const float dx = groupPosition.x - position.x;
-	const float dz = groupPosition.z - position.z;
+	const float dx = position.x - groupPosition.x;
+	const float dz = position.z - groupPosition.z;
 	const float invNorm = fastmath::isqrt_nosse(dx*dx+dz*dz);
 
 	return float3(invNorm * dx, 0.0f, invNorm * dz);
@@ -468,7 +469,7 @@ void AAIGroup::UnitIdle(UnitId unitId, AAIAttackManager* attackManager)
 		return;
 
 	// special behaviour of aircraft in non air only mods
-	if(m_category.IsAirCombat() && (m_task != GROUP_IDLE))
+	/*if(m_category.IsAirCombat() && (m_task != GROUP_IDLE))
 	{
 		Command c(CMD_MOVE);
 		c.PushPos(m_rallyPoint);
@@ -476,9 +477,9 @@ void AAIGroup::UnitIdle(UnitId unitId, AAIAttackManager* attackManager)
 		GiveOrderToGroup(&c, 100, MOVING, "Group::Idle_a");
 
 		m_task = GROUP_IDLE;
-	}
+	}*/
 	// behaviour of all other categories
-	else if(attack)
+	if(attack)
 	{
 		//check if idle unit is in target sector
 		const float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
@@ -557,7 +558,7 @@ void AAIGroup::AirRaidTarget(UnitId unitId, const float3& position, float import
 
 	Command c(commandId);
 	c.PushPos(position);
-	GiveOrderToGroup(&c, importance, UNIT_ATTACKING, "Group::BombTarget");
+	GiveOrderToGroup(&c, importance, UNIT_ATTACKING, "Group::AirRaidTarget");
 	ai->UnitTable()->SetEnemyUnitAsTargetOfGroup(unitId, this);
 }
 
@@ -638,10 +639,8 @@ void AAIGroup::GetNewRallyPoint()
 		// send idle groups to new rally point
 		if(m_task == GROUP_IDLE)
 		{
-			Command c(CMD_MOVE);
-			c.PushPos(m_rallyPoint);
-
-			GiveOrderToGroup(&c, 90, HEADING_TO_RALLYPOINT, "Group::RallyPoint");
+			GiveMoveOrderToGroup(CMD_MOVE, UnitTask::HEADING_TO_RALLYPOINT, m_rallyPoint, AAIConstants::rallyDistanceBetweenUnitsInGroup);
+			m_urgencyOfCurrentTask = 0.0f;
 		}
 	}
 	else

@@ -2002,9 +2002,9 @@ AAIGroup* AAIExecute::GetClosestGroupForDefence(const AAITargetType& attackerTar
 	return selectedGroup;
 }
 
-void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const
+void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, float urgency) const
 {
-	AAISector* sector = ai->Map()->GetSectorOfPos(attackerPosition);
+	const AAISector* sector = ai->Map()->GetSectorOfPos(attackerPosition);
 
 	if(sector)
 	{
@@ -2012,10 +2012,10 @@ void AAIExecute::DefendUnitVS(const UnitId& unitId, const AAITargetType& attacke
 
 		if(sector->IsSupportNeededToDefenceVs(attackerTargetType))
 		{
-			AAIGroup *support = GetClosestGroupForDefence(attackerTargetType, attackerPosition, importance);
+			AAIGroup *support = GetClosestGroupForDefence(attackerTargetType, attackerPosition, urgency);
 
 			if(support)
-				support->Defend(unitId, attackerPosition, importance);
+				support->DefendUnit(unitId, attackerPosition, urgency);
 		}
 	}
 }

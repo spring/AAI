@@ -50,20 +50,14 @@ public:
 
 	void GiveOrderToGroup(Command *c, float importance, UnitTask task, const char *owner);
 
-	//! @brief Orders unit to move/patrol/fight to given position where given distance between individual target positions is maintained
-	void GiveMoveOrderToGroup(int commandId, UnitTask unitTask, const float3& targetPositionCenter, const float3& distanceBetweenUnitsVector);
-
 	//! @brief Determines the position of an enemy building in the given sector and orders all units to attack it
 	void AttackSector(const AAISector *sector, float importance);
 
 	//! @brief Defend unit vs enemy (enemyPosition equals ZeroVector if enemy unknown -> guard unit instead)
-	void Defend(UnitId unitId, const float3& enemyPosition, int importance);
+	void DefendUnit(UnitId unitId, const float3& enemyPosition, float urgency);
 
-	//! @brief Retreat to rally point
-	void RetreatToRallyPoint()  { Retreat(m_rallyPoint); }
-
-	//! @brief Retreat units in group to given position
-	void Retreat(const float3& pos);
+	//! @brief Retreat units in group to rally point; abort attack (set to nullptr) if set
+	void RetreatToRallyPoint();
 
 	//! @brief Orders units to attack given target (either directly attack the position for bombers or fight command for gun ships)
 	void AirRaidTarget(UnitId unitId, const float3& position, float importance);
@@ -137,6 +131,9 @@ public:
 
 private:
 	AAI* ai;
+
+	//! @brief Orders unit to move/patrol/fight to given position where given distance between individual target positions is maintained
+	void GiveMoveOrderToGroup(int commandId, UnitTask unitTask, const float3& targetPositionCenter, float distanceBetweenUnits);
 
 	//! @brief Determines direction (i.e. normalized vector) pointing from group to given position
 	float3 DetermineDirectionToPosition(const float3& position) const;

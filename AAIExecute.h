@@ -115,7 +115,7 @@ public:
 	void CheckKeepDistanceToEnemy(UnitId unitId, UnitDefId unitDefId, UnitDefId enemyDefId);
 
 	//! @brief Tries to call support against specific attacker (e.g. air)
-	void DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, int importance) const;
+	void DefendUnitVS(const UnitId& unitId, const AAITargetType& attackerTargetType, const float3& attackerPosition, float urgency) const;
 
 	//! @brief Tries to add the given number of units to the most suitable buildqueue (returns whether units have been successfully added)
 	bool TryAddingUnitsToBuildqueue(UnitDefId unitDefId, int number, BuildQueuePosition queuePosition, bool ignoreMaxQueueLength = false);

@@ -195,22 +195,18 @@ void AAIAttack::AttackSector(const AAISector *sector)
 
 void AAIAttack::StopAttack()
 {
-	for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
+	for(auto group : m_combatUnitGroups)
 	{
 		// get rally point somewhere between current pos an base
-		(*group)->GetNewRallyPoint();
-
-		(*group)->RetreatToRallyPoint();
-		(*group)->attack = nullptr;
+		//group->GetNewRallyPoint();
+		group->RetreatToRallyPoint();
 	}
 
-	for(auto group = m_antiAirUnitGroups.begin(); group != m_antiAirUnitGroups.end(); ++group)
+	for(auto group : m_antiAirUnitGroups)
 	{
 		// get rally point somewhere between current pos an base
-		(*group)->GetNewRallyPoint();
-
-		(*group)->RetreatToRallyPoint();
-		(*group)->attack = nullptr;
+		//group->GetNewRallyPoint();
+		group->RetreatToRallyPoint();
 	}
 
 	m_combatUnitGroups.clear();
@@ -221,19 +217,19 @@ AAIMovementType AAIAttack::GetMovementTypeOfAssignedUnits() const
 {
 	AAIMovementType moveType;
 
-	for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
-		moveType.AddMovementType( (*group)->GetMovementType() );
+	for(auto group : m_combatUnitGroups)
+		moveType.AddMovementType( group->GetMovementType() );
 	
-	for(auto group = m_antiAirUnitGroups.begin(); group != m_antiAirUnitGroups.end(); ++group)
-		moveType.AddMovementType( (*group)->GetMovementType() );
+	for(auto group : m_antiAirUnitGroups)
+		moveType.AddMovementType( group->GetMovementType() );
 
 	return moveType;
 }
 
 void AAIAttack::DetermineTargetTypeOfInvolvedUnits(MobileTargetTypeValues& targetTypesOfUnits) const
 {
-	for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
-		targetTypesOfUnits.AddValueForTargetType( (*group)->GetTargetType(), static_cast<float>( (*group)->GetCurrentSize() ) );
+	for(auto group : m_combatUnitGroups)
+		targetTypesOfUnits.AddValueForTargetType( group->GetTargetType(), static_cast<float>( group->GetCurrentSize() ) );
 }
 
 bool AAIAttack::AddGroup(AAIGroup *group)
