@@ -25,11 +25,11 @@ AAIAttack::AAIAttack(AAI *ai):
 
 AAIAttack::~AAIAttack(void)
 {
-	for(std::set<AAIGroup*>::iterator group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
-		(*group)->attack = nullptr;
+	for(auto group : m_combatUnitGroups)
+		group->SetAttack(nullptr);
 
-	for(std::set<AAIGroup*>::iterator group = m_antiAirUnitGroups.begin(); group != m_antiAirUnitGroups.end(); ++group)
-		(*group)->attack = nullptr;
+	for(auto group : m_antiAirUnitGroups)
+		group->SetAttack(nullptr);
 }
 
 bool AAIAttack::CheckIfFailed()

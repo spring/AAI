@@ -27,17 +27,16 @@ using namespace springLegacyAI;
 
 
 AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
-	m_urgencyOfCurrentTask(0.0f),
 	m_groupDefId(unitDefId),
 	m_task(GROUP_IDLE),
+	m_urgencyOfCurrentTask(0.0f),
+	m_attack(nullptr),
 	m_targetPosition(ZeroVector),
 	m_targetSector(nullptr),
 	m_rallyPoint(ZeroVector),
 	m_continentId(continentId)
 {
 	this->ai = ai;
-
-	attack = nullptr;
 
 	m_groupType = ai->s_buildTree.GetUnitType(m_groupDefId); 
 	m_category  = ai->s_buildTree.GetUnitCategory(unitDefId);
@@ -66,17 +65,17 @@ AAIGroup::AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId) :
 	lastCommandFrame = 0;
 
 	// get a rally point
-	GetNewRallyPoint();
+	UpdateRallyPoint();
 
 	ai->Log("Creating new group - max size: %i   unit type: %s   continent: %i\n", m_maxSize, ai->s_buildTree.GetUnitTypeProperties(m_groupDefId).m_name.c_str(), m_continentId);
 }
 
 AAIGroup::~AAIGroup(void)
 {
-	if(attack)
+	if(m_attack)
 	{
-		attack->RemoveGroup(this);
-		attack = nullptr;
+		m_attack->RemoveGroup(this);
+		m_attack = nullptr;
 	}
 
 	m_units.clear();
@@ -87,7 +86,7 @@ bool AAIGroup::AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId)
 	if(    (m_continentId == continentId) // for continent bound units: check if unit is on the same continent as the group
 		&& (m_groupDefId  == unitDefId) 
 		&& (GetCurrentSize() < m_maxSize)
-		&& (attack == nullptr)
+		&& (m_attack == nullptr)
 		&& (m_task != GROUP_ATTACKING) && (m_task != GROUP_BOMBING))
 	{
 		m_units.push_back(unitId);
@@ -123,12 +122,12 @@ bool AAIGroup::RemoveUnit(UnitId unitId, UnitId attackerUnitId)
 
 			if(newGroupSize == 0)
 			{
-				m_task   = GROUP_IDLE;
+				m_task = GROUP_IDLE;
 
-				if(attack)
+				if(m_attack)
 				{
-					attack->RemoveGroup(this);
-					attack = nullptr;		
+					m_attack->RemoveGroup(this);
+					m_attack = nullptr;		
 				}
 			}
 
@@ -223,17 +222,16 @@ void AAIGroup::Update()
 	}
 }
 
+void AAIGroup::AddGroupCombatPower(TargetTypeValues& combatPower) const
+{
+	const float numberOfUnits = static_cast<float>(m_units.size());
+	combatPower.AddValues(ai->s_buildTree.GetCombatPower(m_groupDefId), numberOfUnits);
+}
+
 float AAIGroup::GetCombatPowerVsTargetType(const AAITargetType& targetType) const
 {
 	const float combatPower = ai->s_buildTree.GetCombatPower(m_groupDefId).GetValue(targetType);
 	return static_cast<float>(m_units.size()) * combatPower;
-}
-
-void AAIGroup::AddGroupCombatPower(TargetTypeValues& combatPower) const
-{
-	const float numberOfUnits = static_cast<float>(m_units.size());
-
-	combatPower.AddValues(ai->s_buildTree.GetCombatPower(m_groupDefId), numberOfUnits);
 }
 
 const AAITargetType& AAIGroup::GetTargetType() const
@@ -267,9 +265,9 @@ float AAIGroup::GetDefenceRating(const AAITargetType& attackerTargetType, const 
 	if( (m_continentId == -1) || (m_continentId == continentId) )
 	{
 		const bool matchingType  = m_groupType.CanFightTargetType(attackerTargetType);
-		const bool groupAvailble = (m_task == GROUP_IDLE) || (m_urgencyOfCurrentTask < importance); //!(*group)->attack
+		const bool groupAvailable = (m_task == GROUP_IDLE) || (m_urgencyOfCurrentTask < importance);
 
-		if(matchingType && groupAvailble)
+		if(matchingType && groupAvailable)
 		{
 			const float3& groupPosition = GetGroupPos();
 
@@ -300,7 +298,7 @@ void AAIGroup::TargetUnitKilled()
 	}
 }
 
-void AAIGroup::AttackSector(const AAISector *sector, float importance)
+void AAIGroup::AttackSector(const AAISector *sector, float urgency)
 {
 	const float3 targetPosition  = sector->DetermineAttackPosition();
 	const float3 attackDirection = DetermineDirectionToPosition(targetPosition);
@@ -314,7 +312,7 @@ void AAIGroup::AttackSector(const AAISector *sector, float importance)
 
 	GiveMoveOrderToGroup(commandId, UnitTask::UNIT_ATTACKING, attackPositionCenter, AAIConstants::distanceBetweenUnitsInGroup);
 
-	m_urgencyOfCurrentTask = importance;
+	m_urgencyOfCurrentTask = urgency;
 	m_task                 = GROUP_ATTACKING;
 	m_targetPosition       = targetPosition;
 	m_targetSector         = sector;
@@ -354,7 +352,7 @@ void AAIGroup::RetreatToRallyPoint()
 {
 	GiveMoveOrderToGroup(CMD_MOVE, UnitTask::MOVING, m_rallyPoint, AAIConstants::rallyDistanceBetweenUnitsInGroup);
 
-	attack                 = nullptr;
+	m_attack               = nullptr;
 	m_urgencyOfCurrentTask = 0.0f;
 	m_task                 = GROUP_RETREATING;
 	m_targetPosition       = m_rallyPoint;
@@ -450,9 +448,9 @@ bool AAIGroup::SufficientAttackPower() const
 	return false;
 }
 
-bool AAIGroup::IsAvailableForAttack()
+bool AAIGroup::IsAvailableForAttack() const
 {
-	if(!attack && IsEntireGroupAtRallyPoint())
+	if(!m_attack && IsEntireGroupAtRallyPoint())
 	{
 		if( m_groupType.IsAssaultUnit() && SufficientAttackPower())
 			return true;
@@ -479,7 +477,7 @@ void AAIGroup::UnitIdle(UnitId unitId, AAIAttackManager* attackManager)
 		m_task = GROUP_IDLE;
 	}*/
 	// behaviour of all other categories
-	if(attack)
+	if(m_attack)
 	{
 		//check if idle unit is in target sector
 		const float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
@@ -488,29 +486,29 @@ void AAIGroup::UnitIdle(UnitId unitId, AAIAttackManager* attackManager)
 		if( (sector == m_targetSector) || (m_targetSector == nullptr) )
 		{
 			// combat groups
-			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && attack->HasTargetBeenCleared() )
+			if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAssaultUnit() && m_attack->HasTargetBeenCleared() )
 			{
 				ai->Log("Combat group idle - checking for next sector to attack\n");
-				attackManager->AttackNextSectorOrAbort(attack);
+				attackManager->AttackNextSectorOrAbort(m_attack);
 				return;
 			}
 			// unit the aa group was guarding has been killed
 			else if(ai->s_buildTree.GetUnitType(m_groupDefId).IsAntiAir())
 			{
-				if(!attack->m_combatUnitGroups.empty())
+				if(!m_attack->m_combatUnitGroups.empty())
 				{
-					const UnitId guardedUnitId = (*attack->m_combatUnitGroups.begin())->GetRandomUnit();
+					const UnitId guardedUnitId = (*m_attack->m_combatUnitGroups.begin())->GetRandomUnit();
 
 					if(guardedUnitId.IsValid())
 					{
 						Command c(CMD_GUARD);
 						c.PushParam(guardedUnitId.id);
 
-						GiveOrderToGroup(&c, 110, GUARDING, "Group::Idle_b");
+						GiveOrderToGroup(&c, AAIConstants::defendUnitsUrgency, GUARDING, "Group::Idle_b");
 					}
 				}
 				else
-					attack->StopAttack();
+					m_attack->StopAttack();
 			}
 		}
 		else
@@ -534,7 +532,7 @@ void AAIGroup::UnitIdle(UnitId unitId, AAIAttackManager* attackManager)
 		//check if retreating units is in target sector
 		const float3 pos = ai->GetAICallback()->GetUnitPos(unitId.id);
 
-		AAISector *temp = ai->Map()->GetSectorOfPos(pos);
+		const AAISector* temp = ai->Map()->GetSectorOfPos(pos);
 
 		if(temp == m_targetSector || !m_targetSector)
 			m_task = GROUP_IDLE;
@@ -584,18 +582,18 @@ void AAIGroup::AirRaidUnit(UnitId unitId, float importance)
 	m_task = GROUP_ATTACKING;
 }
 
-void AAIGroup::UpdateRallyPoint()
+void AAIGroup::CheckUpdateOfRallyPoint()
 {
-	AAISector *sector = ai->Map()->GetSectorOfPos(m_rallyPoint);
+	const AAISector *sector = ai->Map()->GetSectorOfPos(m_rallyPoint);
 
 	// check if rally point lies within base (e.g. AAI has expanded its base after rally point had been set)
 	if(sector->GetDistanceToBase() <= 0)
-		GetNewRallyPoint();
+		UpdateRallyPoint();
 
 	//! @todo check if rally point is blocked by building
 }
 
-void AAIGroup::GetNewRallyPoint()
+void AAIGroup::UpdateRallyPoint()
 {
 	//-----------------------------------------------------------------------------------------------------------------
 	// determine rally point in sector close to base

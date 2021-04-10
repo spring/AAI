@@ -697,7 +697,7 @@ void AAI::UnitDestroyed(int unit, int attacker)
 			{
 				// look for a safer rallypoint if units get killed on their way
 				if (m_unitTable->units[unit].status == HEADING_TO_RALLYPOINT)
-					m_unitTable->units[unit].group->GetNewRallyPoint();
+					m_unitTable->units[unit].group->UpdateRallyPoint();
 
 				m_unitTable->units[unit].group->RemoveUnit(UnitId(unit), UnitId(attacker) );
 			}
@@ -944,7 +944,7 @@ void AAI::Update()
 		{
 			for (auto group = GetUnitGroupsList(*category).begin(); group != GetUnitGroupsList(*category).end(); ++group)
 			{
-				(*group)->UpdateRallyPoint();
+				(*group)->CheckUpdateOfRallyPoint();
 			}
 		}
 	}

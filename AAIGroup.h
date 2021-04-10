@@ -39,19 +39,19 @@ public:
 	AAIGroup(AAI *ai, UnitDefId unitDefId, int continentId);
 	~AAIGroup(void);
 
+	//! @brief Sets pointer to attack (nullptr if group is currently not taking part in any attack)
+	void SetAttack(AAIAttack* attack) { m_attack = attack; }
+
 	//! @brief Tries to add the given unit to the group
 	bool AddUnit(UnitId unitId, UnitDefId unitDefId, int continentId);
 
 	//! @brief Removes the given unit from the group and checks if air support to defend group shall be requested
 	bool RemoveUnit(UnitId unitId, UnitId attackerUnitId);
 
-	//! @brief Returns the number of units in the group
-	int GetCurrentSize() const { return static_cast<int>(m_units.size()); }
-
 	void GiveOrderToGroup(Command *c, float importance, UnitTask task, const char *owner);
 
 	//! @brief Determines the position of an enemy building in the given sector and orders all units to attack it
-	void AttackSector(const AAISector *sector, float importance);
+	void AttackSector(const AAISector *sector, float urgency);
 
 	//! @brief Defend unit vs enemy (enemyPosition equals ZeroVector if enemy unknown -> guard unit instead)
 	void DefendUnit(UnitId unitId, const float3& enemyPosition, float urgency);
@@ -75,41 +75,47 @@ public:
 
 	void TargetUnitKilled();
 
-	//! @brief Checks the current rally point and chooses new one if necessary
-	void UpdateRallyPoint();
+	//! @brief Checks if current rally point needs to be updated (because AAI expandeed in its sector)
+	void CheckUpdateOfRallyPoint();
 
-	//! @brief Determines a new rally point and orders units to get there
-	void GetNewRallyPoint();
+	//! @brief Determines a new rally point and orders units to move there
+	void UpdateRallyPoint();
 
 	//! @brief 
 	void UnitIdle(UnitId unitId, AAIAttackManager* attackManager);
 
-	//! @brief Returns combat power of the group vs given target type
-	float GetCombatPowerVsTargetType(const AAITargetType& targetType) const;
-
 	//! @brief Adds the combat power of the units in this group to the given values
 	void AddGroupCombatPower(TargetTypeValues& combatPower) const;
 
-	//! @brief Return the id of the continent the units of this group are stationed on (-1 for non-continent bound movement types)
-	int GetContinentId() const { return m_continentId; }
+	//! @brief Returns combat power of the group vs given target type
+	float                  GetCombatPowerVsTargetType(const AAITargetType& targetType) const;
 
 	//! @brief Returns the unitDefId of the units in the group 
-	const UnitDefId& GetUnitDefIdOfGroup() const { return m_groupDefId; }
+	const UnitDefId&       GetUnitDefIdOfGroup()     const { return m_groupDefId; }
 
 	//! @brief Returns the combat unit type of the units in the group 
-	const AAIUnitType& GetUnitTypeOfGroup() const { return m_groupType; }
+	const AAIUnitCategory& GetUnitCategoryOfGroup()  const { return m_category; }
 
 	//! @brief Returns the combat unit type of the units in the group 
-	const AAIUnitCategory& GetUnitCategoryOfGroup() const { return m_category; }
+	const AAIUnitType&     GetUnitTypeOfGroup()      const { return m_groupType; }
 
 	//! @brief Returns the movement type of the units in the group
-	const AAIMovementType& GetMovementType() const { return m_moveType; }
+	const AAIMovementType& GetMovementType()         const { return m_moveType; }
 
-	//! @brief Returns the target type of the units in the group
-	const AAITargetType& GetTargetType() const;
+	//! @brief Returns the urgency of the current task
+	float                  GetUrgencyOfCurrentTask() const { return m_urgencyOfCurrentTask; }
 
 	//! @brief Returns the current target position where the units shall move
-	const float3& GetTargetPosition() const { return m_targetPosition; }
+	const float3&          GetTargetPosition()       const { return m_targetPosition; }
+
+	//! @brief Return the id of the continent the units of this group are stationed on (-1 for non-continent bound movement types)
+	int                    GetContinentId()          const { return m_continentId; }
+
+	//! @brief Returns the number of units in the group
+	int                    GetCurrentSize()          const { return static_cast<int>(m_units.size()); }
+
+	//! @brief Returns the target type of the units in the group
+	const AAITargetType&   GetTargetType() const;
 
 	//! @brief Returns the position of the group (to save effort, only the position of the last unit added to the group)
 	float3 GetGroupPos() const;
@@ -121,13 +127,7 @@ public:
 	float GetDefenceRating(const AAITargetType& attackerTargetType, const float3& position, float importance, int continentId) const;
 
 	//! @brief Checks if the group may participate in an attack (= idle, sufficient combat power, etc.)
-	bool IsAvailableForAttack();
-
-	//! importance of current task
-	float m_urgencyOfCurrentTask;	
-
-	// attack the group takes part in
-	AAIAttack *attack;
+	bool IsAvailableForAttack() const;
 
 private:
 	AAI* ai;
@@ -164,6 +164,12 @@ private:
 
 	//! The current task of this group
 	GroupTask         m_task;
+
+	//! Urgency of current task
+	float             m_urgencyOfCurrentTask;
+
+	//! Attack the group is participating in (nullptr if none)
+	AAIAttack*        m_attack;
 
 	//! The current position the group shall move to (or ZeroVector if none)
 	float3            m_targetPosition;

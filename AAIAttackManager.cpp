@@ -152,10 +152,10 @@ void AAIAttackManager::SelectNumberOfGroups(std::list<AAIGroup*> selectedGroupLi
 
 void AAIAttackManager::AddGroupsToAttack(AAIAttack* attack, const std::list<AAIGroup*>& groupList) const
 {
-	for(auto group = groupList.begin(); group != groupList.end(); ++group)
+	for(auto group : groupList)
 	{
-		if(attack->AddGroup(*group))
-			(*group)->attack = attack; 
+		if(attack->AddGroup(group))
+			group->SetAttack(attack);
 	}
 }
 
