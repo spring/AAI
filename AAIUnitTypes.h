@@ -204,6 +204,8 @@ public:
 
 	static int GetArrayIndex(ETargetType targetType) { return static_cast<int>(targetType); }
 
+	bool operator==(const AAITargetType& rhs) const { return (m_targetType == rhs.m_targetType); }
+
 	static constexpr int surfaceIndex   = static_cast<int>(ETargetType::SURFACE);
 	static constexpr int airIndex       = static_cast<int>(ETargetType::AIR);
 	static constexpr int floaterIndex   = static_cast<int>(ETargetType::FLOATER);

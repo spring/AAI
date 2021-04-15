@@ -16,9 +16,9 @@
 #include "LegacyCpp/IAICallback.h"
 using namespace springLegacyAI;
 
-AAIAttack::AAIAttack(AAI *ai):
+AAIAttack::AAIAttack(AAI *ai, const AAISector* attackDestination):
 	m_lastAttackOrderInFrame(0),
-	m_attackDestination(nullptr)
+	m_attackDestination(attackDestination)
 {
 	this->ai = ai;
 }
@@ -34,7 +34,7 @@ AAIAttack::~AAIAttack(void)
 
 bool AAIAttack::CheckIfFailed()
 {
-	if(!m_combatUnitGroups.empty())
+	if(m_combatUnitGroups.size() > 0)
 	{
 		// check if still enough power to attack target sector
 		if(SufficientCombatPowerToAttackSector(m_attackDestination, AAIConstants::attackCombatPowerFactor))
@@ -91,7 +91,7 @@ const AAISector* AAIAttack::DetermineSectorToContinueAttack()
 
 bool AAIAttack::SufficientCombatPowerAt(const AAISector *sector, float aggressiveness) const
 {
-	if(sector && !m_combatUnitGroups.empty())
+	if(sector && (m_combatUnitGroups.size() > 0) )
 	{
 		// determine target types of own units and combat efficiency against different types of enemy units
 		MobileTargetTypeValues numberOfMyCombatUnits;
@@ -125,6 +125,7 @@ bool AAIAttack::SufficientCombatPowerAt(const AAISector *sector, float aggressiv
 			numberOfEnemyUnits.GetValue(ETargetType::AIR), numberOfEnemyUnits.GetValue(ETargetType::FLOATER), 
 			numberOfEnemyUnits.GetValue(ETargetType::SUBMERGED),numberOfEnemyUnits.GetValue(ETargetType::STATIC));
 			ai->Log("My attack/enemy defence power: %f / %f\n", myAttackPower, enemyDefencePower);*/
+			//ai->Log("Local attacker / defender combat power: %f vs %f\n", myAttackPower, enemyDefencePower);
 
 			if(aggressiveness * myAttackPower > enemyDefencePower)
 				return true;
@@ -138,18 +139,18 @@ bool AAIAttack::SufficientCombatPowerAt(const AAISector *sector, float aggressiv
 
 bool AAIAttack::SufficientCombatPowerToAttackSector(const AAISector *sector, float aggressiveness) const
 {
-	if(sector && !m_combatUnitGroups.empty())
+	if(sector && (m_combatUnitGroups.size() > 0))
 	{
 		// determine total combat power vs static  & how it is distributed over different target types
-		float combatPowerVsBildings(0.0f);
+		float combatPowerVsBuildings(0.0f);
 		MobileTargetTypeValues targetTypeWeights;
 
-		for(auto group = m_combatUnitGroups.begin(); group != m_combatUnitGroups.end(); ++group)
+		for(const auto group : m_combatUnitGroups)
 		{
-			const float combatPower = (*group)->GetCombatPowerVsTargetType(ETargetType::STATIC);
-			targetTypeWeights.AddValueForTargetType( (*group)->GetTargetType(), combatPower);
+			const float combatPower = group->GetCombatPowerVsTargetType(ETargetType::STATIC);
+			targetTypeWeights.AddValueForTargetType( group->GetTargetType(), combatPower);
 
-			combatPowerVsBildings += combatPower;
+			combatPowerVsBuildings += combatPower;
 		}
 		
 		// determine combat power by static enemy defences with respect to target type of attacking units
@@ -157,7 +158,9 @@ bool AAIAttack::SufficientCombatPowerToAttackSector(const AAISector *sector, flo
 									  + targetTypeWeights.GetValueOfTargetType(ETargetType::FLOATER)   * sector->GetEnemyCombatPower(ETargetType::FLOATER)
 									  + targetTypeWeights.GetValueOfTargetType(ETargetType::SUBMERGED) * sector->GetEnemyCombatPower(ETargetType::SUBMERGED);
 
-		if(aggressiveness * combatPowerVsBildings > enemyDefencePower)
+		//ai->Log("Attacker / defender combat power: %f vs %f\n", combatPowerVsBuildings, enemyDefencePower);
+
+		if(aggressiveness * combatPowerVsBuildings > enemyDefencePower)
 			return true;
 	}
 

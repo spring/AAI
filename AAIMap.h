@@ -92,9 +92,6 @@ public:
 	//! @brief Returns distance to closest edge of the map (in unit map coordinates)
 	float GetEdgeDistance(const float3& pos) const;
 
-	//! @brief Returns the maximum number of units lost in any sector of the map
-	float GetMaximumNumberOfLostUnits() const;
-
 	//! @brief Searches the given number of tries for a random builsite in the given area, returns ZeroVector if none found 
 	BuildSite DetermineRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, int yStart, int yEnd, int tries) const;
 
@@ -152,9 +149,6 @@ public:
 
 	//! @brief Returns a sector to proceed with attack (nullptr if none found)
 	const AAISector* DetermineSectorToContinueAttack(const AAISector *currentSector, const MobileTargetTypeValues& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const;
-
-	//! @brief Returns the sector which is the highest rated attack target (or nullptr if none found)
-	const AAISector* DetermineSectorToAttack(const std::vector<float>& globalCombatPower, const std::vector< std::vector<float> >& continentCombatPower, const MobileTargetTypeValues& assaultGroupsOfType) const;
 
 	//! The sectors of the map
 	std::vector< std::vector<AAISector> > m_sector;

@@ -75,7 +75,7 @@ public:
 
 	void TargetUnitKilled();
 
-	//! @brief Checks if current rally point needs to be updated (because AAI expandeed in its sector)
+	//! @brief Checks if current rally point needs to be updated (because AAI expanded in its sector)
 	void CheckUpdateOfRallyPoint();
 
 	//! @brief Determines a new rally point and orders units to move there

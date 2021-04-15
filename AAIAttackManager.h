@@ -12,6 +12,7 @@
 
 #include "aidef.h"
 #include "AAITypes.h"
+#include "AAIThreatMap.h"
 #include <set>
 #include <list>
 #include <vector>
@@ -23,7 +24,7 @@ class AAISector;
 class AAIAttackManager
 {
 public:
-	AAIAttackManager(AAI *ai);
+	AAIAttackManager(AAI *ai, int xSectors, int ySectors);
 	~AAIAttackManager(void);
 
 	//! @brief Checks all active attacks whether they should be aborted or continue with a different destination
@@ -37,8 +38,8 @@ public:
 	void AttackNextSectorOrAbort(AAIAttack *attack);
 
 private:
-	//! @brief Adds the unit groups in the given list to the given attack
-	void AddGroupsToAttack(AAIAttack* attack, const std::list<AAIGroup*>& groupList) const;
+	//! @brief Adds all groups in the list of specified target type to the given attack
+	void AddGroupsOfTargetTypeToAttack(const std::list<AAIGroup*>& groupList, const AAITargetType& targetType, AAIAttack* attack) const;
 
 	//! @brief Selects given number of groups from the two given lists (list1 has priority)
 	void SelectNumberOfGroups(std::list<AAIGroup*> selectedGroupList, int maxNumberOfGroups, std::list<AAIGroup*> groupList1, std::list<AAIGroup*> groupList2);
@@ -57,10 +58,14 @@ private:
 	//! @brief Stops the attack and removes it from the list of active attacks
 	void AbortAttack(AAIAttack* attack);
 
+	//! Pointer to AI (used to access all other necessary data/functionality)
+	AAI *ai;
+
 	//! The currently active attacks (nullptr if no active attack)
 	std::vector<AAIAttack*> m_activeAttacks;
 
-	AAI *ai;
+	//! The threat map is used to determine suitable targets to attack
+	AAIThreatMap m_threatMap;
 };
 
 #endif

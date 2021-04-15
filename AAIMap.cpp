@@ -1934,30 +1934,6 @@ const AAISector* AAIMap::DetermineSectorToContinueAttack(const AAISector *curren
 	return selectedSector;
 }
 
-const AAISector* AAIMap::DetermineSectorToAttack(const std::vector<float>& globalCombatPower, const std::vector< std::vector<float> >& continentCombatPower, const MobileTargetTypeValues& assaultGroupsOfType) const
-{
-	const float maxLostUnits = GetMaximumNumberOfLostUnits();
-
-	float highestRating(0.0f);
-	const AAISector* selectedSector = nullptr;
-
-	for(int x = 0; x < xSectors; ++x)
-	{
-		for(int y = 0; y < ySectors; ++y)
-		{
-			const float rating = m_sector[x][y].GetAttackRating(globalCombatPower, continentCombatPower, assaultGroupsOfType, maxLostUnits);
-
-			if(rating > highestRating)
-			{
-				selectedSector = &m_sector[x][y];
-				highestRating  = rating;
-			}
-		}
-	}
-
-	return selectedSector;
-}
-
 const char* AAIMap::GetMapTypeString(const AAIMapType& mapType) const
 {
 	if(mapType.IsLand())
@@ -2067,22 +2043,4 @@ float AAIMap::GetEdgeDistance(const float3& pos) const
 	const float vDist( std::min(pos.z, distBottom) );
 
 	return std::min(hDist, vDist);
-}
-
-float AAIMap::GetMaximumNumberOfLostUnits() const
-{
-	float maxLostUnits(0.0f);
-
-	for(int x = 0; x < AAIMap::xSectors; ++x)
-	{
-		for(int y = 0; y < AAIMap::ySectors; ++y)
-		{
-			const float lostUnits = ai->Map()->m_sector[x][y].GetLostUnits();
-
-			if(lostUnits > maxLostUnits)
-				maxLostUnits = lostUnits;
-		}
-	}
-
-	return maxLostUnits;
 }

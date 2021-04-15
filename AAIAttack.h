@@ -20,7 +20,7 @@ class AAIGroup;
 class AAIAttack
 {
 public:
-	AAIAttack(AAI *ai);
+	AAIAttack(AAI *ai, const AAISector* targetSector);
 	~AAIAttack(void);
 
 	//! @brief Adds group to the attack, returns whether it has been successful

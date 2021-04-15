@@ -252,7 +252,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	m_airForceManager = new AAIAirForceManager(this);
 
 	// init attack manager
-	m_attackManager = new AAIAttackManager(this);
+	m_attackManager = new AAIAttackManager(this, AAIMap::xSectors, AAIMap::ySectors);
 
 	Log("Tidal/Wind strength: %f / %f\n", m_aiCallback->GetTidalStrength(), (m_aiCallback->GetMaxWind() + m_aiCallback->GetMinWind()) * 0.5f);
 

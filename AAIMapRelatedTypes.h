@@ -21,6 +21,8 @@ struct MapPos
 
 	MapPos() : MapPos(0,0) {}
 
+	bool operator==(const MapPos& rhs) const { return (x == rhs.x) && (y == rhs.y); }
+
 	int x;
 	int y;
 };

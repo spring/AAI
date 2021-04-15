@@ -38,7 +38,6 @@ struct DefenceCoverage
 	float defence;
 };
 
-
 class AAISector
 {
 public:

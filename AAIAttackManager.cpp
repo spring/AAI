@@ -16,11 +16,11 @@
 #include "AAIMap.h"
 #include "AAISector.h"
 
-AAIAttackManager::AAIAttackManager(AAI *ai)
+AAIAttackManager::AAIAttackManager(AAI *ai, int xSectors, int ySectors) :
+	ai(ai),
+	m_activeAttacks(AAIConstants::maxNumberOfAttacks, nullptr),
+	m_threatMap(xSectors, ySectors)
 {
-	this->ai = ai;
-
-	m_activeAttacks.resize(AAIConstants::maxNumberOfAttacks, nullptr);
 }
 
 AAIAttackManager::~AAIAttackManager(void)
@@ -86,44 +86,72 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 
 	std::vector< std::vector<float> > combatPowerOnContinent(numberOfContinents, std::vector<float>(AAITargetType::numberOfTargetTypes, 0.0f) );
 	std::vector<float>                combatPowerGlobal(AAITargetType::numberOfTargetTypes, 0.0f);
-	MobileTargetTypeValues     numberOfAssaultGroupsOfTargetType;
+	MobileTargetTypeValues            numberOfAssaultGroupsOfTargetType;
 
 	DetermineCombatPowerOfGroups(availableAssaultGroupsGlobal, combatPowerGlobal, numberOfAssaultGroupsOfTargetType);
 
 	for(size_t continent = 0; continent < availableAssaultGroupsOnContinent.size(); ++continent)
 		DetermineCombatPowerOfGroups(availableAssaultGroupsOnContinent[continent], combatPowerOnContinent[continent], numberOfAssaultGroupsOfTargetType);
 
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// determine attack sector
-	//////////////////////////////////////////////////////////////////////////////////////////////
-
-	const AAISector* targetSector = ai->Map()->DetermineSectorToAttack(combatPowerGlobal, combatPowerOnContinent, numberOfAssaultGroupsOfTargetType);			
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
+	// determine target types of attackers
+	//////////////////////////////////////////////////////////////////////////////////////////////
+
+	std::list<AAITargetType> attackerTargetTypes;
+
+	for(auto targetType : AAITargetType::m_mobileTargetTypes)
+	{
+		if(numberOfAssaultGroupsOfTargetType.GetValueOfTargetType(targetType) > 0)
+			attackerTargetTypes.push_back(targetType);
+	}
+
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// for every possible attacker target type, determine whether suitable target is available and
 	// order attack
 	//////////////////////////////////////////////////////////////////////////////////////////////
 
-	if(targetSector)
+	for(auto targetType : attackerTargetTypes)
 	{
-		AAIAttack *attack = new AAIAttack(ai);
-		m_activeAttacks[availableAttackId] = attack;
+		m_threatMap.UpdateLocalEnemyCombatPower(targetType, ai->Map()->m_sector);
 
-		// add combat unit groups
-		AddGroupsToAttack(attack, availableAssaultGroupsOnContinent[targetSector->GetContinentID()]);
-		AddGroupsToAttack(attack, availableAssaultGroupsGlobal);
+		const MapPos baseCenter = ai->Brain()->GetCenterOfBase();
+		const AAISector* targetSector = m_threatMap.DetermineSectorToAttack(targetType, baseCenter, ai->Map()->m_sector);
 
-		// add anti air units if necessary
-		if(    (ai->Brain()->m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(ETargetType::AIR) > 0.2f)
-			|| (ai->Brain()->GetRecentAttacksBy(ETargetType::AIR) > 0.9f) )
+		// order groups of given target type to attack
+		if(targetSector)
 		{
-			std::list<AAIGroup*> antiAirGroups;
-			SelectNumberOfGroups(antiAirGroups, 1, availableAAGroupsOnContinent[targetSector->GetContinentID()], availableAAGroupsGlobal);
+			const float3 targetPosition = targetSector->DetermineAttackPosition();
+			const int    continentId    = AAIMap::GetContinentID(targetPosition);
 
-			AddGroupsToAttack(attack, antiAirGroups);
+			AAIAttack *attack = new AAIAttack(ai, targetSector);
+
+			// add combat unit groups
+			AddGroupsOfTargetTypeToAttack(availableAssaultGroupsOnContinent[continentId], targetType, attack);
+			AddGroupsOfTargetTypeToAttack(availableAssaultGroupsGlobal, targetType, attack);
+
+			// add anti air units if necessary
+			if(    (ai->Brain()->m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(ETargetType::AIR) > 0.2f)
+				|| (ai->Brain()->GetRecentAttacksBy(ETargetType::AIR) > 0.9f) )
+			{
+				std::list<AAIGroup*> antiAirGroups;
+				SelectNumberOfGroups(antiAirGroups, 1, availableAAGroupsOnContinent[continentId], availableAAGroupsGlobal);
+
+				AddGroupsOfTargetTypeToAttack(antiAirGroups, targetType, attack);
+			}
+
+			if( attack->CheckIfFailed() )
+			{
+				// insufficient combat power of attacking units -> abort attack
+				delete attack;
+			}
+			else
+			{
+				// start the attack
+				m_activeAttacks[availableAttackId] = attack;
+				attack->AttackSector(targetSector);
+			}
 		}
-		
-		// start the attack
-		attack->AttackSector(targetSector);
 	}
 }
 
@@ -150,12 +178,15 @@ void AAIAttackManager::SelectNumberOfGroups(std::list<AAIGroup*> selectedGroupLi
 	}
 }
 
-void AAIAttackManager::AddGroupsToAttack(AAIAttack* attack, const std::list<AAIGroup*>& groupList) const
+void AAIAttackManager::AddGroupsOfTargetTypeToAttack(const std::list<AAIGroup*>& groupList, const AAITargetType& targetType, AAIAttack* attack) const
 {
 	for(auto group : groupList)
 	{
-		if(attack->AddGroup(group))
-			group->SetAttack(attack);
+		if(group->GetTargetType() == targetType)
+		{
+			if(attack->AddGroup(group))
+				group->SetAttack(attack);
+		}
 	}
 }
 
