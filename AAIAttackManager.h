@@ -38,18 +38,12 @@ public:
 	void AttackNextSectorOrAbort(AAIAttack *attack);
 
 private:
-	//! @brief Adds all groups in the list of specified target type to the given attack
-	void AddGroupsOfTargetTypeToAttack(const std::list<AAIGroup*>& groupList, const AAITargetType& targetType, AAIAttack* attack) const;
-
 	//! @brief Selects given number of groups from the two given lists (list1 has priority)
 	void SelectNumberOfGroups(std::list<AAIGroup*> selectedGroupList, int maxNumberOfGroups, std::list<AAIGroup*> groupList1, std::list<AAIGroup*> groupList2);
 
 	//! @brief Determines which groups would be available for an attack globally/on each continent and returns the total number of available assault groups
 	int DetermineCombatUnitGroupsAvailableForattack(std::list<AAIGroup*>& availableAssaultGroupsGlobal, std::list<AAIGroup*>& availableAAGroupsGlobal,
 													std::vector< std::list<AAIGroup*> >& availableAssaultGroupsOnContinent, std::vector< std::list<AAIGroup*> >& availableAAGroupsOnContinent) const;
-
-	//! @brief Determines the combat power against the different target types for the given list of groups
-	void DetermineCombatPowerOfGroups(const std::list<AAIGroup*>& groups, std::vector<float>& combatPower, MobileTargetTypeValues& numberOfGroupsOfTargetType) const;
 
 	//! @brief Checks which combat unit groups are available for to attack a target (for each continent), 
 	//!        selects a possible target and launches attack if it seems reasonable (i.e. sufficient combat power available)

@@ -298,15 +298,14 @@ void AAIGroup::TargetUnitKilled()
 	}
 }
 
-void AAIGroup::AttackSector(const AAISector *sector, float urgency)
+void AAIGroup::AttackPositionInSector(const float3& position, const AAISector* sector, float urgency)
 {
-	const float3 targetPosition  = sector->DetermineAttackPosition();
-	const float3 attackDirection = DetermineDirectionToPosition(targetPosition);
+	const float3 attackDirection = DetermineDirectionToPosition(position);
 
 	const float  distanceToTarget = static_cast<float>(8 * SQUARE_SIZE);
-	const float3 attackPositionCenter( 	targetPosition.x - distanceToTarget * attackDirection.x, 
-										targetPosition.y, 
-										targetPosition.z - distanceToTarget * attackDirection.z);
+	const float3 attackPositionCenter( 	position.x - distanceToTarget * attackDirection.x, 
+										position.y, 
+										position.z - distanceToTarget * attackDirection.z);
 
 	const int commandId = m_groupType.IsMeleeCombatUnit() ? CMD_MOVE : CMD_FIGHT;
 
@@ -314,7 +313,7 @@ void AAIGroup::AttackSector(const AAISector *sector, float urgency)
 
 	m_urgencyOfCurrentTask = urgency;
 	m_task                 = GROUP_ATTACKING;
-	m_targetPosition       = targetPosition;
+	m_targetPosition       = position;
 	m_targetSector         = sector;
 }
 
@@ -346,6 +345,14 @@ void AAIGroup::DefendUnit(UnitId unitId, const float3& enemyPosition, float urge
 	}
 
 	m_task = GROUP_DEFENDING;
+}
+
+void AAIGroup::GuardUnit(UnitId unitId)
+{
+	Command c(CMD_GUARD);
+	c.PushParam(unitId.id);
+
+	GiveOrderToGroup(&c, AAIConstants::defendUnitsUrgency, GUARDING, "Group::AttackSector");
 }
 
 void AAIGroup::RetreatToRallyPoint()

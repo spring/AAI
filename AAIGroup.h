@@ -48,13 +48,14 @@ public:
 	//! @brief Removes the given unit from the group and checks if air support to defend group shall be requested
 	bool RemoveUnit(UnitId unitId, UnitId attackerUnitId);
 
-	void GiveOrderToGroup(Command *c, float importance, UnitTask task, const char *owner);
-
-	//! @brief Determines the position of an enemy building in the given sector and orders all units to attack it
-	void AttackSector(const AAISector *sector, float urgency);
+	//! @brief Orders all units to attack given position
+	void AttackPositionInSector(const float3& position, const AAISector* sector, float urgency);
 
 	//! @brief Defend unit vs enemy (enemyPosition equals ZeroVector if enemy unknown -> guard unit instead)
 	void DefendUnit(UnitId unitId, const float3& enemyPosition, float urgency);
+
+	//! @brief Orders the unit of the group to guard the given unit
+	void GuardUnit(UnitId unitId);
 
 	//! @brief Retreat units in group to rally point; abort attack (set to nullptr) if set
 	void RetreatToRallyPoint();
@@ -131,6 +132,9 @@ public:
 
 private:
 	AAI* ai;
+
+	//! @brief Gives command to all units in group
+	void GiveOrderToGroup(Command *c, float importance, UnitTask task, const char *owner);
 
 	//! @brief Orders unit to move/patrol/fight to given position where given distance between individual target positions is maintained
 	void GiveMoveOrderToGroup(int commandId, UnitTask unitTask, const float3& targetPositionCenter, float distanceBetweenUnits);

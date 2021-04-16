@@ -23,8 +23,8 @@ public:
 	AAIAttack(AAI *ai, const AAISector* targetSector);
 	~AAIAttack(void);
 
-	//! @brief Adds group to the attack, returns whether it has been successful
-	bool AddGroup(AAIGroup *group);
+	//! @brief Adds all groups in the list of specified target type
+	void AddGroupsOfTargetType(const std::list<AAIGroup*>& groupList, const AAITargetType& targetType);
 
 	//! @brief Removes group from the attack (e.g. if group is deleted)
 	void RemoveGroup(AAIGroup *group);
@@ -38,8 +38,8 @@ public:
 	//! @brief Returns a sector to proceed with attack (nullptr if none found)
 	const AAISector* DetermineSectorToContinueAttack();
 
-	//! @brief Orders units to attack specified sector
-	void AttackSector(const AAISector *sector);
+	//! @brief Orders units to attack the given position
+	void AttackPosition(const float3& position);
 
 	//! @brief Orders all units involved to retreat
 	void StopAttack();
@@ -62,6 +62,9 @@ private:
 
 	//! @brief Determines how many units of which target type participate in attack
 	void DetermineTargetTypeOfInvolvedUnits(MobileTargetTypeValues& targetTypesOfUnits) const;
+
+	//! @brief Adds group to the attack, returns whether it has been successful
+	bool AddGroup(AAIGroup *group);
 
 	//! anti air unit groups that are part of this attack
 	std::set<AAIGroup*> m_antiAirUnitGroups;

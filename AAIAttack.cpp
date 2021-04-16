@@ -167,30 +167,29 @@ bool AAIAttack::SufficientCombatPowerToAttackSector(const AAISector *sector, flo
 	return false;
 }
 
-void AAIAttack::AttackSector(const AAISector *sector)
+void AAIAttack::AttackPosition(const float3& position)
 {
-	m_attackDestination = sector;
+	const AAISector* sector = ai->Map()->GetSectorOfPos(position);
 
-	m_lastAttackOrderInFrame = ai->GetAICallback()->GetCurrentFrame();
-
-	for(auto group : m_combatUnitGroups)
+	if(sector)
 	{
-		group->AttackSector(m_attackDestination, AAIConstants::attackEnemyBaseUrgency);
-	}
+		m_attackDestination      = sector;
+		m_lastAttackOrderInFrame = ai->GetAICallback()->GetCurrentFrame();
 
-	// order aa groups to guard combat units
-	if(!m_combatUnitGroups.empty())
-	{
-		for(auto group : m_antiAirUnitGroups)
+		for(auto group : m_combatUnitGroups)
 		{
-			const UnitId unitId = (*m_combatUnitGroups.begin())->GetRandomUnit();
+			group->AttackPositionInSector(position, sector, AAIConstants::attackEnemyBaseUrgency);
+		}
 
-			if(unitId.IsValid())
+		// order aa groups to guard combat units
+		if(!m_combatUnitGroups.empty())
+		{
+			for(auto group : m_antiAirUnitGroups)
 			{
-				Command c(CMD_GUARD);
-				c.PushParam(unitId.id);
+				const UnitId unitId = (*m_combatUnitGroups.begin())->GetRandomUnit();
 
-				group->GiveOrderToGroup(&c, AAIConstants::defendUnitsUrgency, GUARDING, "Group::AttackSector");
+				if(unitId.IsValid())
+					group->GuardUnit(unitId);
 			}
 		}
 	}
@@ -233,6 +232,18 @@ void AAIAttack::DetermineTargetTypeOfInvolvedUnits(MobileTargetTypeValues& targe
 {
 	for(auto group : m_combatUnitGroups)
 		targetTypesOfUnits.AddValueForTargetType( group->GetTargetType(), static_cast<float>( group->GetCurrentSize() ) );
+}
+
+void AAIAttack::AddGroupsOfTargetType(const std::list<AAIGroup*>& groupList, const AAITargetType& targetType)
+{
+	for(auto group : groupList)
+	{
+		if(group->GetTargetType() == targetType)
+		{
+			if(AddGroup(group))
+				group->SetAttack(this);
+		}
+	}
 }
 
 bool AAIAttack::AddGroup(AAIGroup *group)
