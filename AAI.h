@@ -34,6 +34,7 @@ class AAIAttackManager;
 class AAIBuildTable;
 class AAIUnitTable;
 class AAIMap;
+class AAIThreatMap;
 class AAIGroup;
 
 class AAI : public IGlobalAI
@@ -137,26 +138,29 @@ private:
 	std::list<AAIBuildTask*> build_tasks;
 
 	//! Stores information about the map (shared between all AAI instances) and AI specific map related data (e.g. build map, threat map, defence maps, sectors, ...)
-	AAIMap *m_map;
+	AAIMap*             m_map;
+
+	//! The threat map is used to determine suitable targets to attack
+	AAIThreatMap*       m_threatMap;
 
 	//! AAI's brain is responsible for analyzing the current situation of the game and making the appropriate decisions
-	AAIBrain *m_brain;
+	AAIBrain*           m_brain;
 
 	//! Collection of functions to execute all kinds of typical tasks (typically relying on data/decisions by other AAI components)
-	AAIExecute *m_execute;
+	AAIExecute*         m_execute;
 
 	//! The unit table stores information about the active units (both own and enemy/allied ones)
-	AAIUnitTable *m_unitTable;
+	AAIUnitTable*       m_unitTable;
 
 	//! The build table stores information about unit types and selects units from the available types according to given criteria
-	AAIBuildTable *m_buildTable;
+	AAIBuildTable*      m_buildTable;
 	
 	//! The air force manager coordinates combat air units
-	AAIAirForceManager *m_airForceManager;
-	
+	AAIAirForceManager* m_airForceManager;
+public:	
 	//! The attack manager coordinates attakcs by ground and sea units
-	AAIAttackManager *m_attackManager;
-
+	AAIAttackManager*   m_attackManager;
+private:
 	//! List of groups of unit of the different categories
 	std::vector< std::list<AAIGroup*> > m_unitGroupsOfCategoryLists;
 

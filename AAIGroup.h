@@ -119,7 +119,7 @@ public:
 	const AAITargetType&   GetTargetType() const;
 
 	//! @brief Returns the position of the group (to save effort, only the position of the last unit added to the group)
-	float3 GetGroupPos() const;
+	float3 GetGroupPosition() const;
 
 	//! @brief Returns true if most recently added unit is close to rally point
 	bool IsEntireGroupAtRallyPoint() const;

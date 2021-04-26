@@ -38,6 +38,16 @@ struct DefenceCoverage
 	float defence;
 };
 
+struct SectorIndex
+{
+	SectorIndex(int x, int y) : x(x), y(y) {};
+
+	bool operator==(const SectorIndex& rhs) const { return (x == rhs.x) && (y == rhs.y); }
+
+	int x = 0;
+	int y = 0;
+};
+
 class AAISector
 {
 public:

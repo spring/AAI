@@ -24,11 +24,12 @@ class AAISector;
 class AAIAttackManager
 {
 public:
-	AAIAttackManager(AAI *ai, int xSectors, int ySectors);
+	AAIAttackManager(AAI *ai);
+
 	~AAIAttackManager(void);
 
 	//! @brief Checks all active attacks whether they should be aborted or continue with a different destination
-	void Update();
+	void Update(AAIThreatMap& threatMap);
 
 	//! @brief Stops the given attack if it is no longer reasonable (because of lacking combat power or attacking units)
 	//!        Returns whether attack has been aborted.
@@ -47,7 +48,7 @@ private:
 
 	//! @brief Checks which combat unit groups are available for to attack a target (for each continent), 
 	//!        selects a possible target and launches attack if it seems reasonable (i.e. sufficient combat power available)
-	void TryToLaunchAttack(int availableAttackId);
+	void TryToLaunchAttack(int availableAttackId, AAIThreatMap& threatMap);
 
 	//! @brief Stops the attack and removes it from the list of active attacks
 	void AbortAttack(AAIAttack* attack);
@@ -57,9 +58,6 @@ private:
 
 	//! The currently active attacks (nullptr if no active attack)
 	std::vector<AAIAttack*> m_activeAttacks;
-
-	//! The threat map is used to determine suitable targets to attack
-	AAIThreatMap m_threatMap;
 };
 
 #endif

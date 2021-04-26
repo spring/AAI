@@ -19,6 +19,8 @@
 #include "AAIGroup.h"
 #include "AAISector.h"
 #include "AAIBrain.h"
+#include "AAIAttackManager.h"
+#include "AAIThreatMap.h"
 
 #include "LegacyCpp/UnitDef.h"
 
@@ -90,7 +92,7 @@ bool AAIAirForceManager::CheckIfStaticBombTarget(UnitId unitId, UnitDefId unitDe
 	return false;
 }
 
-void AAIAirForceManager::CheckStaticBombTargets()
+void AAIAirForceManager::CheckStaticBombTargets(const AAIThreatMap& threatMap)
 {
 	std::array< std::set<AirRaidTarget*>*, 2> targetLists = {&m_economyTargets, &m_militaryTargets};
 	for(auto targetList : targetLists)
@@ -99,9 +101,13 @@ void AAIAirForceManager::CheckStaticBombTargets()
 		{
 			const bool targetAlive = ai->Map()->CheckPositionForScoutedUnit(target->GetPosition(), target->GetUnitId());
 
-			if(!targetAlive)
+			const float3 airUnitsPosition = DeterminePositionOfAirForce();
+			const float enemyAAPower = threatMap.CalculateEnemyDefencePower(ETargetType::AIR, airUnitsPosition, target->GetPosition());
+			
+			const bool targetProtectedByAA = (enemyAAPower > AAIConstants::maxEnemyAACombatPowerForTarget) ? true : false;
+			
+			if(!targetAlive || targetProtectedByAA)
 			{
-				//ai->Log("Deleting no longer existing target\n");
 				targetList->erase(target);
 				delete target;
 
@@ -193,7 +199,7 @@ void AAIAirForceManager::FindNextBombTarget(AAIGroup* group)
 {
 	//ai->Log("Checking for new bomb target for %i bombers", group->GetCurrentSize() );
 
-	const float3 position = group->GetGroupPos();
+	const float3 position = group->GetGroupPosition();
 	const std::pair<int, int> availableAttackAircraft(group->GetCurrentSize(), 0);
 
 	// try to select a military target first
@@ -272,7 +278,7 @@ AAIGroup* AAIAirForceManager::GetAirGroup(const AAITargetType& targetType, float
 	AAIGroup* selectedGroup(nullptr);
 	float maxCombatPower(minCombatPower);
 
-	for(auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
+	for(const auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
 	{
 		if(group->GetUrgencyOfCurrentTask() < importance)
 		{
@@ -293,7 +299,7 @@ std::pair<int, int> AAIAirForceManager::DetermineMaximumNumberOfAvailableAttackA
 {
 	std::pair<int, int> numberOfAvailableAttackAircraft = {0, 0};
 
-	for(auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
+	for(const auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
 	{
 		if(group->GetUrgencyOfCurrentTask() < importance)
 		{
@@ -305,4 +311,21 @@ std::pair<int, int> AAIAirForceManager::DetermineMaximumNumberOfAvailableAttackA
 	}
 
 	return numberOfAvailableAttackAircraft;
+}
+
+float3 AAIAirForceManager::DeterminePositionOfAirForce() const
+{
+	const MapPos& baseCenter = ai->Brain()->GetCenterOfBase();
+	float3 position = AAIMap::ConvertToMapPosition(baseCenter);
+
+	for(const auto group : ai->GetUnitGroupsList(EUnitCategory::AIR_COMBAT))
+	{
+		const AAIUnitType& groupType = group->GetUnitTypeOfGroup();
+		const bool validGroupType = groupType.IsAntiStatic() || groupType.IsAntiSurface();
+
+		if(validGroupType && group->IsAvailableForAttack() )
+			return group->GetGroupPosition();
+	}
+
+	return position;
 }

@@ -1960,13 +1960,12 @@ void AAIMap::DetermineSpottedEnemyBuildingsOnContinentType(int& enemyBuildingsOn
 	}
 }
 
-AAISector* AAIMap::GetSectorOfPos(const float3& pos)
+AAISector* AAIMap::GetSectorOfPos(const float3& position)
 {
-	const int x = pos.x/xSectorSize;
-	const int y = pos.z/ySectorSize;
+	const SectorIndex sector = GetSectorIndex(position);
 
-	if(IsValidSector(x,y))
-		return &(m_sector[x][y]);
+	if(IsValidSector(sector.x, sector.y))
+		return &(m_sector[sector.x][sector.y]);
 	else
 		return nullptr;
 }

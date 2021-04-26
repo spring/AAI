@@ -16,6 +16,7 @@
 #include "AAIUnitTypes.h"
 
 class AAI;
+class AAIThreatMap;
 
 class AirRaidTarget
 {
@@ -52,9 +53,9 @@ public:
 	bool CheckIfStaticBombTarget(UnitId unitId, UnitDefId unitDefId, const float3& position);
 
 	//! @brief Checks all current bomb targets if they are still valid
-	void CheckStaticBombTargets();
+	void CheckStaticBombTargets(const AAIThreatMap& threatMap);
 
-	//! @brief Removes unit if from list of possible bombing targets
+	//! @brief Removes unit id from list of possible bombing targets
 	void RemoveTarget(UnitId unitId);
 
 	//! @brief Returns percentage of detected targets for bombing runs ranging form 0 (none) to 1 (maximum number of targets detected)
@@ -75,6 +76,9 @@ private:
 
 	//! @brief Determines the maximum number of bombers (stored in first) and gunships (stored in second) currently available
 	std::pair<int, int> DetermineMaximumNumberOfAvailableAttackAircraft(float importance) const;
+
+	//! @brief Determines the position of the current air force available for air raids (or center of base if none available)
+	float3 DeterminePositionOfAirForce() const;
 
 	AAI *ai;
 

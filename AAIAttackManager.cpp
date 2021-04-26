@@ -16,10 +16,9 @@
 #include "AAIMap.h"
 #include "AAISector.h"
 
-AAIAttackManager::AAIAttackManager(AAI *ai, int xSectors, int ySectors) :
+AAIAttackManager::AAIAttackManager(AAI *ai) :
 	ai(ai),
-	m_activeAttacks(AAIConstants::maxNumberOfAttacks, nullptr),
-	m_threatMap(xSectors, ySectors)
+	m_activeAttacks(AAIConstants::maxNumberOfAttacks, nullptr)
 {
 }
 
@@ -34,7 +33,7 @@ AAIAttackManager::~AAIAttackManager(void)
 	m_activeAttacks.clear();
 }
 
-void AAIAttackManager::Update()
+void AAIAttackManager::Update(AAIThreatMap& threatMap)
 {
 	int availableAttackId(-1);
 
@@ -57,10 +56,10 @@ void AAIAttackManager::Update()
 
 	// at least one attack id is available -> check if new attack should be launched
 	if(availableAttackId >= 0)
-		TryToLaunchAttack(availableAttackId);
+		TryToLaunchAttack(availableAttackId, threatMap);
 }
 
-void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
+void AAIAttackManager::TryToLaunchAttack(int availableAttackId, AAIThreatMap& threatMap)
 {
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// get all available combat/aa/arty groups for attack
@@ -118,10 +117,10 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId)
 
 	for(auto targetType : attackerTargetTypes)
 	{
-		m_threatMap.UpdateLocalEnemyCombatPower(targetType, ai->Map()->m_sector);
+		threatMap.UpdateLocalEnemyCombatPower(targetType, ai->Map()->m_sector);
 
 		const MapPos baseCenter = ai->Brain()->GetCenterOfBase();
-		const AAISector* targetSector = m_threatMap.DetermineSectorToAttack(targetType, baseCenter, ai->Map()->m_sector);
+		const AAISector* targetSector = threatMap.DetermineSectorToAttack(targetType, baseCenter, ai->Map()->m_sector);
 
 		// order groups of given target type to attack
 		if(targetSector)

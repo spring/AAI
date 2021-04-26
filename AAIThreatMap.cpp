@@ -11,7 +11,8 @@
 #include "AAIMap.h"
 
 AAIThreatMap::AAIThreatMap(int xSectors, int ySectors) :
-	m_estimatedEnemyCombatPowerForSector( xSectors, std::vector<MobileTargetTypeValues>(ySectors) )
+	m_estimatedEnemyCombatPowerForSector( xSectors, std::vector<MobileTargetTypeValues>(ySectors) ),
+	m_lostUnitsInSector(xSectors, std::vector<MobileTargetTypeValues>(ySectors) )
 {
 }
 
@@ -25,8 +26,11 @@ void AAIThreatMap::UpdateLocalEnemyCombatPower(const AAITargetType& targetType, 
 	{
 		for(size_t y = 0; y < sectors[x].size(); ++y)
 		{
-			//for(auto targetType : AAITargetType::m_targetTypes)
-				m_estimatedEnemyCombatPowerForSector[x][y].SetValueForTargetType(targetType, sectors[x][y].GetEnemyCombatPower(targetType) );
+			m_estimatedEnemyCombatPowerForSector[x][y].SetValueForTargetType(targetType, sectors[x][y].GetEnemyCombatPower(targetType) );
+
+			//! @todo refactor when re-working handling of lost units
+			const float lostUnits = targetType.IsAir() ? sectors[x][y].GetLostAirUnits() : sectors[x][y].GetLostUnits();
+			m_lostUnitsInSector[x][y].SetValueForTargetType(targetType, lostUnits); 
 		}
 	}
 }
@@ -34,7 +38,7 @@ void AAIThreatMap::UpdateLocalEnemyCombatPower(const AAITargetType& targetType, 
 const AAISector* AAIThreatMap::DetermineSectorToAttack(const AAITargetType& attackerTargetType, const MapPos& mapPosition, const std::vector< std::vector<AAISector> >& sectors) const
 {
 	const float3 position( static_cast<float>(mapPosition.x * SQUARE_SIZE), 0.0f, static_cast<float>(mapPosition.y * SQUARE_SIZE));
-	const MapPos startSector( position.x/AAIMap::xSectorSize, position.z/AAIMap::ySectorSize);
+	const SectorIndex startSectorIndex = AAIMap::GetSectorIndex(position);
 
 	float highestRating(0.0f);
 	const AAISector* selectedSector = nullptr;
@@ -59,7 +63,7 @@ const AAISector* AAIThreatMap::DetermineSectorToAttack(const AAITargetType& atta
 				// value between 0.1 (15 or more recently lost units) and 1 (no lost units)
 				const float lostUnitsRating = std::max(1.0f - sectors[x][y].GetLostUnits() / 15.0f, 0.1f);
 
-				const float enemyCombatPower = CalculateCombatPower(attackerTargetType, startSector, MapPos(x, y));
+				const float enemyCombatPower = CalculateThreat<EThreatType::COMBAT_POWER>(attackerTargetType, startSectorIndex, SectorIndex(x, y));
 
 				const float rating =  static_cast<float>(enemyBuildings) / (0.1f + enemyCombatPower) * (1.0 - distRating) * lostUnitsRating;
 
@@ -75,16 +79,25 @@ const AAISector* AAIThreatMap::DetermineSectorToAttack(const AAITargetType& atta
 	return selectedSector;
 }
 
-float AAIThreatMap::CalculateCombatPower(const AAITargetType& targetType, const MapPos& startSector, const MapPos& targetSector) const
+float AAIThreatMap::CalculateEnemyDefencePower(const AAITargetType& targetType, const float3& startPosition, const float3& targetPosition) const
 {
-	float combatPower(0.0f);
+	const SectorIndex startSectorIndex  = AAIMap::GetSectorIndex(startPosition);
+	const SectorIndex targetSectorIndex = AAIMap::GetSectorIndex(targetPosition);
 
-	const float dx = static_cast<float>( targetSector.x - startSector.x );
-	const float dy = static_cast<float>( targetSector.y - startSector.y );
+	return CalculateThreat<EThreatType::ALL>(targetType, startSectorIndex, targetSectorIndex);
+}
+
+template<EThreatType threatTypeToConsider>
+float AAIThreatMap::CalculateThreat(const AAITargetType& targetType, const SectorIndex& startSectorIndex, const SectorIndex& targetSectorIndex) const
+{
+	float totalThreat(0.0f);
+
+	const float dx = static_cast<float>( targetSectorIndex.x - startSectorIndex.x );
+	const float dy = static_cast<float>( targetSectorIndex.y - startSectorIndex.y );
 
 	const float invDist = fastmath::isqrt2_nosse(dx * dx + dy * dy);
 
-	MapPos lastSector(startSector);
+	SectorIndex lastSector(startSectorIndex);
 	bool targetSectorReached(false);
 	float step(1);
 
@@ -95,15 +108,21 @@ float AAIThreatMap::CalculateCombatPower(const AAITargetType& targetType, const 
 
 	while(targetSectorReached == false)
 	{
-		const int x = startSector.x + static_cast<int>( step * dx * invDist );
-		const int y = startSector.y + static_cast<int>( step * dy * invDist );
+		const int x = startSectorIndex.x + static_cast<int>( step * dx * invDist );
+		const int y = startSectorIndex.y + static_cast<int>( step * dy * invDist );
 
 		if( (x !=lastSector.x) || (y != lastSector.y) ) // avoid counting the same sector twice if step size is too low because of rounding errors
-			combatPower += m_estimatedEnemyCombatPowerForSector[x][y].GetValueOfTargetType(targetType);
+		{
+			if( static_cast<int>(threatTypeToConsider) & static_cast<int>(EThreatType::COMBAT_POWER) )
+				totalThreat += m_estimatedEnemyCombatPowerForSector[x][y].GetValueOfTargetType(targetType);
+
+			if( static_cast<int>(threatTypeToConsider) & static_cast<int>(EThreatType::LOST_UNITS) )
+				totalThreat += m_lostUnitsInSector[x][y].GetValueOfTargetType(targetType);
+		}
 
 		//fprintf(file, "Step: %f, sector (%i, %i), combat power: %f\n", step, x, y, m_estimatedEnemyCombatPowerForSector[x][y].GetValueOfTargetType(targetType));
 
-		if((MapPos(x, y) == targetSector) || (step > dx+dy))
+		if((SectorIndex(x, y) == targetSectorIndex) || (step > dx+dy))
 			targetSectorReached = true;
 
 		++step;
@@ -112,5 +131,5 @@ float AAIThreatMap::CalculateCombatPower(const AAITargetType& targetType, const 
 	//fprintf(file, "Final combat power: %f\n", combatPower);
 	//fclose(file);
 
-	return combatPower;
+	return totalThreat;
 }

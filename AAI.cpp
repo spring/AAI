@@ -231,6 +231,9 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	// init map
 	m_map = new AAIMap(this, m_aiCallback->GetMapWidth(), m_aiCallback->GetMapHeight(), std::sqrt(m_aiCallback->GetLosMapResolution()) );
 
+	// init threat map
+	m_threatMap = new AAIThreatMap(AAIMap::xSectors, AAIMap::ySectors);
+
 	// init brain
 	m_brain = new AAIBrain(this, m_map->GetMaxSectorDistanceToBase());
 
@@ -242,7 +245,6 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 		m_brain->InitAttackedByRates( m_buildTable->GetAttackedByRates(m_map->GetMapType()) );
 	}
 
-	// init executer
 	m_execute = new AAIExecute(this);
 
 	// create unit groups
@@ -252,7 +254,7 @@ void AAI::InitAI(IGlobalAICallback* callback, int team)
 	m_airForceManager = new AAIAirForceManager(this);
 
 	// init attack manager
-	m_attackManager = new AAIAttackManager(this, AAIMap::xSectors, AAIMap::ySectors);
+	m_attackManager = new AAIAttackManager(this);
 
 	Log("Tidal/Wind strength: %f / %f\n", m_aiCallback->GetTidalStrength(), (m_aiCallback->GetMaxWind() + m_aiCallback->GetMinWind()) * 0.5f);
 
@@ -855,8 +857,11 @@ void AAI::Update()
 	{
 		AAI_SCOPED_TIMER("Check-Attack")
 		// check attack
-		m_attackManager->Update();
-		m_airForceManager->CheckStaticBombTargets();
+		m_attackManager->Update(*m_threatMap);
+
+		//! @todo refactor storage/handling of threat map
+		m_threatMap->UpdateLocalEnemyCombatPower(ETargetType::AIR, Map()->m_sector);
+		m_airForceManager->CheckStaticBombTargets(*m_threatMap);
 		m_airForceManager->AirRaidBestTarget(2.0f);
 		return;
 	}

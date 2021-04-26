@@ -239,7 +239,7 @@ const AAITargetType& AAIGroup::GetTargetType() const
 	return ai->s_buildTree.GetTargetType(m_groupDefId);
 }
 
-float3 AAIGroup::GetGroupPos() const
+float3 AAIGroup::GetGroupPosition() const
 {
 	if(!m_units.empty())
 	{
@@ -252,7 +252,7 @@ float3 AAIGroup::GetGroupPos() const
 
 bool AAIGroup::IsEntireGroupAtRallyPoint() const
 {
-	const float3 position = GetGroupPos();
+	const float3 position = GetGroupPosition();
 
 	float dx = position.x - m_rallyPoint.x;
 	float dy = position.z - m_rallyPoint.z;
@@ -269,7 +269,7 @@ float AAIGroup::GetDefenceRating(const AAITargetType& attackerTargetType, const 
 
 		if(matchingType && groupAvailable)
 		{
-			const float3& groupPosition = GetGroupPos();
+			const float3& groupPosition = GetGroupPosition();
 
 			const float speed = ai->s_buildTree.GetMaxSpeed(m_groupDefId);
 
@@ -412,7 +412,7 @@ void AAIGroup::GiveMoveOrderToGroup(int commandId, UnitTask task, const float3& 
 
 float3 AAIGroup::DetermineDirectionToPosition(const float3& position) const
 {
-	const float3 groupPosition = GetGroupPos();
+	const float3 groupPosition = GetGroupPosition();
 	const float dx = position.x - groupPosition.x;
 	const float dz = position.z - groupPosition.z;
 	const float invNorm = fastmath::isqrt_nosse(dx*dx+dz*dz);

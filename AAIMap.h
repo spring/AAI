@@ -14,6 +14,7 @@
 #include "AAITypes.h"
 #include "AAIMapRelatedTypes.h"
 #include "AAIMapTypes.h"
+#include "AAIThreatMap.h"
 #include "AAIUnitTypes.h"
 #include "AAISector.h"
 #include "System/float3.h"
@@ -56,6 +57,12 @@ public:
 	//! @brief Converts given position to final building position for the given unit type
 	void ConvertPositionToFinalBuildsite(float3& buildsite, const UnitFootprint& footprint) const;
 
+	//! @brief Returns the corresponing build map position (for a given unit map position)
+	static MapPos ConvertToBuildMapPosition(const float3& position) { return MapPos(position.x/SQUARE_SIZE, position.z/SQUARE_SIZE); }
+
+	//! @brief Returns the corresponing map position (for a given build map position)
+	static float3 ConvertToMapPosition(const MapPos& mapPos) { return float3(static_cast<float>(mapPos.x * SQUARE_SIZE), 0.0f, static_cast<float>(mapPos.y * SQUARE_SIZE)); }
+
 	//! @brief Returns whether x/y specify a valid sector
 	bool IsValidSector(int x, int y) const { return( (x >= 0) && (y >= 0) && (x < xSectors) && (y < ySectors) ); }
 
@@ -87,7 +94,10 @@ public:
 	uint32_t GetSuitableMovementTypesForMap() const { return GetSuitableMovementTypes(s_mapType); }
 
 	//! @brief Returns the sector in which the given position lies (nullptr if out of sector map -> e.g. aircraft flying outside of the map) 
-	AAISector* GetSectorOfPos(const float3& pos);
+	AAISector* GetSectorOfPos(const float3& position);
+
+	//! @brief Returns sector index for given position
+	static SectorIndex GetSectorIndex(const float3& position) { return SectorIndex(position.x/xSectorSize, position.z/ySectorSize); }
 
 	//! @brief Returns distance to closest edge of the map (in unit map coordinates)
 	float GetEdgeDistance(const float3& pos) const;

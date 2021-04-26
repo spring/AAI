@@ -40,7 +40,7 @@ bool AAIAttack::CheckIfFailed()
 		if(SufficientCombatPowerToAttackSector(m_attackDestination, AAIConstants::attackCombatPowerFactor))
 		{
 			// check if sufficient power to combat enemy units
-			const float3 pos = (*m_combatUnitGroups.begin())->GetGroupPos();
+			const float3 pos = (*m_combatUnitGroups.begin())->GetGroupPosition();
 			const AAISector* sector = ai->Map()->GetSectorOfPos(pos);
 
 			if(sector && SufficientCombatPowerAt(sector, AAIConstants::attackCombatPowerFactor))
