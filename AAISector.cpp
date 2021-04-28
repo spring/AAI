@@ -13,17 +13,22 @@
 #include "AAIBrain.h"
 #include "AAIConfig.h"
 #include "AAIMap.h"
+#include "AAIThreatMap.h"
 
 #include "LegacyCpp/IGlobalAICallback.h"
 #include "LegacyCpp/UnitDef.h"
-using namespace springLegacyAI;
 
 AAISector::AAISector() :
-	m_distanceToBase(-1), 
-	m_lostUnits(0.0f),
-	m_lostAirUnits(0.0f),
+	m_freeMetalSpots(false),
+	m_distanceToBase(-1),
+	m_lostUnits(),
+	m_ownBuildingsOfCategory(AAIUnitCategory::numberOfUnitCategories, 0),
 	m_enemyCombatUnits(0.0f),
-	m_skippedAsScoutDestination(0)
+	m_enemyBuildings(0),
+	m_alliedBuildings(0),
+	m_enemyUnitsDetectedBySensor(0),
+	m_skippedAsScoutDestination(0),
+	m_failedAttemptsToConstructStaticDefence(0)
 {
 }
 
@@ -49,17 +54,7 @@ void AAISector::Init(AAI *ai, int x, int y)
 	const float3 center = GetCenter();
 	m_continentId = AAIMap::GetContinentID(center);
 
-	m_freeMetalSpots = false;
-
-	// nothing sighted in that sector
-	m_enemyUnitsDetectedBySensor = 0;
-	m_enemyBuildings  = 0;
-	m_alliedBuildings = 0;
-	m_failedAttemptsToConstructStaticDefence = 0;
-
 	importance_this_game = 1.0f + (rand()%5)/20.0f;
-
-	m_ownBuildingsOfCategory.resize(AAIUnitCategory::numberOfUnitCategories, 0);
 }
 
 void AAISector::LoadDataFromFile(FILE* file)
@@ -193,9 +188,7 @@ void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int framesSinceLastUpd
 
 void AAISector::DecreaseLostUnits()
 {
-	// decrease values (so the ai "forgets" values from time to time)...
-	m_lostUnits    *= 0.985f;
-	m_lostAirUnits *= 0.985f;
+	m_lostUnits.MultiplyValues(AAIConstants::lostUnitsMemoryFadeRate);
 }
 
 void AAISector::AddMetalSpot(AAIMetalSpot *spot)
@@ -346,7 +339,7 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 			const float enemyBuildings = static_cast<float>(GetNumberOfEnemyBuildings());
 
 			// prefer sectors with many buildings, few lost units and low defence power/short distance to current sector
-			rating = GetLostUnits() * enemyBuildings / ( (1.0f + GetEnemyCombatPowerVsUnits(targetTypeOfUnits)) * (1.0f + dist) );
+			rating = GetTotalLostUnits() * enemyBuildings / ( (1.0f + GetEnemyCombatPowerVsUnits(targetTypeOfUnits)) * (1.0f + dist) );
 		}
 	}
 
@@ -365,7 +358,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 										+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::FLOATER)   * GetEnemyCombatPower(ETargetType::FLOATER)
 										+ assaultGroupsOfType.GetValueOfTargetType(ETargetType::SUBMERGED) * GetEnemyCombatPower(ETargetType::SUBMERGED);
 
-		const float lostUnitsFactor = (maxLostUnits > 1.0f) ? (2.0f - (GetLostUnits() / maxLostUnits) ) : 1.0f;
+		const float lostUnitsFactor = (maxLostUnits > 1.0f) ? (2.0f - (GetTotalLostUnits() / maxLostUnits) ) : 1.0f;
 
 		const float enemyBuildings = static_cast<float>(GetNumberOfEnemyBuildings());
 
@@ -376,7 +369,7 @@ float AAISector::GetAttackRating(const std::vector<float>& globalCombatPower, co
 	return rating;			
 }
 
-float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout)
+float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const AAITargetType& scoutTargetType, const float3& currentPositionOfScout)
 {
 	if(   (m_distanceToBase == 0) 
 	   || (scoutMoveType.IsIncludedIn(m_suitableMovementTypes) == false) 
@@ -394,8 +387,8 @@ float AAISector::GetRatingAsNextScoutDestination(const AAIMovementType& scoutMov
 		const float distanceToCurrentLocationFactor = 0.1f + 0.9f * (1.0f - (dx*dx+dy*dy) / AAIMap::s_maxSquaredMapDist);
 
 		// factor between 1 and 0.4 (depending on number of recently lost units)
-		const float lostUnits = scoutMoveType.IsAir() ? m_lostAirUnits : m_lostUnits;
-		const float lostScoutsFactor = 0.4f + 0.6f / (0.5f * lostUnits + 1.0f);
+		//const float lostUnits =  // scoutMoveType.IsAir() ? m_lostAirUnits : m_lostUnits;
+		const float lostScoutsFactor = 0.4f + 0.6f / (0.5f * m_lostUnits.GetValueOfTargetType(scoutTargetType) + 1.0f);
 
 		const float metalSpotsFactor = 2.0f + static_cast<float>(metalSpots.size());
 
@@ -410,7 +403,7 @@ float AAISector::GetRatingForRallyPoint(const AAIMovementType& moveType, int con
 		return 0.0f;
 
 	const float edgeDistance = static_cast<float>( GetEdgeDistance() );
-	const float totalAttacks = GetLostUnits() + GetTotalAttacksInThisGame();
+	const float totalAttacks = GetTotalLostUnits() + GetTotalAttacksInThisGame();
 
 	float rating(0.0f);
 
@@ -636,10 +629,8 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 	}
 	else // unit was lost
 	{
-		if(ai->s_buildTree.GetMovementType(destroyedDefId).IsAir())
-			m_lostAirUnits += 1.0f;
-		else
-			m_lostUnits += 1.0f;
+		const AAITargetType& targetType = ai->s_buildTree.GetTargetType(destroyedDefId);
+		m_lostUnits.AddValueForTargetType(targetType, 1.0f);
 	}
 }
 

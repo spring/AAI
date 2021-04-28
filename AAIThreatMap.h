@@ -22,7 +22,6 @@ enum class EThreatType : int
 	ALL            = 0x03  //! Conider enemy combat power and own lost units
 };
 
-
 class AAIThreatMap
 {
 public:
@@ -37,17 +36,14 @@ public:
 	const AAISector* DetermineSectorToAttack(const AAITargetType& attackerTargetType, const MapPos& position, const std::vector< std::vector<AAISector> >& sectors) const;
 
 	//! @brief Determines the total enemy defence power of the sector in a line from start to target position
-	float CalculateEnemyDefencePower(const AAITargetType& targetType, const float3& startPosition, const float3& targetPosition) const;
+	float CalculateEnemyDefencePower(const AAITargetType& targetType, const float3& startPosition, const float3& targetPosition, const std::vector< std::vector<AAISector> >& sectors) const;
 
 private:
 	template<EThreatType threatTypeToConsider>
-	float CalculateThreat(const AAITargetType& targetType, const SectorIndex& startSectorIndex, const SectorIndex& targetSectorIndex) const;
+	float CalculateThreat(const AAITargetType& targetType, const SectorIndex& startSectorIndex, const SectorIndex& targetSectorIndex, const std::vector< std::vector<AAISector> >& sectors) const;
 
 	//! Buffer to store the estimated enemy combat power available to defend each sector
 	std::vector< std::vector<MobileTargetTypeValues> > m_estimatedEnemyCombatPowerForSector;
-
-	//! Buffer to store the number of lost units per sector
-	std::vector< std::vector<MobileTargetTypeValues> > m_lostUnitsInSector;
 };
 
 #endif

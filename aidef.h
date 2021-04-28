@@ -36,6 +36,9 @@ public:
 	//! The relative importance of a sector will be capped at this value
 	static constexpr float maxSectorImportance = 5.0f;
 
+	//! Rate that determines how quickly AAI "forgets" about lost units in each sector
+	static constexpr float lostUnitsMemoryFadeRate = 0.985f;
+
 	//! @todo Make this changeable via optinal mod config file
     static constexpr float energyToMetalConversionFactor = 60.0f;
 

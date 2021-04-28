@@ -11,8 +11,7 @@
 #include "AAIMap.h"
 
 AAIThreatMap::AAIThreatMap(int xSectors, int ySectors) :
-	m_estimatedEnemyCombatPowerForSector( xSectors, std::vector<MobileTargetTypeValues>(ySectors) ),
-	m_lostUnitsInSector(xSectors, std::vector<MobileTargetTypeValues>(ySectors) )
+	m_estimatedEnemyCombatPowerForSector( xSectors, std::vector<MobileTargetTypeValues>(ySectors) )
 {
 }
 
@@ -27,10 +26,6 @@ void AAIThreatMap::UpdateLocalEnemyCombatPower(const AAITargetType& targetType, 
 		for(size_t y = 0; y < sectors[x].size(); ++y)
 		{
 			m_estimatedEnemyCombatPowerForSector[x][y].SetValueForTargetType(targetType, sectors[x][y].GetEnemyCombatPower(targetType) );
-
-			//! @todo refactor when re-working handling of lost units
-			const float lostUnits = targetType.IsAir() ? sectors[x][y].GetLostAirUnits() : sectors[x][y].GetLostUnits();
-			m_lostUnitsInSector[x][y].SetValueForTargetType(targetType, lostUnits); 
 		}
 	}
 }
@@ -61,9 +56,9 @@ const AAISector* AAIThreatMap::DetermineSectorToAttack(const AAITargetType& atta
 				const float distRating = std::min( distSquared / (0.5f * AAIMap::s_maxSquaredMapDist), 0.9f);
 
 				// value between 0.1 (15 or more recently lost units) and 1 (no lost units)
-				const float lostUnitsRating = std::max(1.0f - sectors[x][y].GetLostUnits() / 15.0f, 0.1f);
+				const float lostUnitsRating = std::max(1.0f - sectors[x][y].GetTotalLostUnits() / 15.0f, 0.1f);
 
-				const float enemyCombatPower = CalculateThreat<EThreatType::COMBAT_POWER>(attackerTargetType, startSectorIndex, SectorIndex(x, y));
+				const float enemyCombatPower = CalculateThreat<EThreatType::COMBAT_POWER>(attackerTargetType, startSectorIndex, SectorIndex(x, y), sectors);
 
 				const float rating =  static_cast<float>(enemyBuildings) / (0.1f + enemyCombatPower) * (1.0 - distRating) * lostUnitsRating;
 
@@ -79,16 +74,16 @@ const AAISector* AAIThreatMap::DetermineSectorToAttack(const AAITargetType& atta
 	return selectedSector;
 }
 
-float AAIThreatMap::CalculateEnemyDefencePower(const AAITargetType& targetType, const float3& startPosition, const float3& targetPosition) const
+float AAIThreatMap::CalculateEnemyDefencePower(const AAITargetType& targetType, const float3& startPosition, const float3& targetPosition, const std::vector< std::vector<AAISector> >& sectors) const
 {
 	const SectorIndex startSectorIndex  = AAIMap::GetSectorIndex(startPosition);
 	const SectorIndex targetSectorIndex = AAIMap::GetSectorIndex(targetPosition);
 
-	return CalculateThreat<EThreatType::ALL>(targetType, startSectorIndex, targetSectorIndex);
+	return CalculateThreat<EThreatType::ALL>(targetType, startSectorIndex, targetSectorIndex, sectors);
 }
 
 template<EThreatType threatTypeToConsider>
-float AAIThreatMap::CalculateThreat(const AAITargetType& targetType, const SectorIndex& startSectorIndex, const SectorIndex& targetSectorIndex) const
+float AAIThreatMap::CalculateThreat(const AAITargetType& targetType, const SectorIndex& startSectorIndex, const SectorIndex& targetSectorIndex, const std::vector< std::vector<AAISector> >& sectors) const
 {
 	float totalThreat(0.0f);
 
@@ -117,7 +112,7 @@ float AAIThreatMap::CalculateThreat(const AAITargetType& targetType, const Secto
 				totalThreat += m_estimatedEnemyCombatPowerForSector[x][y].GetValueOfTargetType(targetType);
 
 			if( static_cast<int>(threatTypeToConsider) & static_cast<int>(EThreatType::LOST_UNITS) )
-				totalThreat += m_lostUnitsInSector[x][y].GetValueOfTargetType(targetType);
+				totalThreat += sectors[x][y].GetLostUnits(targetType);
 		}
 
 		//fprintf(file, "Step: %f, sector (%i, %i), combat power: %f\n", step, x, y, m_estimatedEnemyCombatPowerForSector[x][y].GetValueOfTargetType(targetType));

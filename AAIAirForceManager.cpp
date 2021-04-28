@@ -42,7 +42,7 @@ void AAIAirForceManager::CheckTarget(const UnitId& unitId, const AAITargetType& 
 		const AAISector* sector   = ai->Map()->GetSectorOfPos(position);
 
 		// check if unit is within the map
-		if(sector && (sector->GetLostAirUnits() < AAIConstants::maxLostAirUnitsForAirSupport) )
+		if(sector && (sector->GetLostUnits(ETargetType::AIR) < AAIConstants::maxLostAirUnitsForAirSupport) )
 		{
 			AAIGroup *group = GetAirGroup(targetType, AAIConstants::minAirSupportCombatPower, AAIConstants::defendUnitsUrgency);
 
@@ -102,7 +102,7 @@ void AAIAirForceManager::CheckStaticBombTargets(const AAIThreatMap& threatMap)
 			const bool targetAlive = ai->Map()->CheckPositionForScoutedUnit(target->GetPosition(), target->GetUnitId());
 
 			const float3 airUnitsPosition = DeterminePositionOfAirForce();
-			const float enemyAAPower = threatMap.CalculateEnemyDefencePower(ETargetType::AIR, airUnitsPosition, target->GetPosition());
+			const float enemyAAPower = threatMap.CalculateEnemyDefencePower(ETargetType::AIR, airUnitsPosition, target->GetPosition(), ai->Map()->m_sector);
 			
 			const bool targetProtectedByAA = (enemyAAPower > AAIConstants::maxEnemyAACombatPowerForTarget) ? true : false;
 			
@@ -245,7 +245,7 @@ AirRaidTarget* AAIAirForceManager::SelectBestTarget(std::set<AirRaidTarget*>& ta
 				sufficientAttackersAvailable = (availableAttackAircraft.first >= minNumberOfBombers);
 			}
 
-			if( sufficientAttackersAvailable && (sector->GetLostAirUnits() < 0.8f) )
+			if( sufficientAttackersAvailable && (sector->GetLostUnits(ETargetType::AIR) < 0.8f) )
 			{
 				const float dx = position.x - target->GetPosition().x;
 				const float dy = position.z - target->GetPosition().z;
@@ -257,7 +257,7 @@ AirRaidTarget* AAIAirForceManager::SelectBestTarget(std::set<AirRaidTarget*>& ta
 				const float airDefenceFactor = std::min(sector->GetEnemyCombatPower(ETargetType::AIR) / AAIConstants::maxCombatPower, 1.0f);
 
 				// between 0 (no recently lost air units) and 1 (more than 3 recently lost air units)
-				const float lostAirUnitsFactor = std::min( sector->GetLostAirUnits() / 3.0f, 1.0f);
+				const float lostAirUnitsFactor = std::min( sector->GetLostUnits(ETargetType::AIR) / 3.0f, 1.0f);
 
 				const float rating = distFactor + airDefenceFactor + lostAirUnitsFactor;
 

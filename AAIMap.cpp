@@ -1773,7 +1773,7 @@ float3 AAIMap::DeterminePositionOfEnemyBuildingInSector(int xStart, int xEnd, in
 	return selectedPosition;
 }
 
-void AAIMap::UpdateSectors()
+void AAIMap::UpdateSectors(AAIThreatMap *threatMap)
 {
 	int scoutedEnemyBuildings(0);
 	MapPos sectorLocationOfEnemyBuidlings(0, 0);
@@ -1871,11 +1871,12 @@ void AAIMap::UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sec
 
 float3 AAIMap::GetNewScoutDest(UnitId scoutUnitId)
 {
-	const UnitDef* def = ai->GetAICallback()->GetUnitDef(scoutUnitId.id);
-	const AAIMovementType& scoutMoveType = ai->s_buildTree.GetMovementType( UnitDefId(def->id) );
-	
-	const float3 currentPositionOfScout  = ai->GetAICallback()->GetUnitPos(scoutUnitId.id);
-	const int    continentId             = scoutMoveType.CannotMoveToOtherContinents() ? ai->Map()->DetermineSmartContinentID(currentPositionOfScout, scoutMoveType) : AAIMap::ignoreContinentID;
+	const springLegacyAI::UnitDef*  def    = ai->GetAICallback()->GetUnitDef(scoutUnitId.id);
+	const AAIMovementType& scoutMoveType   = ai->s_buildTree.GetMovementType( UnitDefId(def->id) );
+	const AAITargetType&   scoutTargetType = ai->s_buildTree.GetTargetType( UnitDefId(def->id) );
+
+	const float3 currentPositionOfScout    = ai->GetAICallback()->GetUnitPos(scoutUnitId.id);
+	const int    continentId               = scoutMoveType.CannotMoveToOtherContinents() ? ai->Map()->DetermineSmartContinentID(currentPositionOfScout, scoutMoveType) : AAIMap::ignoreContinentID;
 
 	float3     selectedScoutDestination(ZeroVector);
 	AAISector* selectedScoutSector(nullptr);
@@ -1885,7 +1886,7 @@ float3 AAIMap::GetNewScoutDest(UnitId scoutUnitId)
 	{
 		for(int y = 0; y < ySectors; ++y)
 		{
-			const float rating = m_sector[x][y].GetRatingAsNextScoutDestination(scoutMoveType, currentPositionOfScout);
+			const float rating = m_sector[x][y].GetRatingAsNextScoutDestination(scoutMoveType, scoutTargetType, currentPositionOfScout);
 
 			if(rating > highestRating)
 			{

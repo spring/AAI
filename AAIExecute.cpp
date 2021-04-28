@@ -1638,7 +1638,7 @@ void AAIExecute::CheckExtractorUpgrade()
 			for(auto spot : sector->metalSpots)
 			{
 				// quit when finding empty spots
-				if(!spot->occupied && (sector->GetNumberOfEnemyBuildings() <= 0) && (sector->GetLostUnits() < 0.2f) )
+				if(!spot->occupied && (sector->GetNumberOfEnemyBuildings() <= 0) && (sector->GetTotalLostUnits() < 0.2f) )
 					return;
 
 				if(    spot->extractorDefId.IsValid() 

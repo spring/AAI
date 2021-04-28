@@ -878,7 +878,7 @@ void AAI::Update()
 	{
 		AAI_SCOPED_TIMER("Update-Sectors")
 		m_brain->UpdateAttackedByValues();
-		m_map->UpdateSectors();
+		m_map->UpdateSectors(m_threatMap);
 		m_brain->UpdatePressureByEnemy();
 	}
 

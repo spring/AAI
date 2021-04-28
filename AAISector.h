@@ -22,6 +22,7 @@
 class AAI;
 class AAIUnitTable;
 class AAIMap;
+class AAIThreatMap;
 class BuildMapTileType;
 class AAIMetalSpot;
 
@@ -171,10 +172,10 @@ public:
 	void UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerDefId);
 
 	//! @brief Returns lost units in that sector
-	float GetLostUnits() const { return (m_lostUnits + m_lostAirUnits); }
+	float GetLostUnits(const AAITargetType& targetType) const { return m_lostUnits.GetValueOfTargetType(targetType); }
 
-	//! @brief Returns lost airunits in that sector
-	float GetLostAirUnits() const { return m_lostAirUnits; }
+	//! @brief Returns the total number (i.e. of all target types) of lost units in this sector
+	float GetTotalLostUnits() const { return m_lostUnits.CalculateSum(); }
 
 	//! @brief Returns number of attacks by the main combat categories (ground, hover, air)
 	float GetTotalAttacksInThisGame() const 
@@ -213,7 +214,7 @@ public:
 	float GetAttackRating(const std::vector<float>& globalCombatPower, const std::vector< std::vector<float> >& continentCombatPower, const MobileTargetTypeValues& assaultGroupsOfType, float maxLostUnits) const;
 
 	//! @brief Returns rating as next destination for scout of given movement type
-	float GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const float3& currentPositionOfScout);
+	float GetRatingAsNextScoutDestination(const AAIMovementType& scoutMoveType, const AAITargetType& scoutTargetType, const float3& currentPositionOfScout);
 
 	//! @brief Returns the rating to be selected for a rally point for units of given movement type
 	float GetRatingForRallyPoint(const AAIMovementType& moveType, int continentId) const;
@@ -289,11 +290,8 @@ private:
 	//! Minimum distance to one of the map edges (in sector sizes)
 	int m_minSectorDistanceToMapEdge;
 
-	//! How many non air units have recently been lost in that sector (float as the number decays over time)
-	float m_lostUnits;
-
-	//! How many air units have recently been lost in that sector (float as the number decays over time)
-	float m_lostAirUnits;
+	//! How many units have recently been lost in that sector (float as the number decays over time)
+	MobileTargetTypeValues m_lostUnits;
 
 	//! Number of own buildings of each category in the sector
 	std::vector<int> m_ownBuildingsOfCategory;
