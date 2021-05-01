@@ -564,26 +564,6 @@ float AAISector::GetEnemyCombatPowerVsUnits(const MobileTargetTypeValues& unitsO
 	return defencePower;
 }
 
-float AAISector::GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const
-{
-	float result = GetEnemyCombatPower(targetType);
-
-	// take neighbouring sectors into account (if possible)
-	if(x > 0)
-		result += neighbourImportance * ai->Map()->m_sector[x-1][y].GetEnemyCombatPower(targetType);
-
-	if(x < ai->Map()->xSectors-1)
-		result += neighbourImportance * ai->Map()->m_sector[x+1][y].GetEnemyCombatPower(targetType);
-
-	if(y > 0)
-		result += neighbourImportance * ai->Map()->m_sector[x][y-1].GetEnemyCombatPower(targetType);
-
-	if(y < ai->Map()->ySectors-1)
-		result += neighbourImportance * ai->Map()->m_sector[x][y+1].GetEnemyCombatPower(targetType);
-
-	return result;
-}
-
 float AAISector::DetermineWaterRatio() const
 {
 	int waterCells(0);

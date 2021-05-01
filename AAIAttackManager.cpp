@@ -117,10 +117,10 @@ void AAIAttackManager::TryToLaunchAttack(int availableAttackId, AAIThreatMap& th
 
 	for(auto targetType : attackerTargetTypes)
 	{
-		threatMap.UpdateLocalEnemyCombatPower(targetType, ai->Map()->m_sector);
+		threatMap.UpdateLocalEnemyCombatPower(targetType, ai->Map()->GetSectorMap());
 
 		const MapPos baseCenter = ai->Brain()->GetCenterOfBase();
-		const AAISector* targetSector = threatMap.DetermineSectorToAttack(targetType, baseCenter, ai->Map()->m_sector);
+		const AAISector* targetSector = threatMap.DetermineSectorToAttack(targetType, baseCenter, ai->Map()->GetSectorMap());
 
 		// order groups of given target type to attack
 		if(targetSector)

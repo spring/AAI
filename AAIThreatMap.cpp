@@ -19,7 +19,7 @@ AAIThreatMap::~AAIThreatMap(void)
 {
 }
 
-void AAIThreatMap::UpdateLocalEnemyCombatPower(const AAITargetType& targetType, const std::vector< std::vector<AAISector> >& sectors)
+void AAIThreatMap::UpdateLocalEnemyCombatPower(const AAITargetType& targetType, const SectorMap& sectors)
 {
 	for(size_t x = 0; x < sectors.size(); ++x)
 	{
@@ -30,7 +30,7 @@ void AAIThreatMap::UpdateLocalEnemyCombatPower(const AAITargetType& targetType, 
 	}
 }
 
-const AAISector* AAIThreatMap::DetermineSectorToAttack(const AAITargetType& attackerTargetType, const MapPos& mapPosition, const std::vector< std::vector<AAISector> >& sectors) const
+const AAISector* AAIThreatMap::DetermineSectorToAttack(const AAITargetType& attackerTargetType, const MapPos& mapPosition, const SectorMap& sectors) const
 {
 	const float3 position( static_cast<float>(mapPosition.x * SQUARE_SIZE), 0.0f, static_cast<float>(mapPosition.y * SQUARE_SIZE));
 	const SectorIndex startSectorIndex = AAIMap::GetSectorIndex(position);
@@ -74,7 +74,7 @@ const AAISector* AAIThreatMap::DetermineSectorToAttack(const AAITargetType& atta
 	return selectedSector;
 }
 
-float AAIThreatMap::CalculateEnemyDefencePower(const AAITargetType& targetType, const float3& startPosition, const float3& targetPosition, const std::vector< std::vector<AAISector> >& sectors) const
+float AAIThreatMap::CalculateEnemyDefencePower(const AAITargetType& targetType, const float3& startPosition, const float3& targetPosition, const SectorMap& sectors) const
 {
 	const SectorIndex startSectorIndex  = AAIMap::GetSectorIndex(startPosition);
 	const SectorIndex targetSectorIndex = AAIMap::GetSectorIndex(targetPosition);
@@ -83,7 +83,7 @@ float AAIThreatMap::CalculateEnemyDefencePower(const AAITargetType& targetType, 
 }
 
 template<EThreatType threatTypeToConsider>
-float AAIThreatMap::CalculateThreat(const AAITargetType& targetType, const SectorIndex& startSectorIndex, const SectorIndex& targetSectorIndex, const std::vector< std::vector<AAISector> >& sectors) const
+float AAIThreatMap::CalculateThreat(const AAITargetType& targetType, const SectorIndex& startSectorIndex, const SectorIndex& targetSectorIndex, const SectorMap& sectors) const
 {
 	float totalThreat(0.0f);
 

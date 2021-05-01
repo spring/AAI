@@ -36,6 +36,9 @@ public:
 	//! @brief Returns the map type
 	const AAIMapType& GetMapType() const { return s_mapType; }
 
+	//! @brief Returns the map containing the sectors
+	SectorMap& GetSectorMap() { return m_sectorMap; }
+
 	//! @brief Returns max distance (in sectors) a sector can have to base
 	int GetMaxSectorDistanceToBase() const { return (xSectors + ySectors - 2); }
 
@@ -56,9 +59,6 @@ public:
 
 	//! @brief Returns the corresponing map position (for a given build map position)
 	static float3 ConvertToMapPosition(const MapPos& mapPos) { return float3(static_cast<float>(mapPos.x * SQUARE_SIZE), 0.0f, static_cast<float>(mapPos.y * SQUARE_SIZE)); }
-
-	//! @brief Returns whether x/y specify a valid sector
-	bool IsValidSector(int x, int y) const { return( (x >= 0) && (y >= 0) && (x < xSectors) && (y < ySectors) ); }
 
 	//! @brief Returns true if the given sector is a neighbour to the current base
 	bool IsSectorBorderToBase(int x, int y) const;
@@ -154,9 +154,6 @@ public:
 	//! @brief Returns a sector to proceed with attack (nullptr if none found)
 	const AAISector* DetermineSectorToContinueAttack(const AAISector *currentSector, const MobileTargetTypeValues& targetTypeOfUnits, AAIMovementType moveTypeOfUnits) const;
 
-	//! The sectors of the map
-	std::vector< std::vector<AAISector> > m_sector;
-
 	//! Maximum squared distance on map in unit coordinates (i.e. from one corner to the other, xSize*xSize+ySize*ySize)
 	static float s_maxSquaredMapDist; 
 
@@ -209,7 +206,7 @@ private:
 	void UpdateEnemyScoutingData();
 
 	//! @brief Helper function to check if the given building may be constructed at the given map position
-	BuildSite CheckConstructionAt(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const;
+	BuildSite CheckIfSuitableBuildSite(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const;
 
 	//! @brief Converts the given position (in map coordinates) to a position in buildmap coordinates
 	void Pos2BuildMapPos(float3* position, const springLegacyAI::UnitDef* def) const;
@@ -245,6 +242,9 @@ private:
 	// loads mex spots, cliffs etc. from file or creates new one
 	void ReadMapCacheFile();
 
+	//! @brief Returns whether x/y specify a valid sector
+	bool IsValidSector(const SectorIndex& index) const { return( (index.x >= 0) && (index.y >= 0) && (index.x < xSectors) && (index.y < ySectors) ); }
+
 	//! @brief Returns true if buildmap allows construction of unit with given footprint at goven position
 	bool CanBuildAt(const MapPos& mapPos, const UnitFootprint& size) const;
 
@@ -264,19 +264,22 @@ private:
 	//! @brief Occupies/frees the given cells of the buildmap
 	void ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, bool occupy);
 	
-	//! @brief Calculates position (in unit coordinates) for given position (in buildmap coordinates) and footprint
-	void ConvertMapPosToUnitPos(const MapPos& mapPos, float3 &pos, const UnitFootprint& footprint) const
+	//! @brief Returns position (in unit coordinates) for given position (in buildmap coordinates) and footprint
+	float3 ConvertMapPosToUnitPos(const MapPos& mapPos, const UnitFootprint& footprint) const
 	{
 		// shift to center of building and convert to higher resolution
-		pos.x = static_cast<float>( SQUARE_SIZE * (mapPos.x + footprint.xSize/2) );
-		pos.z = static_cast<float>( SQUARE_SIZE * (mapPos.y + footprint.ySize/2) );
+		return float3(	static_cast<float>( SQUARE_SIZE * (mapPos.x + footprint.xSize/2)),
+						0.0f,
+						static_cast<float>( SQUARE_SIZE * (mapPos.y + footprint.ySize/2)) );
 	}
 
-private:
 	std::string LocateMapLearnFile() const;
 	std::string LocateMapCacheFile() const;
 
 	AAI *ai;
+
+	//! The sectors of the map
+	SectorMap          m_sectorMap;
 
 	//! Used for scouting, stores all friendly/enemy units with current line of sight
 	std::vector<int>   m_unitsInLOS;

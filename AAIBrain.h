@@ -86,7 +86,8 @@ public:
 
 	void BuildUnits();
 
-	void UpdatePressureByEnemy();
+	//! @brief Determines the currently estimated pressure by the enemy based on which sectors are believed to be occupied by enemy units
+	void UpdatePressureByEnemy(const SectorMap& sectors);
 
 	//! @brief Returns the frequency of attacks by units of specified combat category
 	//!        The value is determined according to to current game phase, data from this game and learned data.

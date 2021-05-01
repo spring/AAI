@@ -102,7 +102,7 @@ void AAIAirForceManager::CheckStaticBombTargets(const AAIThreatMap& threatMap)
 			const bool targetAlive = ai->Map()->CheckPositionForScoutedUnit(target->GetPosition(), target->GetUnitId());
 
 			const float3 airUnitsPosition = DeterminePositionOfAirForce();
-			const float enemyAAPower = threatMap.CalculateEnemyDefencePower(ETargetType::AIR, airUnitsPosition, target->GetPosition(), ai->Map()->m_sector);
+			const float enemyAAPower = threatMap.CalculateEnemyDefencePower(ETargetType::AIR, airUnitsPosition, target->GetPosition(), ai->Map()->GetSectorMap());
 			
 			const bool targetProtectedByAA = (enemyAAPower > AAIConstants::maxEnemyAACombatPowerForTarget) ? true : false;
 			

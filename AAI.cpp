@@ -860,7 +860,7 @@ void AAI::Update()
 		m_attackManager->Update(*m_threatMap);
 
 		//! @todo refactor storage/handling of threat map
-		m_threatMap->UpdateLocalEnemyCombatPower(ETargetType::AIR, Map()->m_sector);
+		m_threatMap->UpdateLocalEnemyCombatPower(ETargetType::AIR, Map()->GetSectorMap());
 		m_airForceManager->CheckStaticBombTargets(*m_threatMap);
 		m_airForceManager->AirRaidBestTarget(2.0f);
 		return;
@@ -879,7 +879,7 @@ void AAI::Update()
 		AAI_SCOPED_TIMER("Update-Sectors")
 		m_brain->UpdateAttackedByValues();
 		m_map->UpdateSectors(m_threatMap);
-		m_brain->UpdatePressureByEnemy();
+		m_brain->UpdatePressureByEnemy(m_map->GetSectorMap());
 	}
 
 	// builder management

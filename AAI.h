@@ -109,11 +109,11 @@ public:
 		return m_unitGroupsOfCategoryLists[category.GetArrayIndex()]; 
 	}
 
-	AAIMap* const             Map() { return m_map; }
-	AAIBrain* const           Brain() { return m_brain; }
-	AAIExecute* const         Execute() { return m_execute; }
-	AAIUnitTable* const       UnitTable() { return m_unitTable; }
-	AAIBuildTable* const      BuildTable() { return m_buildTable; }
+	AAIMap* const             Map()         { return m_map; }
+	AAIBrain* const           Brain()       { return m_brain; }
+	AAIExecute* const         Execute()     { return m_execute; }
+	AAIUnitTable* const       UnitTable()   { return m_unitTable; }
+	AAIBuildTable* const      BuildTable()  { return m_buildTable; }
 	AAIAirForceManager* const AirForceMgr() { return m_airForceManager; }
 
 	//! The buildtree (who builds what, which unit belongs to which side, ...)

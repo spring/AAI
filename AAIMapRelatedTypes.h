@@ -13,6 +13,10 @@
 #include "Sim/Misc/GlobalConstants.h"
 
 class AAIMap;
+class AAISector;
+
+//! Type for map of individual sectors
+typedef std::vector< std::vector<AAISector> > SectorMap;
 
 //! A position in map coordinates
 struct MapPos

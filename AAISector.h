@@ -165,9 +165,6 @@ public:
 	//! @brief Returns cmbat power of own/allied static defences against given target type
 	float GetFriendlyCombatPower(const AAITargetType& targetType) const { return m_friendlyStaticCombatPower.GetValueOfTargetType(targetType) + m_friendlyMobileCombatPower.GetValueOfTargetType(targetType); }
 
-	//! @brief Returns combat power of units in that and neighbouring sectors vs combat cat
-	float GetEnemyAreaCombatPowerVs(const AAITargetType& targetType, float neighbourImportance) const;
-
 	//! @brief Updates threat map storing where own buildings/units got killed
 	void UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerDefId);
 

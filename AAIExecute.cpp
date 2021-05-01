@@ -73,7 +73,7 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 
 	if(x < 0)
 		x = 0;
-	if(y < 0 )
+	if(y < 0)
 		y = 0;
 	if(x >= AAIMap::xSectors)
 		x = AAIMap::xSectors-1;
@@ -88,8 +88,11 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 		ChooseDifferentStartingSector(x, y);
 	}
 	else
-		ai->Brain()->AssignSectorToBase(&ai->Map()->m_sector[x][y], true);
-	
+	{
+		SectorMap& sectors = ai->Map()->GetSectorMap();
+		ai->Brain()->AssignSectorToBase(&sectors[x][y], true);
+	}
+
 	ai->Brain()->ExpandBaseAtStartup();
 
 	ai->UnitTable()->AddConstructor(commanderUnitId, commanderDefId);
@@ -2088,49 +2091,50 @@ float3 AAIExecute::DetermineSafePos(UnitDefId unitDefId, float3 unit_pos) const
 
 void AAIExecute::ChooseDifferentStartingSector(int x, int y)
 {
-	// get possible start sectors
-	std::list<AAISector*> sectors;
+	SectorMap& sectors = ai->Map()->GetSectorMap();
+
+	std::list<AAISector*> startSectorCandidates;
 
 	if(x >= 1)
 	{
-		sectors.push_back( &ai->Map()->m_sector[x-1][y] );
+		startSectorCandidates.push_back( &sectors[x-1][y] );
 
 		if(y >= 1)
-			sectors.push_back( &ai->Map()->m_sector[x-1][y-1] );
+			startSectorCandidates.push_back( &sectors[x-1][y-1] );
 
-		if(y < ai->Map()->ySectors-1)
-			sectors.push_back( &ai->Map()->m_sector[x-1][y+1] );
+		if(y < AAIMap::ySectors - 1)
+			startSectorCandidates.push_back( &sectors[x-1][y+1] );
 	}
 
-	if(x < ai->Map()->xSectors-1)
+	if(x < AAIMap::xSectors-1)
 	{
-		sectors.push_back( &ai->Map()->m_sector[x+1][y] );
+		startSectorCandidates.push_back( &sectors[x+1][y] );
 
 		if(y >= 1)
-			sectors.push_back( &ai->Map()->m_sector[x+1][y-1] );
+			startSectorCandidates.push_back( &sectors[x+1][y-1] );
 
-		if(y < ai->Map()->ySectors-1)
-			sectors.push_back( &ai->Map()->m_sector[x+1][y+1] );
+		if(y < AAIMap::ySectors-1)
+			startSectorCandidates.push_back( &sectors[x+1][y+1] );
 	}
 
 	if(y >= 1)
-		sectors.push_back( &ai->Map()->m_sector[x][y-1] );
+		startSectorCandidates.push_back( &sectors[x][y-1] );
 
-	if(y < ai->Map()->ySectors-1)
-		sectors.push_back( &ai->Map()->m_sector[x][y+1] );
+	if(y < AAIMap::ySectors-1)
+		startSectorCandidates.push_back( &sectors[x][y+1] );
 
 	// choose best
 	AAISector *selectedSector(nullptr);
 	float highestRating(0.0f);
 
-	for(auto sector = sectors.begin(); sector != sectors.end(); ++sector)
+	for(const auto sector : startSectorCandidates)
 	{
-		const float rating = (*sector)->GetRatingAsStartSector();
+		const float rating = sector->GetRatingAsStartSector();
 
 		if(rating > highestRating)
 		{
 			highestRating  = rating;
-			selectedSector = *sector;
+			selectedSector = sector;
 		}
 	}
 

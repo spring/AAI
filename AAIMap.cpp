@@ -113,13 +113,13 @@ AAIMap::AAIMap(AAI *ai, int xMapSize, int yMapSize, int losMapResolution) :
 
 	ai->Log("Map size: %i x %i    LOS map size: %i x %i  (los res: %i)\n", xMapSize, yMapSize, xLOSMapSize, yLOSMapSize, losMapResolution);
 
-	m_sector.resize(xSectors, std::vector<AAISector>(ySectors));
+	m_sectorMap.resize(xSectors, std::vector<AAISector>(ySectors));
 
 	for(int x = 0; x < xSectors; ++x)
 	{
 		for(int y = 0; y < ySectors; ++y)
 			// provide ai callback to sectors & set coordinates of the sectors
-			m_sector[x][y].Init(ai, x, y);
+			m_sectorMap[x][y].Init(ai, x, y);
 	}
 
 	// add metalspots to their sectors
@@ -189,7 +189,7 @@ AAIMap::~AAIMap(void)
 		for(int y = 0; y < ySectors; ++y)
 		{
 			for(int x = 0; x < xSectors; ++x)
-				m_sector[x][y].SaveDataToFile(file);
+				m_sectorMap[x][y].SaveDataToFile(file);
 
 			fprintf(file, "\n");
 		}
@@ -520,19 +520,19 @@ void AAIMap::ReadMapLearnFile()
 			// load learned sector data from file (if available) or init with default data
 			//---------------------------------------------------------------------------------------------------------
 
-			m_sector[i][j].LoadDataFromFile(load_file);
+			m_sectorMap[i][j].LoadDataFromFile(load_file);
 
 			//---------------------------------------------------------------------------------------------------------
 			// determine movement types that are suitable to maneuvre
 			//---------------------------------------------------------------------------------------------------------
 			AAIMapType mapType(EMapType::LAND);
 
-			if(m_sector[i][j].GetWaterTilesRatio() > 0.7f)
+			if(m_sectorMap[i][j].GetWaterTilesRatio() > 0.7f)
 				mapType.SetMapType(EMapType::WATER);
-			else if(m_sector[i][j].GetWaterTilesRatio() > 0.3f)
+			else if(m_sectorMap[i][j].GetWaterTilesRatio() > 0.3f)
 				mapType.SetMapType(EMapType::LAND_WATER);
 
-			m_sector[i][j].m_suitableMovementTypes = GetSuitableMovementTypes(mapType);
+			m_sectorMap[i][j].m_suitableMovementTypes = GetSuitableMovementTypes(mapType);
 		}
 	}
 
@@ -545,7 +545,7 @@ void AAIMap::ReadMapLearnFile()
 	{
 		for(int i = 0; i < xSectors; ++i)
 		{
-			s_waterTilesRatio    += m_sector[i][j].GetWaterTilesRatio();
+			s_waterTilesRatio    += m_sectorMap[i][j].GetWaterTilesRatio();
 		}
 	}
 
@@ -564,15 +564,15 @@ void AAIMap::UpdateLearningData()
 	{
 		for(int x = 0; x < xSectors; ++x)
 		{
-			m_sector[x][y].UpdateLearnedData();
+			m_sectorMap[x][y].UpdateLearnedData();
 		}
 	}
 }
 
 bool AAIMap::IsSectorBorderToBase(int x, int y) const
 {
-	return     (m_sector[x][y].m_distanceToBase > 0) 
-			&& (m_sector[x][y].m_alliedBuildings < 5) 
+	return     (m_sectorMap[x][y].m_distanceToBase > 0) 
+			&& (m_sectorMap[x][y].m_alliedBuildings < 5) 
 			&& (s_teamSectorMap.IsOccupiedByTeam(x, y, ai->GetMyTeamId()) == false);
 }
 
@@ -677,7 +677,8 @@ void AAIMap::ChangeBuildMapOccupation(int xPos, int yPos, int xSize, int ySize, 
 
 BuildSite AAIMap::DetermineRandomBuildsite(UnitDefId unitDefId, int xStart, int xEnd, int yStart, int yEnd, int tries) const
 {
-	const UnitFootprint footprint = DetermineRequiredFreeBuildspace(unitDefId);
+	const UnitFootprint            footprint = DetermineRequiredFreeBuildspace(unitDefId);
+	const springLegacyAI::UnitDef* unitDef   = &ai->BuildTable()->GetUnitDef(unitDefId.id);
 
 	const int randomXRange = xEnd - xStart - footprint.xSize;
 	const int randomYRange = yEnd - yStart - footprint.ySize;
@@ -693,24 +694,10 @@ BuildSite AAIMap::DetermineRandomBuildsite(UnitDefId unitDefId, int xStart, int 
 		if( randomYRange > 0)
 			mapPos.y += rand()%randomYRange;
 
-		// check if buildmap allows construction
-		if(CanBuildAt(mapPos, footprint))
-		{	
-			float3 position;
-			ConvertMapPosToUnitPos(mapPos, position, footprint);
-			ConvertPositionToFinalBuildsite(position, footprint);
+		BuildSite buildSite = CheckIfSuitableBuildSite(footprint, unitDef, mapPos);
 
-			const springLegacyAI::UnitDef* unitDef  = &ai->BuildTable()->GetUnitDef(unitDefId.id);
-			if(ai->GetAICallback()->CanBuildAt(unitDef, position))
-			{
-				const int x = position.x/xSectorSize;
-				const int y = position.z/ySectorSize;
-
-				if(IsValidSector(x,y))
-					return BuildSite(position, 1.0f, true);
-
-			}
-		}
+		if(buildSite.IsValid())
+			return buildSite;
 	}
 
 	return BuildSite();
@@ -733,16 +720,16 @@ BuildSite AAIMap::FindBuildsiteCloseToUnit(UnitDefId buildingDefId, UnitId unitI
 	{
 		for(int yInc = 0; yInc < 24; yInc += 2)
 		{
-			buildSite = CheckConstructionAt(footprint, unitDef, MapPos(xStart - xInc, yStart - yInc) );
+			buildSite = CheckIfSuitableBuildSite(footprint, unitDef, MapPos(xStart - xInc, yStart - yInc) );
 
 			if(buildSite.IsValid() == false)
-				buildSite = CheckConstructionAt(footprint, unitDef, MapPos(xStart - xInc, yStart + yInc) );
+				buildSite = CheckIfSuitableBuildSite(footprint, unitDef, MapPos(xStart - xInc, yStart + yInc) );
 
 			if(buildSite.IsValid() == false)
-				buildSite = CheckConstructionAt(footprint, unitDef, MapPos(xStart + xInc, yStart - yInc) );
+				buildSite = CheckIfSuitableBuildSite(footprint, unitDef, MapPos(xStart + xInc, yStart - yInc) );
 
 			if(buildSite.IsValid() == false)
-				buildSite = CheckConstructionAt(footprint, unitDef, MapPos(xStart + xInc, yStart + yInc) );
+				buildSite = CheckIfSuitableBuildSite(footprint, unitDef, MapPos(xStart + xInc, yStart + yInc) );
 
 			if(buildSite.IsValid())
 				return buildSite;
@@ -758,7 +745,7 @@ BuildSite AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAIS
 	sector->DetermineBuildsiteRectangle(&xStart, &xEnd, &yStart, &yEnd);
 
 	const UnitFootprint            footprint = DetermineRequiredFreeBuildspace(buildingDefId);
-	const springLegacyAI::UnitDef* def       = &ai->BuildTable()->GetUnitDef(buildingDefId.id);
+	const springLegacyAI::UnitDef* unitDef   = &ai->BuildTable()->GetUnitDef(buildingDefId.id);
 
 	// check rect
 	for(int yPos = yStart; yPos < yEnd; yPos += 2)
@@ -767,22 +754,10 @@ BuildSite AAIMap::DetermineBuildsiteInSector(UnitDefId buildingDefId, const AAIS
 		{
 			const MapPos mapPos(xPos, yPos);
 
-			// check if buildmap allows construction
-			if(CanBuildAt(mapPos, footprint))
-			{
-				float3 position;
-				ConvertMapPosToUnitPos(mapPos, position, footprint);
-				ConvertPositionToFinalBuildsite(position, footprint);
+			BuildSite buildSite = CheckIfSuitableBuildSite(footprint, unitDef, mapPos);
 
-				if(ai->GetAICallback()->CanBuildAt(def, position))
-				{
-					const int x = position.x/xSectorSize;
-					const int y = position.z/ySectorSize;
-
-					if(IsValidSector(x,y))
-						return BuildSite(position, 1.0f, true);
-				}
-			}
+			if(buildSite.IsValid())
+				return buildSite;	
 		}
 	}
 
@@ -824,15 +799,14 @@ BuildSite AAIMap::DetermineElevatedBuildsite(UnitDefId buildingDefId, int xStart
 
 				if(rating > bestBuildSite.GetRating())
 				{
-					float3 position;
-					ConvertMapPosToUnitPos(mapPos, position, footprint);
-					ConvertPositionToFinalBuildsite(position, footprint);
+					float3 possibleBuildsite = ConvertMapPosToUnitPos(mapPos, footprint);
+					ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
 
 					const springLegacyAI::UnitDef* unitDef = &ai->BuildTable()->GetUnitDef(buildingDefId.id);
 
-					if(ai->GetAICallback()->CanBuildAt(unitDef, position))
+					if(ai->GetAICallback()->CanBuildAt(unitDef, possibleBuildsite))
 					{
-						bestBuildSite.SetBuildSite(position, rating);
+						bestBuildSite.SetBuildSite(possibleBuildsite, rating);
 					}
 				}
 			}
@@ -926,8 +900,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 
 				if(rating > highestRating)
 				{
-					float3 possibleBuildsite;
-					ConvertMapPosToUnitPos(mapPos, possibleBuildsite, footprint);
+					float3 possibleBuildsite = ConvertMapPosToUnitPos(mapPos, footprint);
 					ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
 
 					if(ai->GetAICallback()->CanBuildAt(def, possibleBuildsite))
@@ -947,21 +920,19 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	return buildsite;
 }
 
-BuildSite AAIMap::CheckConstructionAt(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const
+BuildSite AAIMap::CheckIfSuitableBuildSite(const UnitFootprint& footprint, const springLegacyAI::UnitDef* unitDef, const MapPos& mapPos) const
 {
 	if(CanBuildAt(mapPos, footprint))
 	{
-		float3 position;
-		ConvertMapPosToUnitPos(mapPos, position, footprint);
-		ConvertPositionToFinalBuildsite(position, footprint);
+		float3 possibleBuildsite = ConvertMapPosToUnitPos(mapPos, footprint);
+		ConvertPositionToFinalBuildsite(possibleBuildsite, footprint);
 
-		if(ai->GetAICallback()->CanBuildAt(unitDef, position))
+		if(ai->GetAICallback()->CanBuildAt(unitDef, possibleBuildsite))
 		{
-			const int x = position.x/xSectorSize;
-			const int y = position.z/ySectorSize;
+			const SectorIndex sector(possibleBuildsite.x/xSectorSize, possibleBuildsite.z/ySectorSize);
 
-			if(IsValidSector(x,y))
-				return BuildSite(position, 1.0f, true);
+			if(IsValidSector(sector))
+				return BuildSite(possibleBuildsite, 1.0f, true);
 		}
 	}
 
@@ -1459,7 +1430,7 @@ void AAIMap::DetectMetalSpots()
 		{
 			//pos.x = coordx * 2 * SQUARE_SIZE;
 			//pos.z = coordy * 2 * SQUARE_SIZE;	
-			ConvertMapPosToUnitPos(MapPos(2*coordx, 2*coordy), pos, largestExtractorFootprint);
+			pos = ConvertMapPosToUnitPos(MapPos(2*coordx, 2*coordy), largestExtractorFootprint);
 			ConvertPositionToFinalBuildsite(pos, largestExtractorFootprint);
 
 			pos.y = ai->GetAICallback()->GetElevation(pos.x, pos.z);
@@ -1586,7 +1557,7 @@ void AAIMap::UpdateEnemyUnitsInLOS()
 	for(int y = 0; y < ySectors; ++y)
 	{
 		for(int x = 0; x < xSectors; ++x)
-			m_sector[x][y].m_enemyUnitsDetectedBySensor = 0;
+			m_sectorMap[x][y].m_enemyUnitsDetectedBySensor = 0;
 	}
 
 	// update enemy units
@@ -1641,7 +1612,7 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 	for(int y = 0; y < ySectors; ++y)
 	{
 		for(int x = 0; x < xSectors; ++x)
-			m_sector[x][y].ResetLocalCombatPower();
+			m_sectorMap[x][y].ResetLocalCombatPower();
 	}
 
 	const int numberOfFriendlyUnits = ai->GetAICallback()->GetFriendlyUnits(&(m_unitsInLOS.front()));
@@ -1649,7 +1620,7 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 	for(int i = 0; i < numberOfFriendlyUnits; ++i)
 	{
 		// get unit def & category
-		const UnitDef* def = ai->GetAICallback()->GetUnitDef(m_unitsInLOS[i]);
+		const springLegacyAI::UnitDef* def = ai->GetAICallback()->GetUnitDef(m_unitsInLOS[i]);
 		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
 
 		if( category.IsBuilding() || category.IsCombatUnit() )
@@ -1676,9 +1647,9 @@ void AAIMap::UpdateEnemyScoutingData()
 	{
 		for(int x = 0; x < xSectors; ++x)
 		{
-			m_sector[x][y].ResetScoutedEnemiesData();
+			m_sectorMap[x][y].ResetScoutedEnemiesData();
 
-			m_scoutedEnemyUnitsMap.UpdateSectorWithScoutedUnits(&m_sector[x][y], m_buildingsOnContinent, currentFrame);
+			m_scoutedEnemyUnitsMap.UpdateSectorWithScoutedUnits(&m_sectorMap[x][y], m_buildingsOnContinent, currentFrame);
 		}
 	}
 }
@@ -1782,9 +1753,9 @@ void AAIMap::UpdateSectors(AAIThreatMap *threatMap)
 	{
 		for(int y = 0; y < ySectors; ++y)
 		{
-			m_sector[x][y].DecreaseLostUnits();
+			m_sectorMap[x][y].DecreaseLostUnits();
 
-			const int enemyBuildings = m_sector[x][y].GetNumberOfEnemyBuildings();
+			const int enemyBuildings = m_sectorMap[x][y].GetNumberOfEnemyBuildings();
 			if(enemyBuildings > 0)
 			{
 				scoutedEnemyBuildings += enemyBuildings;
@@ -1826,8 +1797,8 @@ void AAIMap::UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sec
 	{
 		for(int y = 0; y < ySectors; ++y)
 		{
-			if(m_sector[x][y].m_distanceToBase > 0)
-				m_sector[x][y].m_distanceToBase = -1;
+			if(m_sectorMap[x][y].m_distanceToBase > 0)
+				m_sectorMap[x][y].m_distanceToBase = -1;
 		}
 	}
 
@@ -1842,28 +1813,28 @@ void AAIMap::UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sec
 			const int y = (*sector)->y;
 
 			// check left neighbour
-			if( (x > 0) && (m_sector[x-1][y].m_distanceToBase == -1) )
+			if( (x > 0) && (m_sectorMap[x-1][y].m_distanceToBase == -1) )
 			{
-				m_sector[x-1][y].m_distanceToBase = i;
-				sectorsInDistToBase[i].push_back(&m_sector[x-1][y]);
+				m_sectorMap[x-1][y].m_distanceToBase = i;
+				sectorsInDistToBase[i].push_back(&m_sectorMap[x-1][y]);
 			}
 			// check right neighbour
-			if( (x < (xSectors - 1)) && (m_sector[x+1][y].m_distanceToBase == -1) )
+			if( (x < (xSectors - 1)) && (m_sectorMap[x+1][y].m_distanceToBase == -1) )
 			{
-				m_sector[x+1][y].m_distanceToBase = i;
-				sectorsInDistToBase[i].push_back(&m_sector[x+1][y]);
+				m_sectorMap[x+1][y].m_distanceToBase = i;
+				sectorsInDistToBase[i].push_back(&m_sectorMap[x+1][y]);
 			}
 			// check upper neighbour
-			if( (y > 0) && (m_sector[x][y-1].m_distanceToBase == -1) )
+			if( (y > 0) && (m_sectorMap[x][y-1].m_distanceToBase == -1) )
 			{
-				m_sector[x][y-1].m_distanceToBase = i;
-				sectorsInDistToBase[i].push_back(&m_sector[x][y-1]);
+				m_sectorMap[x][y-1].m_distanceToBase = i;
+				sectorsInDistToBase[i].push_back(&m_sectorMap[x][y-1]);
 			}
 			// check lower neighbour
-			if( (y < (ySectors - 1)) && (m_sector[x][y+1].m_distanceToBase == -1) )
+			if( (y < (ySectors - 1)) && (m_sectorMap[x][y+1].m_distanceToBase == -1) )
 			{
-				m_sector[x][y+1].m_distanceToBase = i;
-				sectorsInDistToBase[i].push_back(&m_sector[x][y+1]);
+				m_sectorMap[x][y+1].m_distanceToBase = i;
+				sectorsInDistToBase[i].push_back(&m_sectorMap[x][y+1]);
 			}
 		}
 	}
@@ -1886,17 +1857,17 @@ float3 AAIMap::GetNewScoutDest(UnitId scoutUnitId)
 	{
 		for(int y = 0; y < ySectors; ++y)
 		{
-			const float rating = m_sector[x][y].GetRatingAsNextScoutDestination(scoutMoveType, scoutTargetType, currentPositionOfScout);
+			const float rating = m_sectorMap[x][y].GetRatingAsNextScoutDestination(scoutMoveType, scoutTargetType, currentPositionOfScout);
 
 			if(rating > highestRating)
 			{
 				// possible scout dest, try to find pos in sector
-				const float3 possibleScoutDestination = m_sector[x][y].DetermineUnitMovePos(scoutMoveType, continentId);
+				const float3 possibleScoutDestination = m_sectorMap[x][y].DetermineUnitMovePos(scoutMoveType, continentId);
 
 				if(possibleScoutDestination.x > 0.0f)
 				{
 					highestRating            = rating;
-					selectedScoutSector      = &m_sector[x][y];
+					selectedScoutSector      = &m_sectorMap[x][y];
 					selectedScoutDestination = possibleScoutDestination;
 				}
 			}
@@ -1922,11 +1893,11 @@ const AAISector* AAIMap::DetermineSectorToContinueAttack(const AAISector *curren
 	{
 		for(int y = 0; y < ySectors; y++)
 		{
-			const float rating = m_sector[x][y].GetAttackRating(currentSector, landSectorSelectable, waterSectorSelectable, targetTypeOfUnits);
+			const float rating = m_sectorMap[x][y].GetAttackRating(currentSector, landSectorSelectable, waterSectorSelectable, targetTypeOfUnits);
 			
 			if(rating > highestRating)
 			{
-				selectedSector = &m_sector[x][y];
+				selectedSector = &m_sectorMap[x][y];
 				highestRating  = rating;
 			}
 		}
@@ -1963,10 +1934,10 @@ void AAIMap::DetermineSpottedEnemyBuildingsOnContinentType(int& enemyBuildingsOn
 
 AAISector* AAIMap::GetSectorOfPos(const float3& position)
 {
-	const SectorIndex sector = GetSectorIndex(position);
+	const SectorIndex index = GetSectorIndex(position);
 
-	if(IsValidSector(sector.x, sector.y))
-		return &(m_sector[sector.x][sector.y]);
+	if(IsValidSector(index))
+		return &(m_sectorMap[index.x][index.y]);
 	else
 		return nullptr;
 }

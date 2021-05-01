@@ -700,16 +700,14 @@ float AAIBrain::GetAttacksBy(const AAITargetType& targetType, const GamePhase& g
 	        + 0.7f * m_recentlyAttackedByRates.GetValueOfTargetType(targetType) );
 }
 
-void AAIBrain::UpdatePressureByEnemy()
+void AAIBrain::UpdatePressureByEnemy(const SectorMap& sectors)
 {
 	int sectorsOccupiedByEnemies(0);
 	int sectorsNearBaseOccupiedByEnemies(0);
 
-	const auto sectors = ai->Map()->m_sector;
-
-	for(int x = 0; x < AAIMap::xSectors; ++x)
+	for(size_t x = 0; x < sectors.size(); ++x)
 	{
-		for(int y = 0; y < AAIMap::ySectors; ++y)
+		for(size_t y = 0; y < sectors[x].size(); ++y)
 		{
 			if(sectors[x][y].IsOccupiedByEnemies())
 			{
