@@ -81,7 +81,7 @@ void AAIExecute::InitAI(UnitId commanderUnitId, UnitDefId commanderDefId)
 		y = AAIMap::ySectors-1;
 
 	// set sector as part of the base
-	if(AAIMap::s_teamSectorMap.IsSectorOccupied(x,y) )
+	if(AAIMap::s_teamSectorMap.IsSectorOccupied( SectorIndex(x,y) ) )
 	{
 		// sector already occupied by another aai team (coms starting too close to each other)
 		// choose next free sector
@@ -483,12 +483,6 @@ bool AAIExecute::BuildExtractor()
 		// order mex construction for best spot
 		metalSpot.builder->GiveConstructionOrder(metalSpot.extractor, metalSpot.metalSpot->pos);
 		metalSpot.metalSpot->occupied = true;
-
-		AAISector* sector = ai->Map()->GetSectorOfPos(metalSpot.metalSpot->pos);
-
-		if(sector)
-			sector->UpdateFreeMetalSpots();
-
 		return true;
 	}
 
@@ -1598,13 +1592,10 @@ void AAIExecute::CheckExtractorUpgrade()
 	//-----------------------------------------------------------------------------------------------------------------
 	// skip check for extractor upgrade if there are empty metal spots or extractors under construction
 	//-----------------------------------------------------------------------------------------------------------------
-	for(auto sector : ai->Brain()->m_sectorsInDistToBase[0])
+	for(const auto sector : ai->Brain()->m_sectorsInDistToBase[0])
 	{
-		for(auto spot : sector->metalSpots)
-		{
-			if(spot->occupied == false)
-				return;
-		}
+		if(sector->ShallBeConsideredForExtractorConstruction() && sector->AreFreeMetalSpotsAvailable())
+			return;
 	}
 
 	if(ai->UnitTable()->GetNumberOfFutureUnitsOfCategory(EUnitCategory::METAL_EXTRACTOR) > 0)
@@ -1640,10 +1631,6 @@ void AAIExecute::CheckExtractorUpgrade()
 		{
 			for(auto spot : sector->metalSpots)
 			{
-				// quit when finding empty spots
-				if(!spot->occupied && (sector->GetNumberOfEnemyBuildings() <= 0) && (sector->GetTotalLostUnits() < 0.2f) )
-					return;
-
 				if(    spot->extractorDefId.IsValid() 
 				    && spot->extractorUnitId.IsValid()
 					&& ai->GetAICallback()->GetUnitTeam(spot->extractorUnitId.id) == ai->GetMyTeamId())	// only upgrade own extractors

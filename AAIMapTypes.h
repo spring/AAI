@@ -26,22 +26,22 @@ public:
 	void Init(int xSectors, int ySectors) { m_teamMap.resize(xSectors, std::vector<int>(ySectors, sectorUnoccupied) ); }
 
 	//! Returns whether sector has been occupied by any AAI player (allied, enemy, or own instance)
-	bool IsSectorOccupied(int x, int y)            const { return (m_teamMap[x][y] != sectorUnoccupied); }
+	bool IsSectorOccupied(const SectorIndex& sector)                const { return (m_teamMap[sector.x][sector.y] != sectorUnoccupied); }
 
 	//! @brief Returns true is sector is occupied by given team
-	bool IsOccupiedByTeam(int x, int y, int team) const { return (m_teamMap[x][y] == team); }
+	bool IsOccupiedByTeam(const SectorIndex& sector, int team)      const { return (m_teamMap[sector.x][sector.y] == team); }
 
 	//! @brief Returns true if sector is occupied by a team other than the given one
-	bool IsOccupiedByOtherTeam(int x, int y, int team) const { return (m_teamMap[x][y] != team) && (m_teamMap[x][y] != sectorUnoccupied);}
+	bool IsOccupiedByOtherTeam(const SectorIndex& sector, int team) const { return (m_teamMap[sector.x][sector.y] != team) && (m_teamMap[sector.x][sector.y] != sectorUnoccupied);}
 
 	//! @brief Returns the team that currently occupied the given sector
-	int GetTeam(int x, int y) const { return m_teamMap[x][y]; }
+	int GetTeam(const SectorIndex& sector)                          const { return m_teamMap[sector.x][sector.y]; }
 
 	//! @brief Set sector as occupied by given (ally) team
-	void SetSectorAsOccupiedByTeam(int x, int y, int team) { m_teamMap[x][y] = team; }
+	void SetSectorAsOccupiedByTeam(const SectorIndex& sector, int team)   { m_teamMap[sector.x][sector.y] = team; }
 
 	//! @brief Set sector as unoccupied
-	void SetSectorAsUnoccupied(int x, int y) { m_teamMap[x][y] = sectorUnoccupied; }
+	void SetSectorAsUnoccupied(const SectorIndex& sector)                 { m_teamMap[sector.x][sector.y] = sectorUnoccupied; }
 
 private:
 	//! Stores the number of ai player which has taken that sector (-1 if none)

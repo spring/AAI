@@ -124,10 +124,11 @@ void AAIBrain::UpdateCenterOfBase()
 
 	if(m_sectorsInDistToBase[0].size() > 0)
 	{
-		for(std::list<AAISector*>::iterator sector = m_sectorsInDistToBase[0].begin(); sector != m_sectorsInDistToBase[0].end(); ++sector)
+		for(const auto sector : m_sectorsInDistToBase[0])
 		{
-			m_centerOfBase.x += (*sector)->x;
-			m_centerOfBase.y += (*sector)->y;
+			const SectorIndex& index = sector->GetSectorIndex();
+			m_centerOfBase.x += index.x;
+			m_centerOfBase.y += index.y;
 		}
 
 		m_centerOfBase.x *= AAIMap::xSectorSizeMap;
@@ -203,12 +204,16 @@ bool AAIBrain::ExpandBase(const AAIMapType& sectorType, bool preferSafeSector)
 		{
 			if(sector->IsSectorSuitableForBaseExpansion() )
 			{
+				const SectorIndex& index = sector->GetSectorIndex();
+
 				float sectorDistance(0.0f);
-				for(auto baseSector : m_sectorsInDistToBase[0]) 
+				for(auto sectorInBase : m_sectorsInDistToBase[0]) 
 				{
-					const int deltaX = sector->x - baseSector->x;
-					const int deltaY = sector->y - baseSector->y;
-					sectorDistance += (deltaX * deltaX + deltaY * deltaY); // try squared distances, use fastmath::apxsqrt() otherwise
+					const SectorIndex& indexBaseSector = sectorInBase->GetSectorIndex();
+
+					const int deltaX = index.x - indexBaseSector.x;
+					const int deltaY = index.y - indexBaseSector.y;
+					sectorDistance += static_cast<float>(deltaX * deltaX + deltaY * deltaY); // try squared distances, use fastmath::apxsqrt() otherwise
 				}
 
 				sectorDistances.AddValue(sectorDistance);
@@ -273,9 +278,11 @@ bool AAIBrain::ExpandBase(const AAIMapType& sectorType, bool preferSafeSector)
 	if(selectedSector)
 	{
 		AssignSectorToBase(selectedSector, true);
+
+		const SectorIndex& index = selectedSector->GetSectorIndex();
 	
 		std::string sectorTypeString = sectorType.IsLand() ? "land" : "water";
-		ai->Log("\nAdding %s sector %i,%i to base; base size: " _STPF_, sectorTypeString.c_str(), selectedSector->x, selectedSector->y, m_sectorsInDistToBase[0].size());
+		ai->Log("\nAdding %s sector %i,%i to base; base size: " _STPF_, sectorTypeString.c_str(), index.x, index.y, m_sectorsInDistToBase[0].size());
 		ai->Log("\nNew land : water ratio within base: %f : %f\n\n", m_baseFlatLandRatio, m_baseWaterRatio);
 		return true;
 	}

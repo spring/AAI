@@ -573,7 +573,7 @@ bool AAIMap::IsSectorBorderToBase(int x, int y) const
 {
 	return     (m_sectorMap[x][y].m_distanceToBase > 0) 
 			&& (m_sectorMap[x][y].m_alliedBuildings < 5) 
-			&& (s_teamSectorMap.IsOccupiedByTeam(x, y, ai->GetMyTeamId()) == false);
+			&& (s_teamSectorMap.IsOccupiedByTeam(SectorIndex(x,y), ai->GetMyTeamId()) == false);
 }
 
 int AAIMap::DetermineSmartContinentID(float3 pos, const AAIMovementType& moveType) const
@@ -826,10 +826,12 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	//-----------------------------------------------------------------------------------------------------------------
 	// determine search horizontal and vertical search range
 	//-----------------------------------------------------------------------------------------------------------------
-	const int xStart =  sector->x    * xSectorSizeMap;
-	const int xEnd   = (sector->x+1) * xSectorSizeMap;
-	const int yStart =  sector->y    * ySectorSizeMap;
-	const int yEnd   = (sector->y+1) * ySectorSizeMap;
+	const SectorIndex& index = sector->GetSectorIndex();
+
+	const int xStart =  index.x      * xSectorSizeMap;
+	const int xEnd   = (index.x + 1) * xSectorSizeMap;
+	const int yStart =  index.y      * ySectorSizeMap;
+	const int yEnd   = (index.y + 1) * ySectorSizeMap;
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// determine distances to center of base of tiles to be checked and statistcis (for calculation of rating later)
@@ -838,7 +840,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	std::vector<float> distancesToBaseCenter(numberOfTilesToBeChecked);
 	StatisticalData distanceStatistics;
 
-	int index(0);
+	int distanceToBaseArrayIndex(0);
 	const MapPos& baseCenter = ai->Brain()->GetCenterOfBase();
 
 	for(int yPos = yStart; yPos < yEnd; yPos += 4)
@@ -849,10 +851,10 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 			const int dy = yPos - baseCenter.y;
 			const float squaredDist = static_cast<float>(dx*dx + dy*dy);
 
-			distancesToBaseCenter[index] = squaredDist;
+			distancesToBaseCenter[distanceToBaseArrayIndex] = squaredDist;
 			distanceStatistics.AddValue(squaredDist);
 
-			++index;
+			++distanceToBaseArrayIndex;
 		}
 	}
 
@@ -863,7 +865,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 	//-----------------------------------------------------------------------------------------------------------------
 	float3 buildsite(ZeroVector);
 	float highestRating(0.0f);
-	index = 0;
+	distanceToBaseArrayIndex = 0;
 
 	/*FILE* file(nullptr);
 	const std::string filename = cfg->GetFileName(ai->GetAICallback(), "AAIDebug.txt", "", "", true);
@@ -883,7 +885,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 				const float defenceValue = 2.5f * AAIConstants::maxCombatPower / (1.0f + 0.35f * s_defenceMaps.GetValue(mapPos, targetType) );
 
 				// criterion 2: distance to center of base (prefer static defences closer to base)
-				const float distanceValue = 0.75f * AAIConstants::maxCombatPower * distanceStatistics.GetNormalizedDeviationFromMax(distancesToBaseCenter[index]);
+				const float distanceValue = 0.75f * AAIConstants::maxCombatPower * distanceStatistics.GetNormalizedDeviationFromMax(distancesToBaseCenter[distanceToBaseArrayIndex]);
 
 				// criterion 3: terrain (prefer defences on high ground, avoid defences close to walls of canyons/valleys)
 				const int cell = (xPos/4 + (xMapSize/4) * yPos/4);
@@ -911,7 +913,7 @@ float3 AAIMap::DetermineBuildsiteForStaticDefence(UnitDefId staticDefence, const
 				}
 			}
 
-			++index;
+			++distanceToBaseArrayIndex;
 		}
 	}
 
@@ -1807,10 +1809,12 @@ void AAIMap::UpdateNeighbouringSectors(std::vector< std::list<AAISector*> >& sec
 		// delete old sectors
 		sectorsInDistToBase[i].clear();
 
-		for(std::list<AAISector*>::iterator sector = sectorsInDistToBase[i-1].begin(); sector != sectorsInDistToBase[i-1].end(); ++sector)
+		for(const auto sector : sectorsInDistToBase[i-1])
 		{
-			const int x = (*sector)->x;
-			const int y = (*sector)->y;
+			const SectorIndex& index = sector->GetSectorIndex();
+
+			const int x = index.x;
+			const int y = index.y;
 
 			// check left neighbour
 			if( (x > 0) && (m_sectorMap[x-1][y].m_distanceToBase == -1) )

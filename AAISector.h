@@ -61,13 +61,10 @@ public:
 	void AddMetalSpot(AAIMetalSpot *spot);
 
 	//! @brief Associates an extractor with a metal spot in that sector 
-	void AddExtractor(UnitId unitId, UnitDefId unitDefId, float3 pos);
+	void AddExtractor(UnitId unitId, UnitDefId unitDefId, float3 position);
 
 	//! @brief Looks for metal spot that corresponds to given position and marks it as free
-	void FreeMetalSpot(float3 pos, UnitDefId extractorDefId);
-
-	//! Update if there are still empty metal spots in the sector
-	void UpdateFreeMetalSpots();
+	void FreeMetalSpot(float3 position, UnitDefId extractorDefId);
 
 	void Init(AAI *ai, int x, int y);
 
@@ -82,6 +79,9 @@ public:
 
 	//! @brief Adds/removes the sector from base sectors; returns true if succesful
 	bool AddToBase(bool addToBase);
+
+	//! @brief Returns the corresponding index of the sector
+	const SectorIndex GetSectorIndex() const { return m_sectorIndex; }
 
 	//! @brief Returns the distance (in sectors) to the base
 	int GetDistanceToBase() const { return m_distanceToBase; }
@@ -131,6 +131,9 @@ public:
 
 	//! @brief Returns true if sector shall be considered for selection of construction of further metal extractor
 	bool ShallBeConsideredForExtractorConstruction() const;
+
+	//! @brief Returns true if free metal spot available in sector
+	bool AreFreeMetalSpotsAvailable() const;
 
 	//! @brief Returns a buildsite that has been chosen randomly (the given number of trials) - ZeroVector if none found
 	BuildSite DetermineRandomBuildsite(UnitDefId buildingDefId, int trials) const;
@@ -247,13 +250,8 @@ public:
 	//! @brief Determines rectangle for possible buildsite
 	void DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const;
 
-	// sector x/y index
-	int x, y;
-
 	// list of all metal spots in the sector
 	std::list<AAIMetalSpot*> metalSpots;
-
-	bool m_freeMetalSpots;
 
 	// importance of the sector
 	float importance_this_game;
@@ -268,6 +266,9 @@ private:
 	bool AreFurtherStaticDefencesAllowed() const;
 
 	AAI *ai;
+
+	//! The corresponding index of the sector
+	SectorIndex m_sectorIndex;
 
 	//! Id of the continent of the center of the sector
 	int m_continentId;

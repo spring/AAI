@@ -98,8 +98,10 @@ void AAIScoutedUnitsMap::ResetTiles(int xLosMap, int yLosMap, int frame)
 
 void AAIScoutedUnitsMap::UpdateSectorWithScoutedUnits(AAISector *sector, std::vector<int>& buildingsOnContinent, int currentFrame)
 {
-	const int xStart = (sector->x * AAIMap::xSectorSizeMap) / scoutMapResolution;
-	const int yStart = (sector->y * AAIMap::ySectorSizeMap) / scoutMapResolution;
+	const SectorIndex& index = sector->GetSectorIndex();
+
+	const int xStart = (index.x * AAIMap::xSectorSizeMap) / scoutMapResolution;
+	const int yStart = (index.y * AAIMap::ySectorSizeMap) / scoutMapResolution;
 	int tileIndex = xStart + yStart * m_xScoutMapSize;
 
 	const int xCells = AAIMap::xSectorSizeMap/scoutMapResolution;

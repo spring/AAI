@@ -19,7 +19,7 @@
 #include "LegacyCpp/UnitDef.h"
 
 AAISector::AAISector() :
-	m_freeMetalSpots(false),
+	m_sectorIndex(0, 0),
 	m_distanceToBase(-1),
 	m_lostUnits(),
 	m_ownBuildingsOfCategory(AAIUnitCategory::numberOfUnitCategories, 0),
@@ -42,8 +42,8 @@ void AAISector::Init(AAI *ai, int x, int y)
 	this->ai = ai;
 
 	// set coordinates of the corners
-	this->x = x;
-	this->y = y;
+	m_sectorIndex.x = x;
+	m_sectorIndex.y = y;
 
 	// determine map border distance
 	const int xEdgeDist = std::min(x, AAIMap::xSectors - 1 - x);
@@ -102,9 +102,9 @@ bool AAISector::AddToBase(bool addToBase)
 	if(addToBase)
 	{
 		// check if already occupied (may happen if two coms start in same sector)
-		if(AAIMap::s_teamSectorMap.IsSectorOccupied(x,y))
+		if(AAIMap::s_teamSectorMap.IsSectorOccupied(m_sectorIndex))
 		{
-			ai->Log("\nTeam %i could not add sector %i,%i to base, already occupied by ally team %i!\n\n",ai->GetAICallback()->GetMyAllyTeam(), x, y, AAIMap::s_teamSectorMap.GetTeam(x, y));
+			ai->Log("\nTeam %i could not add sector %i,%i to base, already occupied by ally team %i!\n\n",ai->GetAICallback()->GetMyAllyTeam(), m_sectorIndex.x, m_sectorIndex.y, AAIMap::s_teamSectorMap.GetTeam(m_sectorIndex));
 			return false;
 		}
 
@@ -112,7 +112,7 @@ bool AAISector::AddToBase(bool addToBase)
 
 		importance_this_game = std::min(importance_this_game + 1.0f, AAIConstants::maxSectorImportance);
 
-		AAIMap::s_teamSectorMap.SetSectorAsOccupiedByTeam(x, y, ai->GetMyTeamId());
+		AAIMap::s_teamSectorMap.SetSectorAsOccupiedByTeam(m_sectorIndex, ai->GetMyTeamId());
 
 		return true;
 	}
@@ -120,7 +120,7 @@ bool AAISector::AddToBase(bool addToBase)
 	{
 		m_distanceToBase = 1;
 
-		AAIMap::s_teamSectorMap.SetSectorAsUnoccupied(x, y);
+		AAIMap::s_teamSectorMap.SetSectorAsUnoccupied(m_sectorIndex);
 
 		return true;
 	}
@@ -194,17 +194,16 @@ void AAISector::DecreaseLostUnits()
 void AAISector::AddMetalSpot(AAIMetalSpot *spot)
 {
 	metalSpots.push_back(spot);
-	m_freeMetalSpots = true;
 }
 
-void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, float3 pos)
+void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, float3 position)
 {
-	ai->Map()->ConvertPositionToFinalBuildsite(pos, ai->s_buildTree.GetFootprint(unitDefId));
+	ai->Map()->ConvertPositionToFinalBuildsite(position, ai->s_buildTree.GetFootprint(unitDefId));
 
 	for(auto spot : metalSpots)
 	{
 		// only check occupied spots
-		if(spot->occupied && spot->DoesSpotBelongToPosition(pos))
+		if(spot->occupied && spot->DoesSpotBelongToPosition(position))
 		{
 			spot->extractorUnitId = unitId;
 			spot->extractorDefId  = unitDefId;
@@ -212,41 +211,25 @@ void AAISector::AddExtractor(UnitId unitId, UnitDefId unitDefId, float3 pos)
 	}
 }
 
-void AAISector::FreeMetalSpot(float3 pos, UnitDefId extractorDefId)
+void AAISector::FreeMetalSpot(float3 position, UnitDefId extractorDefId)
 {
-	ai->Map()->ConvertPositionToFinalBuildsite(pos, ai->s_buildTree.GetFootprint(extractorDefId));
+	ai->Map()->ConvertPositionToFinalBuildsite(position, ai->s_buildTree.GetFootprint(extractorDefId));
 
 	// get metalspot according to position
 	for(auto spot : metalSpots)
 	{
 		// only check occupied spots
-		if(spot->occupied && spot->DoesSpotBelongToPosition(pos) )
+		if(spot->occupied && spot->DoesSpotBelongToPosition(position) )
 		{
 			spot->SetUnoccupied();
-
-			m_freeMetalSpots = true;
 			return;
 		}	
 	}
 }
 
-void AAISector::UpdateFreeMetalSpots()
-{
-	m_freeMetalSpots = false;
-
-	for(auto spot = metalSpots.begin(); spot != metalSpots.end(); ++spot)
-	{
-		if((*spot)->occupied == false)
-		{
-			m_freeMetalSpots = true;
-			return;
-		}
-	}
-}
-
 float3 AAISector::GetCenter() const
 {
-	return float3( static_cast<float>(x * AAIMap::xSectorSize +  AAIMap::xSectorSize/2), 0.0f, static_cast<float>(y * AAIMap::ySectorSize + AAIMap::ySectorSize/2));
+	return float3( static_cast<float>(m_sectorIndex.x * AAIMap::xSectorSize +  AAIMap::xSectorSize/2), 0.0f, static_cast<float>(m_sectorIndex.y * AAIMap::ySectorSize + AAIMap::ySectorSize/2));
 }
 
 float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, const GamePhase& gamePhase, float previousGames, float currentGame)
@@ -298,7 +281,7 @@ float AAISector::GetImportanceForStaticDefenceVs(AAITargetType& targetType, cons
 				const MapPos& enemyBaseCenter = ai->Map()->GetCenterOfEnemyBase();
 				const MapPos& baseCenter      = ai->Brain()->GetCenterOfBase();
 
-				MapPos sectorCenter(x * AAIMap::xSectorSizeMap + AAIMap::xSectorSizeMap/2, y * AAIMap::ySectorSizeMap + AAIMap::ySectorSizeMap/2);
+				const MapPos sectorCenter(m_sectorIndex.x * AAIMap::xSectorSizeMap + AAIMap::xSectorSizeMap/2, m_sectorIndex.y * AAIMap::ySectorSizeMap + AAIMap::ySectorSizeMap/2);
 
 				const int distEnemyBase =   (enemyBaseCenter.x - sectorCenter.x)*(enemyBaseCenter.x - sectorCenter.x)
 										  + (enemyBaseCenter.y - sectorCenter.y)*(enemyBaseCenter.y - sectorCenter.y);
@@ -332,8 +315,8 @@ float AAISector::GetAttackRating(const AAISector* currentSector, bool landSector
 
 		if(landCheckPassed || waterCheckPassed)
 		{
-			const float dx = static_cast<float>(x - currentSector->x);
-			const float dy = static_cast<float>(y - currentSector->y);
+			const float dx = static_cast<float>(m_sectorIndex.x - currentSector->m_sectorIndex.x);
+			const float dy = static_cast<float>(m_sectorIndex.y - currentSector->m_sectorIndex.y);
 			const float dist = fastmath::apxsqrt(dx*dx + dy*dy );
 
 			const float enemyBuildings = static_cast<float>(GetNumberOfEnemyBuildings());
@@ -436,7 +419,7 @@ float AAISector::GetRatingForRallyPoint(const AAIMovementType& moveType, int con
 
 float AAISector::GetRatingAsStartSector() const
 {
-	if(AAIMap::s_teamSectorMap.IsSectorOccupied(x, y))
+	if(AAIMap::s_teamSectorMap.IsSectorOccupied(m_sectorIndex))
 		return 0.0f;
 	else
 		return ( static_cast<float>(2 * GetNumberOfMetalSpots() + 1) ) * m_flatTilesRatio * m_flatTilesRatio;
@@ -458,15 +441,25 @@ bool AAISector::IsSectorSuitableForBaseExpansion() const
 {
 	return     (IsOccupiedByEnemies() == false)
 			&& (GetNumberOfAlliedBuildings() < 3)
-			&& (AAIMap::s_teamSectorMap.IsSectorOccupied(x, y) == false);
+			&& (AAIMap::s_teamSectorMap.IsSectorOccupied(m_sectorIndex) == false);
 }
 
 bool AAISector::ShallBeConsideredForExtractorConstruction() const
 {
-	return 	   m_freeMetalSpots 
-			&& (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(x, y, ai->GetMyTeamId()) == false)
+	return 	   (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(m_sectorIndex, ai->GetMyTeamId()) == false)
 			&& (IsOccupiedByEnemies() == false)
 			&& (IsOccupiedByAllies()  == false);	
+}
+
+bool AAISector::AreFreeMetalSpotsAvailable() const
+{
+	for(const auto spot : metalSpots)
+	{
+		if(spot->occupied == false)
+			return true;
+	}
+
+	return false;
 }
 
 BuildSite AAISector::DetermineRandomBuildsite(UnitDefId buildingDefId, int tries) const
@@ -491,23 +484,23 @@ float3 AAISector::DetermineAttackPosition() const
 		return GetCenter();
 	else
 	{
-		const int xStart( x   * AAIMap::xSectorSizeMap);
-		const int xEnd( (x+1) * AAIMap::xSectorSizeMap);
-		const int yStart( y   * AAIMap::ySectorSizeMap);
-		const int yEnd( (y+1) * AAIMap::ySectorSizeMap);
+		const int xStart =  m_sectorIndex.x      * AAIMap::xSectorSizeMap;
+		const int xEnd   = (m_sectorIndex.x + 1) * AAIMap::xSectorSizeMap;
+		const int yStart =  m_sectorIndex.y      * AAIMap::ySectorSizeMap;
+		const int yEnd   = (m_sectorIndex.y + 1) * AAIMap::ySectorSizeMap;
 		return ai->Map()->DeterminePositionOfEnemyBuildingInSector(xStart, xEnd, yStart, yEnd);
 	}
 }
 
 void AAISector::DetermineBuildsiteRectangle(int *xStart, int *xEnd, int *yStart, int *yEnd) const
 {
-	*xStart = x * AAIMap::xSectorSizeMap;
+	*xStart = m_sectorIndex.x * AAIMap::xSectorSizeMap;
 	*xEnd = *xStart + AAIMap::xSectorSizeMap;
 
 	if(*xStart == 0)
 		*xStart = 8;
 
-	*yStart = y * AAIMap::ySectorSizeMap;
+	*yStart = m_sectorIndex.y * AAIMap::ySectorSizeMap;
 	*yEnd = *yStart + AAIMap::ySectorSizeMap;
 
 	if(*yStart == 0)
@@ -568,9 +561,9 @@ float AAISector::DetermineWaterRatio() const
 {
 	int waterCells(0);
 
-	for(int yPos = y * AAIMap::ySectorSizeMap; yPos < (y+1) * AAIMap::ySectorSizeMap; ++yPos)
+	for(int yPos = m_sectorIndex.y * AAIMap::ySectorSizeMap; yPos < (m_sectorIndex.y+1) * AAIMap::ySectorSizeMap; ++yPos)
 	{
-		for(int xPos = x * AAIMap::xSectorSizeMap; xPos < (x+1) * AAIMap::xSectorSizeMap; ++xPos)
+		for(int xPos = m_sectorIndex.x * AAIMap::xSectorSizeMap; xPos < (m_sectorIndex.x+1) * AAIMap::xSectorSizeMap; ++xPos)
 		{
 			if(AAIMap::s_buildmap[xPos + yPos * AAIMap::xMapSize].IsTileTypeSet(EBuildMapTileType::WATER))
 				++waterCells;
@@ -585,7 +578,7 @@ float AAISector::DetermineWaterRatio() const
 float AAISector::DetermineFlatRatio() const
 {
 	// get number of cliffy & flat cells
-	const int cliffyCells = ai->Map()->GetCliffyCells(x * AAIMap::xSectorSizeMap, y * AAIMap::ySectorSizeMap, AAIMap::xSectorSizeMap, AAIMap::ySectorSizeMap);
+	const int cliffyCells = ai->Map()->GetCliffyCells(m_sectorIndex.x * AAIMap::xSectorSizeMap, m_sectorIndex.y * AAIMap::ySectorSizeMap, AAIMap::xSectorSizeMap, AAIMap::ySectorSizeMap);
 	const int totalCells  = ai->Map()->xSectorSizeMap * ai->Map()->ySectorSizeMap;
 	const int flatCells   = totalCells - cliffyCells;
 
@@ -616,10 +609,10 @@ void AAISector::UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerD
 
 bool AAISector::PosInSector(const float3& pos) const
 {
-	if(    (pos.x < static_cast<float>(  x    * AAIMap::xSectorSize)) 
-		|| (pos.x > static_cast<float>( (x+1) * AAIMap::xSectorSize))
-		|| (pos.z < static_cast<float>(  y    * AAIMap::ySectorSize))
-		|| (pos.z > static_cast<float>( (y+1) * AAIMap::ySectorSize)) )
+	if(    (pos.x < static_cast<float>(  m_sectorIndex.x    * AAIMap::xSectorSize)) 
+		|| (pos.x > static_cast<float>( (m_sectorIndex.x+1) * AAIMap::xSectorSize))
+		|| (pos.z < static_cast<float>(  m_sectorIndex.y    * AAIMap::ySectorSize))
+		|| (pos.z > static_cast<float>( (m_sectorIndex.y+1) * AAIMap::ySectorSize)) )
 		return false;
 	else
 		return true;
@@ -630,10 +623,10 @@ bool AAISector::ConnectedToOcean() const
 	if(m_waterTilesRatio < 0.2f)
 		return false;
 
-	const int xStart( x   * AAIMap::xSectorSizeMap);
-	const int xEnd( (x+1) * AAIMap::xSectorSizeMap);
-	const int yStart( y   * AAIMap::ySectorSizeMap);
-	const int yEnd( (y+1) * AAIMap::ySectorSizeMap);
+	const int xStart =  m_sectorIndex.x    * AAIMap::xSectorSizeMap;
+	const int xEnd   = (m_sectorIndex.x+1) * AAIMap::xSectorSizeMap;
+	const int yStart =  m_sectorIndex.y    * AAIMap::ySectorSizeMap;
+	const int yEnd   = (m_sectorIndex.y+1) * AAIMap::ySectorSizeMap;
 
 	return ai->Map()->IsConnectedToOcean(xStart, xEnd, yStart, yEnd);
 }
@@ -653,8 +646,8 @@ float3 AAISector::DetermineUnitMovePos(AAIMovementType moveType, int continentId
 		forbiddenMapTileTypes.SetTileType(EBuildMapTileType::CLIFF);
 	}
 
-	const float xPosStart = static_cast<float>(x * AAIMap::xSectorSize);
-	const float yPosStart = static_cast<float>(y * AAIMap::ySectorSize);
+	const float xPosStart = static_cast<float>(m_sectorIndex.x * AAIMap::xSectorSize);
+	const float yPosStart = static_cast<float>(m_sectorIndex.y * AAIMap::ySectorSize);
 
 	// try to get random spot
 	for(int i = 0; i < 6; ++i)
@@ -707,5 +700,5 @@ bool AAISector::AreFurtherStaticDefencesAllowed() const
 {
 	return 	   (GetNumberOfBuildings(EUnitCategory::STATIC_DEFENCE) < cfg->MAX_DEFENCES) 
 			&& (GetNumberOfAlliedBuildings() < 3)
-			&& (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(x, y, ai->GetMyTeamId()) == false);
+			&& (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(m_sectorIndex, ai->GetMyTeamId()) == false);
 }
