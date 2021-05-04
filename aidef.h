@@ -48,6 +48,9 @@ public:
 	//! Maximum combat power value
 	static constexpr float maxCombatPower = 20.0f;
 
+	//! Small combat power bonus aircraft obtain from killing unarmed buildings (i.e. no static defences)
+	static constexpr float aircraftVsBuildingCombatPowerBonus = 0.02f;
+
 	//! Minimum initial combat power (if unit is allowed to target units of target category)
 	static constexpr float minInitialCombatPower = 1.0f;
 

@@ -615,10 +615,8 @@ void AAI::UnitDestroyed(int unit, int attacker)
 
 			if(defAttacker)
 			{
-				UnitDefId attackerDefId(defAttacker->id);
-
-				if(defAttacker)
-					s_buildTree.UpdateCombatPowerStatistics(attackerDefId, unitDefId);
+				const UnitDefId attackerDefId(defAttacker->id);
+				s_buildTree.UpdateCombatPowerStatistics(attackerDefId, unitDefId);
 
 				const AAIUnitCategory& categoryAttacker = s_buildTree.GetUnitCategory(attackerDefId);
 				if(categoryAttacker.IsCombatUnit())

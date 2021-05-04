@@ -289,8 +289,27 @@ void AAIBuildTree::UpdateCombatPowerStatistics(UnitDefId attackerUnitDefId, Unit
 	{
 		const float combatPowerChange = CalculateCombatPowerChange(attackerUnitDefId, killedUnitDefId);
 
-		m_combatPowerOfUnits[attackerUnitDefId.id].IncreaseCombatPower(GetTargetType(killedUnitDefId), combatPowerChange);
-		m_combatPowerOfUnits[killedUnitDefId.id].DecreaseCombatPower(GetTargetType(attackerUnitDefId), combatPowerChange);
+		if(attackerCategory.IsAirCombat() &&  killedCategory.IsStaticDefence())
+		{
+			m_combatPowerOfUnits[attackerUnitDefId.id].IncreaseCombatPower(GetTargetType(killedUnitDefId), 1.1f * combatPowerChange);
+			m_combatPowerOfUnits[killedUnitDefId.id].DecreaseCombatPower(GetTargetType(attackerUnitDefId), combatPowerChange);
+		}
+		else if(attackerCategory.IsStaticDefence() &&  killedCategory.IsAirCombat())
+		{
+			m_combatPowerOfUnits[attackerUnitDefId.id].IncreaseCombatPower(GetTargetType(killedUnitDefId), 0.9f * combatPowerChange);
+			m_combatPowerOfUnits[killedUnitDefId.id].DecreaseCombatPower(GetTargetType(attackerUnitDefId), combatPowerChange);
+		}
+		else
+		{
+			m_combatPowerOfUnits[attackerUnitDefId.id].IncreaseCombatPower(GetTargetType(killedUnitDefId), combatPowerChange);
+			m_combatPowerOfUnits[killedUnitDefId.id].DecreaseCombatPower(GetTargetType(attackerUnitDefId), combatPowerChange);
+		}
+	}
+	else if(attackerCategory.IsAirCombat() &&  killedCategory.IsBuilding())
+	{
+		// special bonus for aircraft when killing buildings
+		if(m_combatPowerOfUnits[attackerUnitDefId.id].GetValue(ETargetType::STATIC) < 0.75f * AAIConstants::maxCombatPower)
+			m_combatPowerOfUnits[attackerUnitDefId.id].IncreaseCombatPower(ETargetType::STATIC, AAIConstants::aircraftVsBuildingCombatPowerBonus);
 	}
 }
 
