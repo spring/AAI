@@ -1139,7 +1139,7 @@ bool AAIExecute::BuildStaticConstructor()
 	const float sum = combatPowerVsTargetType.CalcuateSum();
 	combatPowerVsTargetType.MultiplyValues(1.0f /  sum);
 
-	for(auto factory : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()) )
+	for(const auto& factory : ai->s_buildTree.GetUnitsInCategory(EUnitCategory::STATIC_CONSTRUCTOR, ai->GetSide()) )
 	{
 		if(ai->BuildTable()->GetDynamicUnitTypeData(factory).requested > 0)
 		{
@@ -1160,10 +1160,10 @@ bool AAIExecute::BuildStaticConstructor()
 	// try to build factories according to their priority
 	//-----------------------------------------------------------------------------------------------------------------
 
-	for(auto requestedFactory : requestedFactories)
+	for(const auto& requestedFactory : requestedFactories)
 	{
 		// find suitable builder
-		AAIConstructor* builder = ai->UnitTable()->FindBuilder(requestedFactory.first, true);
+		const AAIConstructor* builder = ai->UnitTable()->FindBuilder(requestedFactory.first, true);
 	
 		if(builder == nullptr)
 		{
@@ -1178,7 +1178,7 @@ bool AAIExecute::BuildStaticConstructor()
 
 		ai->Brain()->m_sectorsInDistToBase[0].sort(isSeaFactory ? suitable_for_sea_factory : suitable_for_ground_factory);
 
-		for(auto sector : ai->Brain()->m_sectorsInDistToBase[0])
+		for(const auto sector : ai->Brain()->m_sectorsInDistToBase[0])
 		{
 			const BuildSite buildsite = DetermineBuildsiteInSector(requestedFactory.first, sector);
 

@@ -407,32 +407,28 @@ float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId, const Target
 {
 	float moveTypeOfUnitsRating(0.0f);
 	float newConstructionOptionsRating(0.0f);
-	float combatPowerOfUnitsRating(0.0f);
 	int numberOfUnits(0);
-	int numberOfCombatUnits(0);
 	int numberOfRequestedConstructors(0);
 
-	for(auto unitDefId : ai->s_buildTree.GetCanConstructList(factoryDefId))
+	float highestCombatPower(0.0f);
+	float secondHighestCombatPower(0.0f);
+
+	for(const auto& unitDefId : ai->s_buildTree.GetCanConstructList(factoryDefId))
 	{
 		++numberOfUnits;
 
-		const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(unitDefId);
-	
+		float usefulnessOfMoveTypeOnMap(1.0f);
+
+		const AAIMovementType& moveType  = ai->s_buildTree.GetMovementType(unitDefId);
 		if(moveType.IsMobileSea())
-		{
-			moveTypeOfUnitsRating        += AAIMap::s_waterTilesRatio;
-			newConstructionOptionsRating += AAIMap::s_waterTilesRatio;
-		}
+			usefulnessOfMoveTypeOnMap = AAIMap::s_waterTilesRatio;
 		else if(moveType.IsGround())
-		{
-			moveTypeOfUnitsRating        += AAIMap::s_landTilesRatio;
-			newConstructionOptionsRating += AAIMap::s_landTilesRatio;
-		}
-		else
-		{
-			moveTypeOfUnitsRating        += 1.0f;
-			newConstructionOptionsRating += 1.0f;
-		}
+			usefulnessOfMoveTypeOnMap = AAIMap::s_landTilesRatio;
+
+		moveTypeOfUnitsRating += usefulnessOfMoveTypeOnMap;    
+
+		if(units_dynamic[unitDefId.id].constructorsAvailable == 0)
+			newConstructionOptionsRating += usefulnessOfMoveTypeOnMap;
 
 		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
 		if(category.IsMobileConstructor() && units_dynamic[unitDefId.id].requested > 0)
@@ -441,10 +437,17 @@ float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId, const Target
 		if(category.IsCombatUnit())
 		{
 			// combat power normalized to 0 to 1 where 1 is equal to 0.5 * AAIConstants::maxCombatPower
-			const float combatPower = std::max(ai->s_buildTree.GetCombatPower(unitDefId).CalculateWeightedSum(combatPowerVsTargetType), 0.5f * AAIConstants::maxCombatPower) / (0.5f * AAIConstants::maxCombatPower);
+			const float combatPower = std::min(ai->s_buildTree.GetCombatPower(unitDefId).CalculateWeightedSum(combatPowerVsTargetType), 0.5f * AAIConstants::maxCombatPower) / (0.5f * AAIConstants::maxCombatPower);
 
-			combatPowerOfUnitsRating += combatPower*combatPower;
-			++numberOfCombatUnits;
+			if(combatPower > highestCombatPower)
+			{
+				secondHighestCombatPower = highestCombatPower;
+				highestCombatPower = combatPower;
+			}
+			else if (combatPower > secondHighestCombatPower)
+			{
+				secondHighestCombatPower = combatPower;
+			}
 		}
 	}
 
@@ -455,16 +458,13 @@ float AAIBuildTable::DetermineFactoryRating(UnitDefId factoryDefId, const Target
 	}
 	else
 	{
-		moveTypeOfUnitsRating = 0.0f;
+		moveTypeOfUnitsRating        = 0.0f;
 		newConstructionOptionsRating = 0.0f;
 	}
 
-	if(numberOfCombatUnits > 0)
-		combatPowerOfUnitsRating /= static_cast<float>(numberOfCombatUnits);
-	else
-		combatPowerOfUnitsRating = 0.0f;
+	const float combatPowerOfUnitsRating = highestCombatPower + secondHighestCombatPower;
 
-	//ai->Log("%s: %f %f %f %i\n", ai->s_buildTree.GetUnitTypeProperties(factoryDefId).m_name.c_str(), moveTypeOfUnitsRating, newConstructionOptionsRating, 0.2f * combatPowerOfUnitsRating, numberOfRequestedConstructors);
+	//ai->Log("%s: %f %f %f %i\n", ai->s_buildTree.GetUnitTypeProperties(factoryDefId).m_name.c_str(), moveTypeOfUnitsRating, newConstructionOptionsRating, combatPowerOfUnitsRating, numberOfRequestedConstructors);
 
 	return ( moveTypeOfUnitsRating + newConstructionOptionsRating + combatPowerOfUnitsRating + 0.25f * static_cast<float>(numberOfRequestedConstructors) );
 }

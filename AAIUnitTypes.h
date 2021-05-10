@@ -223,7 +223,7 @@ public:
 	const std::string& GetName() const { return m_targetTypeNames[GetArrayIndex()]; }
 
 	static const std::vector<std::string> m_targetTypeNames;
-	//const static std::vector<std::string> m_targetTypeNames = {"surface", "air", "floater", "submerged"};
+	//const static std::vector<std::string> m_targetTypeNames = {"surface", "air", "floater", "submerged", "static"};
 private:
 	ETargetType m_targetType;
 };

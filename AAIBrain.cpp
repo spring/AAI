@@ -535,8 +535,6 @@ TargetTypeValues AAIBrain::DetermineCombatPowerVsTargetType() const
 	// Calculate urgency to counter each target category (attack pressure by this target vs. defence power agaibnst this target type)
 	//-----------------------------------------------------------------------------------------------------------------
 
-	//ai->Log("Threat/defence by target type:\n");
-
 	TargetTypeValues threatByTargetType;
 	float highestThreat(0.0f);
 	ETargetType typeHighestThreat;
@@ -555,12 +553,7 @@ TargetTypeValues AAIBrain::DetermineCombatPowerVsTargetType() const
 			highestThreat     = threat;
 			typeHighestThreat = targetType;
 		}
-
-		//ai->Log("%s: %f, %f / %f -> %f   ", AAITargetType(targetType).GetName().c_str(), attackedByCatStatistics.GetDeviationFromZero( attackedByCategory.GetValueOfTargetType(targetType) ), 
-		//			unitsSpottedStatistics.GetDeviationFromZero( m_maxSpottedCombatUnitsOfTargetType.GetValueOfTargetType(targetType) ),
-		//			defenceStatistics.GetDeviationFromMax(m_totalMobileCombatPower.GetValueOfTargetType(targetType)), threat );
 	}
-	//ai->Log("\n");
 
 	//-----------------------------------------------------------------------------------------------------------------
 	// set combat power vs less important target types to zero depending on target type that is currently perceived as highest threat
@@ -594,6 +587,10 @@ TargetTypeValues AAIBrain::DetermineCombatPowerVsTargetType() const
 	// weight importance of combat power vs static units (i.e. enemy defences) based on current pressure
 	const float combatPowerVsStatic = (combatPowerVsTargetType.GetValue(ETargetType::SURFACE) + combatPowerVsTargetType.GetValue(ETargetType::FLOATER)) * 1.25f * (1.0f - m_estimatedPressureByEnemies);
 	combatPowerVsTargetType.SetValue(ETargetType::STATIC, combatPowerVsStatic);
+
+	//for(const auto& targetType : AAITargetType::m_targetTypes)
+	//	ai->Log("%s: -> %f   ", AAITargetType(targetType).GetName().c_str(), combatPowerVsTargetType.GetValue(targetType) );
+	//ai->Log("\n");
 
 	return combatPowerVsTargetType;
 }
@@ -815,18 +812,36 @@ bool AAIBrain::SufficientResourcesToAssistsConstructionOf(UnitDefId defId) const
 
 float AAIBrain::DetermineConstructionUrgencyOfFactory(UnitDefId factoryDefId, const TargetTypeValues& combatPowerVsTargetType) const
 {
-	const StatisticalData& costs  = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
-
-	float rating =    ai->BuildTable()->DetermineFactoryRating(factoryDefId, combatPowerVsTargetType)
-					+ costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(factoryDefId) );
-					+ 2.0f / static_cast<float>(ai->BuildTable()->GetDynamicUnitTypeData(factoryDefId).active + 1);
-
 	const AAIMovementType& moveType = ai->s_buildTree.GetMovementType(factoryDefId);
 
+	float terrainModifier(1.0f);
+
 	if(moveType.IsSea())
-		rating *= (0.3f + 0.35f * (AAIMap::s_waterTilesRatio + m_baseWaterRatio) );
+	{
+		terrainModifier = (0.3f + 0.35f * (AAIMap::s_waterTilesRatio + m_baseWaterRatio) );
+	}
 	else if(moveType.IsGround() || moveType.IsStaticLand())
-		rating *= (0.3f + 0.35f * (AAIMap::s_landTilesRatio  + m_baseFlatLandRatio) );
+	{
+		terrainModifier = (0.3f + 0.35f * (AAIMap::s_landTilesRatio  + m_baseFlatLandRatio) );
+	}
+
+	// income factor ranges from 2.0 (no metal income) to 0.5 (high metal income)
+	const float metalIncome = m_metalIncome.GetAverageValue();
+	const float costFactor  = 1.5f / (0.01f * metalIncome*metalIncome + 1.0f) + 0.5f;
+
+	// cost rating between 0 (most expensive factory) and -> cost factor (for cheap factories)
+	const StatisticalData& costs = ai->s_buildTree.GetUnitStatistics(ai->GetSide()).GetUnitCostStatistics(EUnitCategory::STATIC_CONSTRUCTOR);
+	const float costRating       = costFactor * costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(factoryDefId) );
+
+	// between 2 (no active factories of that type) and -> 0 (many active factories of that type)
+	const float numberOfExistingFactoriesRating = 2.0f / static_cast<float>(ai->BuildTable()->GetDynamicUnitTypeData(factoryDefId).active + 1);
+
+	const float rating = terrainModifier * (ai->BuildTable()->DetermineFactoryRating(factoryDefId, combatPowerVsTargetType) + costRating + numberOfExistingFactoriesRating);
+
+	/*ai->Log("%s: Factory Rating: %f   Cost rating: %f    Map modifier: %f    Final rating: %f \n", 	ai->s_buildTree.GetUnitTypeProperties(factoryDefId).m_name.c_str(),
+																									ai->BuildTable()->DetermineFactoryRating(factoryDefId, combatPowerVsTargetType), 
+																									costs.GetDeviationFromMax( ai->s_buildTree.GetTotalCost(factoryDefId) ),
+																									modifier, rating);*/
 
 	return rating;
 }
