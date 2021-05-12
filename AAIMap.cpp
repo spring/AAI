@@ -1623,7 +1623,9 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 	{
 		// get unit def & category
 		const springLegacyAI::UnitDef* def = ai->GetAICallback()->GetUnitDef(m_unitsInLOS[i]);
-		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(UnitDefId(def->id));
+		const UnitDefId unitDefId(def->id);
+
+		const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
 
 		if( category.IsBuilding() || category.IsCombatUnit() )
 		{
@@ -1631,8 +1633,15 @@ void AAIMap::UpdateFriendlyUnitsInLos()
 
 			if(sector)
 			{
-				const bool unitBelongsToAlly( ai->GetAICallback()->GetUnitTeam(m_unitsInLOS[i]) != ai->GetMyTeamId() );
-				sector->AddFriendlyUnitData(UnitDefId(def->id), unitBelongsToAlly);
+				if(category.IsBuilding() && (ai->GetAICallback()->GetUnitTeam(m_unitsInLOS[i]) != ai->GetMyTeamId()))
+				{
+					++sector->m_alliedBuildings;
+				}
+
+				if(category.IsCombatUnit() || category.IsStaticDefence())
+				{
+					sector->AddFriendlyCombatPower( ai->s_buildTree.GetCombatPower(unitDefId) );
+				}	
 			}
 		}
 	}

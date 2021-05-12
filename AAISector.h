@@ -101,9 +101,6 @@ public:
 	//! @brief Resets the own combat power / number of allied buildings
 	void ResetLocalCombatPower();
 
-	//! @brief Adds an allied bulding to corresponding counter, adds combat power of any friendly units or static defences to respective combat power
-	void AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly);
-
 	//! @brief Resets the number / combat power of spotted enemy units
 	void ResetScoutedEnemiesData();
 
@@ -115,9 +112,6 @@ public:
 
 	//! @brief Returns whether sector is supsected to be occupied by enemy units (according to scouting or sensor)
 	bool IsOccupiedByEnemies() const{ return (GetTotalEnemyCombatUnits() > 0.1f) || (m_enemyBuildings > 0) || (m_enemyUnitsDetectedBySensor > 0); }
-
-	//! @brief Returns whether sector is occupied by allied team (contains allied buildings)
-	bool IsOccupiedByAllies() const { return (GetNumberOfAlliedBuildings() > 1); }
 
 	//! @brief Returns number of enemy units of given target type spotted in this sector (float as number decreases over time if sector is not scouted)
 	float GetNumberOfEnemyCombatUnits(const AAITargetType& targetType) const  { return m_enemyCombatUnits.GetValue(targetType); };
@@ -167,6 +161,9 @@ public:
 
 	//! @brief Returns cmbat power of own/allied static defences against given target type
 	float GetFriendlyCombatPower(const AAITargetType& targetType) const { return m_friendlyStaticCombatPower.GetValueOfTargetType(targetType) + m_friendlyMobileCombatPower.GetValueOfTargetType(targetType); }
+
+	//! @brief Adds given values to friendly combat power in this sector
+	void AddFriendlyCombatPower(const TargetTypeValues& combatPower) { m_friendlyMobileCombatPower.AddCombatPower(combatPower); }
 
 	//! @brief Updates threat map storing where own buildings/units got killed
 	void UpdateThreatValues(UnitDefId destroyedDefId, UnitDefId attackerDefId);

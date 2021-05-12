@@ -141,24 +141,6 @@ void AAISector::ResetScoutedEnemiesData()
 	m_enemyMobileCombatPower.Reset();
 };
 
-void AAISector::AddFriendlyUnitData(UnitDefId unitDefId, bool unitBelongsToAlly)
-{
-	const AAIUnitCategory& category = ai->s_buildTree.GetUnitCategory(unitDefId);
-
-	// add building to sector (and update stat_combat_power if it's a stat defence)
-	if(category.IsBuilding())
-	{
-		if(unitBelongsToAlly)
-			++m_alliedBuildings;
-
-		if(category.IsStaticDefence())
-			m_friendlyStaticCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(unitDefId) );
-
-		if(category.IsCombatUnit())
-			m_friendlyMobileCombatPower.AddCombatPower( ai->s_buildTree.GetCombatPower(unitDefId) );
-	}
-}
-
 void AAISector::AddScoutedEnemyUnit(UnitDefId enemyDefId, int framesSinceLastUpdate)
 {
 	const AAIUnitCategory& categoryOfEnemyUnit = ai->s_buildTree.GetUnitCategory(enemyDefId);
@@ -439,16 +421,22 @@ float AAISector::GetRatingForPowerPlant(float weightPreviousGames, float weightC
 
 bool AAISector::IsSectorSuitableForBaseExpansion() const
 {
+	const bool consideredToBeSafe = (m_lostUnits.CalculateSum() < 1.0f) || m_friendlyMobileCombatPower.CalculateSum() > 2.0f;
+
 	return     (IsOccupiedByEnemies() == false)
 			&& (GetNumberOfAlliedBuildings() < 3)
-			&& (AAIMap::s_teamSectorMap.IsSectorOccupied(m_sectorIndex) == false);
+			&& (AAIMap::s_teamSectorMap.IsSectorOccupied(m_sectorIndex) == false)
+			&& consideredToBeSafe;
 }
 
 bool AAISector::ShallBeConsideredForExtractorConstruction() const
 {
+	const bool consideredToBeSafe = (m_distanceToBase == 0) || (m_lostUnits.CalculateSum() < 1.0f) || m_friendlyMobileCombatPower.CalculateSum() > 2.0f;
+
 	return 	   (AAIMap::s_teamSectorMap.IsOccupiedByOtherTeam(m_sectorIndex, ai->GetMyTeamId()) == false)
 			&& (IsOccupiedByEnemies() == false)
-			&& (IsOccupiedByAllies()  == false);	
+			&& (GetNumberOfAlliedBuildings() <= 0)
+			&& consideredToBeSafe;	
 }
 
 bool AAISector::AreFreeMetalSpotsAvailable() const
